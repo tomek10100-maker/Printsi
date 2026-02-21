@@ -1,0 +1,47 @@
+# ========================
+# Node / NPM
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ========================
+# Next.js
+# ========================
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# ========================
+# Environment Variables (SECRETS - never commit these!)
+# ========================
+.env
+.env.local
+.env.*.local
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# ========================
+# Database / Docker data (large & machine-specific)
+# ========================
+postgres_data/
+
+# ========================
+# OS Files
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# TypeScript
+# ========================
+*.tsbuildinfo
+frontend/next-env.d.ts
+
+# ========================
+# Misc
+# ========================
+*.pem
+.vercel

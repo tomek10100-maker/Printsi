@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # Database Service (PostgreSQL)
+  db:
+    image: postgres:15-alpine # Using Alpine version to save disk space
+    container_name: printsi_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123 # Change this for production!
+      POSTGRES_DB: printsi_db
+    ports:
+      - "5432:5432" # Maps container port to local machine port
+    volumes:
+      # Persist data locally so it isn't lost when container stops
+      - ./postgres_data:/var/lib/postgresql/data
+      # Automatically run the init.sql script on first start
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
