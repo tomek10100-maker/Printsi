@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     const orderItemsToInsert = items.map((item: any) => ({
       order_id: newOrder.id,
       offer_id: item.id,
-      seller_id: item.user_id,
+      seller_id: item.seller_id, // FIX: was item.user_id (undefined!)
       quantity: item.quantity,
       price_at_purchase: item.price,
     }));
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       throw new Error(`Failed to create order items: ${itemsError.message}`);
     }
 
-    // 6. Decrement stock for each item
+    // 6. Decrement stock & notify each seller
     for (const item of items) {
       const { error: stockError } = await supabase.rpc('decrement_stock', {
         row_id: item.id,
@@ -95,6 +95,26 @@ export async function POST(req: Request) {
         console.error(`❌ Stock update failed for offer ${item.id}:`, stockError);
       } else {
         console.log(`✅ Stock updated for offer: ${item.id}`);
+      }
+
+      // Notify the seller
+      if (item.seller_id) {
+        const earned = item.price * item.quantity;
+        const { error: notifError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: item.seller_id, // FIX: was item.user_id
+            title: '🎉 You made a sale!',
+            message: `Your product "${item.title}" (x${item.quantity}) was purchased for ${earned.toFixed(2)} EUR. Funds added to your Printsi balance.`,
+            type: 'sale',
+            is_read: false,
+          });
+
+        if (notifError) {
+          console.error(`❌ Notification error for seller ${item.seller_id}:`, notifError);
+        } else {
+          console.log(`✅ Notification sent to seller: ${item.seller_id}`);
+        }
       }
     }
 

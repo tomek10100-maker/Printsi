@@ -1,35 +1,42 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-// Inicjalizacja Stripe z Twoim kluczem tajnym
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16' as any,
 });
 
 export async function POST(req: Request) {
   try {
-    const { items, email, selectedCurrency, exchangeRate, userId } = await req.json();
+    const {
+      items,
+      email,
+      selectedCurrency,
+      exchangeRate,
+      userId,
+      shippingCostEur,
+      shippingLabel,
+      shipping,
+    } = await req.json();
 
-    // Walidacja koszyka
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
     }
 
-    // 1. Mapowanie przedmiotów z koszyka na format Stripe
-    const line_items = items.map((item: any) => {
-      // Obliczamy cenę w wybranej walucie i zamieniamy na grosze/centy (Stripe wymaga integer)
-      const unitAmount = Math.round(item.price * exchangeRate * 100);
+    const currency = (selectedCurrency || 'eur').toLowerCase();
 
+    // 1. Map cart items to Stripe line items
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item: any) => {
+      const unitAmount = Math.round(item.price * exchangeRate * 100);
       return {
         price_data: {
-          currency: (selectedCurrency || 'eur').toLowerCase(),
+          currency,
           product_data: {
             name: item.title,
             images: item.image_url ? [item.image_url] : [],
             metadata: {
               offer_id: item.id,
-              seller_id: item.user_id // Przechowujemy ID sprzedawcy dla Webhooka
-            }
+              seller_id: item.seller_id, // FIX: use seller_id not user_id
+            },
           },
           unit_amount: unitAmount,
         },
@@ -37,27 +44,40 @@ export async function POST(req: Request) {
       };
     });
 
-    // 2. Przygotowanie uproszczonych danych przedmiotów do metadata
-    // Stripe ma limit 500 znaków na pole w metadata, więc wysyłamy tylko niezbędne ID
+    // 2. Add DHL shipping as a separate line item
+    if (shippingCostEur && shippingCostEur > 0) {
+      const shippingAmount = Math.round(shippingCostEur * exchangeRate * 100);
+      line_items.push({
+        price_data: {
+          currency,
+          product_data: {
+            name: shippingLabel || 'DHL Shipping',
+            description: 'Door-to-door delivery via DHL Parcel Connect',
+          },
+          unit_amount: shippingAmount,
+        },
+        quantity: 1,
+      });
+    }
+
+    // 3. Simplified items metadata (for webhook reference)
     const simplifiedItems = items.map((i: any) => ({
       id: i.id,
-      user_id: i.user_id,
+      seller_id: i.seller_id,
       quantity: i.quantity,
-      price: i.price // Cena bazowa w EUR
+      price: i.price,
     }));
 
-    // 3. Tworzenie sesji Stripe Checkout
+    // 4. Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card', 'blik', 'p24'],
       customer_email: email,
-      line_items: line_items,
-      // METADATA - To dzięki temu Webhook wie, co zapisać w bazie po płatności
+      line_items,
       metadata: {
         userId: userId,
-        items: JSON.stringify(simplifiedItems).substring(0, 500) // Zabezpieczenie limitu znaków
+        items: JSON.stringify(simplifiedItems).substring(0, 500),
       },
-      // Adresy powrotne (upewnij się, że NEXT_PUBLIC_APP_URL jest w .env)
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/cart`,
     });

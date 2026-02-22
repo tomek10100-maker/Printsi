@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { CartProvider } from '../context/CartContext'; 
-// 1. IMPORTUJEMY CONTEXT WALUTOWY
-import { CurrencyProvider } from '../context/CurrencyContext'; 
+import { CartProvider } from '../context/CartContext';
+import { CurrencyProvider } from '../context/CurrencyContext';
+import NotificationToast from './components/NotificationToast';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,9 +21,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <CartProvider>
-          {/* 2. DODAJEMY PROVIDER TUTAJ */}
           <CurrencyProvider>
             {children}
+            {/* Global real-time notification toasts */}
+            <NotificationToast />
           </CurrencyProvider>
         </CartProvider>
       </body>
