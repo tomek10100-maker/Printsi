@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { 
+import {
   User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -101,22 +101,30 @@ export default function SettingsPage() {
   };
 
   const toggleRole = (role: string) => {
-    if (roles.includes(role)) {
-      setRoles(roles.filter(r => r !== role));
+    let newRoles = [...roles];
+
+    if (role === 'business') {
+      newRoles = newRoles.filter(r => r !== 'hobbyist');
+    } else if (role === 'hobbyist') {
+      newRoles = newRoles.filter(r => r !== 'business');
+    }
+
+    if (newRoles.includes(role)) {
+      setRoles(newRoles.filter(r => r !== role));
     } else {
-      setRoles([...roles, role]);
+      setRoles([...newRoles, role]);
     }
   };
 
   const handleCurrencyChange = async (newCode: string) => {
-    setCurrency(newCode as any); 
+    setCurrency(newCode as any);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-800">Loading settings...</div>;
 
   return (
     <main className="min-h-screen bg-gray-50 flex font-sans text-gray-900 relative">
-      
+
       {/* MOBILE MENU TOGGLE */}
       <div className="md:hidden absolute top-4 left-4 z-50">
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 bg-white rounded-lg shadow-md border border-gray-200">
@@ -134,9 +142,9 @@ export default function SettingsPage() {
             <LayoutGrid className="text-blue-600" /> Settings
           </h1>
         </div>
-        
+
         <nav className="p-6 space-y-2 flex-1">
-          <button 
+          <button
             onClick={() => router.push('/profile')}
             className="w-full flex items-center gap-3 px-5 py-4 mb-8 bg-blue-50 text-blue-600 rounded-2xl font-black border border-blue-100 hover:bg-blue-100 transition-all shadow-sm"
           >
@@ -144,21 +152,21 @@ export default function SettingsPage() {
           </button>
 
           <div className="text-xs font-black text-gray-400 uppercase tracking-widest px-4 mb-3">Account</div>
-          <SidebarItem icon={<User size={18}/>} label="General Profile" id="general" active={activeTab} set={(id: string) => { setActiveTab(id); setMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Shield size={18}/>} label="Roles & Permissions" id="roles" active={activeTab} set={(id: string) => { setActiveTab(id); setMobileMenuOpen(false); }} />
-          <SidebarItem icon={<Globe size={18}/>} label="Preferences" id="preferences" active={activeTab} set={(id: string) => { setActiveTab(id); setMobileMenuOpen(false); }} />
+          <SidebarItem icon={<User size={18} />} label="General Profile" id="general" active={activeTab} set={(id: string) => { setActiveTab(id); setMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Shield size={18} />} label="Roles & Permissions" id="roles" active={activeTab} set={(id: string) => { setActiveTab(id); setMobileMenuOpen(false); }} />
+          <SidebarItem icon={<Globe size={18} />} label="Preferences" id="preferences" active={activeTab} set={(id: string) => { setActiveTab(id); setMobileMenuOpen(false); }} />
         </nav>
 
         <div className="p-6 border-t border-gray-100">
-           <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="flex items-center gap-3 px-5 py-4 text-red-600 hover:bg-red-50 rounded-2xl w-full font-bold transition-colors uppercase text-sm tracking-wide">
-             <LogOut size={18} /> Sign Out
-           </button>
+          <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="flex items-center gap-3 px-5 py-4 text-red-600 hover:bg-red-50 rounded-2xl w-full font-bold transition-colors uppercase text-sm tracking-wide">
+            <LogOut size={18} /> Sign Out
+          </button>
         </div>
       </aside>
 
       {/* MAIN CONTENT */}
       <div className="flex-1 p-8 md:p-16 overflow-y-auto w-full">
-        
+
         {/* TAB: GENERAL */}
         {activeTab === 'general' && (
           <div className="max-w-3xl space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -170,12 +178,12 @@ export default function SettingsPage() {
             <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm space-y-8">
               <div className="flex items-center gap-8 border-b border-gray-100 pb-8">
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 font-black text-3xl overflow-hidden">
-                   {user.email[0].toUpperCase()}
+                  {user.email[0].toUpperCase()}
                 </div>
                 <div>
-                   <h3 className="font-bold text-gray-900 text-lg">Profile Picture</h3>
-                   <p className="text-sm text-gray-400 mb-3">We use Gravatar or upload your own.</p>
-                   <button className="px-5 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-blue-600 transition-colors">Change Avatar</button>
+                  <h3 className="font-bold text-gray-900 text-lg">Profile Picture</h3>
+                  <p className="text-sm text-gray-400 mb-3">We use Gravatar or upload your own.</p>
+                  <button className="px-5 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-blue-600 transition-colors">Change Avatar</button>
                 </div>
               </div>
 
@@ -204,7 +212,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
-            
+
             <ActionButtons onSave={handleSaveProfile} saving={saving} />
           </div>
         )}
@@ -212,23 +220,25 @@ export default function SettingsPage() {
         {/* TAB: ROLES */}
         {activeTab === 'roles' && (
           <div className="max-w-3xl space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <div>
+            <div>
               <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tight">Roles & Permissions</h2>
               <p className="text-gray-500 font-medium mt-2">Select how you want to interact with the marketplace.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <RoleCard title="Customer" desc="I want to buy products." active={roles.includes('customer')} onClick={() => toggleRole('customer')} />
               <RoleCard title="CAD Designer" desc="I want to sell models." active={roles.includes('designer')} onClick={() => toggleRole('designer')} />
               <RoleCard title="3D Printer" desc="I want to offer printing services." active={roles.includes('printer')} onClick={() => toggleRole('printer')} />
+              <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />
+              <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
             </div>
 
-             <div className="bg-red-50 p-8 rounded-3xl border border-red-100 space-y-4 mt-8">
-                <h3 className="font-black text-red-800 flex items-center gap-2 uppercase text-sm tracking-widest"><Trash2 size={18}/> Danger Zone</h3>
-                <p className="text-red-600/80 text-sm font-medium">Once you delete your account, there is no going back. Please be certain.</p>
-                <button onClick={() => alert("Contact support.")} className="px-6 py-3 bg-white border border-red-200 text-red-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm">
-                  Delete Account
-                </button>
+            <div className="bg-red-50 p-8 rounded-3xl border border-red-100 space-y-4 mt-8">
+              <h3 className="font-black text-red-800 flex items-center gap-2 uppercase text-sm tracking-widest"><Trash2 size={18} /> Danger Zone</h3>
+              <p className="text-red-600/80 text-sm font-medium">Once you delete your account, there is no going back. Please be certain.</p>
+              <button onClick={() => alert("Contact support.")} className="px-6 py-3 bg-white border border-red-200 text-red-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm">
+                Delete Account
+              </button>
             </div>
 
             <ActionButtons onSave={handleSaveProfile} saving={saving} />
@@ -245,41 +255,41 @@ export default function SettingsPage() {
 
             <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm space-y-8">
               <div>
-                  <h3 className="font-black text-xl text-gray-900 mb-6 flex items-center gap-3 uppercase">
-                    <Globe className="text-blue-600" size={24} /> Currency
-                  </h3>
-                  <p className="text-gray-500 text-sm mb-8 leading-relaxed max-w-lg">
-                    Choose your preferred currency. Prices across the store will be automatically converted from EUR based on real-time exchange rates.
-                  </p>
-                  
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Display Currency</label>
-                  <div className="relative max-w-sm">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600">
-                        <Coins size={20} />
-                    </div>
-                    <select 
-                      value={currency}
-                      onChange={(e) => handleCurrencyChange(e.target.value)}
-                      className="w-full p-4 pl-12 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all appearance-none cursor-pointer text-gray-900"
-                    >
-                      {CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 font-bold text-xs">▼</div>
+                <h3 className="font-black text-xl text-gray-900 mb-6 flex items-center gap-3 uppercase">
+                  <Globe className="text-blue-600" size={24} /> Currency
+                </h3>
+                <p className="text-gray-500 text-sm mb-8 leading-relaxed max-w-lg">
+                  Choose your preferred currency. Prices across the store will be automatically converted from EUR based on real-time exchange rates.
+                </p>
+
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Display Currency</label>
+                <div className="relative max-w-sm">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600">
+                    <Coins size={20} />
                   </div>
+                  <select
+                    value={currency}
+                    onChange={(e) => handleCurrencyChange(e.target.value)}
+                    className="w-full p-4 pl-12 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all appearance-none cursor-pointer text-gray-900"
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 font-bold text-xs">▼</div>
+                </div>
               </div>
             </div>
 
             <div className="pt-8 border-t border-gray-200 flex justify-end">
-               <button 
-                 onClick={() => alert(`Currency changed to ${currency} and saved!`)}
-                 className="px-10 py-4 bg-blue-600 text-white rounded-xl font-black shadow-xl hover:bg-blue-700 hover:shadow-2xl transition-all flex items-center gap-2 uppercase text-xs tracking-widest"
-               >
-                 Save Preferences
-               </button>
+              <button
+                onClick={() => alert(`Currency changed to ${currency} and saved!`)}
+                className="px-10 py-4 bg-blue-600 text-white rounded-xl font-black shadow-xl hover:bg-blue-700 hover:shadow-2xl transition-all flex items-center gap-2 uppercase text-xs tracking-widest"
+              >
+                Save Preferences
+              </button>
             </div>
           </div>
         )}
@@ -292,13 +302,12 @@ export default function SettingsPage() {
 function SidebarItem({ icon, label, id, active, set }: any) {
   const isActive = active === id;
   return (
-    <button 
+    <button
       onClick={() => set(id)}
-      className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all duration-200 ${
-        isActive 
-          ? 'bg-gray-900 text-white shadow-lg transform scale-105' 
+      className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all duration-200 ${isActive
+          ? 'bg-gray-900 text-white shadow-lg transform scale-105'
           : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-      }`}
+        }`}
     >
       {icon} <span className="text-sm">{label}</span>
       {isActive && <ChevronRight className="ml-auto opacity-100 text-white" size={16} strokeWidth={3} />}
@@ -308,17 +317,16 @@ function SidebarItem({ icon, label, id, active, set }: any) {
 
 function RoleCard({ title, desc, active, onClick }: any) {
   return (
-    <div 
+    <div
       onClick={onClick}
-      className={`p-6 rounded-3xl border-2 cursor-pointer transition-all hover:scale-[1.02] ${
-        active 
-          ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600' 
+      className={`p-6 rounded-3xl border-2 cursor-pointer transition-all hover:scale-[1.02] ${active
+          ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600'
           : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-lg'
-      }`}
+        }`}
     >
       <h3 className={`font-black text-lg ${active ? 'text-blue-900' : 'text-gray-900'}`}>{title}</h3>
       <p className="text-xs text-gray-500 mt-3 leading-relaxed font-bold">{desc}</p>
-      {active && <div className="mt-4 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-blue-600"><Check size={14} strokeWidth={4}/> Selected</div>}
+      {active && <div className="mt-4 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-blue-600"><Check size={14} strokeWidth={4} /> Selected</div>}
     </div>
   );
 }
@@ -326,8 +334,8 @@ function RoleCard({ title, desc, active, onClick }: any) {
 function ActionButtons({ onSave, saving }: any) {
   return (
     <div className="pt-8 border-t border-gray-200 flex justify-end">
-      <button 
-        onClick={onSave} 
+      <button
+        onClick={onSave}
         disabled={saving}
         className="px-10 py-4 bg-blue-600 text-white rounded-xl font-black shadow-xl hover:bg-blue-700 hover:shadow-2xl transition-all flex items-center gap-2 transform active:scale-95 uppercase text-xs tracking-widest"
       >

@@ -4,11 +4,11 @@ import { useEffect, useState, Suspense, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { 
-  Loader2, Search, ShoppingBag, X, 
-  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap 
+import {
+  Loader2, Search, ShoppingBag, X,
+  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap
 } from 'lucide-react';
-import { useCart } from '../../context/CartContext'; 
+import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 
 const supabase = createClient(
@@ -25,14 +25,14 @@ type Offer = {
   image_urls: string[];
   created_at: string;
   stock: number;
-  user_id: string; 
+  user_id: string;
 };
 
 function MarketplaceContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialCategory = searchParams.get('category') || 'physical';
-  const { addItem } = useCart(); 
+  const { addItem } = useCart();
   const { formatPrice } = useCurrency();
 
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -40,11 +40,12 @@ function MarketplaceContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(initialCategory);
   const [sortBy, setSortBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
-  
-  const [currentUser, setCurrentUser] = useState<any>(null); 
+
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState<Offer | null>(null);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const fetchOffers = useCallback(async () => {
     const { data, error } = await supabase.from('offers').select('*');
@@ -66,12 +67,17 @@ function MarketplaceContent() {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
-      
+
       await fetchOffers();
 
       if (user) {
         const { data: favs } = await supabase.from('favorites').select('offer_id').eq('user_id', user.id);
         if (favs) setSavedIds(favs.map(f => f.offer_id));
+
+        const { data: profile } = await supabase.from('profiles').select('roles').eq('id', user.id).single();
+        if (profile && profile.roles) {
+          setUserRoles(profile.roles);
+        }
       }
       setLoading(false);
     };
@@ -85,16 +91,16 @@ function MarketplaceContent() {
         { event: '*', schema: 'public', table: 'offers' },
         (payload) => {
           if (payload.eventType === 'UPDATE') {
-             const updatedOffer = payload.new as Offer;
-             setOffers((prev) => prev.map((item) => 
-               item.id === updatedOffer.id ? { ...item, ...updatedOffer } : item
-             ));
-          } 
+            const updatedOffer = payload.new as Offer;
+            setOffers((prev) => prev.map((item) =>
+              item.id === updatedOffer.id ? { ...item, ...updatedOffer } : item
+            ));
+          }
           else if (payload.eventType === 'INSERT') {
-             setOffers((prev) => [payload.new as Offer, ...prev]);
-          } 
+            setOffers((prev) => [payload.new as Offer, ...prev]);
+          }
           else if (payload.eventType === 'DELETE') {
-             setOffers((prev) => prev.filter((item) => item.id !== payload.old.id));
+            setOffers((prev) => prev.filter((item) => item.id !== payload.old.id));
           }
         }
       )
@@ -106,14 +112,14 @@ function MarketplaceContent() {
   }, [fetchOffers]);
 
   const handleAddToCart = (offer: Offer) => {
-    if (offer.stock <= 0) return; 
+    if (offer.stock <= 0) return;
     addItem({
       id: offer.id,
       title: offer.title,
       price: offer.price,
       image_url: offer.image_urls?.[0] || null,
       seller_id: offer.user_id,
-      stock: offer.stock 
+      stock: offer.stock
     });
     setLastAddedItem(offer);
     setShowModal(true);
@@ -121,14 +127,14 @@ function MarketplaceContent() {
 
   const handleBuyNow = (offer: Offer) => {
     if (offer.stock <= 0) return;
-    
+
     addItem({
       id: offer.id,
       title: offer.title,
       price: offer.price,
       image_url: offer.image_urls?.[0] || null,
       seller_id: offer.user_id,
-      stock: offer.stock 
+      stock: offer.stock
     });
 
     router.push('/cart');
@@ -136,7 +142,7 @@ function MarketplaceContent() {
 
   const toggleFavorite = async (offerId: string) => {
     if (!currentUser) return router.push('/login');
-    
+
     const isSaved = savedIds.includes(offerId);
 
     if (isSaved) {
@@ -205,22 +211,28 @@ function MarketplaceContent() {
 
       <div className="px-6 py-8 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex p-1 bg-gray-100 rounded-full shadow-inner">
-          {['physical', 'digital', 'job'].map((cat) => (
-             <button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-6 py-3 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${categoryFilter === cat ? (cat === 'digital' ? 'bg-white text-purple-600 shadow-md' : cat === 'job' ? 'bg-white text-orange-600 shadow-md' : 'bg-white text-blue-600 shadow-md') : 'text-gray-400 hover:text-gray-600 text-center'}`}>
-               {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : 'Physical Items'}
-             </button>
-          ))}
+          {['physical', 'digital', 'job'].map((cat) => {
+            // Jeżeli to job, pokaż to tylko jeśli user ma rolę "printer" 
+            if (cat === 'job' && userRoles.length > 0 && !userRoles.includes('printer')) {
+              return null;
+            }
+            return (
+              <button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-6 py-3 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${categoryFilter === cat ? (cat === 'digital' ? 'bg-white text-purple-600 shadow-md' : cat === 'job' ? 'bg-white text-orange-600 shadow-md' : 'bg-white text-blue-600 shadow-md') : 'text-gray-400 hover:text-gray-600 text-center'}`}>
+                {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : 'Physical Items'}
+              </button>
+            )
+          })}
         </div>
         <div className="relative group">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase hover:border-blue-500 transition">
-              <ArrowUpDown size={14} />
-              {sortBy === 'newest' ? 'Newest' : sortBy === 'price_asc' ? 'Price: Low to High' : 'Price: High to Low'}
-            </button>
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
-              <button onClick={() => setSortBy('newest')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Newest</button>
-              <button onClick={() => setSortBy('price_asc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Price: Low to High</button>
-              <button onClick={() => setSortBy('price_desc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Price: High to Low</button>
-            </div>
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase hover:border-blue-500 transition">
+            <ArrowUpDown size={14} />
+            {sortBy === 'newest' ? 'Newest' : sortBy === 'price_asc' ? 'Price: Low to High' : 'Price: High to Low'}
+          </button>
+          <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
+            <button onClick={() => setSortBy('newest')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Newest</button>
+            <button onClick={() => setSortBy('price_asc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Price: Low to High</button>
+            <button onClick={() => setSortBy('price_desc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Price: High to Low</button>
+          </div>
         </div>
       </div>
 
@@ -230,8 +242,8 @@ function MarketplaceContent() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {filteredOffers.map((offer) => (
-              <div 
-                key={offer.id} 
+              <div
+                key={offer.id}
                 onClick={() => router.push(`/offer/${offer.id}`)} // CAŁA KARTA KLIKALNA
                 className={`group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col relative cursor-pointer ${offer.stock <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-2'}`}
               >
@@ -243,42 +255,42 @@ function MarketplaceContent() {
                 <div className="relative aspect-square bg-gray-100 overflow-hidden">
                   {offer.image_urls?.[0] ? <img src={offer.image_urls[0]} alt={offer.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" /> : <div className="h-full w-full flex items-center justify-center text-gray-300 bg-gray-50"><Package size={32} /></div>}
                   <div className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[9px] font-black uppercase text-gray-900 shadow-sm z-20">{offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}</div>
-                  
+
                   {/* LIKE BUTTON - Zatrzymujemy propagację (e.stopPropagation), żeby nie wchodziło w ofertę */}
-                  <button 
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }} 
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
                     className="absolute top-4 right-4 p-2 bg-white/80 backdrop-blur rounded-full hover:bg-white transition-all shadow-sm z-40"
                   >
                     <Heart size={18} className={`transition-colors ${savedIds.includes(offer.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
                   </button>
 
                   {offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) && (
-                    <button 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(offer); }} 
-                        className="absolute bottom-4 right-4 w-10 h-10 bg-white text-black rounded-full shadow-lg flex items-center justify-center translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hover:bg-blue-600 hover:text-white z-40 cursor-pointer" 
-                        title="Add to Cart"
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(offer); }}
+                      className="absolute bottom-4 right-4 w-10 h-10 bg-white text-black rounded-full shadow-lg flex items-center justify-center translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hover:bg-blue-600 hover:text-white z-40 cursor-pointer"
+                      title="Add to Cart"
                     >
-                        <ShoppingBag size={18} />
+                      <ShoppingBag size={18} />
                     </button>
                   )}
                 </div>
-                
+
                 <div className="p-5 flex flex-col flex-grow">
                   <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">{offer.title}</h3>
-                  
+
                   {/* --- CARD FOOTER --- */}
                   <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 gap-2">
                     <span className="text-lg font-black text-gray-900">{formatPrice(offer.price)}</span>
-                    
+
                     {offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) ? (
-                        <button 
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
-                          className="flex items-center gap-1 bg-gray-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md active:scale-95"
-                        >
-                           <Zap size={12} className="fill-white"/> Buy Now
-                        </button>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
+                        className="flex items-center gap-1 bg-gray-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md active:scale-95"
+                      >
+                        <Zap size={12} className="fill-white" /> Buy Now
+                      </button>
                     ) : (
-                        offer.stock > 0 && <span className="text-gray-300 group-hover:text-blue-600 transition-colors"><ArrowRight size={20}/></span>
+                      offer.stock > 0 && <span className="text-gray-300 group-hover:text-blue-600 transition-colors"><ArrowRight size={20} /></span>
                     )}
                   </div>
 
@@ -296,7 +308,7 @@ function MarketplaceContent() {
 export default function MarketplacePage() {
   return (
     <main className="min-h-screen bg-gray-50 font-sans text-gray-900">
-      <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-gray-900"/></div>}>
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-gray-900" /></div>}>
         <MarketplaceContent />
       </Suspense>
     </main>

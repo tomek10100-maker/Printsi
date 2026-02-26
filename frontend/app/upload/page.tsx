@@ -5,13 +5,13 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 // Naprawiony import ikony:
-import { 
-  UploadCloud, Loader2, FileText, Image as ImageIcon, 
+import {
+  UploadCloud, Loader2, FileText, Image as ImageIcon,
   Box, Layers, Printer, Tag, X, Trash2
 } from 'lucide-react';
 
 // --- KONFIGURACJA ---
-const BUCKET_NAME = 'printsi-files1'; 
+const BUCKET_NAME = 'printsi-files1';
 // --------------------
 
 const supabase = createClient(
@@ -25,14 +25,15 @@ export default function AddOfferPage() {
   const [user, setUser] = useState<any>(null);
 
   // --- 1. LISTING TYPE ---
-  const [category, setCategory] = useState<'job' | 'digital' | 'physical'>('job'); 
+  const [category, setCategory] = useState<'job' | 'digital' | 'physical'>('digital');
+  const [userRoles, setUserRoles] = useState<string[]>([]);
 
   // --- 2. FORM FIELDS ---
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('1'); 
-  
+  const [stock, setStock] = useState('1');
+
   // Physical Parameters
   const [material, setMaterial] = useState('');
   const [color, setColor] = useState('');
@@ -42,13 +43,20 @@ export default function AddOfferPage() {
 
   // Files State
   const [projectFile, setProjectFile] = useState<File | null>(null);
-  const [previewImages, setPreviewImages] = useState<File[]>([]); 
+  const [previewImages, setPreviewImages] = useState<File[]>([]);
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) router.push('/login');
-      else setUser(user);
+      if (!user) {
+        router.push('/login');
+      } else {
+        setUser(user);
+        const { data: profile } = await supabase.from('profiles').select('roles').eq('id', user.id).single();
+        if (profile && profile.roles) {
+          setUserRoles(profile.roles);
+        }
+      }
     };
     checkUser();
   }, [router]);
@@ -88,8 +96,8 @@ export default function AddOfferPage() {
       return;
     }
     if (!user?.id) {
-        alert("BŁĄD KRYTYCZNY: Brak ID użytkownika. Zaloguj się ponownie.");
-        return;
+      alert("BŁĄD KRYTYCZNY: Brak ID użytkownika. Zaloguj się ponownie.");
+      return;
     }
 
     setLoading(true);
@@ -104,7 +112,7 @@ export default function AddOfferPage() {
         const projectPath = `projects/${Date.now()}-${Math.random()}.${fileExt}`;
         const { error: projErr } = await supabase.storage.from(BUCKET_NAME).upload(projectPath, projectFile);
         if (projErr) throw projErr;
-        
+
         const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(projectPath);
         projUrl = data.publicUrl;
       }
@@ -114,10 +122,10 @@ export default function AddOfferPage() {
         for (const file of previewImages) {
           const fileExt = file.name.split('.').pop();
           const imagePath = `previews/${Date.now()}-${Math.random()}.${fileExt}`;
-          
+
           const { error: imgErr } = await supabase.storage.from(BUCKET_NAME).upload(imagePath, file);
           if (imgErr) throw imgErr;
-          
+
           const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(imagePath);
           uploadedImageUrls.push(data.publicUrl);
         }
@@ -130,13 +138,13 @@ export default function AddOfferPage() {
         title,
         description,
         price: parseFloat(price),
-        category: category, 
+        category: category,
         material: material || null,
         color: color || null,
         weight: weight || null,
         dimensions: dimensions || null,
         stock: parseInt(stock),
-        file_url: projUrl, 
+        file_url: projUrl,
         image_url: uploadedImageUrls[0] || null, // Główne zdjęcie
         image_urls: uploadedImageUrls,           // Wszystkie zdjęcia
         user_id: user.id,
@@ -172,15 +180,17 @@ export default function AddOfferPage() {
 
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
-            
+
             {/* STEP 1: CATEGORY */}
             <div>
               <label className="block text-xs font-black uppercase text-gray-400 mb-4 tracking-widest">1. Select Listing Type</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button type="button" onClick={() => { setCategory('job'); setPreviewImages([]); }} className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${category === 'job' ? 'border-blue-600 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-500 hover:border-blue-200'}`}>
-                  <Printer size={32} />
-                  <span className="font-black uppercase text-sm">Print Request</span>
-                </button>
+                {userRoles.includes('printer') && (
+                  <button type="button" onClick={() => { setCategory('job'); setPreviewImages([]); }} className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${category === 'job' ? 'border-blue-600 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-500 hover:border-blue-200'}`}>
+                    <Printer size={32} />
+                    <span className="font-black uppercase text-sm">Print Request</span>
+                  </button>
+                )}
                 <button type="button" onClick={() => setCategory('digital')} className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${category === 'digital' ? 'border-purple-600 bg-purple-50 text-purple-800' : 'border-gray-200 text-gray-500 hover:border-purple-200'}`}>
                   <Layers size={32} />
                   <span className="font-black uppercase text-sm">Digital File</span>
@@ -196,40 +206,40 @@ export default function AddOfferPage() {
             <div className="space-y-4">
               <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">2. Basic Details</label>
               <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" required />
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs tracking-wider pointer-events-none">EUR</span>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     step="0.01"
-                    placeholder="0.00" 
-                    value={price} 
-                    onChange={e => setPrice(e.target.value)} 
-                    className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" 
-                    required 
+                    placeholder="0.00"
+                    value={price}
+                    onChange={e => setPrice(e.target.value)}
+                    className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all"
+                    required
                   />
                 </div>
-                
+
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs tracking-wider pointer-events-none">QTY</span>
-                  <input 
-                    type="number" 
-                    placeholder="1" 
-                    min="1" 
-                    value={stock} 
-                    onChange={e => setStock(e.target.value)} 
-                    className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" 
-                    required 
+                  <input
+                    type="number"
+                    placeholder="1"
+                    min="1"
+                    value={stock}
+                    onChange={e => setStock(e.target.value)}
+                    className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all"
+                    required
                   />
                 </div>
               </div>
 
               <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all" rows={4} />
-              
+
               <div className="relative">
-                 <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20}/>
-                 <input type="text" placeholder="Tags (optional)" value={tags} onChange={e => setTags(e.target.value)} className="w-full p-4 pl-12 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all" />
+                <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input type="text" placeholder="Tags (optional)" value={tags} onChange={e => setTags(e.target.value)} className="w-full p-4 pl-12 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all" />
               </div>
             </div>
 
@@ -238,8 +248,8 @@ export default function AddOfferPage() {
               <div className="space-y-4">
                 <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">3. Specs</label>
                 <div className="grid grid-cols-2 gap-4">
-                   <input type="text" placeholder="Material" value={material} onChange={e => setMaterial(e.target.value)} className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm focus:border-blue-600 focus:bg-white transition-all outline-none" />
-                   <input type="text" placeholder="Color" value={color} onChange={e => setColor(e.target.value)} className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm focus:border-blue-600 focus:bg-white transition-all outline-none" />
+                  <input type="text" placeholder="Material" value={material} onChange={e => setMaterial(e.target.value)} className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm focus:border-blue-600 focus:bg-white transition-all outline-none" />
+                  <input type="text" placeholder="Color" value={color} onChange={e => setColor(e.target.value)} className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm focus:border-blue-600 focus:bg-white transition-all outline-none" />
                 </div>
                 {category === 'physical' && (
                   <div className="grid grid-cols-2 gap-4">
@@ -253,14 +263,14 @@ export default function AddOfferPage() {
             {/* STEP 4: FILES */}
             <div className="space-y-4">
               <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">4. Attachments</label>
-              
+
               {/* Sekcja uploadu pliku 3D - tylko dla Digital */}
               {category === 'digital' && (
-                  <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
-                    <FileText className={`mb-3 ${projectFile ? "text-green-600" : "text-gray-400 group-hover:text-blue-500"}`} size={32} />
-                    <span className="text-xs font-black uppercase text-gray-500">{projectFile ? projectFile.name : "Upload 3D File (.STL)"}</span>
-                    <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
-                  </label>
+                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                  <FileText className={`mb-3 ${projectFile ? "text-green-600" : "text-gray-400 group-hover:text-blue-500"}`} size={32} />
+                  <span className="text-xs font-black uppercase text-gray-500">{projectFile ? projectFile.name : "Upload 3D File (.STL)"}</span>
+                  <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
+                </label>
               )}
 
               {/* Sekcja uploadu zdjęć - dla wszystkich (oprócz Job, gdzie jest opcjonalne) */}
@@ -270,7 +280,7 @@ export default function AddOfferPage() {
                   <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Max 6)</span>
                   <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
                 </label>
-                
+
                 {previewImages.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
                     {previewImages.map((file, idx) => (
