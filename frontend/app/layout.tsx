@@ -4,6 +4,7 @@ import './globals.css';
 import { CartProvider } from '../context/CartContext';
 import { CurrencyProvider } from '../context/CurrencyContext';
 import NotificationToast from './components/NotificationToast';
+import { AuthGuard } from './components/AuthGuard';
 
 const inter = Inter({ subsets: ['latin'] });
 

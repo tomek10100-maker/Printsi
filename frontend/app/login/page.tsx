@@ -41,13 +41,12 @@ export default function LoginPage() {
         email,
         password,
       });
-      
+
       if (error) {
         alert('Registration Error: ' + error.message);
       } else {
-        alert('Registration successful! You are now logged in.');
-        // NAPRAWA: Przekierowanie na stronę główną
-        window.location.href = '/'; 
+        alert('Registration successful! Let\'s set up your profile.');
+        window.location.href = '/onboarding';
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({
@@ -58,8 +57,7 @@ export default function LoginPage() {
       if (error) {
         alert('Login Error: ' + error.message);
       } else {
-        // NAPRAWA: Przekierowanie na stronę główną
-        window.location.href = '/'; 
+        window.location.href = '/';
       }
     }
     setLoading(false);
@@ -67,11 +65,11 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4 relative">
-      
+
       {/* --- NOWY GUZIK POWROTU --- */}
       <div className="absolute top-6 left-6">
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors font-bold text-sm bg-white/50 px-4 py-2 rounded-full hover:bg-white border border-transparent hover:border-gray-200"
         >
           <ArrowLeft size={18} /> Back to Home
@@ -79,7 +77,7 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-        
+
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-600 mb-2">Printis</h1>
           <p className="text-gray-500">
