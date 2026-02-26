@@ -70,6 +70,29 @@ export async function POST(req: Request) {
 
     console.log(`✅ Order created: ${newOrder.id}`);
 
+    // --- 1.5 Create the shipping details ---
+    const shippingDetails = (session as any).shipping_details || session.customer_details;
+    if (shippingDetails) {
+      const addressObj = shippingDetails.address || {};
+      const { error: shippingError } = await supabase
+        .from('order_shipping_details')
+        .insert({
+          order_id: newOrder.id,
+          full_name: shippingDetails.name || '',
+          email: session.customer_details?.email || '',
+          address: addressObj.line1 || '',
+          city: addressObj.city || '',
+          zip_code: addressObj.postal_code || '',
+          country: addressObj.country || '',
+        });
+
+      if (shippingError) {
+        console.error('❌ SHIPPING INSERT FAILED:', JSON.stringify(shippingError));
+      } else {
+        console.log(`✅ Shipping details created for order: ${newOrder.id}`);
+      }
+    }
+
     // --- 2. Fetch buyer's profile for notifications ---
     const { data: buyerProfile } = await supabase
       .from('profiles')

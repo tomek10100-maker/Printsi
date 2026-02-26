@@ -49,15 +49,14 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 4. Create the order — FIX: use correct column names matching Supabase schema
     const { data: newOrder, error: orderError } = await supabase
       .from('orders')
       .insert({
         buyer_id: userId,
         total_amount: cartTotalEur,
         status: 'paid',
-        shipping_address: shipping || null,                        // FIX: was shipping_details
-        stripe_payment_intent_id: `balance_${Date.now()}`,         // FIX: was stripe_session_id
+        shipping_address: shipping || null,                        // Możesz to z czasem usunąć, zostawiam dla bezpieczeństwa
+        stripe_payment_intent_id: `balance_${Date.now()}`,
       })
       .select()
       .single();
@@ -67,6 +66,25 @@ export async function POST(req: Request) {
     }
 
     console.log(`✅ Balance order created: ${newOrder.id}`);
+
+    // 4.5 Insert detailed shipping info
+    if (shipping) {
+      const { error: shippingError } = await supabase
+        .from('order_shipping_details')
+        .insert({
+          order_id: newOrder.id,
+          full_name: shipping.fullName || '',
+          email: shipping.email || '',
+          address: shipping.address || '',
+          city: shipping.city || '',
+          zip_code: shipping.zip || '',
+          country: shipping.country || '',
+        });
+
+      if (shippingError) {
+        console.error('❌ Failed to save shipping details:', shippingError);
+      }
+    }
 
     // 5. Insert order items — FIX: removed buyer_id (doesn't exist in order_items table)
     const orderItemsToInsert = items.map((item: any) => ({
