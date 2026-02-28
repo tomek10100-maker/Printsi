@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   Settings, MapPin, Link as LinkIcon, Calendar, Loader2, Home, LogOut,
   CreditCard, Bell, Package, ChevronRight, ShoppingBag, Plus, Trash2, Eye, Edit,
-  Heart, TrendingUp, Wallet, DollarSign
+  Heart, TrendingUp, Wallet, DollarSign, MessageSquare
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 
@@ -23,6 +23,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [myOffers, setMyOffers] = useState<any[]>([]);
 
   const [stats, setStats] = useState({
@@ -56,6 +57,15 @@ export default function ProfilePage() {
         .eq('is_read', false);
 
       setUnreadCount(count || 0);
+
+      // 2b. Fetch Unread Messages Count
+      const { count: unreadMsgsCount } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_read', false)
+        .neq('sender_id', user.id);
+
+      setUnreadMessages(unreadMsgsCount || 0);
 
       // 3. FETCH OFFERS & INVENTORY
       const { data: offersData } = await supabase
@@ -238,18 +248,19 @@ export default function ProfilePage() {
                 <DashboardCard icon={<Wallet size={24} />} title="Delivery Settings" subtitle="Your ship-from country" href="/profile/delivery" />
 
                 <DashboardCard
+                  icon={<MessageSquare size={24} />}
+                  title="Messages"
+                  subtitle="Chat with buyers & sellers"
+                  href="/profile/messages"
+                  badge={unreadMessages > 0 ? unreadMessages : null}
+                />
+
+                <DashboardCard
                   icon={<Bell size={24} />}
                   title="Notifications"
                   subtitle="Alerts & updates"
                   href="/profile/notifications"
                   badge={unreadCount > 0 ? unreadCount : null}
-                />
-
-                <DashboardCard
-                  icon={<Package size={24} />}
-                  title="Order History"
-                  subtitle="Track your purchases"
-                  href="/profile/orders"
                 />
 
                 <DashboardCard

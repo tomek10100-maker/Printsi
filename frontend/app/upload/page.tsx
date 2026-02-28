@@ -209,7 +209,7 @@ export default function AddOfferPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs tracking-wider pointer-events-none">EUR</span>
+                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-[10px] tracking-wider pointer-events-none">PLN</span>
                   <input
                     type="number"
                     step="0.01"

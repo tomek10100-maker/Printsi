@@ -187,6 +187,43 @@ export async function POST(req: Request) {
 
       if (sellerNotifError) console.error('❌ Seller notification error:', JSON.stringify(sellerNotifError));
       else console.log(`✅ Seller notified!`);
+
+      // --- 8. Create or Update Chat between Buyer & Seller ---
+      const { data: existingChat } = await supabase
+        .from('chats')
+        .select('id')
+        .eq('buyer_id', userId)
+        .eq('seller_id', sellerId)
+        .eq('offer_id', offerId)
+        .single();
+
+      let chatId = existingChat?.id;
+
+      if (!chatId) {
+        const { data: newChat, error: chatError } = await supabase
+          .from('chats')
+          .insert({
+            buyer_id: userId,
+            seller_id: sellerId,
+            offer_id: offerId,
+            order_id: newOrder.id, // linked to purchase
+          })
+          .select('id')
+          .single();
+
+        if (chatError) console.error('❌ Chat insert error:', JSON.stringify(chatError));
+        else chatId = newChat.id;
+      }
+
+      if (chatId) {
+        // Send automatic first message
+        await supabase.from('messages').insert({
+          chat_id: chatId,
+          sender_id: userId,
+          content: `📦 Hello! I just purchased ${quantityBought}x ${product.name}. Let me know if you need any details about my order.`,
+        });
+        console.log(`💬 Chat created/updated for order: ${chatId}`);
+      }
     }
 
     console.log('🎉 Webhook complete!');

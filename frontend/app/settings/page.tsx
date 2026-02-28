@@ -165,7 +165,8 @@ export default function SettingsPage() {
       </aside>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 p-8 md:p-16 overflow-y-auto w-full">
+      {/* Dodano pb-32 aby chronić przed schowaniem się pod floating bar */}
+      <div className="flex-1 p-8 md:p-16 pb-32 md:pb-32 overflow-y-auto w-full relative">
 
         {/* TAB: GENERAL */}
         {activeTab === 'general' && (
@@ -283,14 +284,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="pt-8 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => alert(`Currency changed to ${currency} and saved!`)}
-                className="px-10 py-4 bg-blue-600 text-white rounded-xl font-black shadow-xl hover:bg-blue-700 hover:shadow-2xl transition-all flex items-center gap-2 uppercase text-xs tracking-widest"
-              >
-                Save Preferences
-              </button>
-            </div>
+            <ActionButtons onSave={() => alert(`Currency changed to ${currency} and saved!`)} saving={false} />
           </div>
         )}
 
@@ -305,8 +299,8 @@ function SidebarItem({ icon, label, id, active, set }: any) {
     <button
       onClick={() => set(id)}
       className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all duration-200 ${isActive
-          ? 'bg-gray-900 text-white shadow-lg transform scale-105'
-          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+        ? 'bg-gray-900 text-white shadow-lg transform scale-105'
+        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
         }`}
     >
       {icon} <span className="text-sm">{label}</span>
@@ -320,8 +314,8 @@ function RoleCard({ title, desc, active, onClick }: any) {
     <div
       onClick={onClick}
       className={`p-6 rounded-3xl border-2 cursor-pointer transition-all hover:scale-[1.02] ${active
-          ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600'
-          : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-lg'
+        ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600'
+        : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-lg'
         }`}
     >
       <h3 className={`font-black text-lg ${active ? 'text-blue-900' : 'text-gray-900'}`}>{title}</h3>
@@ -333,14 +327,16 @@ function RoleCard({ title, desc, active, onClick }: any) {
 
 function ActionButtons({ onSave, saving }: any) {
   return (
-    <div className="pt-8 border-t border-gray-200 flex justify-end">
-      <button
-        onClick={onSave}
-        disabled={saving}
-        className="px-10 py-4 bg-blue-600 text-white rounded-xl font-black shadow-xl hover:bg-blue-700 hover:shadow-2xl transition-all flex items-center gap-2 transform active:scale-95 uppercase text-xs tracking-widest"
-      >
-        {saving ? 'Saving...' : 'Save Changes'}
-      </button>
+    <div className="fixed bottom-8 left-0 md:left-80 right-0 px-8 flex justify-end z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-10 duration-500">
+      <div className="max-w-3xl w-full mx-auto flex justify-end">
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="pointer-events-auto px-10 py-4 bg-gray-900 border-2 border-gray-900 text-white rounded-2xl font-black shadow-[0_20px_40px_-15px_rgba(0,0,0,0.4)] hover:bg-blue-600 hover:border-blue-600 hover:shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)] hover:-translate-y-1 transition-all flex items-center gap-3 transform active:scale-95 uppercase text-xs tracking-widest"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
     </div>
   );
 }

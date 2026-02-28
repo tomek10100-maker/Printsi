@@ -1,0 +1,10 @@
+== Recent Orders ==
+Order: b171e8f4-9c7f-40c8-b911-86e9b97b456f, Amount: 1, Buyer: b507cda5-2af2-467b-8db2-66860e7d707e, Status: paid, Date: 2026-02-28T15:10:37.85167+00:00, Type: test
+  -> Items: 0
+  -> Chats: 0
+Order: a86e64b7-c9e8-49cc-88ad-01da0f21838a, Amount: 10429.96, Buyer: b507cda5-2af2-467b-8db2-66860e7d707e, Status: paid, Date: 2026-02-26T23:19:33.631064+00:00, Type: pi_3T5Dq
+  -> Items: 1
+  -> Chats: 1
+Order: b1399a72-66d4-488c-a825-a57350d8d2a4, Amount: 1460.31, Buyer: b507cda5-2af2-467b-8db2-66860e7d707e, Status: paid, Date: 2026-02-26T22:37:46.661587+00:00, Type: pi_3T5DB
+  -> Items: 1
+  -> Chats: 0

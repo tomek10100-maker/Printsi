@@ -2,6 +2,13 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
 
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 interface CurrencyContextProps {
   rates: Record<string, number> | null;
   formatPrice: (amount: number) => string;
@@ -9,30 +16,48 @@ interface CurrencyContextProps {
   setCurrency: (currency: string) => void;
 }
 
-export const CurrencyContext = createContext<CurrencyContextProps>({ 
+export const CurrencyContext = createContext<CurrencyContextProps>({
   rates: null,
   formatPrice: (amount: number) => `${amount} €`,
   currency: 'EUR',
-  setCurrency: () => {}
+  setCurrency: () => { }
 });
 
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [currency, setCurrencyState] = useState('EUR');
+  const [initialized, setInitialized] = useState(false);
 
-  // NOWE: Pobieramy zapisaną walutę z localStorage przy uruchomieniu aplikacji
   useEffect(() => {
-    const savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('printsi_currency') : null;
-    if (savedCurrency) {
-      setCurrencyState(savedCurrency);
-    }
+    const initCurrency = async () => {
+      let savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('printsi_currency') : null;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('currency').eq('id', user.id).single();
+        if (profile?.currency) {
+          savedCurrency = profile.currency;
+          if (typeof window !== 'undefined') localStorage.setItem('printsi_currency', savedCurrency!);
+        }
+      }
+
+      if (savedCurrency) {
+        setCurrencyState(savedCurrency);
+      }
+      setInitialized(true);
+    };
+
+    initCurrency();
   }, []);
 
-  // NOWE: Funkcja nadpisująca, która zmienia walutę i od razu zapisuje ją w przeglądarce
-  const setCurrency = (newCurrency: string) => {
+  const setCurrency = async (newCurrency: string) => {
     setCurrencyState(newCurrency);
     if (typeof window !== 'undefined') {
       localStorage.setItem('printsi_currency', newCurrency);
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('profiles').update({ currency: newCurrency }).eq('id', user.id);
     }
   };
 
@@ -60,7 +85,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
 
   const formatPrice = (amount: number) => {
     let convertedAmount = amount;
-    
+
     if (currency !== 'EUR' && rates && rates[currency]) {
       convertedAmount = amount * rates[currency];
     }
@@ -80,10 +105,10 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
 
 export const useCurrency = () => {
   const context = useContext(CurrencyContext);
-  
+
   if (!context) {
     throw new Error("useCurrency must be used within a CurrencyProvider");
   }
-  
+
   return context;
 };

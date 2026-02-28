@@ -133,6 +133,47 @@ export async function POST(req: Request) {
         } else {
           console.log(`✅ Notification sent to seller: ${item.seller_id}`);
         }
+
+        // --- 8. Create or Update Chat between Buyer & Seller ---
+        const { data: existingChat } = await supabase
+          .from('chats')
+          .select('id')
+          .eq('buyer_id', userId)
+          .eq('seller_id', item.seller_id)
+          .eq('offer_id', item.id)
+          .single();
+
+        let chatId = existingChat?.id;
+
+        if (!chatId) {
+          const { data: newChat, error: chatError } = await supabase
+            .from('chats')
+            .insert({
+              buyer_id: userId,
+              seller_id: item.seller_id,
+              offer_id: item.id,
+              order_id: newOrder.id,
+            })
+            .select('id')
+            .single();
+
+          if (!chatError) chatId = newChat.id;
+        }
+
+        if (chatId) {
+          // Buyer initial message
+          await supabase.from('messages').insert({
+            chat_id: chatId,
+            sender_id: userId,
+            content: `📦 Hey! I just bought ${item.quantity}x of ${item.title}. Looking forward to it!`,
+          });
+          // Seller automated reply
+          await supabase.from('messages').insert({
+            chat_id: chatId,
+            sender_id: item.seller_id,
+            content: `✅ Hello! I received your order for ${item.quantity} items. I am preparing the shipping label and will send it soon.`,
+          });
+        }
       }
     }
 

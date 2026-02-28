@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-// 1. Inicjalizacja (Standardowo)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-01-28.clover' as any,
+  apiVersion: '2023-10-16' as any, // fallback to typical api version
 });
 
 const supabaseAdmin = createClient(
@@ -14,58 +13,75 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { price, title, sellerId, userId } = await req.json();
+    const { userId } = await req.json();
 
-    // 2. Pobieramy ID konta Stripe sprzedawcy (tego, kto ma dostać kasę)
-    const { data: sellerProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('stripe_account_id')
-      .eq('id', sellerId)
-      .single();
-
-    const sellerStripeId = sellerProfile?.stripe_account_id;
-
-    if (!sellerStripeId) {
-      return NextResponse.json({ error: 'Seller is not connected to Stripe' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    // 3. Obliczamy prowizję (np. 10%)
-    // Stripe operuje na groszach/centach, więc mnożymy * 100
-    const priceInCents = Math.round(price * 100); 
-    const applicationFee = Math.round(priceInCents * 0.10); // 10% dla Printis
+    // 1. Get user profile to check if they already have an account attached
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('stripe_account_id, email, full_name')
+      .eq('id', userId)
+      .single();
 
-    // 4. Tworzymy sesję płatności
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card', 'blik', 'p24'], // Polskie metody + karty
-      line_items: [
-        {
-          price_data: {
-            currency: 'pln', // Lub 'eur'
-            product_data: {
-              name: title,
-            },
-            unit_amount: priceInCents,
-          },
-          quantity: 1,
+    let accountId = profile?.stripe_account_id;
+
+    if (!accountId) {
+      // 2. Create a new Express account optimized for individuals/makers
+      const account = await stripe.accounts.create({
+        type: 'express',
+        email: profile?.email || undefined,
+        business_type: 'individual',
+        business_profile: {
+          product_description: 'Selling 3D prints, custom models, and maker services on Printsi marketplace.',
+          url: 'https://printsi.com', // fallback URL if they don't have one
         },
-      ],
-      // --- TU DZIEJE SIĘ MAGIA CONNECT ---
-      payment_intent_data: {
-        application_fee_amount: applicationFee, // Tyle bierzesz Ty
-        transfer_data: {
-          destination: sellerStripeId, // Tyle idzie do Sprzedawcy (Reszta)
+        settings: {
+          payouts: {
+            schedule: {
+              interval: 'manual',
+            }
+          }
         },
-      },
-      // -----------------------------------
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/profile/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/?canceled=true`,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+      });
+
+      accountId = account.id;
+
+      // 3. Save it to their profile in Supabase
+      const { error } = await supabaseAdmin
+        .from('profiles')
+        .update({ stripe_account_id: accountId })
+        .eq('id', userId);
+
+      if (error) {
+        console.error("Failed to save stripe_account_id:", error);
+        return NextResponse.json({ error: 'Failed to save account ID' }, { status: 500 });
+      }
+    }
+
+    const domain = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+    // 4. Generate onboarding link in English
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${domain}/profile/billing`,
+      return_url: `${domain}/profile/billing?connected=true`,
+      type: 'account_onboarding',
+      collection_options: {
+        fields: 'currently_due', // only ask for the minimum required fields
+      }
     });
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: accountLink.url });
 
   } catch (error: any) {
-    console.error('Checkout Error:', error);
+    console.error('Stripe Connect error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

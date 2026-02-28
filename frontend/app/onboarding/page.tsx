@@ -116,6 +116,13 @@ export default function OnboardingPage() {
         }
     };
 
+    const isStep1Valid = fullName.trim().length > 0;
+    const hasSelectedRole = roles.some(r => ['customer', 'designer', 'printer'].includes(r));
+    const hasSelectedAccountType = roles.some(r => ['hobbyist', 'business'].includes(r));
+    const isStep2Valid = hasSelectedRole && hasSelectedAccountType;
+
+    const isNextDisabled = (step === 1 && !isStep1Valid) || (step === 2 && !isStep2Valid);
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 flex-col gap-4">
@@ -183,14 +190,27 @@ export default function OnboardingPage() {
                                 <h2 className="text-2xl font-black uppercase">Choose Your Roles</h2>
                             </div>
 
-                            <p className="text-gray-500 mb-6 font-medium">Select all that apply. This helps us tailor the marketplace to your needs.</p>
+                            <p className="text-gray-500 mb-6 font-medium">This helps us tailor the marketplace to your needs.</p>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <RoleCard title="Customer" desc="I want to buy products." active={roles.includes('customer')} onClick={() => toggleRole('customer')} />
-                                <RoleCard title="CAD Designer" desc="I want to sell 3D models." active={roles.includes('designer')} onClick={() => toggleRole('designer')} />
-                                <RoleCard title="3D Printer" desc="I offer printing services." active={roles.includes('printer')} onClick={() => toggleRole('printer')} />
-                                <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />
-                                <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
+                            <div className="space-y-6">
+                                {/* MULTI-SELECT ZONE */}
+                                <div>
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">What do you want to do? (Multiple choice)</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <RoleCard title="Customer" desc="I want to buy products." active={roles.includes('customer')} onClick={() => toggleRole('customer')} />
+                                        <RoleCard title="CAD Designer" desc="I want to sell 3D models." active={roles.includes('designer')} onClick={() => toggleRole('designer')} />
+                                        <RoleCard title="3D Printer" desc="I offer printing services." active={roles.includes('printer')} onClick={() => toggleRole('printer')} />
+                                    </div>
+                                </div>
+
+                                {/* SINGLE-SELECT ZONE */}
+                                <div className="pt-6 border-t border-gray-100">
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Account Type (Choose one)</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
+                                        <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -257,14 +277,19 @@ export default function OnboardingPage() {
                     ) : <div />}
 
                     {step < 3 ? (
-                        <button
-                            onClick={() => setStep(step + 1)}
-                            disabled={step === 1 && !fullName.trim()}
-                            className={`flex items-center gap-2 px-8 py-4 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl transition-all ${step === 1 && !fullName.trim() ? 'bg-gray-100 text-gray-400 shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1 hover:shadow-blue-600/20'
-                                }`}
-                        >
-                            Next Step <ChevronRight size={16} />
-                        </button>
+                        <div className="flex flex-col items-end gap-2">
+                            {step === 2 && isNextDisabled && (
+                                <span className="text-[10px] uppercase tracking-widest font-black text-red-500">Select at least one option from each section</span>
+                            )}
+                            <button
+                                onClick={() => setStep(step + 1)}
+                                disabled={isNextDisabled}
+                                className={`flex items-center gap-2 px-8 py-4 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl transition-all ${isNextDisabled ? 'bg-gray-100 text-gray-400 shadow-none cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1 hover:shadow-blue-600/20'
+                                    }`}
+                            >
+                                Next Step <ChevronRight size={16} />
+                            </button>
+                        </div>
                     ) : (
                         <button
                             onClick={handleComplete}

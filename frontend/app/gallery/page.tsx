@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Loader2, Search, ShoppingBag, X,
-  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap
+  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -48,7 +48,7 @@ function MarketplaceContent() {
   const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const fetchOffers = useCallback(async () => {
-    const { data, error } = await supabase.from('offers').select('*');
+    const { data, error } = await supabase.from('offers').select('*').eq('is_custom', false);
     if (error) {
       console.error('Błąd pobierania ofert:', error);
     } else {
@@ -277,6 +277,13 @@ function MarketplaceContent() {
 
                 <div className="p-5 flex flex-col flex-grow">
                   <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">{offer.title}</h3>
+
+                  {offer.stock > 0 && offer.category !== 'digital' && (
+                    <div className="flex items-center gap-1.5 mt-1 mb-3 bg-blue-50 w-fit px-2 py-0.5 rounded-sm">
+                      <MessageSquare size={10} className="text-blue-500" />
+                      <span className="text-[8px] font-black uppercase tracking-widest text-blue-600">Customizable</span>
+                    </div>
+                  )}
 
                   {/* --- CARD FOOTER --- */}
                   <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 gap-2">
