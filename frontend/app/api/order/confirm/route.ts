@@ -13,24 +13,33 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 
 // Fetch exchange rates (EUR base) and convert amount
 async function convertFromEur(amountEur: number, toCurrency: string): Promise<string> {
+    const FALLBACK_RATES: Record<string, number> = {
+        PLN: 4.25, USD: 1.08, GBP: 0.86, CZK: 25.0, SEK: 11.2, NOK: 11.5, DKK: 7.46, CHF: 0.96,
+    };
     try {
         if (toCurrency === 'EUR') return `€${amountEur.toFixed(2)}`;
-        const res = await fetch(`https://api.exchangerate-api.com/v4/latest/EUR`);
-        const data = await res.json();
-        const rate = data.rates?.[toCurrency] || 1;
+        let rate = FALLBACK_RATES[toCurrency] || 1;
+        try {
+            const res = await fetch('https://api.exchangerate-api.com/v4/latest/EUR');
+            if (res.ok) {
+                const json = await res.json();
+                if (json.rates?.[toCurrency]) rate = json.rates[toCurrency];
+            }
+        } catch { console.warn('⚠️ Exchange API failed, using fallback rate for', toCurrency); }
         const converted = Math.ceil(amountEur * rate * 100) / 100;
         const symbol = CURRENCY_SYMBOLS[toCurrency] || toCurrency + ' ';
-        // PLN uses symbol after, others before
-        if (toCurrency === 'PLN') return `${converted.toFixed(2)} ${symbol}`;
+        if (toCurrency === 'PLN') return `${converted.toFixed(2)} zł`;
         return `${symbol}${converted.toFixed(2)}`;
-    } catch {
+    } catch (err) {
+        console.error('❌ convertFromEur error:', err);
         return `€${amountEur.toFixed(2)}`;
     }
 }
 
 // Fetch seller's preferred currency from profile
 async function getSellerCurrency(sellerId: string): Promise<string> {
-    const { data } = await supabase.from('profiles').select('currency').eq('id', sellerId).single();
+    const { data, error } = await supabase.from('profiles').select('currency').eq('id', sellerId).single();
+    console.log(`💱 Seller ${sellerId} currency:`, data?.currency, error?.message || '');
     return data?.currency || 'EUR';
 }
 
@@ -140,6 +149,7 @@ export async function POST(req: Request) {
             const sellerCurrency = await getSellerCurrency(sellerId);
             const earnedEur = item.price_at_purchase * item.quantity;
             const formattedAmount = await convertFromEur(earnedEur, sellerCurrency);
+            console.log(`💰 Seller notif: €${earnedEur} -> ${formattedAmount} (${sellerCurrency})`);
             await supabase.from('notifications').insert({
                 user_id: sellerId,
                 title: '🎉 New sale!',
