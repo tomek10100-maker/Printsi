@@ -40,11 +40,12 @@ export default function PublicProfilePage() {
         return;
       }
 
-      // 2. Pobierz oferty tego użytkownika
+      // 2. Pobierz oferty tego użytkownika (ukrywamy customowe zlecenia)
       const { data: offersData } = await supabase
         .from('offers')
         .select('*')
         .eq('user_id', params.id)
+        .eq('is_custom', false)
         .order('created_at', { ascending: false });
 
       setProfile(profileData);
