@@ -192,19 +192,34 @@ export default function AddOfferPage() {
             <div>
               <label className="block text-xs font-black uppercase text-gray-400 mb-4 tracking-widest">1. Select Listing Type</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {userRoles.includes('printer') && (
-                  <button type="button" onClick={() => { setCategory('job'); setPreviewImages([]); }} className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${category === 'job' ? 'border-blue-600 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-500 hover:border-blue-200'}`}>
-                    <Printer size={32} />
-                    <span className="font-black uppercase text-sm">Print Request</span>
-                  </button>
-                )}
+                <button type="button" onClick={() => { setCategory('job'); setPreviewImages([]); }} className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${category === 'job' ? 'border-blue-600 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-500 hover:border-blue-200'}`}>
+                  <Printer size={32} />
+                  <span className="font-black uppercase text-sm">Print Request</span>
+                </button>
+
                 <button type="button" onClick={() => setCategory('digital')} className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${category === 'digital' ? 'border-purple-600 bg-purple-50 text-purple-800' : 'border-gray-200 text-gray-500 hover:border-purple-200'}`}>
                   <Layers size={32} />
                   <span className="font-black uppercase text-sm">Digital File</span>
                 </button>
-                <button type="button" onClick={() => setCategory('physical')} className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${category === 'physical' ? 'border-orange-600 bg-orange-50 text-orange-800' : 'border-gray-200 text-gray-500 hover:border-orange-200'}`}>
+
+                <button
+                  type="button"
+                  onClick={() => setCategory('physical')}
+                  disabled={!userRoles.includes('printer')}
+                  className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all relative ${!userRoles.includes('printer')
+                      ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                      : category === 'physical'
+                        ? 'border-orange-600 bg-orange-50 text-orange-800'
+                        : 'border-gray-200 text-gray-500 hover:border-orange-200'
+                    }`}
+                >
                   <Box size={32} />
-                  <span className="font-black uppercase text-sm">Physical Item</span>
+                  <span className={`font-black uppercase text-sm ${!userRoles.includes('printer') ? 'mb-2' : ''}`}>Physical Item</span>
+                  {!userRoles.includes('printer') && (
+                    <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest absolute bottom-2 left-0 right-0 text-center px-1">
+                      Printer role required
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
