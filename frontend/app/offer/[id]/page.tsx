@@ -28,6 +28,7 @@ export default function OfferDetailsPage() {
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [creatingChat, setCreatingChat] = useState(false);
 
   // --- NOWY STAN: Czy polubione ---
@@ -55,7 +56,7 @@ export default function OfferDetailsPage() {
         if (data.image_urls && data.image_urls.length > 0) setSelectedImage(data.image_urls[0]);
       }
 
-      // 2. Sprawdź czy polubione
+      // 2. Sprawdź czy polubione i role usera
       if (user && data) {
         const { data: fav } = await supabase
           .from('favorites')
@@ -65,6 +66,16 @@ export default function OfferDetailsPage() {
           .single();
 
         if (fav) setIsFavorite(true);
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('roles')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.roles) {
+          setUserRoles(profile.roles);
+        }
       }
 
       setLoading(false);
@@ -107,6 +118,7 @@ export default function OfferDetailsPage() {
     }
     if (isOwner) return;
 
+    // Przekieruj do utworzenia chatu lub istniejącego
     setCreatingChat(true);
 
     const { data: existingChat } = await supabase
@@ -243,17 +255,30 @@ export default function OfferDetailsPage() {
           {!isDigital && !isOwner && (
             <div className="mb-8 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-inner">
               <div className="text-center sm:text-left">
-                <h4 className="text-sm font-black text-blue-900 mb-1 capitalize">Need a custom modification or bulk order?</h4>
-                <p className="text-xs text-blue-700/70 font-bold leading-relaxed max-w-[280px]">Contact the maker to negotiate bulk pricing, request custom colors or different materials.</p>
+                <h4 className="text-sm font-black text-blue-900 mb-1 capitalize">
+                  {offer.category === 'job' ? 'Discuss Request Details' : 'Need a custom modification or bulk order?'}
+                </h4>
+                <p className="text-xs text-blue-700/70 font-bold leading-relaxed max-w-[280px]">
+                  {offer.category === 'job' ? 'Contact the requester to negotiate terms, or clarify details.' : 'Contact the maker to negotiate bulk pricing, request custom colors or different materials.'}
+                </p>
               </div>
-              <button
-                onClick={handleContactMaker}
-                disabled={creatingChat}
-                className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg hover:-translate-y-1 hover:shadow-blue-600/30 active:scale-95"
-              >
-                {creatingChat ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
-                Chat with Maker
-              </button>
+              {offer.category === 'job' && !userRoles.includes('printer') ? (
+                <button
+                  disabled
+                  className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 bg-gray-50 text-red-500 px-6 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-sm border border-red-100 cursor-not-allowed"
+                >
+                  <Ban size={18} /> Printer Role Required
+                </button>
+              ) : (
+                <button
+                  onClick={handleContactMaker}
+                  disabled={creatingChat}
+                  className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg hover:-translate-y-1 hover:shadow-blue-600/30 active:scale-95"
+                >
+                  {creatingChat ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                  {offer.category === 'job' ? 'Chat with Requester' : 'Chat with Maker'}
+                </button>
+              )}
             </div>
           )}
 
@@ -290,13 +315,20 @@ export default function OfferDetailsPage() {
               >
                 <Ban size={20} /> Your Item
               </button>
+            ) : offer.category === 'job' && !userRoles.includes('printer') ? (
+              <button
+                disabled
+                className="flex-1 py-4 rounded-xl font-black uppercase tracking-widest bg-red-50 text-red-500 cursor-not-allowed flex items-center justify-center gap-2 border border-red-200 shadow-sm"
+              >
+                <Ban size={20} /> Printer Role Required
+              </button>
             ) : (
               <button
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
                 className={`flex-1 py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600'}`}
               >
-                {isOutOfStock ? 'Sold Out' : <><ShoppingBag size={20} /> Add to Cart</>}
+                {isOutOfStock ? 'Sold Out' : <><ShoppingBag size={20} /> {offer.category === 'job' ? 'Fulfill Request' : 'Add to Cart'}</>}
               </button>
             )}
 

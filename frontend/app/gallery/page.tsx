@@ -212,10 +212,6 @@ function MarketplaceContent() {
       <div className="px-6 py-8 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex p-1 bg-gray-100 rounded-full shadow-inner">
           {['physical', 'digital', 'job'].map((cat) => {
-            // Jeżeli to job, pokaż to tylko jeśli user ma rolę "printer" 
-            if (cat === 'job' && userRoles.length > 0 && !userRoles.includes('printer')) {
-              return null;
-            }
             return (
               <button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-6 py-3 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${categoryFilter === cat ? (cat === 'digital' ? 'bg-white text-purple-600 shadow-md' : cat === 'job' ? 'bg-white text-orange-600 shadow-md' : 'bg-white text-blue-600 shadow-md') : 'text-gray-400 hover:text-gray-600 text-center'}`}>
                 {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : 'Physical Items'}
@@ -264,11 +260,11 @@ function MarketplaceContent() {
                     <Heart size={18} className={`transition-colors ${savedIds.includes(offer.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
                   </button>
 
-                  {offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) && (
+                  {offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) && (offer.category !== 'job' || userRoles.includes('printer')) && (
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(offer); }}
                       className="absolute bottom-4 right-4 w-10 h-10 bg-white text-black rounded-full shadow-lg flex items-center justify-center translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hover:bg-blue-600 hover:text-white z-40 cursor-pointer"
-                      title="Add to Cart"
+                      title={offer.category === 'job' ? 'Fulfill Request' : 'Add to Cart'}
                     >
                       <ShoppingBag size={18} />
                     </button>
@@ -289,12 +285,16 @@ function MarketplaceContent() {
                   <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 gap-2">
                     <span className="text-lg font-black text-gray-900">{formatPrice(offer.price)}</span>
 
-                    {offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) ? (
+                    {offer.category === 'job' && !userRoles.includes('printer') ? (
+                      <button disabled className="flex items-center bg-gray-50 text-red-500 px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest cursor-not-allowed border border-red-100">
+                        Printer Role Required
+                      </button>
+                    ) : offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) ? (
                       <button
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
                         className="flex items-center gap-1 bg-gray-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md active:scale-95"
                       >
-                        <Zap size={12} className="fill-white" /> Buy Now
+                        <Zap size={12} className="fill-white" /> {offer.category === 'job' ? 'Fulfill' : 'Buy Now'}
                       </button>
                     ) : (
                       offer.stock > 0 && <span className="text-gray-300 group-hover:text-blue-600 transition-colors"><ArrowRight size={20} /></span>

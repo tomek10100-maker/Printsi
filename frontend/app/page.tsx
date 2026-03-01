@@ -167,11 +167,7 @@ export default function HomePage() {
         <div className="relative w-[550px] h-[550px] flex items-center justify-center">
           {bricks.map((brick, idx) => {
 
-            // FILTROWANIE Brick'ów – ukrywaj dla customerów itp
-            // Zobacz czy brick wymaga specyficznej roli:
-            if (brick.reqRole && userRoles.length > 0) {
-              if (!userRoles.includes(brick.reqRole)) return null; // Ukryty kafelek
-            }
+            // FILTROWANIE usunięte - teraz każdy widzi Print on Demand
 
             const radius = 230;
             const x = (radius * Math.sin((brick.angle * Math.PI) / 180)).toFixed(2);
