@@ -112,9 +112,8 @@ export default function CartPage() {
                   </div>
 
                   {item.is_custom ? (
-                    <div className="flex bg-blue-50 border border-blue-100 items-center gap-2 rounded-lg py-2 px-4 shadow-sm" title="Quantity locked by accepted custom proposal">
+                    <div className="flex bg-blue-50 border border-blue-100 items-center justify-center gap-2 rounded-lg py-2 px-4 shadow-sm" title="Quantity locked by accepted custom proposal">
                       <span className="font-black text-sm text-blue-800 text-center">{item.quantity}</span>
-                      <span className="text-[9px] font-black uppercase text-blue-500 tracking-wider">Fixed</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
