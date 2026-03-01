@@ -8,16 +8,17 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { userId, items, shipping } = await req.json();
+    const { userId, items, shipping, shippingCostEur } = await req.json();
 
     if (!items || items.length === 0 || !userId) {
       return NextResponse.json({ success: false, error: 'Invalid checkout data' }, { status: 400 });
     }
 
-    // 1. Calculate cart total (in EUR)
+    // 1. Calculate cart total & grand total (in EUR)
     const cartTotalEur = items.reduce(
       (total: number, item: any) => total + (item.price * item.quantity), 0
     );
+    const orderTotalEur = cartTotalEur + (shippingCostEur || 0);
 
     // 2. Calculate real balance from database (security check - never trust the client)
     const { data: sales } = await supabase
@@ -42,10 +43,10 @@ export async function POST(req: Request) {
     const userBalance = Math.max(0, totalEarned - totalSpent);
 
     // 3. Check if user can afford the order
-    if (userBalance < cartTotalEur) {
+    if (userBalance < orderTotalEur) {
       return NextResponse.json({
         success: false,
-        error: `Insufficient Printsi Balance. You have €${userBalance.toFixed(2)} but need €${cartTotalEur.toFixed(2)}`
+        error: `Insufficient Printsi Balance. You have €${userBalance.toFixed(2)} but need €${orderTotalEur.toFixed(2)}`
       }, { status: 400 });
     }
 
@@ -53,9 +54,9 @@ export async function POST(req: Request) {
       .from('orders')
       .insert({
         buyer_id: userId,
-        total_amount: cartTotalEur,
+        total_amount: orderTotalEur,
         status: 'paid',
-        shipping_address: shipping || null,                        // Możesz to z czasem usunąć, zostawiam dla bezpieczeństwa
+        shipping_address: shipping || null,
         stripe_payment_intent_id: `balance_${Date.now()}`,
       })
       .select()
