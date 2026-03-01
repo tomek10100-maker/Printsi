@@ -19,7 +19,7 @@ export default function MessagesPage() {
     const initialChatId = searchParams?.get('chat');
 
     const { addItem } = useCart();
-    const { formatPrice } = useCurrency();
+    const { formatPrice, currency, rates } = useCurrency();
 
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [chats, setChats] = useState<any[]>([]);
@@ -177,8 +177,13 @@ export default function MessagesPage() {
     const sendProposal = async () => {
         if (!activeChatId || !currentUser || !activeChatData) return;
 
+        let finalPrice = parseFloat(proposalPrice);
+        if (currency !== 'EUR' && rates && rates[currency]) {
+            finalPrice = finalPrice / rates[currency];
+        }
+
         let payload: any = {
-            price: parseFloat(proposalPrice),
+            price: finalPrice,
             quantity: parseInt(proposalQty),
             material: proposalMaterial || activeChatData.offers?.material || 'Any',
             color: proposalColor || activeChatData.offers?.color || 'Any',
@@ -423,8 +428,8 @@ export default function MessagesPage() {
                                             <div>
                                                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Target Price per item</label>
                                                 <div className="relative">
-                                                    <input type="number" min="0" step="0.01" value={proposalPrice} onChange={e => setProposalPrice(e.target.value)} placeholder={activeChatData.offers?.price?.toString()} className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 focus:border-blue-500 rounded-xl text-sm font-bold outline-none" />
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                                    <input type="number" min="0" step="0.01" value={proposalPrice} onChange={e => setProposalPrice(e.target.value)} placeholder="0.00" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 focus:border-blue-500 rounded-xl text-sm font-bold outline-none" />
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-black text-[10px] tracking-wider pointer-events-none">{currency}</span>
                                                 </div>
                                             </div>
                                             <div>

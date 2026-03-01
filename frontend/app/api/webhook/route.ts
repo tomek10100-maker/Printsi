@@ -138,6 +138,16 @@ export async function POST(req: Request) {
         continue;
       }
 
+      // --- 4.5 Fetch offer details ---
+      const { data: offerDetails } = await supabase
+        .from('offers')
+        .select('is_custom, parent_offer_id')
+        .eq('id', offerId)
+        .single();
+
+      const isCustom = offerDetails?.is_custom;
+      const parentOfferId = offerDetails?.parent_offer_id;
+
       // --- 5. Decrement stock ---
       const { error: stockError } = await supabase.rpc('decrement_stock', {
         row_id: offerId,
@@ -145,6 +155,14 @@ export async function POST(req: Request) {
       });
       if (stockError) console.error('❌ Stock error:', JSON.stringify(stockError));
       else console.log(`✅ Stock updated for: ${offerId}`);
+
+      if (isCustom && parentOfferId) {
+        await supabase.rpc('decrement_stock', {
+          row_id: parentOfferId,
+          quantity_amt: quantityBought,
+        });
+        console.log(`✅ Parent Stock updated for: ${parentOfferId}`);
+      }
 
       // --- 6. Insert order_item ---
       if (!sellerId) {
@@ -189,12 +207,14 @@ export async function POST(req: Request) {
       else console.log(`✅ Seller notified!`);
 
       // --- 8. Create or Update Chat between Buyer & Seller ---
+      const chatOfferId = (isCustom && parentOfferId) ? parentOfferId : offerId;
+
       const { data: existingChat } = await supabase
         .from('chats')
         .select('id')
         .eq('buyer_id', userId)
         .eq('seller_id', sellerId)
-        .eq('offer_id', offerId)
+        .eq('offer_id', chatOfferId)
         .single();
 
       let chatId = existingChat?.id;
@@ -205,7 +225,7 @@ export async function POST(req: Request) {
           .insert({
             buyer_id: userId,
             seller_id: sellerId,
-            offer_id: offerId,
+            offer_id: chatOfferId,
             order_id: newOrder.id, // linked to purchase
           })
           .select('id')
@@ -221,6 +241,11 @@ export async function POST(req: Request) {
           chat_id: chatId,
           sender_id: userId,
           content: `📦 Hello! I just purchased ${quantityBought}x ${product.name}. Let me know if you need any details about my order.`,
+        });
+        await supabase.from('messages').insert({
+          chat_id: chatId,
+          sender_id: sellerId,
+          content: `✅ Hello! I received your order for ${quantityBought} items. I am preparing the shipping label and will send it soon.`,
         });
         console.log(`💬 Chat created/updated for order: ${chatId}`);
       }

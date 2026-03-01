@@ -105,6 +105,16 @@ export async function POST(req: Request) {
 
     // 6. Decrement stock & notify each seller
     for (const item of items) {
+      // Find out if it's a custom offer
+      const { data: offerDetails } = await supabase
+        .from('offers')
+        .select('is_custom, parent_offer_id')
+        .eq('id', item.id)
+        .single();
+
+      const isCustom = offerDetails?.is_custom;
+      const parentOfferId = offerDetails?.parent_offer_id;
+
       const { error: stockError } = await supabase.rpc('decrement_stock', {
         row_id: item.id,
         quantity_amt: item.quantity,
@@ -113,6 +123,14 @@ export async function POST(req: Request) {
         console.error(`❌ Stock update failed for offer ${item.id}:`, stockError);
       } else {
         console.log(`✅ Stock updated for offer: ${item.id}`);
+      }
+
+      if (isCustom && parentOfferId) {
+        await supabase.rpc('decrement_stock', {
+          row_id: parentOfferId,
+          quantity_amt: item.quantity,
+        });
+        console.log(`✅ Parent Stock updated for offer: ${parentOfferId}`);
       }
 
       // Notify the seller
@@ -135,12 +153,14 @@ export async function POST(req: Request) {
         }
 
         // --- 8. Create or Update Chat between Buyer & Seller ---
+        const chatOfferId = (isCustom && parentOfferId) ? parentOfferId : item.id;
+
         const { data: existingChat } = await supabase
           .from('chats')
           .select('id')
           .eq('buyer_id', userId)
           .eq('seller_id', item.seller_id)
-          .eq('offer_id', item.id)
+          .eq('offer_id', chatOfferId)
           .single();
 
         let chatId = existingChat?.id;
@@ -151,7 +171,7 @@ export async function POST(req: Request) {
             .insert({
               buyer_id: userId,
               seller_id: item.seller_id,
-              offer_id: item.id,
+              offer_id: chatOfferId,
               order_id: newOrder.id,
             })
             .select('id')
