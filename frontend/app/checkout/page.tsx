@@ -17,7 +17,9 @@ const supabase = createClient(
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const paymentMethod = searchParams.get('method') || 'stripe';
+
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'balance'>((searchParams.get('method') as 'stripe' | 'balance') || 'stripe');
+  const [balance, setBalance] = useState<number | null>(null);
 
   const { currency, rates, formatPrice } = useCurrency();
   const cart = useCart();
@@ -84,6 +86,12 @@ export default function CheckoutPage() {
   const selectedDhlCountry = DHL_COUNTRIES.find(c => c.code === formData.country);
 
   useEffect(() => {
+    if (balance !== null && paymentMethod === 'balance' && balance < grandTotalEur) {
+      setPaymentMethod('stripe');
+    }
+  }, [balance, grandTotalEur, paymentMethod]);
+
+  useEffect(() => {
     const fetchUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
@@ -141,7 +149,14 @@ export default function CheckoutPage() {
             setSellerCountries(countryMap);
           }
         }
-      }
+      } // end if (items.length > 0)
+
+      // Fetch user balance
+      const { data: sales } = await supabase.from('order_items').select('price_at_purchase, quantity').eq('seller_id', user.id);
+      const totalEarned = sales?.reduce((acc, s) => acc + (s.price_at_purchase * (s.quantity || 1)), 0) || 0;
+      const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id);
+      const totalSpent = orders?.reduce((acc, o) => acc + Number(o.total_amount), 0) || 0;
+      setBalance(Math.max(0, totalEarned - totalSpent));
 
       setFetchingProfile(false);
     };
@@ -364,22 +379,67 @@ export default function CheckoutPage() {
                 </span>
               </div>
 
-              {/* Payment method info */}
-              {paymentMethod === 'balance' ? (
-                <div className="bg-green-50 p-4 rounded-xl mb-6 flex items-start gap-3 border border-green-100">
-                  <Wallet className="text-green-600 flex-shrink-0" size={20} />
-                  <p className="text-xs text-green-800 font-medium">
-                    Paying with <strong>Printsi Balance</strong>. Funds will be deducted from your account.
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-blue-50 p-4 rounded-xl mb-6 flex items-start gap-3">
-                  <ShieldCheck className="text-blue-600 flex-shrink-0" size={20} />
-                  <p className="text-xs text-blue-800 font-medium">
-                    Secure checkout by Stripe. Pay in <strong>{currency}</strong>.
-                  </p>
-                </div>
-              )}
+              {/* Payment method selector */}
+              <div className="mb-6 space-y-3">
+                <label
+                  className={`flex flex-col p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'stripe' ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200 hover:border-blue-200'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="stripe"
+                      checked={paymentMethod === 'stripe'}
+                      onChange={() => setPaymentMethod('stripe')}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className={paymentMethod === 'stripe' ? 'text-blue-600' : 'text-gray-400'} size={18} />
+                      <span className="font-bold text-gray-900 text-sm">Credit Card / BLIK (Stripe)</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 ml-7">Secure online payment in {currency}.</p>
+                </label>
+
+                <label
+                  className={`flex flex-col p-4 rounded-xl border transition-all ${balance === null
+                    ? 'opacity-50 cursor-not-allowed border-gray-200'
+                    : balance < grandTotalEur
+                      ? 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200'
+                      : paymentMethod === 'balance'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-white border-gray-200 hover:border-green-200 cursor-pointer'
+                    }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="balance"
+                        checked={paymentMethod === 'balance'}
+                        disabled={balance === null || balance < grandTotalEur}
+                        onChange={() => setPaymentMethod('balance')}
+                        className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500 disabled:opacity-50"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Wallet className={paymentMethod === 'balance' ? 'text-green-600' : 'text-gray-400'} size={18} />
+                        <span className="font-bold text-gray-900 text-sm">Printsi Balance</span>
+                      </div>
+                    </div>
+                    {balance !== null && (
+                      <span className="text-[10px] font-black uppercase text-green-700 bg-green-100 px-2 py-1 rounded-md tracking-wider border border-green-200">
+                        {formatPrice(balance)} available
+                      </span>
+                    )}
+                  </div>
+                  {balance !== null && balance < grandTotalEur ? (
+                    <p className="text-xs text-red-500 mt-2 ml-7 font-bold">Insufficient funds (need {formatPrice(grandTotalEur)})</p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-2 ml-7">Funds will be deducted from your account.</p>
+                  )}
+                </label>
+              </div>
 
               {/* Warning if shipping not available */}
               {shippingEur === null && (
