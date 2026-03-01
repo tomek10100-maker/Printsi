@@ -12,6 +12,30 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: '€', USD: '$', GBP: '£', PLN: 'zł', CZK: 'Kč', SEK: 'kr', NOK: 'kr', DKK: 'kr', CHF: 'Fr',
+};
+
+async function convertFromEur(amountEur: number, toCurrency: string): Promise<string> {
+  try {
+    if (toCurrency === 'EUR') return `€${amountEur.toFixed(2)}`;
+    const res = await fetch('https://api.exchangerate-api.com/v4/latest/EUR');
+    const data = await res.json();
+    const rate = data.rates?.[toCurrency] || 1;
+    const converted = Math.ceil(amountEur * rate * 100) / 100;
+    const symbol = CURRENCY_SYMBOLS[toCurrency] || toCurrency + ' ';
+    if (toCurrency === 'PLN') return `${converted.toFixed(2)} ${symbol}`;
+    return `${symbol}${converted.toFixed(2)}`;
+  } catch {
+    return `€${amountEur.toFixed(2)}`;
+  }
+}
+
+async function getSellerCurrency(sellerId: string): Promise<string> {
+  const { data } = await supabase.from('profiles').select('currency').eq('id', sellerId).single();
+  return data?.currency || 'EUR';
+}
+
 export async function POST(req: Request) {
   const body = await req.text();
   const headersList = await headers();
@@ -191,14 +215,16 @@ export async function POST(req: Request) {
 
       console.log(`✅ order_item saved for: ${offerId}`);
 
-      // --- 7. Notify the SELLER with buyer's name ---
+      // --- 7. Notify the SELLER with buyer's name and amount in seller's currency ---
       const earned = priceAtPurchase * quantityBought;
+      const sellerCurrency = await getSellerCurrency(sellerId);
+      const formattedAmount = await convertFromEur(earned, sellerCurrency);
       const { error: sellerNotifError } = await supabase
         .from('notifications')
         .insert({
           user_id: sellerId,
           title: '🎉 You made a sale!',
-          message: `Your product "${product.name}" (x${quantityBought}) was purchased by ${buyerName} for ${currencySymbol}${earned.toFixed(2)}. Funds added to your Printsi balance.`,
+          message: `Your product "${product.name}" (x${quantityBought}) was purchased by ${buyerName} for ${formattedAmount}. Funds added to your Printsi balance.`,
           type: 'sale',
           is_read: false,
         });

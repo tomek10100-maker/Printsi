@@ -6,6 +6,34 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Currency symbols map
+const CURRENCY_SYMBOLS: Record<string, string> = {
+    EUR: '€', USD: '$', GBP: '£', PLN: 'zł', CZK: 'Kč', SEK: 'kr', NOK: 'kr', DKK: 'kr', CHF: 'Fr',
+};
+
+// Fetch exchange rates (EUR base) and convert amount
+async function convertFromEur(amountEur: number, toCurrency: string): Promise<string> {
+    try {
+        if (toCurrency === 'EUR') return `€${amountEur.toFixed(2)}`;
+        const res = await fetch(`https://api.exchangerate-api.com/v4/latest/EUR`);
+        const data = await res.json();
+        const rate = data.rates?.[toCurrency] || 1;
+        const converted = Math.ceil(amountEur * rate * 100) / 100;
+        const symbol = CURRENCY_SYMBOLS[toCurrency] || toCurrency + ' ';
+        // PLN uses symbol after, others before
+        if (toCurrency === 'PLN') return `${converted.toFixed(2)} ${symbol}`;
+        return `${symbol}${converted.toFixed(2)}`;
+    } catch {
+        return `€${amountEur.toFixed(2)}`;
+    }
+}
+
+// Fetch seller's preferred currency from profile
+async function getSellerCurrency(sellerId: string): Promise<string> {
+    const { data } = await supabase.from('profiles').select('currency').eq('id', sellerId).single();
+    return data?.currency || 'EUR';
+}
+
 /**
  * POST /api/order/confirm
  * Called after a successful payment (balance or Stripe).
@@ -108,11 +136,14 @@ export async function POST(req: Request) {
                 content: `✅ Thank you for your order! I've received your purchase of **${item.quantity}x ${title}**. I'll prepare it for shipping as soon as possible and will keep you updated here. 📦`,
             });
 
-            // 5. Notify the seller
+            // 5. Notify the seller with amount in their preferred currency
+            const sellerCurrency = await getSellerCurrency(sellerId);
+            const earnedEur = item.price_at_purchase * item.quantity;
+            const formattedAmount = await convertFromEur(earnedEur, sellerCurrency);
             await supabase.from('notifications').insert({
                 user_id: sellerId,
                 title: '🎉 New sale!',
-                message: `You sold ${item.quantity}x "${title}" for €${(item.price_at_purchase * item.quantity).toFixed(2)}. Funds added to your Printsi balance.`,
+                message: `You sold ${item.quantity}x "${title}" for ${formattedAmount}. Funds added to your Printsi balance.`,
                 type: 'sale',
                 is_read: false,
             });
