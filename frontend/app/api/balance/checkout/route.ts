@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     );
     const orderTotalEur = cartTotalEur + (shippingCostEur || 0);
 
-    // 2. Calculate real balance from database (security check - never trust the client)
+    // 2. Calculate real balance from database (security – never trust the client)
     const { data: sales } = await supabase
       .from('order_items')
       .select('price_at_purchase, quantity')
@@ -30,16 +30,15 @@ export async function POST(req: Request) {
       (acc, s) => acc + (s.price_at_purchase * (s.quantity || 1)), 0
     ) || 0;
 
-    const { data: orders } = await supabase
+    const { data: prevOrders } = await supabase
       .from('orders')
       .select('total_amount')
       .eq('buyer_id', userId);
 
-    const totalSpent = orders?.reduce(
+    const totalSpent = prevOrders?.reduce(
       (acc, o) => acc + Number(o.total_amount), 0
     ) || 0;
 
-    // Balance can NEVER go below 0
     const userBalance = Math.max(0, totalEarned - totalSpent);
 
     // 3. Check if user can afford the order
@@ -50,6 +49,7 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // 4. Create the order record
     const { data: newOrder, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -68,8 +68,8 @@ export async function POST(req: Request) {
 
     console.log(`✅ Balance order created: ${newOrder.id}`);
 
-    // 4.5 Insert detailed shipping info
-    if (shipping) {
+    // 5. Save detailed shipping info
+    if (shipping && (shipping.address || shipping.fullName)) {
       const { error: shippingError } = await supabase
         .from('order_shipping_details')
         .insert({
@@ -81,17 +81,16 @@ export async function POST(req: Request) {
           zip_code: shipping.zip || '',
           country: shipping.country || '',
         });
-
       if (shippingError) {
         console.error('❌ Failed to save shipping details:', shippingError);
       }
     }
 
-    // 5. Insert order items — FIX: removed buyer_id (doesn't exist in order_items table)
+    // 6. Insert order items
     const orderItemsToInsert = items.map((item: any) => ({
       order_id: newOrder.id,
       offer_id: item.id,
-      seller_id: item.seller_id, // FIX: was item.user_id (undefined!)
+      seller_id: item.seller_id,
       quantity: item.quantity,
       price_at_purchase: item.price,
     }));
@@ -104,98 +103,17 @@ export async function POST(req: Request) {
       throw new Error(`Failed to create order items: ${itemsError.message}`);
     }
 
-    // 6. Decrement stock & notify each seller
-    for (const item of items) {
-      // Find out if it's a custom offer
-      const { data: offerDetails } = await supabase
-        .from('offers')
-        .select('is_custom, parent_offer_id')
-        .eq('id', item.id)
-        .single();
-
-      const isCustom = offerDetails?.is_custom;
-      const parentOfferId = offerDetails?.parent_offer_id;
-
-      const { error: stockError } = await supabase.rpc('decrement_stock', {
-        row_id: item.id,
-        quantity_amt: item.quantity,
-      });
-      if (stockError) {
-        console.error(`❌ Stock update failed for offer ${item.id}:`, stockError);
-      } else {
-        console.log(`✅ Stock updated for offer: ${item.id}`);
-      }
-
-      if (isCustom && parentOfferId) {
-        await supabase.rpc('decrement_stock', {
-          row_id: parentOfferId,
-          quantity_amt: item.quantity,
-        });
-        console.log(`✅ Parent Stock updated for offer: ${parentOfferId}`);
-      }
-
-      // Notify the seller
-      if (item.seller_id) {
-        const earned = item.price * item.quantity;
-        const { error: notifError } = await supabase
-          .from('notifications')
-          .insert({
-            user_id: item.seller_id, // FIX: was item.user_id
-            title: '🎉 You made a sale!',
-            message: `Your product "${item.title}" (x${item.quantity}) was purchased for ${earned.toFixed(2)} EUR. Funds added to your Printsi balance.`,
-            type: 'sale',
-            is_read: false,
-          });
-
-        if (notifError) {
-          console.error(`❌ Notification error for seller ${item.seller_id}:`, notifError);
-        } else {
-          console.log(`✅ Notification sent to seller: ${item.seller_id}`);
-        }
-
-        // --- 8. Create or Update Chat between Buyer & Seller ---
-        const chatOfferId = (isCustom && parentOfferId) ? parentOfferId : item.id;
-
-        const { data: existingChat } = await supabase
-          .from('chats')
-          .select('id')
-          .eq('buyer_id', userId)
-          .eq('seller_id', item.seller_id)
-          .eq('offer_id', chatOfferId)
-          .single();
-
-        let chatId = existingChat?.id;
-
-        if (!chatId) {
-          const { data: newChat, error: chatError } = await supabase
-            .from('chats')
-            .insert({
-              buyer_id: userId,
-              seller_id: item.seller_id,
-              offer_id: chatOfferId,
-              order_id: newOrder.id,
-            })
-            .select('id')
-            .single();
-
-          if (!chatError) chatId = newChat.id;
-        }
-
-        if (chatId) {
-          // Buyer initial message
-          await supabase.from('messages').insert({
-            chat_id: chatId,
-            sender_id: userId,
-            content: `📦 Hey! I just bought ${item.quantity}x of ${item.title}. Looking forward to it!`,
-          });
-          // Seller automated reply
-          await supabase.from('messages').insert({
-            chat_id: chatId,
-            sender_id: item.seller_id,
-            content: `✅ Hello! I received your order for ${item.quantity} items. I am preparing the shipping label and will send it soon.`,
-          });
-        }
-      }
+    // 7. Trigger chat creation + stock deduction + seller notifications
+    //    via the shared /api/order/confirm endpoint
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const confirmRes = await fetch(`${baseUrl}/api/order/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: newOrder.id, userId }),
+    });
+    const confirmData = await confirmRes.json();
+    if (!confirmData.success) {
+      console.error('⚠️ Order confirm step had issues:', confirmData);
     }
 
     console.log('🎉 Balance checkout complete!');

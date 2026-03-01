@@ -192,6 +192,11 @@ export default function CheckoutPage() {
 
     // Stripe payment
     try {
+      // Save shipping cost to localStorage so /success can include it in order total
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('printsi_checkout_shipping_eur', String(shippingEur ?? 0));
+      }
+
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
