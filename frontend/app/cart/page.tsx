@@ -143,12 +143,7 @@ export default function CartPage() {
             {/* SUMMARY */}
             <div className="w-full lg:w-96">
               <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl sticky top-24">
-                <h3 className="text-lg font-black uppercase tracking-widest mb-6">Summary</h3>
-
-                <div className="flex justify-between text-xl font-black mb-4">
-                  <span>Total</span>
-                  <span>{formatPrice(cartTotal)}</span>
-                </div>
+                {/* NOTE: Cart displays individual items only. Total price and shipping will be shown on the checkout page. */}
 
                 {/* BALANCE INFO */}
                 <div className={`rounded-xl p-4 mb-6 border ${balanceLoading
@@ -204,9 +199,7 @@ export default function CartPage() {
                   </Link>
                 )}
 
-                <div className="mt-4 text-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Free Shipping & Secure Payment</span>
-                </div>
+
               </div>
             </div>
 
