@@ -9,6 +9,7 @@ import {
   UploadCloud, Loader2, FileText, Image as ImageIcon,
   Box, Layers, Printer, Tag, X, Trash2
 } from 'lucide-react';
+import { useCurrency } from '../../context/CurrencyContext';
 
 // --- KONFIGURACJA ---
 const BUCKET_NAME = 'printsi-files1';
@@ -23,6 +24,7 @@ export default function AddOfferPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const { currency, rates } = useCurrency();
 
   // --- 1. LISTING TYPE ---
   const [category, setCategory] = useState<'job' | 'digital' | 'physical'>('digital');
@@ -134,10 +136,15 @@ export default function AddOfferPage() {
         uploadedImageUrls.push("https://via.placeholder.com/400x300?text=Print+Request");
       }
 
+      let finalPrice = parseFloat(price);
+      if (currency !== 'EUR' && rates && rates[currency]) {
+        finalPrice = finalPrice / rates[currency];
+      }
+
       const payload = {
         title,
         description,
-        price: parseFloat(price),
+        price: finalPrice,
         category: category,
         material: material || null,
         color: color || null,
@@ -209,7 +216,7 @@ export default function AddOfferPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-[10px] tracking-wider pointer-events-none">PLN</span>
+                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-[10px] tracking-wider pointer-events-none">{currency}</span>
                   <input
                     type="number"
                     step="0.01"
