@@ -111,17 +111,24 @@ export default function CartPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-gray-100 transition"><Minus size={12} /></button>
-                    <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.id, 1)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-md shadow-sm transition ${item.stock !== undefined && item.quantity >= item.stock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100'}`}
-                      disabled={item.stock !== undefined && item.quantity >= item.stock}
-                    >
-                      <Plus size={12} />
-                    </button>
-                  </div>
+                  {item.is_custom ? (
+                    <div className="flex bg-blue-50 border border-blue-100 items-center gap-2 rounded-lg py-2 px-4 shadow-sm" title="Quantity locked by accepted custom proposal">
+                      <span className="font-black text-sm text-blue-800 text-center">{item.quantity}</span>
+                      <span className="text-[9px] font-black uppercase text-blue-500 tracking-wider">Fixed</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-gray-100 transition"><Minus size={12} /></button>
+                      <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-md shadow-sm transition ${item.stock !== undefined && item.quantity >= item.stock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100'}`}
+                        disabled={item.stock !== undefined && item.quantity >= item.stock}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  )}
 
                   <div className="text-right min-w-[80px]">
                     <p className="font-black text-xl">{formatPrice(item.price * item.quantity)}</p>
@@ -146,10 +153,10 @@ export default function CartPage() {
 
                 {/* BALANCE INFO */}
                 <div className={`rounded-xl p-4 mb-6 border ${balanceLoading
-                    ? 'bg-gray-50 border-gray-200'
-                    : canPayWithBalance
-                      ? 'bg-green-50 border-green-200'
-                      : 'bg-orange-50 border-orange-200'
+                  ? 'bg-gray-50 border-gray-200'
+                  : canPayWithBalance
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-orange-50 border-orange-200'
                   }`}>
                   <div className="flex items-center gap-2 mb-1">
                     <Wallet size={16} className={balanceLoading ? 'text-gray-400' : canPayWithBalance ? 'text-green-600' : 'text-orange-500'} />

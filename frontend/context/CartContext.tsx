@@ -11,6 +11,7 @@ export type CartItem = {
   seller_id: string;
   quantity: number;
   stock: number; // <--- TO JEST KLUCZOWE
+  is_custom?: boolean;
 };
 
 type CartContextType = {
@@ -40,9 +41,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = (newItem: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
     setItems((prevItems) => {
       const existingItem = prevItems.find((i) => i.id === newItem.id);
-      
+
       const currentQty = existingItem ? existingItem.quantity : 0;
-      const availableStock = newItem.stock; 
+      const availableStock = newItem.stock;
 
       if (currentQty + quantity > availableStock) {
         alert(`Sorry, only ${availableStock} items available in stock.`);
@@ -50,7 +51,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (existingItem) {
-        return prevItems.map((i) => 
+        return prevItems.map((i) =>
           i.id === newItem.id ? { ...i, quantity: i.quantity + quantity } : i
         );
       } else {
@@ -62,11 +63,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const updateQuantity = (id: string, amount: number) => {
     setItems((prev) => prev.map((item) => {
       if (item.id === id) {
+        if (item.is_custom) {
+          alert("Cannot modify quantity of an accepted custom proposal.");
+          return item;
+        }
+
         const newQuantity = item.quantity + amount;
-        
+
         if (newQuantity > item.stock) {
-           alert(`Cannot add more. Only ${item.stock} available.`);
-           return item;
+          alert(`Cannot add more. Only ${item.stock} available.`);
+          return item;
         }
         if (newQuantity < 1) return item;
 

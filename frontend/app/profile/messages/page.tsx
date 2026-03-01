@@ -314,7 +314,8 @@ export default function MessagesPage() {
             price: parsedData.price,
             image_url: activeChatData.offers?.image_urls?.[0] || null,
             seller_id: activeChatData.seller_id,
-            stock: parsedData.quantity
+            stock: parsedData.quantity,
+            is_custom: true
         }, parsedData.quantity);
 
         router.push('/cart');
