@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Bell, X, ShoppingBag, CreditCard } from 'lucide-react';
 import Link from 'next/link';
+import { useCurrency } from '../../context/CurrencyContext';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,6 +21,7 @@ interface Toast {
 export default function NotificationToast() {
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [userId, setUserId] = useState<string | null>(null);
+    const { formatPrice } = useCurrency();
 
     useEffect(() => {
         // Get current user
@@ -50,10 +52,19 @@ export default function NotificationToast() {
                 },
                 (payload) => {
                     const notif = payload.new as any;
+                    // Convert any Euro amount in the message to the user's preferred currency
+                    const formattedMessage = (() => {
+                        const euroMatch = notif.message?.match(/€\s*([\d.,]+)/);
+                        if (euroMatch) {
+                            const eurValue = parseFloat(euroMatch[1].replace(',', '.'));
+                            return notif.message.replace(euroMatch[0], formatPrice(eurValue));
+                        }
+                        return notif.message;
+                    })();
                     const newToast: Toast = {
                         id: notif.id,
                         title: notif.title,
-                        message: notif.message,
+                        message: formattedMessage,
                         type: notif.type,
                     };
                     setToasts((prev) => [...prev, newToast]);
