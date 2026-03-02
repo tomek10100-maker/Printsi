@@ -7,9 +7,10 @@ import Link from 'next/link';
 import {
   Settings, MapPin, Link as LinkIcon, Calendar, Loader2, Home, LogOut,
   CreditCard, Bell, Package, ChevronRight, ShoppingBag, Plus, Trash2, Eye, Edit,
-  Heart, TrendingUp, Wallet, DollarSign, MessageSquare
+  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useTheme } from '../../context/ThemeContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,6 +20,7 @@ const supabase = createClient(
 export default function ProfilePage() {
   const router = useRouter();
   const { formatPrice } = useCurrency();
+  const { theme, setTheme } = useTheme();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -194,7 +196,16 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="flex gap-3 mb-4">
+          <div className="flex gap-3 mb-4 flex-wrap">
+            <button
+              onClick={() => setTheme(theme === 'white' ? 'black' : theme === 'black' ? 'midnight' : 'white')}
+              className="px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:border-purple-500 hover:text-purple-600 transition-all flex items-center gap-2 shadow-sm min-w-[140px] justify-center group overflow-hidden relative"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-blue-100 opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
+              {theme === 'white' && <><Sun size={18} className="text-yellow-500" /> Light</>}
+              {theme === 'black' && <><Moon size={18} className="text-gray-900" /> Dark</>}
+              {theme === 'midnight' && <><Sparkles size={18} className="text-purple-500 animate-pulse" /> Midnight</>}
+            </button>
             <Link href="/settings" className="px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:border-blue-500 hover:text-blue-600 transition-all flex items-center gap-2 shadow-sm">
               <Settings size={18} /> Edit Profile
             </Link>

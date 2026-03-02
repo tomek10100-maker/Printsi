@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { CartProvider } from '../context/CartContext';
 import { CurrencyProvider } from '../context/CurrencyContext';
+import { ThemeProvider } from '../context/ThemeContext';
 import NotificationToast from './components/NotificationToast';
 import { AuthGuard } from './components/AuthGuard';
 
@@ -21,13 +22,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <CartProvider>
-          <CurrencyProvider>
-            {children}
-            {/* Global real-time notification toasts */}
-            <NotificationToast />
-          </CurrencyProvider>
-        </CartProvider>
+        <ThemeProvider>
+          <CartProvider>
+            <CurrencyProvider>
+              {children}
+              {/* Global real-time notification toasts */}
+              <NotificationToast />
+            </CurrencyProvider>
+          </CartProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

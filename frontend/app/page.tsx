@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { Globe, Zap, Shield, Users, ChevronRight, User, UploadCloud, ShoppingBag } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +17,7 @@ export default function HomePage() {
   const [user, setUser] = useState<any>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -98,69 +100,70 @@ export default function HomePage() {
       {/* BACKGROUND */}
       <div className="absolute inset-0 z-0">
         <img
-          src="/background.jpg"
+          src={theme === 'white' ? '/background.jpg' : theme === 'black' ? '/dark.png' : '/midnight.png'}
           alt="3D Printer Background"
-          className="h-full w-full object-cover opacity-100"
+          className="h-full w-full object-cover transition-opacity duration-700 opacity-100"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-white/30 via-transparent to-white/20" />
       </div>
 
       {/* NAVBAR */}
-      <nav className="relative z-20 flex items-center justify-between px-12 py-8">
-        <div className="flex items-center gap-14">
-          <Link href="/">
-            <img src="/logo.jpg" alt="Printsi Logo" className="h-9 w-auto" />
-          </Link>
+      <div className="relative z-50 px-6 py-6 md:px-12">
+        <nav className="mx-auto w-full max-w-7xl flex items-center justify-between bg-white/80 backdrop-blur-xl px-8 py-4 rounded-3xl shadow-lg border border-gray-100">
+          <div className="flex items-center gap-14">
+            <Link href="/">
+              <img src="/logo.jpg" alt="Printsi Logo" className="h-10 w-auto rounded-xl object-cover" />
+            </Link>
 
-          <div className="hidden lg:flex items-center gap-10 text-[12px] uppercase tracking-[0.2em] font-black text-gray-800">
-            <Link href="/support" className="hover:text-blue-600 transition-colors">Support</Link>
-            <Link href="/about" className="hover:text-blue-600 transition-colors">About Us</Link>
-            <Link href="/faq" className="hover:text-blue-600 transition-colors">FAQ</Link>
-            <Link href="/how-it-works" className="hover:text-blue-600 transition-colors">How it Works</Link>
+            <div className="hidden lg:flex items-center gap-8 text-[11px] uppercase tracking-[0.2em] font-black text-gray-800">
+              <Link href="/support" className="hover:text-blue-600 transition-colors">Support</Link>
+              <Link href="/about" className="hover:text-blue-600 transition-colors">About Us</Link>
+              <Link href="/faq" className="hover:text-blue-600 transition-colors">FAQ</Link>
+              <Link href="/how-it-works" className="hover:text-blue-600 transition-colors">How it Works</Link>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href={user ? "/upload" : "/login"}
-            className="hidden md:flex w-10 h-10 items-center justify-center bg-white/80 backdrop-blur rounded-full text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-white"
-            title="Add New Listing"
-          >
-            <UploadCloud size={20} />
-          </Link>
-
-          <Link
-            href={user ? "/cart" : "/login"}
-            className="hidden md:flex w-10 h-10 items-center justify-center bg-white/80 backdrop-blur rounded-full text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-white"
-            title="Your Cart"
-          >
-            <ShoppingBag size={20} />
-          </Link>
-
-          <div className="h-6 w-px bg-gray-400/30 mx-2 hidden md:block"></div>
-
-          {user ? (
+          <div className="flex items-center gap-4">
             <Link
-              href="/profile"
-              className="relative bg-blue-600 text-white px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl flex items-center gap-2 group"
+              href={user ? "/upload" : "/login"}
+              className="hidden md:flex w-10 h-10 items-center justify-center bg-gray-100 rounded-full text-gray-700 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-gray-200"
+              title="Add New Listing"
             >
-              <User size={16} /> Account
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[9px] font-bold animate-pulse">
-                  {unreadCount > 9 ? '!' : unreadCount}
-                </span>
-              )}
+              <UploadCloud size={20} />
             </Link>
-          ) : (
+
             <Link
-              href="/login"
-              className="bg-gray-900 text-white px-10 py-3 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-2xl"
+              href={user ? "/cart" : "/login"}
+              className="hidden md:flex w-10 h-10 items-center justify-center bg-gray-100 rounded-full text-gray-700 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-gray-200"
+              title="Your Cart"
             >
-              Sign In
+              <ShoppingBag size={20} />
             </Link>
-          )}
-        </div>
-      </nav>
+
+            <div className="h-6 w-px bg-gray-300 mx-1 hidden md:block"></div>
+
+            {user ? (
+              <Link
+                href="/profile"
+                className="relative bg-blue-600 text-white px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2"
+              >
+                <User size={16} /> Account
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[9px] font-bold animate-pulse">
+                    {unreadCount > 9 ? '!' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="bg-gray-900 text-white px-10 py-3 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg border border-gray-800"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
+        </nav>
+      </div>
 
       {/* PENTAGON MENU */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-[80vh]">
@@ -183,9 +186,11 @@ export default function HomePage() {
                   <Link href={brick.link} className={brick.status === 'soon' ? 'pointer-events-none' : ''}>
                     <div className={`
                       w-44 h-24 flex flex-col items-center justify-center p-4 text-center
-                      bg-white/10 backdrop-blur-md border border-white/40 rounded-3xl
-                      shadow-sm hover:shadow-2xl hover:bg-white/90 hover:border-blue-500
+                      rounded-3xl shadow-lg border
                       transition-all duration-300 transform hover:-translate-y-2
+                      ${theme === 'white'
+                        ? 'bg-white/80 backdrop-blur-md border-gray-100 hover:border-blue-500'
+                        : 'bg-gray-900/80 backdrop-blur-md border-gray-800 hover:border-blue-500'}
                       ${brick.status === 'soon' ? 'cursor-default opacity-80' : 'cursor-pointer'}
                     `}>
                       {brick.status === 'active' ? (
@@ -215,7 +220,8 @@ export default function HomePage() {
           })}
         </div>
 
-        <div className="mt-8 text-center bg-white/10 backdrop-blur-sm px-8 py-4 rounded-3xl border border-white/20">
+        <div className={`mt-8 text-center backdrop-blur-md px-8 py-4 rounded-3xl border shadow-lg transition-colors duration-300 ${theme === 'white' ? 'bg-white/60 border-gray-100' : 'bg-gray-900/60 border-gray-800'
+          }`}>
           <h1 className="text-4xl font-black tracking-tighter text-gray-900 uppercase">
             Future of <span className="text-blue-600">Creation.</span>
           </h1>
