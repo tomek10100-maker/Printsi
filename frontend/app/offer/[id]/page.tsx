@@ -200,10 +200,15 @@ export default function OfferDetailsPage() {
         <div className="flex flex-col">
           <h1 className="text-4xl font-black uppercase tracking-tight text-gray-900 mb-2">{offer.title}</h1>
 
-          <p className="text-2xl font-bold text-blue-600 mb-6">
-            {formatPrice(offer.price)}
-            <span className="text-sm text-gray-400 font-medium normal-case"> / piece</span>
-          </p>
+          <div className="mb-6 flex flex-col items-start gap-1">
+            <div className="text-2xl font-bold text-blue-600 flex items-baseline gap-1">
+              {formatPrice(offer.price)}
+              <span className="text-sm text-gray-400 font-medium normal-case"> / piece</span>
+            </div>
+            {!isDigital && (
+              <span className="text-[11px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
+            )}
+          </div>
 
           <div className="flex items-center gap-4 mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
             <div className="w-12 h-12 bg-white rounded-full overflow-hidden border border-gray-200 flex items-center justify-center">

@@ -283,7 +283,12 @@ function MarketplaceContent() {
 
                   {/* --- CARD FOOTER --- */}
                   <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 gap-2">
-                    <span className="text-lg font-black text-gray-900">{formatPrice(offer.price)}</span>
+                    <div className="flex flex-col">
+                      <span className="text-lg font-black text-gray-900 leading-none pb-1">{formatPrice(offer.price)}</span>
+                      {offer.category !== 'digital' && (
+                        <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
+                      )}
+                    </div>
 
                     {offer.category === 'job' && !userRoles.includes('printer') ? (
                       <button disabled className="flex items-center bg-gray-50 text-red-500 px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest cursor-not-allowed border border-red-100">

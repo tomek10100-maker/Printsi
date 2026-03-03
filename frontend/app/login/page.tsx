@@ -21,7 +21,10 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // NAPRAWA: Przekierowanie na stronę główną (/)
+        // NOTE: Jeśli logujesz się przez IP (np. 192.168.x.x), Google Console
+        // ODRZUCI ten link, bo zezwala tylko na "http://localhost:3000".
+        // Opcja 1: Musisz dodać swój adres IP do "Authorized redirect URIs" w Google Cloud Console.
+        // Opcja 2: Loguj się przez drugi laptop używając modyfikacji pliku "hosts", albo loguj się przez e-mail.
         redirectTo: `${window.location.origin}/`,
       },
     });
@@ -45,19 +48,29 @@ export default function LoginPage() {
       if (error) {
         alert('Registration Error: ' + error.message);
       } else {
-        alert('Registration successful! Let\'s set up your profile.');
-        window.location.href = '/onboarding';
+        window.location.href = '/verify-email';
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: sessionData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         alert('Login Error: ' + error.message);
-      } else {
-        window.location.href = '/';
+      } else if (sessionData?.user) {
+        // Fetch profile to see if onboarding is completed
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('roles')
+          .eq('id', sessionData.user.id)
+          .single();
+
+        if (!profile?.roles || profile.roles.length === 0) {
+          window.location.href = '/onboarding';
+        } else {
+          window.location.href = '/';
+        }
       }
     }
     setLoading(false);

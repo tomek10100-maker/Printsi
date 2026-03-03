@@ -21,14 +21,18 @@ export default function HomePage() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setUser(session.user);
-        checkNotifications(session.user.id);
-        const profileData = await checkOnboarding(session.user);
-        if (profileData && profileData.roles) {
-          setUserRoles(profileData.roles);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setUser(session.user);
+          checkNotifications(session.user.id);
+          const profileData = await checkOnboarding(session.user);
+          if (profileData && profileData.roles) {
+            setUserRoles(profileData.roles);
+          }
         }
+      } catch (_) {
+        // Network error – Supabase will retry automatically
       }
     };
     checkUser();
@@ -41,7 +45,7 @@ export default function HomePage() {
           if (profile && profile.roles) {
             setUserRoles(profile.roles);
           }
-        });
+        }).catch(() => { });
       } else {
         setUnreadCount(0);
         setUserRoles([]);
@@ -52,37 +56,35 @@ export default function HomePage() {
   }, []);
 
   const checkOnboarding = async (authUser: any) => {
-    // Only redirect if the account was created in the last 2 minutes
-    const createdAt = new Date(authUser.created_at).getTime();
-    const now = Date.now();
-    const isNewAccount = (now - createdAt) < 2 * 60 * 1000;
-
-    if (isNewAccount) {
+    try {
       const { data: profile } = await supabase
         .from('profiles')
         .select('roles')
         .eq('id', authUser.id)
         .single();
 
-      if (isNewAccount) {
-        if (!profile?.roles || profile.roles.length === 0) {
-          router.push('/onboarding');
-        }
+      if (!profile?.roles || profile.roles.length === 0) {
+        router.push('/onboarding');
       }
-
       return profile;
+    } catch (_) {
+      return null;
     }
   };
 
   const checkNotifications = async (userId: string) => {
-    const { count, error } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
 
-    if (!error && count !== null) {
-      setUnreadCount(count);
+      if (!error && count !== null) {
+        setUnreadCount(count);
+      }
+    } catch (_) {
+      // Ignore network errors silently
     }
   };
 
