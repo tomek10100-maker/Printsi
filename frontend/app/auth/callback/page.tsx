@@ -47,7 +47,7 @@ export default function AuthCallbackPage() {
 
     return (
         <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-center gap-4">
-            <img src="/logo.jpg" alt="Printsi Logo" className="h-9 w-auto mb-4 opacity-80" />
+            <img src="/logo.jpg" alt="Printsi Logo" className="h-9 w-auto mb-4 opacity-80 rounded-xl object-cover" />
             <Loader2 className="animate-spin text-blue-400" size={36} />
             <p className="text-slate-400 text-sm font-medium">Signing you in...</p>
         </main>

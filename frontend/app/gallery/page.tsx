@@ -201,7 +201,7 @@ function MarketplaceContent() {
       )}
 
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4">
-        <Link href="/" className="flex-shrink-0"><img src="/logo.jpg" alt="Printsi" className="h-8 w-auto hover:opacity-80 transition" /></Link>
+        <Link href="/" className="flex-shrink-0"><img src="/logo.jpg" alt="Printsi" className="h-8 w-auto rounded-xl object-cover hover:opacity-80 transition" /></Link>
         <div className="flex-1 max-w-2xl relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input type="text" placeholder="Search items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-gray-100 hover:bg-white focus:bg-white border-2 border-transparent focus:border-blue-600 rounded-full text-sm font-medium transition-all outline-none" />

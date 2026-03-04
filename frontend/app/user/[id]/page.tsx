@@ -66,7 +66,7 @@ export default function PublicProfilePage() {
         <Link href="/gallery" className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-gray-900 transition">
           <ArrowLeft size={16} /> Back to Marketplace
         </Link>
-        <img src="/logo.jpg" alt="Printsi" className="h-6 w-auto" />
+        <img src="/logo.jpg" alt="Printsi" className="h-6 w-auto rounded-xl object-cover" />
       </nav>
 
       {/* COVER SECTION */}

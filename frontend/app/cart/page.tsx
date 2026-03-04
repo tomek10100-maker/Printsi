@@ -63,7 +63,7 @@ export default function CartPage() {
       {/* NAVBAR */}
       <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <img src="/logo.jpg" alt="Printsi" className="h-8 w-auto" />
+          <img src="/logo.jpg" alt="Printsi" className="h-8 w-auto rounded-xl object-cover" />
         </Link>
         <Link href="/gallery" className="p-2 rounded-full hover:bg-gray-100 transition text-gray-500">
           <X size={24} />
