@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   Settings, MapPin, Link as LinkIcon, Calendar, Loader2, Home, LogOut,
   CreditCard, Bell, Package, ChevronRight, ShoppingBag, Plus, Trash2, Eye, Edit,
-  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles
+  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -280,6 +280,22 @@ export default function ProfilePage() {
                   subtitle="Saved items & wishlist"
                   href="/profile/favorites"
                 />
+
+                {/* Filaments – only for printers */}
+                {profile?.roles?.includes('printer') && (
+                  <DashboardCard
+                    icon={
+                      <div className="relative">
+                        <Layers size={24} />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white" />
+                      </div>
+                    }
+                    title="My Filaments"
+                    subtitle="Manage your filament stock"
+                    href="/profile/filaments"
+                    accent
+                  />
+                )}
               </div>
             </div>
 
@@ -362,10 +378,10 @@ export default function ProfilePage() {
   );
 }
 
-function DashboardCard({ icon, title, subtitle, href, badge }: any) {
+function DashboardCard({ icon, title, subtitle, href, badge, accent }: any) {
   const Content = (
     <>
-      <div className="relative w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+      <div className={`relative w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 transition-colors ${accent ? 'group-hover:bg-orange-50 group-hover:text-orange-600' : 'group-hover:bg-blue-50 group-hover:text-blue-600'}`}>
         {icon}
         {badge && (
           <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in duration-300">
@@ -374,16 +390,16 @@ function DashboardCard({ icon, title, subtitle, href, badge }: any) {
         )}
       </div>
       <div>
-        <h4 className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{title}</h4>
+        <h4 className={`font-bold text-gray-900 transition-colors ${accent ? 'group-hover:text-orange-700' : 'group-hover:text-blue-700'}`}>{title}</h4>
         <p className="text-xs text-gray-500 font-medium">{subtitle}</p>
       </div>
-      <ChevronRight className="ml-auto text-gray-300 group-hover:text-blue-400 transition-colors" size={18} />
+      <ChevronRight className={`ml-auto text-gray-300 transition-colors ${accent ? 'group-hover:text-orange-400' : 'group-hover:text-blue-400'}`} size={18} />
     </>
   );
 
   if (href) {
     return (
-      <Link href={href} className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all text-left group">
+      <Link href={href} className={`flex items-center gap-4 p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left group ${accent ? 'hover:border-orange-200' : 'hover:border-blue-200'}`}>
         {Content}
       </Link>
     );
