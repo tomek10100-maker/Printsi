@@ -25,6 +25,7 @@ type Filament = {
   color_hex: string;
   brand: string | null;
   price_per_gram: number; // stored in EUR
+  stock_grams: number | null;
 };
 
 type FilamentLayer = {
@@ -254,7 +255,9 @@ export default function AddOfferPage() {
         dbFilamentId = fl.filament?.id || null;
         colorVariantsPayload = variants.map((v, i) => ({
           variantId: v.variantId,
-          label: `Variant ${i + 1}`,
+          label: v.layers.map(l => l.filament?.color_name || '').filter(Boolean).join(' + ') || `Variant ${i + 1}`,
+          color_name: v.layers[0]?.filament?.color_name || null,
+          plastic_type: v.layers[0]?.filament?.plastic_type || null,
           layers: v.layers.map(l => ({
             filament_id: l.filament?.id,
             color_hex: l.filament?.color_hex,
@@ -577,6 +580,11 @@ export default function AddOfferPage() {
                                               <span className="text-[10px] font-bold text-gray-500 flex-shrink-0">{fmt(fil.price_per_gram * 1000)}/kg</span>
                                             </button>
                                           ))}
+                                          <div className="border-t border-gray-100 mt-1 sticky bottom-0 bg-white">
+                                            <Link href="/profile/filaments" className="flex items-center justify-center gap-2 py-3 px-3 text-[11px] font-black text-orange-600 hover:bg-orange-50 transition-all uppercase tracking-wider">
+                                              <Settings2 size={14} /> ⚙️ Manage your filaments
+                                            </Link>
+                                          </div>
                                         </div>
                                       )}
                                     </div>
@@ -647,9 +655,35 @@ export default function AddOfferPage() {
                                 </div>
 
                                 <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
-                                  <div className="flex items-center gap-1.5">
-                                    <Box size={12} className="text-gray-500" />
-                                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Stock (qty)</span>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <Box size={12} className="text-gray-500" />
+                                      <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Stock (qty)</span>
+                                    </div>
+                                    {(() => {
+                                      // Calculate possible pieces based on stock
+                                      let maxPieces = Infinity;
+                                      let canCalc = false;
+                                      for (const l of v.layers) {
+                                        if (l.filament && l.filament.stock_grams !== null && l.grams) {
+                                          const g = parseFloat(l.grams);
+                                          if (g > 0) {
+                                            maxPieces = Math.min(maxPieces, Math.floor(l.filament.stock_grams / g));
+                                            canCalc = true;
+                                          } else { canCalc = false; break; }
+                                        } else { canCalc = false; break; }
+                                      }
+                                      if (canCalc && maxPieces !== Infinity && maxPieces >= 0) {
+                                        return (
+                                          <button type="button"
+                                            onClick={() => updateVariant(v.variantId, { stock: maxPieces.toString() })}
+                                            className="text-[9px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md hover:bg-orange-100 transition-all border border-orange-200 animate-pulse-subtle">
+                                            Auto-fill: {maxPieces} pcs
+                                          </button>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                   </div>
                                   <input
                                     type="text"

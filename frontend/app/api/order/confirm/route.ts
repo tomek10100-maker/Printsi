@@ -44,9 +44,33 @@ async function getSellerCurrency(sellerId: string): Promise<string> {
 }
 
 /**
+ * Zmniejsza stock_grams filamentu o zużyte gramy.
+ * layers = [{filament_id, grams}]
+ * quantity = ile sztuk kupiono
+ */
+async function decrementFilamentStock(layers: { filament_id?: string; grams?: string | number }[], quantity: number) {
+    if (!layers || layers.length === 0) return;
+    for (const layer of layers) {
+        if (!layer.filament_id || !layer.grams) continue;
+        const gramsPerPiece = parseFloat(String(layer.grams));
+        if (isNaN(gramsPerPiece) || gramsPerPiece <= 0) continue;
+        const totalGrams = gramsPerPiece * quantity;
+        const { error } = await supabase.rpc('decrement_filament_stock', {
+            filament_id: layer.filament_id,
+            grams_used: totalGrams,
+        });
+        if (error) {
+            console.error(`❌ Filament stock update failed for ${layer.filament_id}:`, error);
+        } else {
+            console.log(`✅ Filament ${layer.filament_id} -${totalGrams}g (qty ${quantity} × ${gramsPerPiece}g)`);
+        }
+    }
+}
+
+/**
  * POST /api/order/confirm
  * Called after a successful payment (balance or Stripe).
- * Creates chat threads and sends confirmation messages for each order item.
+ * Creates chat threads, sends confirmation messages, decrements filament stock.
  *
  * Body: { orderId: string, userId: string }
  */
@@ -61,7 +85,7 @@ export async function POST(req: Request) {
         // 1. Fetch all order items for this order
         const { data: orderItems, error: itemsErr } = await supabase
             .from('order_items')
-            .select('offer_id, seller_id, quantity, price_at_purchase')
+            .select('offer_id, seller_id, quantity, price_at_purchase, variant_layers')
             .eq('order_id', orderId);
 
         if (itemsErr || !orderItems?.length) {
@@ -69,11 +93,11 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Order items not found' }, { status: 404 });
         }
 
-        // 2. Fetch offer details (title, is_custom, parent_offer_id) for each item
+        // 2. Fetch offer details (title, is_custom, parent_offer_id, color_variants) for each item
         const offerIds = orderItems.map(i => i.offer_id);
         const { data: offers } = await supabase
             .from('offers')
-            .select('id, title, is_custom, parent_offer_id')
+            .select('id, title, is_custom, parent_offer_id, color_variants')
             .in('id', offerIds);
 
         const offerMap: Record<string, any> = {};
@@ -131,14 +155,12 @@ export async function POST(req: Request) {
             }
 
             // 4. Post order confirmation messages to the chat
-            // ── System message (shown as buyer message)
             await supabase.from('messages').insert({
                 chat_id: chatId,
                 sender_id: userId,
                 content: `🛍️ Order placed! I just purchased **${item.quantity}x ${title}**. Looking forward to receiving it! 🎉`,
             });
 
-            // ── Seller automated confirmation reply
             await supabase.from('messages').insert({
                 chat_id: chatId,
                 sender_id: sellerId,
@@ -158,7 +180,7 @@ export async function POST(req: Request) {
                 is_read: false,
             });
 
-            // 6. Decrement stock
+            // 6. Decrement offer stock
             const { error: stockErr } = await supabase.rpc('decrement_stock', {
                 row_id: item.offer_id,
                 quantity_amt: item.quantity,
@@ -173,6 +195,25 @@ export async function POST(req: Request) {
                     row_id: parentOfferId,
                     quantity_amt: item.quantity,
                 });
+            }
+
+            // 7. ─── KLUCZOWE: Zmniejsz stock_grams filamentu ───
+            // variant_layers zapisane w order_items (ustawiane przez cart/checkout)
+            const variantLayers = item.variant_layers;
+            if (variantLayers && Array.isArray(variantLayers) && variantLayers.length > 0) {
+                console.log(`🧵 Decrementing filament for ${item.quantity}x ${title}, layers:`, variantLayers);
+                await decrementFilamentStock(variantLayers, item.quantity);
+            } else {
+                // Fallback: spróbuj wziąć warstwy z color_variants oferty
+                const colorVariants: any[] = offer.color_variants || [];
+                if (colorVariants.length > 0) {
+                    // Bierz warstwy z pierwszego wariantu (jeśli nie zapisano konkretnego)
+                    const fallbackLayers = colorVariants[0]?.layers || [];
+                    if (fallbackLayers.length > 0) {
+                        console.log(`🧵 Fallback: Decrementing filament from offer's first variant, layers:`, fallbackLayers);
+                        await decrementFilamentStock(fallbackLayers, item.quantity);
+                    }
+                }
             }
         }
 

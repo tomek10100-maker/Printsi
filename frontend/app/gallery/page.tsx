@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Loader2, Search, ShoppingBag, X,
-  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare
+  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare, Palette, Check
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -15,6 +15,17 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+type ColorVariant = {
+  label: string;
+  primaryColor: string;
+  color_name: string;
+  priceEUR: number;
+  stock: number;
+  plastic_type: string;
+  isMultiColor?: boolean;
+  layers?: { color_hex: string; color_name: string; grams: string }[];
+};
 
 type Offer = {
   id: string;
@@ -26,6 +37,11 @@ type Offer = {
   created_at: string;
   stock: number;
   user_id: string;
+  color_variants?: ColorVariant[];
+  color_name?: string;
+  color_hex?: string;
+  material?: string;
+  weight?: string;
 };
 
 function MarketplaceContent() {
@@ -47,13 +63,20 @@ function MarketplaceContent() {
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [userRoles, setUserRoles] = useState<string[]>([]);
 
+  // Color picker modal state
+  const [colorPickerOffer, setColorPickerOffer] = useState<Offer | null>(null);
+  const [colorPickerMode, setColorPickerMode] = useState<'add' | 'buy'>('add');
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
+
   const fetchOffers = useCallback(async () => {
-    const { data, error } = await supabase.from('offers').select('*').eq('is_custom', false);
+    const { data, error } = await supabase
+      .from('offers')
+      .select('*')
+      .eq('is_custom', false);
     if (error) {
       console.error('Błąd pobierania ofert:', error);
     } else {
       setOffers(data || []);
-      console.log("📥 Pobrane oferty (Initial Load):", data?.length);
     }
   }, []);
 
@@ -113,13 +136,25 @@ function MarketplaceContent() {
 
   const handleAddToCart = (offer: Offer) => {
     if (offer.stock <= 0) return;
+    const variants = offer.color_variants || [];
+    if (offer.category === 'physical' && variants.length > 1) {
+      // open color picker
+      setColorPickerOffer(offer);
+      setColorPickerMode('add');
+      setSelectedVariantIdx(0);
+      return;
+    }
+    const firstVariant = variants[0];
     addItem({
       id: offer.id,
       title: offer.title,
-      price: offer.price,
+      price: firstVariant ? firstVariant.priceEUR : offer.price,
       image_url: offer.image_urls?.[0] || null,
       seller_id: offer.user_id,
-      stock: offer.stock
+      stock: firstVariant ? firstVariant.stock : offer.stock,
+      variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
+      variant_color: firstVariant ? firstVariant.primaryColor : offer.color_hex,
+      variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
     });
     setLastAddedItem(offer);
     setShowModal(true);
@@ -127,17 +162,51 @@ function MarketplaceContent() {
 
   const handleBuyNow = (offer: Offer) => {
     if (offer.stock <= 0) return;
-
+    const variants = offer.color_variants || [];
+    if (offer.category === 'physical' && variants.length > 1) {
+      setColorPickerOffer(offer);
+      setColorPickerMode('buy');
+      setSelectedVariantIdx(0);
+      return;
+    }
+    const firstVariant = variants[0];
     addItem({
       id: offer.id,
       title: offer.title,
-      price: offer.price,
+      price: firstVariant ? firstVariant.priceEUR : offer.price,
       image_url: offer.image_urls?.[0] || null,
       seller_id: offer.user_id,
-      stock: offer.stock
+      stock: firstVariant ? firstVariant.stock : offer.stock,
+      variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
+      variant_color: firstVariant ? firstVariant.primaryColor : offer.color_hex,
+      variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
     });
-
     router.push('/cart');
+  };
+
+  const confirmVariantAndAdd = () => {
+    if (!colorPickerOffer) return;
+    const variants = colorPickerOffer.color_variants || [];
+    const v = variants[selectedVariantIdx];
+    addItem({
+      id: colorPickerOffer.id,
+      title: colorPickerOffer.title,
+      price: v ? v.priceEUR : colorPickerOffer.price,
+      image_url: colorPickerOffer.image_urls?.[0] || null,
+      seller_id: colorPickerOffer.user_id,
+      stock: v ? v.stock : colorPickerOffer.stock,
+      variant_name: v ? v.color_name : colorPickerOffer.color_name,
+      variant_color: v ? v.primaryColor : colorPickerOffer.color_hex,
+      variant_layers: v?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
+    });
+    if (colorPickerMode === 'buy') {
+      setColorPickerOffer(null);
+      router.push('/cart');
+    } else {
+      setLastAddedItem(colorPickerOffer);
+      setColorPickerOffer(null);
+      setShowModal(true);
+    }
   };
 
   const toggleFavorite = async (offerId: string) => {
@@ -184,6 +253,89 @@ function MarketplaceContent() {
 
   return (
     <>
+      {/* ---- COLOR PICKER MODAL ---- */}
+      {colorPickerOffer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setColorPickerOffer(null)}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-black uppercase text-gray-900 leading-none">Choose Color</h3>
+                <p className="text-xs text-gray-400 font-bold mt-0.5">{colorPickerOffer.title}</p>
+              </div>
+              <button onClick={() => setColorPickerOffer(null)} className="p-2 rounded-full hover:bg-gray-100 text-gray-400 transition">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Variant grid */}
+            <div className="flex flex-col gap-2 mb-5 max-h-64 overflow-y-auto pr-1">
+              {(colorPickerOffer.color_variants || []).map((v, idx) => {
+                const isSelected = selectedVariantIdx === idx;
+                const isSoldOut = v.stock === 0;
+                return (
+                  <button
+                    key={idx}
+                    disabled={isSoldOut}
+                    onClick={() => setSelectedVariantIdx(idx)}
+                    className={`relative flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left ${isSoldOut ? 'opacity-40 cursor-not-allowed border-gray-100 bg-gray-50' :
+                      isSelected ? 'border-blue-600 bg-blue-50 shadow-md' : 'border-gray-100 hover:border-gray-300 bg-white'
+                      }`}
+                  >
+                    {/* Color swatch(es) */}
+                    <div className="flex -space-x-1">
+                      {v.isMultiColor && v.layers ? (
+                        v.layers.slice(0, 4).map((l, li) => (
+                          <div key={li} className="w-7 h-7 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: l.color_hex || '#ccc' }} />
+                        ))
+                      ) : (
+                        <div className="w-7 h-7 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: v.primaryColor || '#ccc' }} />
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <span className={`block font-bold text-sm truncate ${isSelected ? 'text-blue-800' : 'text-gray-800'}`}>
+                        {v.label || v.color_name || 'Variant'}
+                      </span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        {v.plastic_type || 'PLA'} · {v.stock} in stock
+                      </span>
+                    </div>
+
+                    {/* Price */}
+                    <span className={`text-sm font-black shrink-0 ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>
+                      {formatPrice(v.priceEUR)}
+                    </span>
+
+                    {/* Selected checkmark */}
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                        <Check size={10} className="text-white" />
+                      </div>
+                    )}
+
+                    {isSoldOut && (
+                      <span className="absolute top-2 right-2 bg-red-100 text-red-500 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Sold Out</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Confirm button */}
+            <button
+              onClick={confirmVariantAndAdd}
+              className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-600 transition-all shadow-lg flex items-center justify-center gap-2"
+            >
+              {colorPickerMode === 'buy' ? <><Zap size={16} className="fill-white" /> Buy Now</> : <><ShoppingBag size={16} /> Add to Cart</>}
+            </button>
+
+            <p className="text-center text-[10px] text-gray-400 font-bold mt-3 uppercase tracking-wider">or <button onClick={() => { setColorPickerOffer(null); router.push(`/offer/${colorPickerOffer.id}`); }} className="underline hover:text-gray-700 transition">View Full Details</button></p>
+          </div>
+        </div>
+      )}
+
       {showModal && lastAddedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200">
@@ -274,7 +426,37 @@ function MarketplaceContent() {
                 <div className="p-5 flex flex-col flex-grow">
                   <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">{offer.title}</h3>
 
-                  {offer.stock > 0 && offer.category !== 'digital' && (
+                  {/* Color variant swatches preview */}
+                  {offer.category === 'physical' && offer.stock > 0 && (() => {
+                    const variants = offer.color_variants || [];
+                    if (variants.length > 1) {
+                      const displayVariants = variants.slice(0, 5);
+                      const extra = variants.length - displayVariants.length;
+                      return (
+                        <div className="flex items-center gap-2 mt-1 mb-2">
+                          <div className="flex -space-x-1.5">
+                            {displayVariants.map((v, vi) => (
+                              <div
+                                key={vi}
+                                title={v.color_name}
+                                className="w-4 h-4 rounded-full border-2 border-white shadow-sm transition-transform hover:scale-125 hover:z-10"
+                                style={{ backgroundColor: v.primaryColor || '#ccc' }}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-1 bg-purple-50 px-2 py-0.5 rounded-full">
+                            <Palette size={8} className="text-purple-500" />
+                            <span className="text-[8px] font-black uppercase tracking-widest text-purple-600">
+                              {variants.length} colors{extra > 0 ? ` (+${extra})` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {offer.stock > 0 && offer.category !== 'digital' && !(offer.color_variants && offer.color_variants.length > 1) && (
                     <div className="flex items-center gap-1.5 mt-1 mb-3 bg-blue-50 w-fit px-2 py-0.5 rounded-sm">
                       <MessageSquare size={10} className="text-blue-500" />
                       <span className="text-[8px] font-black uppercase tracking-widest text-blue-600">Customizable</span>
@@ -283,11 +465,48 @@ function MarketplaceContent() {
 
                   {/* --- CARD FOOTER --- */}
                   <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 gap-2">
-                    <div className="flex flex-col">
-                      <span className="text-lg font-black text-gray-900 leading-none pb-1">{formatPrice(offer.price)}</span>
-                      {offer.category !== 'digital' && (
-                        <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
-                      )}
+                    <div className="flex flex-col gap-0.5">
+                      {/* Fizyczne rzeczy z wariantami – pokaż ceny wariantów */}
+                      {(() => {
+                        const variants = offer.color_variants || [];
+                        if (offer.category === 'physical' && variants.length > 1) {
+                          // Pokaż do 2 wariantów z cenami, reszta jako "+N więcej"
+                          const shown = variants.slice(0, 2);
+                          return (
+                            <>
+                              {shown.map((v: any, vi: number) => (
+                                <div key={vi} className="flex items-center gap-1.5">
+                                  <div
+                                    className="w-3 h-3 rounded-full flex-shrink-0 border border-gray-200"
+                                    style={{ backgroundColor: v.primaryColor || '#ccc' }}
+                                  />
+                                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-tight">
+                                    {v.color_name || v.label || `Wariant ${vi + 1}`}:
+                                  </span>
+                                  <span className="text-xs font-black text-gray-900 leading-tight">
+                                    {formatPrice(v.priceEUR)}
+                                  </span>
+                                </div>
+                              ))}
+                              {variants.length > 2 && (
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                  +{variants.length - 2} więcej kolorów
+                                </span>
+                              )}
+                              <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
+                            </>
+                          );
+                        }
+                        // Dla reszty: jedna cena
+                        return (
+                          <>
+                            <span className="text-lg font-black text-gray-900 leading-none pb-1">{formatPrice(offer.price)}</span>
+                            {offer.category !== 'digital' && (
+                              <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {offer.category === 'job' && !userRoles.includes('printer') ? (
@@ -299,7 +518,10 @@ function MarketplaceContent() {
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
                         className="flex items-center gap-1 bg-gray-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md active:scale-95"
                       >
-                        <Zap size={12} className="fill-white" /> {offer.category === 'job' ? 'Fulfill' : 'Buy Now'}
+                        {offer.category === 'physical' && (offer.color_variants || []).length > 1
+                          ? <><Palette size={12} /> Pick Color</>
+                          : <><Zap size={12} className="fill-white" /> {offer.category === 'job' ? 'Fulfill' : 'Buy Now'}</>
+                        }
                       </button>
                     ) : (
                       offer.stock > 0 && <span className="text-gray-300 group-hover:text-blue-600 transition-colors"><ArrowRight size={20} /></span>

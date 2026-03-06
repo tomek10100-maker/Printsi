@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS public.filaments (
   -- Pricing (always stored per gram internally)
   price_per_gram  NUMERIC(10, 6) NOT NULL, -- price in EUR per gram
   price_unit      TEXT NOT NULL DEFAULT 'kg', -- 'kg' or 'g' (user's input preference)
+  
+  -- Tracking original user input to avoid exchange rate drift
+  price_input_native NUMERIC(15, 2),        -- original price entered by user
+  currency_native    TEXT DEFAULT 'EUR',    -- currency used during input (e.g. 'PLN')
 
   -- Optional stock tracking
   stock_grams   NUMERIC(10, 2),           -- optional: how many grams left

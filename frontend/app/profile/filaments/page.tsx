@@ -148,9 +148,13 @@ export default function FilamentsPage() {
     };
 
     const openEdit = (f: Filament) => {
+        const rate = (currency !== 'EUR' && rates && rates[currency]) ? rates[currency] : 1;
+        const priceInLocal = f.price_per_gram * rate;
+
         const displayPrice = f.price_unit === 'kg'
-            ? (f.price_per_gram * 1000).toFixed(2)
-            : f.price_per_gram.toFixed(4);
+            ? (priceInLocal * 1000).toFixed(2)
+            : priceInLocal.toFixed(4);
+
         setEditingId(f.id);
         setForm({
             plastic_type: f.plastic_type,
@@ -362,7 +366,7 @@ export default function FilamentsPage() {
                                 {/* Big color preview + name input + hex */}
                                 <div className="flex items-center gap-3 mb-4">
                                     <div
-                                        className="w-14 h-14 rounded-2xl border-2 border-gray-200 shadow-md flex-shrink-0"
+                                        className="w-14 h-14 rounded-2xl border-2 border-gray-200 shadow-md flex-shrink-0 animate-pulse-subtle"
                                         style={{ backgroundColor: form.color_hex }}
                                     />
                                     <div className="flex-1">
@@ -378,28 +382,37 @@ export default function FilamentsPage() {
                                 </div>
 
                                 {/* Hex row */}
-                                <div className="flex items-center gap-2 mb-5">
-                                    <div className="flex items-center gap-1 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 overflow-hidden focus-within:border-orange-400 transition-all">
-                                        <span className="text-gray-400 font-bold text-sm">#</span>
+                                <div className="relative">
+                                    <div className="absolute -top-6 right-0 flex items-center gap-1 text-[10px] font-black text-orange-500 uppercase tracking-tighter animate-bounce-v-simple">
+                                        Click to adjust <span className="text-xs">↓</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-5">
+                                        <div className="flex items-center gap-1 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 overflow-hidden focus-within:border-orange-400 transition-all">
+                                            <span className="text-gray-400 font-bold text-sm">#</span>
+                                            <input
+                                                type="text"
+                                                value={form.color_hex.replace('#', '')}
+                                                onChange={e => handleHexInput(e.target.value)}
+                                                placeholder="HEX (e.g. FF4500)"
+                                                maxLength={6}
+                                                className="flex-1 py-3 bg-transparent font-mono font-bold text-sm outline-none uppercase"
+                                            />
+                                        </div>
                                         <input
-                                            type="text"
-                                            value={form.color_hex.replace('#', '')}
+                                            type="color"
+                                            value={form.color_hex.startsWith('#') && form.color_hex.length === 7 ? form.color_hex : '#3A86FF'}
                                             onChange={e => handleHexInput(e.target.value)}
-                                            placeholder="HEX (e.g. FF4500)"
-                                            maxLength={6}
-                                            className="flex-1 py-3 bg-transparent font-mono font-bold text-sm outline-none uppercase"
+                                            className="w-11 h-11 rounded-xl border-2 border-orange-200 cursor-pointer overflow-hidden flex-shrink-0 hover:scale-105 transition-all shadow-sm shadow-orange-200"
+                                            title="Custom color picker"
                                         />
                                     </div>
-                                    <input
-                                        type="color"
-                                        value={form.color_hex.startsWith('#') && form.color_hex.length === 7 ? form.color_hex : '#3A86FF'}
-                                        onChange={e => handleHexInput(e.target.value)}
-                                        className="w-11 h-11 rounded-xl border-2 border-gray-200 cursor-pointer overflow-hidden flex-shrink-0"
-                                        title="Custom color picker"
-                                    />
                                 </div>
 
                                 {/* Large Color Palette Grid */}
+                                <div className="flex items-center gap-2 mt-6 mb-3">
+                                    <div className="w-1 h-3 bg-orange-500 rounded-full" />
+                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quick Presets</span>
+                                </div>
                                 <div className="grid grid-cols-5 gap-2">
                                     {COLOR_PRESETS.map(preset => {
                                         const selected = form.color_hex.toLowerCase() === preset.hex.toLowerCase();
@@ -410,8 +423,8 @@ export default function FilamentsPage() {
                                                 type="button"
                                                 onClick={() => handleColorPreset(preset.hex, preset.name)}
                                                 className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all hover:scale-105 ${selected
-                                                        ? 'border-gray-800 shadow-lg scale-105'
-                                                        : 'border-transparent hover:border-gray-300 hover:shadow-md'
+                                                    ? 'border-gray-800 shadow-lg scale-105'
+                                                    : 'border-transparent hover:border-gray-300 hover:shadow-md'
                                                     }`}
                                             >
                                                 <div
@@ -496,8 +509,8 @@ export default function FilamentsPage() {
                                     const rate = (currency !== 'EUR' && rates && rates[currency]) ? rates[currency] : 1;
                                     const pricePerGramEURActual = pricePerGramEUR / rate;
                                     return (
-                                        <p className="text-xs text-gray-500 font-medium mt-2 pl-1">
-                                            = <strong>{formatPrice(pricePerGramEURActual * 1000)}/kg</strong> · stored as {pricePerGramEURActual.toFixed(6)} EUR/g
+                                        <p className="text-xs text-gray-500 font-black mt-2 pl-1 bg-gray-100/50 py-2 px-3 rounded-lg inline-block border border-gray-200">
+                                            = <strong>{formatPrice(pricePerGramEURActual * 1000)}/kg</strong>
                                         </p>
                                     );
                                 })()}

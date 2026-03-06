@@ -90,13 +90,13 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       convertedAmount = amount * rates[currency];
     }
 
-    // Zaokrąglenie WSZYSTKIEGO w górę do 2 miejsc po przecinku
-    const roundedUpAmount = Math.ceil(convertedAmount * 100) / 100;
+    // Zaokrąglenie do 2 miejsc po przecinku (standardowe rounding zamiast ceil)
+    const roundedAmount = Math.round(convertedAmount * 100) / 100;
 
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
-    }).format(roundedUpAmount);
+    }).format(roundedAmount);
   };
 
   return (

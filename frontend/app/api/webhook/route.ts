@@ -165,14 +165,14 @@ export async function POST(req: Request) {
       // --- 4.5 Fetch offer details ---
       const { data: offerDetails } = await supabase
         .from('offers')
-        .select('is_custom, parent_offer_id')
+        .select('is_custom, parent_offer_id, color_variants')
         .eq('id', offerId)
         .single();
 
       const isCustom = offerDetails?.is_custom;
       const parentOfferId = offerDetails?.parent_offer_id;
 
-      // --- 5. Decrement stock ---
+      // --- 5. Decrement offer stock ---
       const { error: stockError } = await supabase.rpc('decrement_stock', {
         row_id: offerId,
         quantity_amt: quantityBought,
@@ -186,6 +186,26 @@ export async function POST(req: Request) {
           quantity_amt: quantityBought,
         });
         console.log(`✅ Parent Stock updated for: ${parentOfferId}`);
+      }
+
+      // --- 5.5 Decrement filament stock_grams ---
+      const colorVariants: any[] = offerDetails?.color_variants || [];
+      if (colorVariants.length > 0) {
+        // Bierzemy warstwy z pierwszego wariantu (Stripe webhook nie wie który wariant wybrano)
+        // Dla precyzyjnego śledzenia: wariant jest zapisywany przez balance/checkout → order_items.variant_layers
+        const layers = colorVariants[0]?.layers || [];
+        for (const layer of layers) {
+          if (!layer.filament_id || !layer.grams) continue;
+          const gramsPerPiece = parseFloat(String(layer.grams));
+          if (isNaN(gramsPerPiece) || gramsPerPiece <= 0) continue;
+          const totalGrams = gramsPerPiece * quantityBought;
+          const { error: filErr } = await supabase.rpc('decrement_filament_stock', {
+            filament_id: layer.filament_id,
+            grams_used: totalGrams,
+          });
+          if (filErr) console.error(`❌ Filament stock error for ${layer.filament_id}:`, filErr);
+          else console.log(`✅ Filament ${layer.filament_id} -${totalGrams}g`);
+        }
       }
 
       // --- 6. Insert order_item ---

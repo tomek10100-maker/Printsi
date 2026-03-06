@@ -24,3 +24,53 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes bounce-v {
+
+  0%,
+  100% {
+    transform: translate(-50%, -2px);
+  }
+
+  50% {
+    transform: translate(-50%, 2px);
+  }
+}
+
+.animate-bounce-v {
+  animation: bounce-v 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-subtle {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.03);
+    opacity: 0.9;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+@keyframes bounce-v-simple {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-bounce-v-simple {
+  animation: bounce-v-simple 1.2s ease-in-out infinite;
+}

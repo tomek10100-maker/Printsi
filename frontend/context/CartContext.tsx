@@ -10,15 +10,20 @@ export type CartItem = {
   image_url: string | null;
   seller_id: string;
   quantity: number;
-  stock: number; // <--- TO JEST KLUCZOWE
+  stock: number;
   is_custom?: boolean;
+  variant_name?: string;
+  variant_color?: string;
+  // Warstwy filamentu dla wybranego wariantu – używane do zmniejszania stock_grams po sprzedaży
+  // Format: [{filament_id: string, grams: string|number}]
+  variant_layers?: { filament_id: string; grams: string | number }[];
 };
 
 type CartContextType = {
   items: CartItem[];
   addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
-  updateQuantity: (id: string, amount: number) => void;
-  removeItem: (id: string) => void;
+  updateQuantity: (id: string, amount: number, variant_name?: string) => void;
+  removeItem: (id: string, variant_name?: string) => void;
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
@@ -40,7 +45,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = (newItem: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
     setItems((prevItems) => {
-      const existingItem = prevItems.find((i) => i.id === newItem.id);
+      const existingItem = prevItems.find((i) =>
+        i.id === newItem.id && i.variant_name === newItem.variant_name
+      );
 
       const currentQty = existingItem ? existingItem.quantity : 0;
       const availableStock = newItem.stock;
@@ -60,9 +67,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const updateQuantity = (id: string, amount: number) => {
+  const updateQuantity = (id: string, amount: number, variant_name?: string) => {
     setItems((prev) => prev.map((item) => {
-      if (item.id === id) {
+      if (item.id === id && item.variant_name === variant_name) {
         if (item.is_custom) {
           alert("Cannot modify quantity of an accepted custom proposal.");
           return item;
@@ -82,8 +89,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const removeItem = (id: string, variant_name?: string) => {
+    setItems((prev) => prev.filter((item) => !(item.id === id && item.variant_name === variant_name)));
   };
 
   const clearCart = () => {

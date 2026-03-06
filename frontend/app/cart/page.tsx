@@ -89,7 +89,7 @@ export default function CartPage() {
             {/* CART ITEMS */}
             <div className="flex-1 space-y-4">
               {items.map((item) => (
-                <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-6">
+                <div key={item.id + (item.variant_name || '')} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-6">
 
                   <div className="w-24 h-24 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
                     {item.image_url ? (
@@ -104,6 +104,12 @@ export default function CartPage() {
                     <p className="text-sm font-bold text-gray-500">
                       {formatPrice(item.price)} <span className="text-[10px] font-normal text-gray-400">/ each</span>
                     </p>
+                    {item.variant_name && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-3 h-3 rounded-full border border-gray-200 shadow-sm" style={{ backgroundColor: item.variant_color || '#ccc' }} />
+                        <span className="text-[11px] font-black text-gray-900 truncate uppercase tracking-widest">{item.variant_name}</span>
+                      </div>
+                    )}
                     {item.stock !== undefined && (
                       <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-wider">
                         Stock: {item.stock}
@@ -117,10 +123,10 @@ export default function CartPage() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-gray-100 transition"><Minus size={12} /></button>
+                      <button onClick={() => updateQuantity(item.id, -1, item.variant_name)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-gray-100 transition"><Minus size={12} /></button>
                       <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
                       <button
-                        onClick={() => updateQuantity(item.id, 1)}
+                        onClick={() => updateQuantity(item.id, 1, item.variant_name)}
                         className={`w-8 h-8 flex items-center justify-center rounded-md shadow-sm transition ${item.stock !== undefined && item.quantity >= item.stock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100'}`}
                         disabled={item.stock !== undefined && item.quantity >= item.stock}
                       >
@@ -131,7 +137,7 @@ export default function CartPage() {
 
                   <div className="text-right min-w-[80px]">
                     <p className="font-black text-xl">{formatPrice(item.price * item.quantity)}</p>
-                    <button onClick={() => removeItem(item.id)} className="mt-2 text-[10px] font-bold text-red-400 hover:text-red-600 uppercase flex items-center gap-1 ml-auto transition">
+                    <button onClick={() => removeItem(item.id, item.variant_name)} className="mt-2 text-[10px] font-bold text-red-400 hover:text-red-600 uppercase flex items-center gap-1 ml-auto transition">
                       <Trash2 size={12} /> Remove
                     </button>
                   </div>
