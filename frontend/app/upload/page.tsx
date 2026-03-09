@@ -769,30 +769,42 @@ export default function AddOfferPage() {
               <SectionLabel step={isPhysicalAuto ? '6' : '5'} label="Final Price" />
               <div className="mt-3">
                 {isPhysicalAuto ? (
-                  <div className={`rounded-2xl p-6 border-2 transition-all ${minPriceEUR ? 'bg-gray-900 border-gray-900' : 'bg-gray-100 border-gray-200'}`}>
-                    {minPriceEUR ? (
+                  <div className={`rounded-2xl border-2 overflow-hidden transition-all ${validPrices.length > 0 ? 'bg-gray-900 border-gray-900' : 'bg-gray-100 border-gray-200'}`}>
+                    {validPrices.length > 0 ? (
                       <>
-                        <div className="flex items-baseline gap-4 flex-wrap">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-sm font-black text-gray-400 uppercase tracking-widest">from</span>
-                            <span className="font-black text-5xl text-white tabular-nums">{fmt(minPriceEUR)}</span>
-                          </div>
-                          {maxPriceEUR && maxPriceEUR > minPriceEUR + 0.001 && (
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-sm font-black text-gray-400 uppercase tracking-widest">to</span>
-                              <span className="font-black text-3xl text-gray-300 tabular-nums">{fmt(maxPriceEUR)}</span>
-                            </div>
-                          )}
+                        {/* Per-variant price list */}
+                        <div className="divide-y divide-gray-800">
+                          {variants.map((v, i) => {
+                            const p = variantPrices[i];
+                            const colorName = v.layers.map((l: any) => l.filament?.color_name || '?').join(' + ');
+                            return (
+                              <div key={v.variantId} className="flex items-center gap-3 px-5 py-3">
+                                <div className="flex -space-x-1 flex-shrink-0">
+                                  {v.layers.map((l: any) => (
+                                    <div key={l.layerId} className="w-5 h-5 rounded border border-gray-700 shadow-sm"
+                                      style={{ backgroundColor: l.filament?.color_hex || '#555' }} />
+                                  ))}
+                                </div>
+                                <span className="flex-1 text-sm font-bold text-gray-300 truncate">{colorName || `Variant ${i + 1}`}</span>
+                                <span className="text-sm text-gray-400 font-medium">×{v.stock || 0}</span>
+                                <span className="text-base font-black text-white tabular-nums">
+                                  {p ? fmt(p.totalEUR) : <span className="text-gray-500 text-xs">—</span>}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <Zap size={12} className="text-green-400 fill-green-400" />
+                        <div className="flex items-center gap-2 px-5 py-3 border-t border-gray-800">
+                          <Zap size={12} className="text-green-400 fill-green-400 flex-shrink-0" />
                           <p className="text-xs text-green-400 font-bold">
-                            {variants.length === 1 ? 'Auto-calculated from material + profit' : `${validPrices.length}/${variants.length} variants configured — customer selects color`}
+                            {variants.length === 1
+                              ? 'Auto-calculated from material + profit'
+                              : `${validPrices.length}/${variants.length} variants configured — customer selects color in the store`}
                           </p>
                         </div>
                       </>
                     ) : (
-                      <p className="text-gray-400 font-black text-lg">Configure variants above to see the price</p>
+                      <p className="text-gray-400 font-black text-lg p-6">Configure variants above to see the price</p>
                     )}
                   </div>
                 ) : (

@@ -324,48 +324,97 @@ export default function ProfilePage() {
               {myOffers.length === 0 ? (
                 <div className="bg-white p-10 rounded-2xl shadow-sm border border-gray-100 text-center py-20">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                    <Settings size={24} />
+                    <Package size={28} />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900">No active listings</h3>
-                  <p className="text-gray-500 mt-2 font-medium">This user hasn't posted any projects yet.</p>
-                  <Link href="/upload" className="inline-block mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all">
-                    Create First Listing
+                  <p className="text-gray-500 mt-2 font-medium text-sm">Start selling by creating your first listing.</p>
+                  <Link href="/upload" className="inline-block mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg text-sm">
+                    + Create First Listing
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {myOffers.map((offer) => (
-                    <div key={offer.id} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
-                      <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
-                        {offer.image_urls && offer.image_urls[0] ? (
-                          <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400"><Package size={20} /></div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-gray-900">{offer.title}</h4>
-                        <p className="text-sm font-medium text-blue-600">{formatPrice(offer.price)}</p>
-                        <div className="flex gap-2 mt-1">
-                          <span className="text-[10px] uppercase font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{offer.category}</span>
-                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${offer.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {offer.stock > 0 ? `Stock: ${offer.stock}` : 'Sold Out'}
-                          </span>
+                <div className="space-y-3">
+                  {myOffers.map((offer) => {
+                    const variants = offer.color_variants || [];
+                    const hasVariants = variants.length > 1;
+                    return (
+                      <div key={offer.id} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+                        {/* Thumbnail */}
+                        <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 relative">
+                          {offer.image_urls?.[0] ? (
+                            <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400"><Package size={20} /></div>
+                          )}
+                          {offer.stock === 0 && (
+                            <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center">
+                              <span className="text-white text-[7px] font-black uppercase tracking-wider">Sold Out</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-2 flex-wrap">
+                            <h4 className="font-black text-gray-900 truncate text-sm">{offer.title}</h4>
+                            <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-full flex-shrink-0 ${offer.category === 'physical' ? 'bg-orange-100 text-orange-700'
+                                : offer.category === 'digital' ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}>
+                              {offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}
+                            </span>
+                          </div>
+
+                          {/* Price + Stock */}
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-sm font-black text-blue-600">{formatPrice(offer.price)}</span>
+                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${offer.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                              }`}>
+                              {offer.stock > 0 ? `${offer.stock} in stock` : 'Sold Out'}
+                            </span>
+                          </div>
+
+                          {/* Variant color swatches */}
+                          {hasVariants && (
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <div className="flex -space-x-1">
+                                {variants.slice(0, 6).map((v: any, vi: number) => (
+                                  <div key={vi} title={v.color_name || v.label}
+                                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
+                                    style={{ backgroundColor: v.primaryColor || '#ccc' }} />
+                                ))}
+                                {variants.length > 6 && (
+                                  <div className="w-4 h-4 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center">
+                                    <span className="text-[6px] font-black text-gray-500">+{variants.length - 6}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">{variants.length} colors</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <Link href={`/offer/${offer.id}`}
+                            className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                            title="View listing">
+                            <Eye size={16} />
+                          </Link>
+                          <Link href={`/edit/${offer.id}`}
+                            className="p-2.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all"
+                            title="Edit listing">
+                            <Edit size={16} />
+                          </Link>
+                          <button onClick={() => handleDeleteOffer(offer.id)}
+                            className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            title="Delete listing">
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link href={`/offer/${offer.id}`} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View">
-                          <Eye size={18} />
-                        </Link>
-                        <Link href={`/edit/${offer.id}`} className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition" title="Edit">
-                          <Edit size={18} />
-                        </Link>
-                        <button onClick={() => handleDeleteOffer(offer.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

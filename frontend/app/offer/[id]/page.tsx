@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import {
   ArrowLeft, ShoppingBag, Truck, ShieldCheck, Box,
-  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Info
+  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -230,8 +230,21 @@ export default function OfferDetailsPage() {
           <div className="mb-6 flex flex-col items-start gap-1">
             <div className="text-2xl font-bold text-blue-600 flex items-baseline gap-1">
               {formatPrice(currentPrice)}
-              <span className="text-sm text-gray-400 font-medium normal-case"> / piece</span>
+              <span className="text-sm text-gray-400 font-medium normal-case">/ piece</span>
             </div>
+            {!isDigital && hasVariants && variants.length > 1 && (() => {
+              const prices = variants.map((v: any) => v.priceEUR).filter(Boolean);
+              const minP = Math.min(...prices);
+              const maxP = Math.max(...prices);
+              if (maxP > minP + 0.001) {
+                return (
+                  <span className="text-[11px] font-bold text-gray-400">
+                    {formatPrice(minP)} – {formatPrice(maxP)} depending on color
+                  </span>
+                );
+              }
+              return null;
+            })()}
             {!isDigital && (
               <span className="text-[11px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
             )}
@@ -303,32 +316,72 @@ export default function OfferDetailsPage() {
               )}
 
               {/* COLOR VARIANTS SELECTION */}
-              {hasVariants && variants.length > 1 && (
+              {hasVariants && (
                 <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                  <span className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3">Available Variants</span>
-                  <div className="flex flex-wrap gap-3">
-                    {variants.map((v: any, idx: number) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setSelectedVariantIndex(idx);
-                          setQuantity(1);
-                        }}
-                        className={`group relative p-1 rounded-xl border-2 transition-all flex items-center gap-2 ${selectedVariantIndex === idx ? 'border-blue-600 bg-white shadow-md' : 'border-transparent bg-white/50 hover:border-gray-200'}`}
-                      >
-                        <div className="flex -space-x-1.5 ml-1">
-                          {v.isMultiColor && v.layers ? (
-                            v.layers.slice(0, 3).map((l: any, li: number) => (
-                              <div key={li} className="w-5 h-5 rounded border border-white shadow-sm" style={{ backgroundColor: l.color_hex || '#ccc', zIndex: 3 - li }} />
-                            ))
-                          ) : (
-                            <div className="w-5 h-5 rounded border border-white shadow-sm" style={{ backgroundColor: v.primaryColor || '#ccc' }} />
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="block text-[10px] font-black uppercase text-gray-400 tracking-widest">Choose Color</span>
+                    {variants.length > 1 && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{variants.length} variants</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {variants.map((v: any, idx: number) => {
+                      const isSelected = selectedVariantIndex === idx;
+                      const isSoldOut = v.stock === 0;
+                      return (
+                        <button
+                          key={idx}
+                          disabled={isSoldOut}
+                          onClick={() => {
+                            setSelectedVariantIndex(idx);
+                            setQuantity(1);
+                          }}
+                          className={`relative flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${isSoldOut
+                            ? 'opacity-40 cursor-not-allowed border-gray-100 bg-gray-50'
+                            : isSelected
+                              ? 'border-blue-600 bg-blue-50 shadow-md'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                            }`}
+                        >
+                          {/* Color swatch(es) */}
+                          <div className="flex -space-x-1.5 flex-shrink-0">
+                            {v.isMultiColor && v.layers ? (
+                              v.layers.slice(0, 4).map((l: any, li: number) => (
+                                <div key={li} className="w-8 h-8 rounded-lg border-2 border-white shadow-sm" style={{ backgroundColor: l.color_hex || '#ccc' }} />
+                              ))
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg border-2 border-white shadow-sm" style={{ backgroundColor: v.primaryColor || '#ccc' }} />
+                            )}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <span className={`block font-bold text-sm truncate ${isSelected ? 'text-blue-800' : 'text-gray-800'}`}>
+                              {v.label || v.color_name || 'Variant'}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                              {v.plastic_type || 'PLA'} · {isSoldOut ? 'Sold out' : `${v.stock} in stock`}
+                            </span>
+                          </div>
+
+                          {/* Price */}
+                          <span className={`text-sm font-black shrink-0 ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>
+                            {formatPrice(v.priceEUR)}
+                          </span>
+
+                          {/* Selected indicator */}
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                              <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                            </div>
                           )}
-                        </div>
-                        <span className={`text-[11px] font-black pr-2 ${selectedVariantIndex === idx ? 'text-blue-700' : 'text-gray-500'}`}>{v.label || v.layers?.[0]?.color_name || 'Variant'}</span>
-                        {v.stock === 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[7px] font-black px-1 py-0.5 rounded-full border border-white uppercase tracking-tighter shadow-sm">Sold</span>}
-                      </button>
-                    ))}
+
+                          {isSoldOut && (
+                            <span className="absolute top-2 right-2 bg-red-100 text-red-500 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Sold Out</span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -392,12 +445,12 @@ export default function OfferDetailsPage() {
 
           <div className="flex gap-4 mt-auto">
             {isOwner ? (
-              <button
-                disabled
-                className="flex-1 py-4 rounded-xl font-black uppercase tracking-widest bg-gray-100 text-gray-400 cursor-not-allowed flex items-center justify-center gap-2 border border-gray-200"
+              <Link
+                href={`/edit/${offer.id}`}
+                className="flex-1 py-4 rounded-xl font-black uppercase tracking-widest bg-gray-900 text-white hover:bg-blue-600 transition-all shadow-xl flex items-center justify-center gap-2"
               >
-                <Ban size={20} /> Your Item
-              </button>
+                <Edit size={20} /> Edit Listing
+              </Link>
             ) : offer.category === 'job' && !userRoles.includes('printer') ? (
               <button
                 disabled
