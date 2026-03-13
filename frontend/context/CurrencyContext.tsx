@@ -32,13 +32,17 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     const initCurrency = async () => {
       let savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('printsi_currency') : null;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('currency').eq('id', user.id).single();
-        if (profile?.currency) {
-          savedCurrency = profile.currency;
-          if (typeof window !== 'undefined') localStorage.setItem('printsi_currency', savedCurrency!);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase.from('profiles').select('currency').eq('id', user.id).single();
+          if (profile?.currency) {
+            savedCurrency = profile.currency;
+            if (typeof window !== 'undefined') localStorage.setItem('printsi_currency', savedCurrency!);
+          }
         }
+      } catch (err) {
+        console.warn('Silent auth error in currency context:', err);
       }
 
       if (savedCurrency) {

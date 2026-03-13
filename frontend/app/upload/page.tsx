@@ -399,10 +399,10 @@ export default function AddOfferPage() {
               <SectionLabel step="2" label="Basic Details" />
               <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
-              <textarea 
-                placeholder={category === 'job' ? 'Describe your project in detail. Mention the purpose, strength requirements, and any specifics to help the printer achieve the best result for you...' : 'Description'} 
-                value={description} 
-                onChange={e => setDescription(e.target.value)} 
+              <textarea
+                placeholder={category === 'job' ? 'Describe your project in detail. Mention the purpose, strength requirements, and any specifics to help the printer achieve the best result for you...' : 'Description'}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
                 rows={4}
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all resize-none" />
             </section>
@@ -456,8 +456,8 @@ export default function AddOfferPage() {
                     <div className={`grid gap-3 ${category === 'physical' ? 'grid-cols-1 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'}`}>
                       <input type="text" placeholder={category === 'job' ? "Preferred Material (optional)" : "Material (PLA…)"} value={manualMaterial} onChange={e => setManualMaterial(e.target.value)}
                         className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
-                      
-                      <input type="text" placeholder={category === 'job' ? "Color Name (e.g. Red, Black...)" : "Color Name (Red…)"} value={manualColor} 
+
+                      <input type="text" placeholder={category === 'job' ? "Color Name (e.g. Red, Black...)" : "Color Name (Red…)"} value={manualColor}
                         onChange={e => {
                           setManualColor(e.target.value);
                           const lower = e.target.value.toLowerCase().trim();
@@ -467,7 +467,7 @@ export default function AddOfferPage() {
 
                       <div className="relative isolate">
                         <div className="absolute -top-6 right-0 flex items-center gap-1 text-[10px] font-black text-orange-500 uppercase tracking-tighter animate-bounce-v-simple pointer-events-none">
-                            Click to adjust <span className="text-xs">↓</span>
+                          Click to adjust <span className="text-xs">↓</span>
                         </div>
                         <div className="flex items-center gap-2 h-full">
                           <div className="flex items-center gap-1 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 overflow-hidden focus-within:border-orange-400 focus-within:bg-white transition-all h-full min-h-[56px] min-w-[70px]">
@@ -477,7 +477,7 @@ export default function AddOfferPage() {
                               setManualColorHex(val.startsWith('#') ? val : '#' + val);
                             }} maxLength={6} placeholder="HEX" className="w-full py-3 bg-transparent font-mono font-bold text-sm outline-none uppercase" />
                           </div>
-                          <input type="color" value={manualColorHex.startsWith('#') && manualColorHex.length === 7 ? manualColorHex : '#888888'} onChange={e => { setManualColorHex(e.target.value); if(!BASIC_COLORS[manualColor.toLowerCase().trim()]) setManualColor('Custom Color'); }}
+                          <input type="color" value={manualColorHex.startsWith('#') && manualColorHex.length === 7 ? manualColorHex : '#888888'} onChange={e => { setManualColorHex(e.target.value); if (!BASIC_COLORS[manualColor.toLowerCase().trim()]) setManualColor('Custom Color'); }}
                             className="w-14 min-h-[56px] h-full rounded-xl border-2 border-orange-200 cursor-pointer overflow-hidden flex-shrink-0 hover:scale-105 hover:shadow-md transition-all shadow-sm shadow-orange-200" title="Click to open color picker" />
                         </div>
                       </div>
@@ -804,49 +804,10 @@ export default function AddOfferPage() {
             )}
 
             {/* FINAL PRICE */}
-            <section>
-              <SectionLabel step={isPhysicalAuto ? '6' : '5'} label="Final Price" />
-              <div className="mt-3">
-                {isPhysicalAuto ? (
-                  <div className={`rounded-2xl border-2 overflow-hidden transition-all ${validPrices.length > 0 ? 'bg-gray-900 border-gray-900' : 'bg-gray-100 border-gray-200'}`}>
-                    {validPrices.length > 0 ? (
-                      <>
-                        {/* Per-variant price list */}
-                        <div className="divide-y divide-gray-800">
-                          {variants.map((v, i) => {
-                            const p = variantPrices[i];
-                            const colorName = v.layers.map((l: any) => l.filament?.color_name || '?').join(' + ');
-                            return (
-                              <div key={v.variantId} className="flex items-center gap-3 px-5 py-3">
-                                <div className="flex -space-x-1 flex-shrink-0">
-                                  {v.layers.map((l: any) => (
-                                    <div key={l.layerId} className="w-5 h-5 rounded border border-gray-700 shadow-sm"
-                                      style={{ backgroundColor: l.filament?.color_hex || '#555' }} />
-                                  ))}
-                                </div>
-                                <span className="flex-1 text-sm font-bold text-gray-300 truncate">{colorName || `Variant ${i + 1}`}</span>
-                                <span className="text-sm text-gray-400 font-medium">×{v.stock || 0}</span>
-                                <span className="text-base font-black text-white tabular-nums">
-                                  {p ? fmt(p.totalEUR) : <span className="text-gray-500 text-xs">—</span>}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="flex items-center gap-2 px-5 py-3 border-t border-gray-800">
-                          <Zap size={12} className="text-green-400 fill-green-400 flex-shrink-0" />
-                          <p className="text-xs text-green-400 font-bold">
-                            {variants.length === 1
-                              ? 'Auto-calculated from material + profit'
-                              : `${validPrices.length}/${variants.length} variants configured — customer selects color in the store`}
-                          </p>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-gray-400 font-black text-lg p-6">Configure variants above to see the price</p>
-                    )}
-                  </div>
-                ) : (
+            {!isPhysicalAuto && (
+              <section>
+                <SectionLabel step="5" label="Final Price" />
+                <div className="mt-3">
                   <div className="rounded-2xl p-6 border-2 border-gray-200 bg-white">
                     <div className="flex items-center gap-3">
                       <span className="text-xl font-black text-gray-400">{currency}</span>
@@ -860,9 +821,9 @@ export default function AddOfferPage() {
                         required />
                     </div>
                   </div>
-                )}
-              </div>
-            </section>
+                </div>
+              </section>
+            )}
 
             <button disabled={loading}
               className="w-full py-5 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-600/20 flex justify-center items-center gap-3">

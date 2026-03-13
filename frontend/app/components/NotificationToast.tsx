@@ -27,7 +27,7 @@ export default function NotificationToast() {
         // Get current user
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) setUserId(session.user.id);
-        });
+        }).catch(() => { });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setUserId(session?.user?.id ?? null);
