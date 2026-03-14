@@ -46,6 +46,14 @@ function hexToName(hex: string): string {
     return preset?.name || 'Custom Color';
 }
 
+const BASIC_COLORS: Record<string, string> = {
+  black: '#000000', white: '#ffffff', red: '#ff0000', green: '#008000', blue: '#0000ff',
+  yellow: '#ffff00', cyan: '#00ffff', magenta: '#ff00ff', gray: '#808080', grey: '#808080',
+  orange: '#ffa500', brown: '#a52a2a', pink: '#ffc0cb', purple: '#800080',
+  navy: '#000080', lime: '#00ff00', maroon: '#800000', olive: '#808000', teal: '#008080',
+  silver: '#c0c0c0', gold: '#ffd700'
+};
+
 function isLight(hex: string): boolean {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -72,7 +80,7 @@ type FormState = {
     color_hex: string;
     brand: string;
     price_input: string;
-    price_unit: 'kg' | 'g';
+    price_unit: 'kg' | 'g' | 'lbs';
     price_type: 'fixed' | 'percent';
     stock_grams: string;
 };
@@ -153,7 +161,9 @@ export default function FilamentsPage() {
 
         const displayPrice = f.price_unit === 'kg'
             ? (priceInLocal * 1000).toFixed(2)
-            : priceInLocal.toFixed(4);
+            : f.price_unit === 'lbs'
+                ? (priceInLocal * 453.592).toFixed(2)
+                : priceInLocal.toFixed(4);
 
         setEditingId(f.id);
         setForm({
@@ -162,7 +172,7 @@ export default function FilamentsPage() {
             color_hex: f.color_hex,
             brand: f.brand || '',
             price_input: displayPrice,
-            price_unit: f.price_unit as 'kg' | 'g',
+            price_unit: f.price_unit as 'kg' | 'g' | 'lbs',
             price_type: 'fixed',
             stock_grams: f.stock_grams?.toString() || '',
         });
@@ -177,13 +187,14 @@ export default function FilamentsPage() {
         // Convert from user's display currency to EUR for storage
         const rate = (currency !== 'EUR' && rates && rates[currency]) ? rates[currency] : 1;
         const rawInEUR = raw / rate;
-        const pricePerGram = form.price_unit === 'kg' ? rawInEUR / 1000 : rawInEUR;
+        const pricePerGram = form.price_unit === 'kg' ? rawInEUR / 1000 : form.price_unit === 'lbs' ? rawInEUR / 453.592 : rawInEUR;
 
+        const newColorHex = form.color_hex.startsWith('#') ? form.color_hex : '#' + form.color_hex;
         const payload = {
             user_id: user.id,
             plastic_type: form.plastic_type,
             color_name: form.color_name,
-            color_hex: form.color_hex.startsWith('#') ? form.color_hex : '#' + form.color_hex,
+            color_hex: newColorHex,
             brand: form.brand || null,
             price_per_gram: pricePerGram,
             price_unit: form.price_unit,
@@ -193,6 +204,63 @@ export default function FilamentsPage() {
 
         if (editingId) {
             await supabase.from('filaments').update(payload).eq('id', editingId);
+
+            // ─── Sync linked offers ───────────────────────────────────────────
+            // Find all offer color_variants that reference this filament_id
+            const { data: linkedOffers } = await supabase
+                .from('offers')
+                .select('id, color_variants, stock')
+                .eq('user_id', user.id)
+                .not('color_variants', 'is', null);
+
+            for (const offer of (linkedOffers || [])) {
+                const variants: any[] = offer.color_variants || [];
+                const isLinked = variants.some(v =>
+                    (v.layers || []).some((l: any) => l.filament_id === editingId)
+                );
+                if (!isLinked) continue;
+
+                // Update color name/hex inside the variant that uses this filament
+                const updatedVariants: any[] = variants.map((v: any) => ({
+                    ...v,
+                    layers: (v.layers || []).map((l: any) =>
+                        l.filament_id === editingId
+                            ? { ...l, color_name: form.color_name, color_hex: newColorHex }
+                            : l
+                    ),
+                    // If the first layer of this variant is our filament - update the variant name too
+                    ...(v.layers?.[0]?.filament_id === editingId ? {
+                        color_name: form.color_name,
+                        color_hex: newColorHex,
+                    } : {})
+                }));
+
+                // Recalculate total stock from filament grams if stock_grams is set
+                let newStock = offer.stock;
+                const newFilamentStock = form.stock_grams ? parseFloat(form.stock_grams) : null;
+                if (newFilamentStock !== null) {
+                    // For each variant find the grams needed, compute max qty from this filament
+                    let minQty = Infinity;
+                    for (const v of updatedVariants) {
+                        for (const l of v.layers || []) {
+                            if (l.filament_id === editingId) {
+                                const gramsNeeded = parseFloat(String(l.grams || 0));
+                                if (gramsNeeded > 0) {
+                                    minQty = Math.min(minQty, Math.floor(newFilamentStock / gramsNeeded));
+                                }
+                            }
+                        }
+                    }
+                    if (isFinite(minQty)) newStock = Math.max(0, minQty);
+                }
+
+                await supabase.from('offers').update({
+                    color_variants: updatedVariants,
+                    stock: newStock,
+                    color: newColorHex,
+                    color_name: form.color_name,
+                }).eq('id', offer.id);
+            }
         } else {
             await supabase.from('filaments').insert(payload);
         }
@@ -212,6 +280,43 @@ export default function FilamentsPage() {
         if (!confirm('Delete this filament permanently?')) return;
         await supabase.from('filaments').delete().eq('id', id);
         await fetchFilaments(user.id);
+    };
+
+    const handleUpdateStock = async (id: string, current: number | null, change: number) => {
+        if (!user) return;
+        const newStock = Math.max(0, (current || 0) + change);
+        setFilaments(prev => prev.map(f => f.id === id ? { ...f, stock_grams: newStock } : f));
+        await supabase.from('filaments').update({ stock_grams: newStock }).eq('id', id);
+
+        // ─── Sync offer stock for all linked offers ───────────────────────────
+        const { data: linkedOffers } = await supabase
+            .from('offers')
+            .select('id, color_variants, stock')
+            .eq('user_id', user.id)
+            .not('color_variants', 'is', null);
+
+        for (const offer of (linkedOffers || [])) {
+            const variants: any[] = offer.color_variants || [];
+            const isLinked = variants.some(v =>
+                (v.layers || []).some((l: any) => l.filament_id === id)
+            );
+            if (!isLinked) continue;
+
+            // Compute how many units the seller can make from remaining filament
+            let minQty = Infinity;
+            for (const v of variants as any[]) {
+                for (const l of (v.layers || []) as any[]) {
+                    if (l.filament_id === id) {
+                        const gramsNeeded = parseFloat(String(l.grams || 0));
+                        if (gramsNeeded > 0) {
+                            minQty = Math.min(minQty, Math.floor(newStock / gramsNeeded));
+                        }
+                    }
+                }
+            }
+            if (!isFinite(minQty)) continue;
+            await supabase.from('offers').update({ stock: Math.max(0, minQty) }).eq('id', offer.id);
+        }
     };
 
     const visible = filaments.filter(f => showArchived ? !f.is_active : f.is_active);
@@ -300,6 +405,7 @@ export default function FilamentsPage() {
                             onEdit={() => openEdit(fil)}
                             onToggle={() => handleToggleActive(fil.id, fil.is_active)}
                             onDelete={() => handleDelete(fil.id)}
+                            onUpdateStock={(change) => handleUpdateStock(fil.id, fil.stock_grams, change)}
                         />
                     ))}
                 </div>
@@ -373,7 +479,15 @@ export default function FilamentsPage() {
                                         <input
                                             type="text"
                                             value={form.color_name}
-                                            onChange={e => setForm(f => ({ ...f, color_name: e.target.value }))}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                const lower = val.toLowerCase().trim();
+                                                setForm(f => ({ 
+                                                    ...f, 
+                                                    color_name: val,
+                                                    color_hex: BASIC_COLORS[lower] ? BASIC_COLORS[lower] : f.color_hex 
+                                                }));
+                                            }}
                                             placeholder="Color name (e.g. Fiery Red)"
                                             className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm outline-none focus:border-orange-400 transition-all"
                                         />
@@ -468,7 +582,7 @@ export default function FilamentsPage() {
                                 </div>
 
                                 <label className="block text-xs font-black uppercase text-gray-400 tracking-widest mb-2">
-                                    Price per {form.price_unit === 'kg' ? 'kilogram' : 'gram'}
+                                    Price per {form.price_unit === 'kg' ? 'kilogram' : form.price_unit === 'lbs' ? 'pound (lbs)' : 'gram'}
                                 </label>
 
                                 <div className="flex gap-3">
@@ -485,7 +599,7 @@ export default function FilamentsPage() {
                                         />
                                     </div>
                                     <div className="flex rounded-xl overflow-hidden border-2 border-gray-200">
-                                        {(['kg', 'g'] as const).map(unit => (
+                                        {(['kg', 'lbs', 'g'] as const).map(unit => (
                                             <button
                                                 key={unit}
                                                 type="button"
@@ -505,7 +619,9 @@ export default function FilamentsPage() {
                                 {form.price_input && !isNaN(parseFloat(form.price_input)) && (() => {
                                     const pricePerGramEUR = form.price_unit === 'kg'
                                         ? parseFloat(form.price_input) / 1000
-                                        : parseFloat(form.price_input);
+                                        : form.price_unit === 'lbs'
+                                            ? parseFloat(form.price_input) / 453.592
+                                            : parseFloat(form.price_input);
                                     const rate = (currency !== 'EUR' && rates && rates[currency]) ? rates[currency] : 1;
                                     const pricePerGramEURActual = pricePerGramEUR / rate;
                                     return (
@@ -561,12 +677,14 @@ export default function FilamentsPage() {
     );
 }
 
-function FilamentCard({ filament, onEdit, onToggle, onDelete }: {
+function FilamentCard({ filament, onEdit, onToggle, onDelete, onUpdateStock }: {
     filament: Filament;
     onEdit: () => void;
     onToggle: () => void;
     onDelete: () => void;
+    onUpdateStock: (change: number) => void;
 }) {
+    const [adjustValue, setAdjustValue] = useState('');
     const light = isLight(filament.color_hex);
     // price_per_gram is always stored in EUR – use formatPrice to convert
     const { formatPrice } = useCurrency();
@@ -615,10 +733,35 @@ function FilamentCard({ filament, onEdit, onToggle, onDelete }: {
                         </div>
 
                         {filament.stock_grams !== null && (
-                            <p className="text-xs text-gray-400 font-medium mt-1">
-                                Stock: <strong className="text-gray-700">{filament.stock_grams}g</strong>
-                                {filament.stock_grams < 100 && <span className="ml-1 text-red-500">⚠ Low</span>}
-                            </p>
+                            <div className="mt-3 bg-gray-50 rounded-xl p-3 border border-gray-100 flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-0.5">Stock Left</p>
+                                    <p className="text-sm font-black text-gray-800">
+                                        {filament.stock_grams}g
+                                        {filament.stock_grams < 100 && <span className="ml-1 text-red-500 text-xs font-bold">⚠ Low</span>}
+                                    </p>
+                                </div>
+                                
+                                <div className="flex flex-col items-end">
+                                    <p className="text-[9px] font-black uppercase text-gray-400 tracking-wide mb-1">Quick Adjust (g)</p>
+                                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+                                        <button onClick={(e) => { e.stopPropagation(); onUpdateStock(-Number(adjustValue || 0)); setAdjustValue(''); }} className="px-2 h-6 flex items-center justify-center text-[10px] uppercase text-gray-500 hover:text-red-600 hover:bg-red-50 rounded font-black transition">Subtract</button>
+                                        <input type="number" min="1" placeholder="g" value={adjustValue} onClick={e => e.stopPropagation()} onChange={e => setAdjustValue(e.target.value)} className="w-12 text-center text-xs font-bold text-gray-700 outline-none bg-gray-50 rounded py-0.5 placeholder:text-gray-300 placeholder:font-medium border border-gray-100 focus:border-orange-300 focus:bg-white transition-all" title="Enter grams to add/subtract" />
+                                        <button onClick={(e) => { e.stopPropagation(); onUpdateStock(Number(adjustValue || 0)); setAdjustValue(''); }} className="px-2 h-6 flex items-center justify-center text-[10px] uppercase text-gray-500 hover:text-green-600 hover:bg-green-50 rounded font-black transition">Add</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {filament.stock_grams === null && (
+                            <div className="mt-3 bg-gray-50 rounded-xl p-3 border border-gray-100 flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-0.5">Stock Left</p>
+                                    <p className="text-xs font-bold text-gray-400">Not tracked</p>
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); onUpdateStock(1000); }} className="text-[10px] font-black uppercase text-orange-500 hover:text-orange-600 bg-orange-50 px-2 py-1 rounded-md transition shadow-sm border border-orange-100">
+                                    Start tracking (1000g)
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

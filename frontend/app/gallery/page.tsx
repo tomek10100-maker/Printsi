@@ -20,12 +20,18 @@ type ColorVariant = {
   label: string;
   primaryColor: string;
   color_name: string;
+  color_hex?: string;
   priceEUR: number;
   stock: number;
   plastic_type: string;
   isMultiColor?: boolean;
-  layers?: { color_hex: string; color_name: string; grams: string }[];
+  layers?: { color_hex: string; color_name: string; grams: string; filament_id?: string }[];
 };
+
+/** Safely extract the display color from a variant (handles both DB raw form and computed form) */
+function getVariantColor(v: ColorVariant): string {
+  return v.primaryColor || v.color_hex || v.layers?.[0]?.color_hex || '#888';
+}
 
 type Offer = {
   id: string;
@@ -153,7 +159,7 @@ function MarketplaceContent() {
       seller_id: offer.user_id,
       stock: firstVariant ? firstVariant.stock : offer.stock,
       variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
-      variant_color: firstVariant ? firstVariant.primaryColor : offer.color_hex,
+      variant_color: firstVariant ? getVariantColor(firstVariant) : offer.color_hex,
       variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
     });
     setLastAddedItem(offer);
@@ -178,7 +184,7 @@ function MarketplaceContent() {
       seller_id: offer.user_id,
       stock: firstVariant ? firstVariant.stock : offer.stock,
       variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
-      variant_color: firstVariant ? firstVariant.primaryColor : offer.color_hex,
+      variant_color: firstVariant ? getVariantColor(firstVariant) : offer.color_hex,
       variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
     });
     router.push('/cart');
@@ -196,7 +202,7 @@ function MarketplaceContent() {
       seller_id: colorPickerOffer.user_id,
       stock: v ? v.stock : colorPickerOffer.stock,
       variant_name: v ? v.color_name : colorPickerOffer.color_name,
-      variant_color: v ? v.primaryColor : colorPickerOffer.color_hex,
+      variant_color: v ? getVariantColor(v) : colorPickerOffer.color_hex,
       variant_layers: v?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
     });
     if (colorPickerMode === 'buy') {
@@ -289,7 +295,7 @@ function MarketplaceContent() {
                           <div key={li} className="w-7 h-7 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: l.color_hex || '#ccc' }} />
                         ))
                       ) : (
-                        <div className="w-7 h-7 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: v.primaryColor || '#ccc' }} />
+                        <div className="w-7 h-7 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: getVariantColor(v) }} />
                       )}
                     </div>
 
@@ -440,7 +446,7 @@ function MarketplaceContent() {
                                 key={vi}
                                 title={v.color_name}
                                 className="w-4 h-4 rounded-full border-2 border-white shadow-sm transition-transform hover:scale-125 hover:z-10"
-                                style={{ backgroundColor: v.primaryColor || '#ccc' }}
+                                style={{ backgroundColor: getVariantColor(v) }}
                               />
                             ))}
                           </div>
@@ -478,7 +484,7 @@ function MarketplaceContent() {
                                 <div key={vi} className="flex items-center gap-1.5">
                                   <div
                                     className="w-3 h-3 rounded-full flex-shrink-0 border border-gray-200"
-                                    style={{ backgroundColor: v.primaryColor || '#ccc' }}
+                                    style={{ backgroundColor: getVariantColor(v) }}
                                   />
                                   <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-tight">
                                     {v.color_name || v.label || `Wariant ${vi + 1}`}:

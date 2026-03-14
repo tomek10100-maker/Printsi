@@ -104,13 +104,19 @@ export default function CheckoutPage() {
         .single();
 
       if (profile) {
+        // country may be a 2-letter code (e.g. 'PL') or a full name (e.g. 'Poland')
+        const rawCountry = profile.country || 'PL';
+        const countryCode = rawCountry.length === 2
+          ? rawCountry.toUpperCase()
+          : (countryNameToCode(rawCountry) || 'PL');
+
         setFormData({
           fullName: profile.full_name || '',
           email: user.email || '',
           address: profile.address || '',
           city: profile.city || '',
           zip: profile.zip_code || '',
-          country: profile.country === 'Poland' ? 'PL' : (profile.country || 'PL')
+          country: countryCode,
         });
       } else {
         setFormData(prev => ({ ...prev, email: user.email || '' }));
@@ -175,6 +181,17 @@ export default function CheckoutPage() {
       return;
     }
     setLoading(true);
+
+    // Save shipping address to profile for next time
+    if (user) {
+      await supabase.from('profiles').update({
+        full_name: formData.fullName,
+        address: formData.address,
+        city: formData.city,
+        zip_code: formData.zip,
+        country: formData.country,
+      }).eq('id', user.id);
+    }
 
     const currentRate = rates?.[currency] || 1;
 

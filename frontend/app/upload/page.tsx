@@ -44,6 +44,14 @@ type ColorVariant = {
   openDropdownLayerId: string | null;
 };
 
+const BASIC_COLORS: Record<string, string> = {
+  black: '#000000', white: '#ffffff', red: '#ff0000', green: '#008000', blue: '#0000ff',
+  yellow: '#ffff00', cyan: '#00ffff', magenta: '#ff00ff', gray: '#808080', grey: '#808080',
+  orange: '#ffa500', brown: '#a52a2a', pink: '#ffc0cb', purple: '#800080',
+  navy: '#000080', lime: '#00ff00', maroon: '#800000', olive: '#808000', teal: '#008080',
+  silver: '#c0c0c0', gold: '#ffd700'
+};
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -96,6 +104,7 @@ export default function AddOfferPage() {
   // Manual mode
   const [manualMaterial, setManualMaterial] = useState('');
   const [manualColor, setManualColor] = useState('');
+  const [manualColorHex, setManualColorHex] = useState('#888888');
   const [manualWeight, setManualWeight] = useState('');
   const [manualPriceLocal, setManualPriceLocal] = useState('');
   const [manualStock, setManualStock] = useState('1');
@@ -196,7 +205,7 @@ export default function AddOfferPage() {
     e.preventDefault();
     if (!title) { alert('Title is required.'); return; }
     if (category !== 'job' && previewImages.length === 0) { alert('Please upload at least 1 photo.'); return; }
-    if (category === 'digital' && !projectFile) { alert('3D File is required for digital items.'); return; }
+    if ((category === 'digital' || category === 'job') && !projectFile) { alert('3D File is required.'); return; }
     if (!user?.id) return;
 
     if (category === 'physical') {
@@ -275,7 +284,7 @@ export default function AddOfferPage() {
       } else {
         dbPrice = manualPriceEUR!;
         dbMaterial = manualMaterial || null;
-        dbColor = null;
+        dbColor = manualColorHex || null;
         dbColorName = manualColor || null;
         dbWeight = manualWeight || null;
         dbStock = parseInt(manualStock) || 1;
@@ -346,8 +355,8 @@ export default function AddOfferPage() {
               <SectionLabel step="1" label="Listing Type" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {([
-                  { key: 'job', label: 'Print Request', Icon: Printer, c: 'blue' },
-                  { key: 'digital', label: 'Digital File', Icon: Layers, c: 'purple' },
+                  { key: 'job', label: 'Print Request', Icon: Printer, c: 'blue', req: false },
+                  { key: 'digital', label: 'Digital File', Icon: Layers, c: 'purple', req: false },
                   { key: 'physical', label: 'Physical Item', Icon: Box, c: 'orange', req: true },
                 ] as const).map(({ key, label, Icon, c, req }) => {
                   const disabled = !!req && !isPrinter;
@@ -390,14 +399,18 @@ export default function AddOfferPage() {
               <SectionLabel step="2" label="Basic Details" />
               <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
-              <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} rows={4}
+              <textarea 
+                placeholder={category === 'job' ? 'Describe your project in detail. Mention the purpose, strength requirements, and any specifics to help the printer achieve the best result for you...' : 'Description'} 
+                value={description} 
+                onChange={e => setDescription(e.target.value)} 
+                rows={4}
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all resize-none" />
             </section>
 
             {/* 3. ATTACHMENTS */}
             <section className="space-y-4">
               <SectionLabel step="3" label="Attachments" />
-              {category === 'digital' && (
+              {(category === 'digital' || category === 'job') && (
                 <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
                   <FileText className={`mb-3 ${projectFile ? 'text-green-600' : 'text-gray-400 group-hover:text-blue-500'}`} size={32} />
                   <span className="text-xs font-black uppercase text-gray-500">{projectFile ? projectFile.name : 'Upload 3D File (.STL)'}</span>
@@ -406,7 +419,7 @@ export default function AddOfferPage() {
               )}
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
                 <ImageIcon className="mb-3 text-gray-400 group-hover:text-blue-500" size={32} />
-                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Max 6)</span>
+                <span className="text-xs font-black uppercase text-gray-500">Upload Photos {category === 'job' ? '(Optional)' : '(Max 6)'}</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
               </label>
               {previewImages.length > 0 && (
@@ -439,17 +452,43 @@ export default function AddOfferPage() {
                     <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} required
                       className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
                   </div>
-                  {category === 'physical' && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <input type="text" placeholder="Material (PLA…)" value={manualMaterial} onChange={e => setManualMaterial(e.target.value)}
-                        className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all" />
-                      <input type="text" placeholder="Color (Red…)" value={manualColor} onChange={e => setManualColor(e.target.value)}
-                        className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all" />
-                      <div className="relative">
-                        <input type="number" step="any" min="0" placeholder="Weight" value={manualWeight} onChange={e => setManualWeight(e.target.value)}
-                          className="w-full p-4 pr-8 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all" />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs">g</span>
+                  {(category === 'physical' || category === 'job') && (
+                    <div className={`grid gap-3 ${category === 'physical' ? 'grid-cols-1 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'}`}>
+                      <input type="text" placeholder={category === 'job' ? "Preferred Material (optional)" : "Material (PLA…)"} value={manualMaterial} onChange={e => setManualMaterial(e.target.value)}
+                        className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
+                      
+                      <input type="text" placeholder={category === 'job' ? "Color Name (e.g. Red, Black...)" : "Color Name (Red…)"} value={manualColor} 
+                        onChange={e => {
+                          setManualColor(e.target.value);
+                          const lower = e.target.value.toLowerCase().trim();
+                          if (BASIC_COLORS[lower]) setManualColorHex(BASIC_COLORS[lower]);
+                        }}
+                        className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
+
+                      <div className="relative isolate">
+                        <div className="absolute -top-6 right-0 flex items-center gap-1 text-[10px] font-black text-orange-500 uppercase tracking-tighter animate-bounce-v-simple pointer-events-none">
+                            Click to adjust <span className="text-xs">↓</span>
+                        </div>
+                        <div className="flex items-center gap-2 h-full">
+                          <div className="flex items-center gap-1 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 overflow-hidden focus-within:border-orange-400 focus-within:bg-white transition-all h-full min-h-[56px] min-w-[70px]">
+                            <span className="text-gray-400 font-bold text-sm">#</span>
+                            <input type="text" value={manualColorHex.replace('#', '')} onChange={e => {
+                              const val = e.target.value;
+                              setManualColorHex(val.startsWith('#') ? val : '#' + val);
+                            }} maxLength={6} placeholder="HEX" className="w-full py-3 bg-transparent font-mono font-bold text-sm outline-none uppercase" />
+                          </div>
+                          <input type="color" value={manualColorHex.startsWith('#') && manualColorHex.length === 7 ? manualColorHex : '#888888'} onChange={e => { setManualColorHex(e.target.value); if(!BASIC_COLORS[manualColor.toLowerCase().trim()]) setManualColor('Custom Color'); }}
+                            className="w-14 min-h-[56px] h-full rounded-xl border-2 border-orange-200 cursor-pointer overflow-hidden flex-shrink-0 hover:scale-105 hover:shadow-md transition-all shadow-sm shadow-orange-200" title="Click to open color picker" />
+                        </div>
                       </div>
+
+                      {category === 'physical' && (
+                        <div className="relative">
+                          <input type="number" step="any" min="0" placeholder="Weight" value={manualWeight} onChange={e => setManualWeight(e.target.value)}
+                            className="w-full p-4 pr-8 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs">g</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { sendDigitalFileEmail } from '../../lib/sendDigitalFileEmail';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16' as any,
@@ -165,7 +166,7 @@ export async function POST(req: Request) {
       // --- 4.5 Fetch offer details ---
       const { data: offerDetails } = await supabase
         .from('offers')
-        .select('is_custom, parent_offer_id, color_variants')
+        .select('is_custom, parent_offer_id, color_variants, category, file_url')
         .eq('id', offerId)
         .single();
 
@@ -294,6 +295,29 @@ export async function POST(req: Request) {
           content: `✅ Hello! I received your order for ${quantityBought} items. I am preparing the shipping label and will send it soon.`,
         });
         console.log(`💬 Chat created/updated for order: ${chatId}`);
+      }
+
+      // --- 9. Send digital file email if the product is a digital file ---
+      if (offerDetails?.category === 'digital' && offerDetails?.file_url) {
+        const buyerEmail = session.customer_details?.email || '';
+        const buyerName = buyerProfile?.full_name || session.customer_details?.name || 'Customer';
+
+        if (buyerEmail) {
+          try {
+            await sendDigitalFileEmail({
+              buyerEmail,
+              buyerName,
+              productTitle: product.name,
+              fileUrl: offerDetails.file_url,
+              orderId: newOrder.id,
+            });
+          } catch (emailErr) {
+            console.error(`❌ Failed to send digital file email for offer ${offerId}:`, emailErr);
+            // Non-fatal – order still processed
+          }
+        } else {
+          console.warn(`⚠️ Digital product ${offerId} purchased but no buyer email in Stripe session`);
+        }
       }
     }
 

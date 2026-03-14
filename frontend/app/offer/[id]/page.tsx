@@ -278,7 +278,14 @@ export default function OfferDetailsPage() {
 
           <div className="prose prose-sm text-gray-600 mb-8 max-w-none"><p>{offer.description}</p></div>
 
-
+          {offer.category === 'job' && offer.file_url && (
+            <div className="mb-8">
+              <a href={offer.file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 p-4 bg-purple-50 text-purple-700 rounded-2xl border border-purple-100 font-black uppercase text-sm hover:bg-purple-100 transition-all">
+                <Box size={18} /> Download 3D Project File
+              </a>
+              <p className="text-xs text-gray-400 mt-2 font-medium">Download this file to evaluate the project and prepare your proposal.</p>
+            </div>
+          )}
 
           {!isDigital && (
             <div className="space-y-4 mb-8">

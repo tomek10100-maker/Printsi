@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { processOrder } from '../../../lib/processOrder';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,13 +33,12 @@ export async function POST(req: Request) {
         if (existing) {
             console.log('ℹ️ Order already exists for session:', sessionId);
             // Still trigger confirm in case chats weren't created
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-            await fetch(`${baseUrl}/api/order/confirm`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId: existing.id, userId }),
-            });
-            return NextResponse.json({ success: true, orderId: existing.id, alreadyExisted: true });
+        try {
+          await processOrder(existing.id, userId);
+        } catch (e) {
+          console.error('⚠️ processOrder error on existing order:', e);
+        }
+        return NextResponse.json({ success: true, orderId: existing.id, alreadyExisted: true });
         }
 
         // 1. Create order
@@ -78,15 +78,13 @@ export async function POST(req: Request) {
         }
 
         // 3. Trigger chat creation + stock + notifications
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        const confirmRes = await fetch(`${baseUrl}/api/order/confirm`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: newOrder.id, userId }),
-        });
-        const confirmData = await confirmRes.json();
-        if (!confirmData.success) {
-            console.error('⚠️ Order confirm step issues:', confirmData);
+        try {
+          const confirmResult = await processOrder(newOrder.id, userId);
+          if (!confirmResult.success) {
+            console.error('⚠️ Order confirm step issues:', confirmResult);
+          }
+        } catch (confirmErr) {
+          console.error('⚠️ Order confirm threw error:', confirmErr);
         }
 
         return NextResponse.json({ success: true, orderId: newOrder.id });

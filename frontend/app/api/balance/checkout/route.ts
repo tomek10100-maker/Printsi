@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { processOrder } from '../../../lib/processOrder';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -107,16 +108,15 @@ export async function POST(req: Request) {
     }
 
     // 7. Trigger chat creation + stock deduction + seller notifications
-    //    via the shared /api/order/confirm endpoint
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const confirmRes = await fetch(`${baseUrl}/api/order/confirm`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: newOrder.id, userId }),
-    });
-    const confirmData = await confirmRes.json();
-    if (!confirmData.success) {
-      console.error('⚠️ Order confirm step had issues:', confirmData);
+    console.log('🔄 Processing order post-payment logic...');
+    try {
+      const confirmResult = await processOrder(newOrder.id, userId);
+      if (!confirmResult.success) {
+        console.error('⚠️ Order confirm step had issues:', confirmResult);
+      }
+    } catch (confirmErr) {
+      console.error('⚠️ Order confirm threw error:', confirmErr);
+      // Non-fatal – order is created and paid, continue
     }
 
     console.log('🎉 Balance checkout complete!');
