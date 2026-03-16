@@ -80,7 +80,7 @@ function MarketplaceContent() {
       .select('*')
       .eq('is_custom', false);
     if (error) {
-      console.error('Błąd pobierania ofert:', error);
+      console.error('Error fetching offers:', error);
     } else {
       setOffers(data || []);
     }
@@ -487,7 +487,7 @@ function MarketplaceContent() {
                                     style={{ backgroundColor: getVariantColor(v) }}
                                   />
                                   <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-tight">
-                                    {v.color_name || v.label || `Wariant ${vi + 1}`}:
+                                    {v.color_name || v.label || `Variant ${vi + 1}`}:
                                   </span>
                                   <span className="text-xs font-black text-gray-900 leading-tight">
                                     {formatPrice(v.priceEUR)}
@@ -496,7 +496,7 @@ function MarketplaceContent() {
                               ))}
                               {variants.length > 2 && (
                                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                  +{variants.length - 2} więcej kolorów
+                                  +{variants.length - 2} more colors
                                 </span>
                               )}
                               <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>

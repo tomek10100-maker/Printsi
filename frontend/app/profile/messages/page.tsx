@@ -255,7 +255,7 @@ export default function MessagesPage() {
                 payload.custom_offer_id = newOffer.id;
             } catch (e) {
                 console.error(e);
-                alert("Błąd podczas wystawienia oferty. Upewnij się czy cena jest prawidłowa.");
+                alert("Error creating offer. Please ensure the price is correct.");
                 return;
             }
         }
@@ -289,7 +289,7 @@ export default function MessagesPage() {
         if (!activeChatData || activeChatData.seller_id !== currentUser.id) return;
 
         if (!parsedData || !parsedData.price || isNaN(Number(parsedData.price))) {
-            alert("Błąd: Propozycja nie ma poprawnej ceny! Spróbuj odświeżyć stronę lub poproś o wysłanie nowej.");
+            alert("Error: Proposal lacks a valid price! Try refreshing the page or ask for a new one.");
             return;
         }
 
@@ -321,7 +321,7 @@ export default function MessagesPage() {
             loadMessages(activeChatId as string);
         } catch (e: any) {
             console.error("Failed to accept proposal", e);
-            alert(`Błąd podczas akceptacji oferty: ${e.message || JSON.stringify(e)} \n(Upewnij się, że wykonałeś najnowszy skrypt w edytorze SQL!)`);
+            alert(`Error accepting offer: ${e.message || JSON.stringify(e)} \n(Make sure you ran the latest SQL script!)`);
         }
     };
 
