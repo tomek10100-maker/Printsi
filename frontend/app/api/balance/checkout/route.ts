@@ -22,14 +22,19 @@ export async function POST(req: Request) {
     const orderTotalEur = cartTotalEur + (shippingCostEur || 0);
 
     // 2. Calculate real balance from database (security – never trust the client)
-    const { data: sales } = await supabase
+    const { data: sales, error: salesError } = await supabase
       .from('order_items')
-      .select('price_at_purchase, quantity')
+      .select('price_at_purchase, quantity, status')
       .eq('seller_id', userId);
 
-    const totalEarned = sales?.reduce(
-      (acc, s) => acc + (s.price_at_purchase * (s.quantity || 1)), 0
-    ) || 0;
+    let totalEarned = 0;
+    if (!salesError && sales) {
+      sales.forEach(s => {
+        if (s.status === 'completed') {
+          totalEarned += s.price_at_purchase * (s.quantity || 1);
+        }
+      });
+    }
 
     const { data: prevOrders } = await supabase
       .from('orders')

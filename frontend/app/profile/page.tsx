@@ -31,6 +31,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState({
     spent: 0,
     earned: 0,
+    pendingEarned: 0,
     inventoryValue: 0
   });
 
@@ -80,16 +81,32 @@ export default function ProfilePage() {
 
       const inventoryVal = offersData?.reduce((acc, item) => acc + (item.price * item.stock), 0) || 0;
 
-      // 4. FINANCIAL STATS
       const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id);
       const totalSpent = orders?.reduce((acc, order) => acc + order.total_amount, 0) || 0;
 
-      const { data: sales } = await supabase.from('order_items').select('price_at_purchase, quantity').eq('seller_id', user.id);
-      const totalEarned = sales?.reduce((acc, sale) => acc + (sale.price_at_purchase * (sale.quantity || 1)), 0) || 0;
+      // GET SALES WITH STATUS
+      // We assume order_items has a 'status' column. If it's missing (e.g. before schema update), it returns undefined or falls back.
+      const { data: sales, error: salesError } = await supabase.from('order_items').select('price_at_purchase, quantity, status').eq('seller_id', user.id);
+      
+      let totalEarned = 0;
+      let pendingEarned = 0;
+
+      if (!salesError && sales) {
+        sales.forEach(sale => {
+          const amt = sale.price_at_purchase * (sale.quantity || 1);
+          // Only 'completed' adds to available balance. Others (pending, shipped, delivered, disputed) are pending.
+          if (sale.status === 'completed') {
+            totalEarned += amt;
+          } else {
+            pendingEarned += amt;
+          }
+        });
+      }
 
       setStats({
         spent: totalSpent,
         earned: totalEarned,
+        pendingEarned: pendingEarned,
         inventoryValue: inventoryVal
       });
 
@@ -174,9 +191,21 @@ export default function ProfilePage() {
                   <TrendingUp size={20} />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Total Earned</p>
-                  <p className="text-xl font-black text-gray-900">{formatPrice(stats.earned)}</p>
-                  <p className="text-[9px] text-gray-400 font-bold">from your sales</p>
+                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Total Sales Value</p>
+                  <p className="text-xl font-black text-gray-900">{formatPrice(stats.earned + stats.pendingEarned)}</p>
+                  <p className="text-[9px] text-gray-400 font-bold">without shipping</p>
+                </div>
+              </div>
+
+              {/* Pending Funds */}
+              <div className="flex items-center gap-3 pr-6 border-r border-gray-200">
+                <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg shadow-inner">
+                  <Package size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Pending Funds</p>
+                  <p className="text-xl font-black text-yellow-600">{formatPrice(stats.pendingEarned)}</p>
+                  <p className="text-[9px] text-gray-400 font-bold">awaiting delivery</p>
                 </div>
               </div>
 

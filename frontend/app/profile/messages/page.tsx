@@ -84,7 +84,19 @@ export default function MessagesPage() {
                 .eq('is_read', false)
                 .neq('sender_id', userId);
 
-            return { ...chat, otherUser: otherProfile || { full_name: 'Unknown User' }, unreadCount: unreadCount || 0 };
+            let orderItemInfo = null;
+            if (chat.order_id && chat.offer_id) {
+                const { data: oItem } = await supabase
+                    .from('order_items')
+                    .select('id, status, quantity, price_at_purchase')
+                    .eq('order_id', chat.order_id)
+                    .eq('offer_id', chat.offer_id)
+                    .limit(1)
+                    .maybeSingle();
+                orderItemInfo = oItem;
+            }
+
+            return { ...chat, otherUser: otherProfile || { full_name: 'Unknown User' }, unreadCount: unreadCount || 0, orderItem: orderItemInfo };
         }));
 
         setChats(enrichChats);
@@ -171,6 +183,34 @@ export default function MessagesPage() {
     };
 
     const activeChatData = chats.find(c => c.id === activeChatId);
+
+    // --- STATUS TRANSITION LOGIC ---
+    const handleStatusUpdate = async (newStatus: string) => {
+        if (!activeChatData || !activeChatData.orderItem || !currentUser) return;
+
+        const res = await fetch('/api/order/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                itemId: activeChatData.orderItem.id,
+                newStatus,
+                chatId: activeChatId,
+                userId: currentUser.id,
+            })
+        });
+
+        if (res.ok) {
+            // Update local state optimistic
+            setChats(prev => prev.map(c => 
+                c.id === activeChatId 
+                ? { ...c, orderItem: { ...c.orderItem, status: newStatus } }
+                : c
+            ));
+            loadMessages(activeChatId as string);
+        } else {
+            alert('Failed to change status');
+        }
+    };
 
     // --- PROPOSAL LOGIC ---
 
@@ -413,6 +453,43 @@ export default function MessagesPage() {
                                             <Handshake size={14} /> Negotiate
                                         </button>
                                     )}
+                                </div>
+                            )}
+
+                            {/* --- STATUS TRANSITION UI --- */}
+                            {activeChatData?.order_id && activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (
+                                <div className="bg-blue-50/50 px-6 py-3 border-b border-blue-100 flex items-center justify-between shadow-sm">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">Transaction Status</span>
+                                        <span className="text-sm font-bold text-gray-900 capitalize">
+                                            {activeChatData.orderItem.status || 'pending'}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {/* Seller Actions */}
+                                        {currentUser?.id === activeChatData.seller_id && (!activeChatData.orderItem.status || activeChatData.orderItem.status === 'pending') && (
+                                            <button onClick={() => handleStatusUpdate('shipped')} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black tracking-widest uppercase transition shadow shadow-blue-600/20">Mark as Sent</button>
+                                        )}
+
+                                        {/* Buyer Actions */}
+                                        {currentUser?.id === activeChatData.buyer_id && activeChatData.orderItem.status === 'shipped' && (
+                                            <button onClick={() => handleStatusUpdate('delivered')} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-black tracking-widest uppercase transition shadow shadow-green-500/20">Item Received</button>
+                                        )}
+
+                                        {currentUser?.id === activeChatData.buyer_id && activeChatData.orderItem.status === 'delivered' && (
+                                            <>
+                                                <button onClick={() => handleStatusUpdate('completed')} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-black tracking-widest uppercase transition shadow shadow-green-600/20">Everything is Fine</button>
+                                                <button onClick={() => handleStatusUpdate('disputed')} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black tracking-widest uppercase transition shadow shadow-red-500/20">I Have a Problem</button>
+                                            </>
+                                        )}
+                                        
+                                        {/* Ended states */}
+                                        {(activeChatData.orderItem.status === 'completed' || activeChatData.orderItem.status === 'disputed') && (
+                                            <div className="text-xs font-black text-gray-400 uppercase self-center tracking-widest">
+                                                Actions Completed
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 

@@ -64,7 +64,7 @@ export async function processOrder(orderId: string, userId: string) {
   // 1. Fetch all order items
   const { data: orderItems, error: itemsErr } = await supabase
     .from('order_items')
-    .select('offer_id, seller_id, quantity, price_at_purchase')
+    .select('id, offer_id, seller_id, quantity, price_at_purchase')
     .eq('order_id', orderId);
 
   if (itemsErr || !orderItems?.length) {
@@ -157,12 +157,25 @@ export async function processOrder(orderId: string, userId: string) {
       content: `🛍️ Order placed! I just purchased ${item.quantity}x "${title}". Looking forward to receiving it! 🎉`,
     });
     if (msgBuyer.error) console.error('❌ Buyer message failed:', msgBuyer.error);
+
     const msgSeller = await supabase.from('messages').insert({
       chat_id: chatId,
       sender_id: sellerId,
       content: `✅ Thank you for your order! I've received your purchase of ${item.quantity}x "${title}". I'll prepare it for shipping as soon as possible and will keep you updated here. 📦`,
     });
     if (msgSeller.error) console.error('❌ Seller message failed:', msgSeller.error);
+
+    // Auto-complete if digital, else remind about 4 days limit
+    if (offer.category === 'digital') {
+      await supabase.from('order_items').update({ status: 'completed' }).eq('id', item.id);
+    } else {
+      const msgSystem = await supabase.from('messages').insert({
+        chat_id: chatId,
+        sender_id: sellerId,
+        content: `⏳ **System:** The seller has 4 days to ship the item. Please use the button in the panel to mark it as sent.`,
+      });
+      if (msgSystem.error) console.error('❌ System message failed:', msgSystem.error);
+    }
 
     // 5. Notify seller
     try {
@@ -172,7 +185,9 @@ export async function processOrder(orderId: string, userId: string) {
       const { error: notifErr } = await supabase.from('notifications').insert({
         user_id: sellerId,
         title: '🎉 New sale!',
-        message: `You sold ${item.quantity}x "${title}" for ${formattedAmount}. Funds added to your Printsi balance.`,
+        message: offer.category === 'digital' 
+          ? `You sold ${item.quantity}x "${title}" for ${formattedAmount}. Funds added to your Printsi balance.`
+          : `You sold ${item.quantity}x "${title}" for ${formattedAmount}. Funds added to Pending Balance.`,
         type: 'sale',
         is_read: false,
       });
