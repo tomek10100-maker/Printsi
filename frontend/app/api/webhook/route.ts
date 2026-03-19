@@ -283,17 +283,29 @@ export async function POST(req: Request) {
       }
 
       if (chatId) {
-        // Send automatic first message
+        // Send system message about the order
         await supabase.from('messages').insert({
           chat_id: chatId,
           sender_id: userId,
-          content: `📦 Hello! I just purchased ${quantityBought}x ${product.name}. Let me know if you need any details about my order.`,
+          content: `New order: ${quantityBought}x ${product.name} has been purchased successfully.`,
+          message_type: 'system',
         });
-        await supabase.from('messages').insert({
-          chat_id: chatId,
-          sender_id: sellerId,
-          content: `✅ Hello! I received your order for ${quantityBought} items. I am preparing the shipping label and will send it soon.`,
-        });
+        // If physical, add shipping reminder
+        if (offerDetails?.category !== 'digital') {
+          await supabase.from('messages').insert({
+            chat_id: chatId,
+            sender_id: userId,
+            content: `The seller has 4 days to ship the item. Use the confirmation buttons below to track delivery progress.`,
+            message_type: 'system',
+          });
+        } else {
+          await supabase.from('messages').insert({
+            chat_id: chatId,
+            sender_id: userId,
+            content: `Digital file delivered automatically. Transaction completed!`,
+            message_type: 'status_completed',
+          });
+        }
         console.log(`💬 Chat created/updated for order: ${chatId}`);
       }
 

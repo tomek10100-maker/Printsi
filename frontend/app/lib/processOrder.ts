@@ -150,31 +150,31 @@ export async function processOrder(orderId: string, userId: string) {
       results.push(`chat_updated:${chatId}`);
     }
 
-    // 4. Automatic messages
-    const msgBuyer = await supabase.from('messages').insert({
+    // 4. System message: order confirmed
+    const msgOrder = await supabase.from('messages').insert({
       chat_id: chatId,
       sender_id: userId,
-      content: `🛍️ Order placed! I just purchased ${item.quantity}x "${title}". Looking forward to receiving it! 🎉`,
+      content: `New order: ${item.quantity}x "${title}" has been purchased successfully.`,
+      message_type: 'system',
     });
-    if (msgBuyer.error) console.error('❌ Buyer message failed:', msgBuyer.error);
-
-    const msgSeller = await supabase.from('messages').insert({
-      chat_id: chatId,
-      sender_id: sellerId,
-      content: `✅ Thank you for your order! I've received your purchase of ${item.quantity}x "${title}". I'll prepare it for shipping as soon as possible and will keep you updated here. 📦`,
-    });
-    if (msgSeller.error) console.error('❌ Seller message failed:', msgSeller.error);
+    if (msgOrder.error) console.error('❌ Order message failed:', msgOrder.error);
 
     // Auto-complete if digital, else remind about 4 days limit
     if (offer.category === 'digital') {
       await supabase.from('order_items').update({ status: 'completed' }).eq('id', item.id);
-    } else {
-      const msgSystem = await supabase.from('messages').insert({
+      await supabase.from('messages').insert({
         chat_id: chatId,
-        sender_id: sellerId,
-        content: `⏳ **System:** The seller has 4 days to ship the item. Please use the button in the panel to mark it as sent.`,
+        sender_id: userId,
+        content: `Digital file delivered automatically. Transaction completed!`,
+        message_type: 'status_completed',
       });
-      if (msgSystem.error) console.error('❌ System message failed:', msgSystem.error);
+    } else {
+      await supabase.from('messages').insert({
+        chat_id: chatId,
+        sender_id: userId,
+        content: `The seller has 4 days to ship the item. Use the confirmation buttons below to track delivery progress.`,
+        message_type: 'system',
+      });
     }
 
     // 5. Notify seller

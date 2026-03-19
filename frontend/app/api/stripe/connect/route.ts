@@ -28,16 +28,28 @@ export async function POST(req: Request) {
 
     let accountId = profile?.stripe_account_id;
 
+    let domain = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    // Ensure domain has protocol
+    if (!domain.startsWith('http')) {
+      domain = 'http://' + domain;
+    }
+
+    // Stripe business_profile.url requires a valid URL, and sometimes rejects localhost in certain contexts.
+    // We'll use a real domain as a fallback for the business profile if we are on localhost.
+    const businessProfileUrl = domain.includes('localhost') ? 'https://printsi.com' : `${domain}/user/${userId}`;
+    
+    const businessProfile = {
+      product_description: `Sales of 3D prints and maker services on Printsi platform by user ${profile?.full_name || userId}.`,
+      url: businessProfileUrl,
+    };
+
     if (!accountId) {
       // 2. Create a new Express account optimized for individuals/makers
       const account = await stripe.accounts.create({
         type: 'express',
         email: profile?.email || undefined,
         business_type: 'individual',
-        business_profile: {
-          product_description: 'Selling 3D prints, custom models, and maker services on Printsi marketplace.',
-          url: 'https://printsi.com', // fallback URL if they don't have one
-        },
+        business_profile: businessProfile,
         settings: {
           payouts: {
             schedule: {
@@ -46,7 +58,6 @@ export async function POST(req: Request) {
           }
         },
         capabilities: {
-          card_payments: { requested: true },
           transfers: { requested: true },
         },
       });
@@ -63,11 +74,18 @@ export async function POST(req: Request) {
         console.error("Failed to save stripe_account_id:", error);
         return NextResponse.json({ error: 'Failed to save account ID' }, { status: 500 });
       }
+    } else {
+      // 2. Update existing account to ensure business_profile is set (this skips the "Professional details" section)
+      try {
+        await stripe.accounts.update(accountId, {
+          business_profile: businessProfile,
+        });
+      } catch (err) {
+        console.error("Failed to update Stripe account business profile:", err);
+      }
     }
 
-    const domain = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-
-    // 4. Generate onboarding link in English
+    // 4. Generate onboarding link
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${domain}/profile/billing`,

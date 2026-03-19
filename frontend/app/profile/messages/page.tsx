@@ -4,7 +4,10 @@ import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X } from 'lucide-react';
+import {
+    ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail
+} from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
 
@@ -12,6 +15,16 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// ─── Problem types for disputes ────────────────────────
+const PROBLEM_TYPES = [
+    { value: 'damaged', label: 'Damaged Item', icon: '📦💥' },
+    { value: 'wrong_item', label: 'Wrong Item Received', icon: '🔄' },
+    { value: 'not_received', label: 'Item Not Received', icon: '❌📦' },
+    { value: 'quality_issue', label: 'Quality Issue', icon: '⚠️' },
+    { value: 'missing_parts', label: 'Missing Parts', icon: '🧩' },
+    { value: 'other', label: 'Other Issue', icon: '❓' },
+];
 
 export default function MessagesPage() {
     const router = useRouter();
@@ -36,6 +49,13 @@ export default function MessagesPage() {
     const [proposalMaterial, setProposalMaterial] = useState('');
     const [proposalColor, setProposalColor] = useState('');
 
+    // Dispute Modal State
+    const [showDisputeModal, setShowDisputeModal] = useState(false);
+    const [disputeProblemType, setDisputeProblemType] = useState('');
+    const [disputeDescription, setDisputeDescription] = useState('');
+    const [disputeEmail, setDisputeEmail] = useState('');
+    const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -49,7 +69,6 @@ export default function MessagesPage() {
     }, [router]);
 
     const loadChats = async (userId: string) => {
-        // 1. Load chats where user is buyer or seller
         const { data: fetchedChats, error } = await supabase
             .from('chats')
             .select(`
@@ -67,8 +86,6 @@ export default function MessagesPage() {
             return;
         }
 
-        // 2. We need details of the OTHER user. Since postgrest doesn't easily do dynamic joins conditionally,
-        // we'll fetch the profiles manually for the other party.
         const enrichChats = await Promise.all((fetchedChats || []).map(async (chat) => {
             const otherUserId = chat.buyer_id === userId ? chat.seller_id : chat.buyer_id;
             const { data: otherProfile } = await supabase
@@ -114,7 +131,6 @@ export default function MessagesPage() {
             const currentChatId = activeChatId;
             loadMessages(currentChatId);
 
-            // Mark as read
             const markAsRead = async () => {
                 await supabase.from('messages')
                     .update({ is_read: true })
@@ -123,7 +139,6 @@ export default function MessagesPage() {
             };
             markAsRead();
 
-            // Update local state to remove the red dot immediately
             setChats(prev => prev.map(c => c.id === currentChatId ? { ...c, unreadCount: 0 } : c));
         }
     }, [activeChatId, currentUser]);
@@ -152,14 +167,14 @@ export default function MessagesPage() {
         if (!newMessage.trim() || !activeChatId || !currentUser) return;
 
         const content = newMessage.trim();
-        setNewMessage(''); // optimistic clear
+        setNewMessage('');
 
-        // Optimistic UI update
         const tempMsg = {
             id: 'temp-' + Date.now(),
             chat_id: activeChatId,
             sender_id: currentUser.id,
             content: content,
+            message_type: 'user',
             created_at: new Date().toISOString()
         };
         setMessages(prev => [...prev, tempMsg]);
@@ -175,9 +190,7 @@ export default function MessagesPage() {
             console.error(error);
             alert("Failed to send message");
         } else {
-            // Refresh messages to get true ID and timestamp
             loadMessages(activeChatId);
-            // Refresh chats to update sorting by updated_at
             loadChats(currentUser.id);
         }
     };
@@ -187,6 +200,12 @@ export default function MessagesPage() {
     // --- STATUS TRANSITION LOGIC ---
     const handleStatusUpdate = async (newStatus: string) => {
         if (!activeChatData || !activeChatData.orderItem || !currentUser) return;
+
+        // If dispute, open the dispute modal instead
+        if (newStatus === 'disputed') {
+            setShowDisputeModal(true);
+            return;
+        }
 
         const res = await fetch('/api/order/status', {
             method: 'POST',
@@ -200,11 +219,10 @@ export default function MessagesPage() {
         });
 
         if (res.ok) {
-            // Update local state optimistic
-            setChats(prev => prev.map(c => 
-                c.id === activeChatId 
-                ? { ...c, orderItem: { ...c.orderItem, status: newStatus } }
-                : c
+            setChats(prev => prev.map(c =>
+                c.id === activeChatId
+                    ? { ...c, orderItem: { ...c.orderItem, status: newStatus } }
+                    : c
             ));
             loadMessages(activeChatId as string);
         } else {
@@ -212,8 +230,50 @@ export default function MessagesPage() {
         }
     };
 
-    // --- PROPOSAL LOGIC ---
+    // --- DISPUTE SUBMIT ---
+    const handleDisputeSubmit = async () => {
+        if (!activeChatData?.orderItem || !currentUser || !disputeProblemType || !disputeDescription.trim() || !disputeEmail.trim()) {
+            alert('Please fill in all fields');
+            return;
+        }
 
+        setDisputeSubmitting(true);
+
+        const res = await fetch('/api/order/dispute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                itemId: activeChatData.orderItem.id,
+                chatId: activeChatId,
+                buyerId: currentUser.id,
+                sellerId: activeChatData.seller_id,
+                problemType: disputeProblemType,
+                description: disputeDescription.trim(),
+                contactEmail: disputeEmail.trim(),
+            })
+        });
+
+        setDisputeSubmitting(false);
+
+        if (res.ok) {
+            setShowDisputeModal(false);
+            setDisputeProblemType('');
+            setDisputeDescription('');
+            setDisputeEmail('');
+            // Update local state
+            setChats(prev => prev.map(c =>
+                c.id === activeChatId
+                    ? { ...c, orderItem: { ...c.orderItem, status: 'disputed' } }
+                    : c
+            ));
+            loadMessages(activeChatId as string);
+        } else {
+            const errorData = await res.json();
+            alert(`Failed back-end: ${errorData.error || 'Unknown error'}`);
+        }
+    };
+
+    // --- PROPOSAL LOGIC ---
     const sendProposal = async () => {
         if (!activeChatId || !currentUser || !activeChatData) return;
 
@@ -232,7 +292,6 @@ export default function MessagesPage() {
 
         const isSeller = currentUser.id === activeChatData.seller_id;
 
-        // SELLER PROPOSAL: Create custom offer instantly
         if (isSeller) {
             try {
                 const { data: newOffer, error: offerError } = await supabase.from('offers').insert({
@@ -264,12 +323,12 @@ export default function MessagesPage() {
         setShowProposalModal(false);
         setProposalPrice('');
 
-        // Optimistic UI update
         const tempMsg = {
             id: 'temp-' + Date.now(),
             chat_id: activeChatId,
             sender_id: currentUser.id,
             content: content,
+            message_type: 'user',
             created_at: new Date().toISOString()
         };
         setMessages(prev => [...prev, tempMsg]);
@@ -294,7 +353,6 @@ export default function MessagesPage() {
         }
 
         try {
-            // 1. Create the NEW hidden offer for this specific user
             const { data: newOffer, error: offerError } = await supabase.from('offers').insert({
                 user_id: currentUser.id,
                 category: activeChatData.offers?.category || 'physical',
@@ -311,7 +369,6 @@ export default function MessagesPage() {
 
             if (offerError) throw offerError;
 
-            // 2. Update the message status
             parsedData.status = 'accepted';
             parsedData.custom_offer_id = newOffer.id;
 
@@ -361,6 +418,226 @@ export default function MessagesPage() {
         router.push('/cart');
     };
 
+    // ─── RENDER HELPERS ────────────────────────────────────
+
+    const renderSystemMessage = (msg: any, idx: number) => {
+        const messageType = msg.message_type || 'system';
+
+        // Define styles per type
+        const typeStyles: Record<string, { bg: string; border: string; icon: any; iconColor: string; label: string; accent: string }> = {
+            system: {
+                bg: 'bg-gradient-to-r from-slate-50 to-blue-50/50',
+                border: 'border-blue-200/50',
+                icon: <Info size={16} />,
+                iconColor: 'text-blue-500',
+                label: 'System',
+                accent: 'from-blue-500 to-blue-600',
+            },
+            status_shipped: {
+                bg: 'bg-gradient-to-r from-blue-50 to-indigo-50/50',
+                border: 'border-blue-200',
+                icon: <Truck size={16} />,
+                iconColor: 'text-blue-600',
+                label: 'Shipped',
+                accent: 'from-blue-500 to-indigo-500',
+            },
+            status_delivered: {
+                bg: 'bg-gradient-to-r from-emerald-50 to-teal-50/50',
+                border: 'border-emerald-200',
+                icon: <PackageCheck size={16} />,
+                iconColor: 'text-emerald-600',
+                label: 'Delivered',
+                accent: 'from-emerald-500 to-teal-500',
+            },
+            status_completed: {
+                bg: 'bg-gradient-to-r from-green-50 to-emerald-50/50',
+                border: 'border-green-200',
+                icon: <CheckCircle2 size={16} />,
+                iconColor: 'text-green-600',
+                label: 'Completed',
+                accent: 'from-green-500 to-emerald-500',
+            },
+            status_disputed: {
+                bg: 'bg-gradient-to-r from-red-50 to-orange-50/50',
+                border: 'border-red-200',
+                icon: <ShieldAlert size={16} />,
+                iconColor: 'text-red-500',
+                label: 'Dispute',
+                accent: 'from-red-500 to-orange-500',
+            },
+            dispute_opened: {
+                bg: 'bg-gradient-to-r from-red-50 to-orange-50/50',
+                border: 'border-red-200',
+                icon: <AlertTriangle size={16} />,
+                iconColor: 'text-red-600',
+                label: 'Dispute Opened',
+                accent: 'from-red-500 to-orange-500',
+            },
+        };
+
+        const style = typeStyles[messageType] || typeStyles.system;
+
+        // Parse dispute details if it's a dispute message
+        let disputeData: any = null;
+        if (messageType === 'dispute_opened') {
+            try {
+                disputeData = JSON.parse(msg.content);
+            } catch { }
+        }
+
+        return (
+            <div key={msg.id || idx} className="flex justify-center my-5 px-4">
+                <div className={`w-full max-w-md ${style.bg} border ${style.border} rounded-2xl overflow-hidden shadow-sm`}>
+                    {/* Header bar */}
+                    <div className={`bg-gradient-to-r ${style.accent} px-4 py-2 flex items-center gap-2`}>
+                        <div className="text-white/90">{style.icon}</div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">{style.label}</span>
+                        <span className="ml-auto text-[9px] text-white/60 font-bold">
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    </div>
+                    {/* Body */}
+                    <div className="px-4 py-3">
+                        {disputeData ? (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black uppercase text-red-400 tracking-wider">Problem:</span>
+                                    <span className="text-sm font-bold text-gray-800">{disputeData.problemType}</span>
+                                </div>
+                                <p className="text-sm text-gray-600 font-medium leading-relaxed">{disputeData.description}</p>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-700 font-medium leading-relaxed">{msg.content}</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // Render action card in chat (shipped/received/completed/dispute buttons)
+    const renderActionCard = (orderItem: any, chatData: any) => {
+        if (!orderItem || !currentUser || chatData?.offers?.category === 'digital') return null;
+
+        const status = orderItem.status || 'pending';
+        const isSeller = currentUser.id === chatData?.seller_id;
+        const isBuyer = currentUser.id === chatData?.buyer_id;
+
+        // Only render the appropriate action card based on current status
+        if (status === 'pending' && isSeller) {
+            return (
+                <div className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-white border-2 border-dashed border-blue-200 rounded-2xl p-5 text-center">
+                        <div className="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                            <Truck size={18} className="text-blue-600" />
+                        </div>
+                        <p className="text-sm font-bold text-gray-800 mb-1">Ready to ship?</p>
+                        <p className="text-xs text-gray-500 font-medium mb-4">Confirm that you've sent the package to the buyer.</p>
+                        <button
+                            onClick={() => handleStatusUpdate('shipped')}
+                            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
+                        >
+                            <Truck size={14} className="inline mr-2 -mt-0.5" /> Mark as Sent
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        if (status === 'shipped' && isBuyer) {
+            return (
+                <div className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-200 rounded-2xl p-5 text-center">
+                        <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
+                            <PackageCheck size={18} className="text-emerald-600" />
+                        </div>
+                        <p className="text-sm font-bold text-gray-800 mb-1">Package on its way!</p>
+                        <p className="text-xs text-gray-500 font-medium mb-4">Have you received the package? Confirm delivery below.</p>
+                        <button
+                            onClick={() => handleStatusUpdate('delivered')}
+                            className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+                        >
+                            <PackageCheck size={14} className="inline mr-2 -mt-0.5" /> I Received It
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        if (status === 'delivered' && isBuyer) {
+            return (
+                <div className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-white border-2 border-dashed border-green-200 rounded-2xl p-5 text-center">
+                        <div className="w-10 h-10 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
+                            <CheckCircle2 size={18} className="text-green-600" />
+                        </div>
+                        <p className="text-sm font-bold text-gray-800 mb-1">Is everything OK?</p>
+                        <p className="text-xs text-gray-500 font-medium mb-4">Check your item and let us know if everything is fine, or report a problem.</p>
+                        <div className="flex gap-3 justify-center">
+                            <button
+                                onClick={() => handleStatusUpdate('completed')}
+                                className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-green-500/20"
+                            >
+                                <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" /> All Good!
+                            </button>
+                            <button
+                                onClick={() => handleStatusUpdate('disputed')}
+                                className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20"
+                            >
+                                <AlertTriangle size={14} className="inline mr-2 -mt-0.5" /> Problem
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (status === 'completed' || status === 'disputed') {
+            return (
+                <div className="flex justify-center my-4 px-4">
+                    <div className={`w-full max-w-md rounded-2xl p-4 text-center ${status === 'completed' ? 'bg-green-50/80 border border-green-100' : 'bg-red-50/80 border border-red-100'}`}>
+                        <p className={`text-xs font-black uppercase tracking-widest ${status === 'completed' ? 'text-green-600' : 'text-red-600'}`}>
+                            {status === 'completed' ? '✅ Transaction Finalized' : '⚠️ Dispute Open'}
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Pending buyer or shipped seller → info message
+        if (status === 'pending' && isBuyer) {
+            return (
+                <div className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-amber-50/80 border border-amber-100 rounded-2xl p-4 text-center">
+                        <p className="text-xs font-bold text-amber-700">⏳ Waiting for the seller to ship the package...</p>
+                    </div>
+                </div>
+            );
+        }
+
+        if (status === 'shipped' && isSeller) {
+            return (
+                <div className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
+                        <p className="text-xs font-bold text-blue-700">📦 Package sent! Waiting for the buyer to confirm delivery...</p>
+                    </div>
+                </div>
+            );
+        }
+
+        if (status === 'delivered' && isSeller) {
+            return (
+                <div className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 text-center">
+                        <p className="text-xs font-bold text-emerald-700">📬 Buyer received the package! Waiting for their final confirmation...</p>
+                    </div>
+                </div>
+            );
+        }
+
+        return null;
+    };
+
     return (
         <main className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
 
@@ -404,7 +681,17 @@ export default function MessagesPage() {
                                 <div className="overflow-hidden flex-1 flex flex-col justify-center">
                                     <h3 className={`truncate text-sm ${chat.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-700'}`}>{chat.otherUser?.full_name}</h3>
                                     <p className={`text-xs truncate mt-0.5 ${chat.unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-blue-600 font-bold'}`}>{chat.offers?.title || 'Unknown Item'}</p>
-                                    {chat.order_id && <span className="inline-block mt-1 text-[9px] font-black uppercase bg-green-100 text-green-700 px-2 py-0.5 rounded-sm w-fit">Order Placed</span>}
+                                    {chat.order_id && (
+                                        <span className={`inline-block mt-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${
+                                            chat.orderItem?.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                            chat.orderItem?.status === 'disputed' ? 'bg-red-100 text-red-700' :
+                                            chat.orderItem?.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                            chat.orderItem?.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
+                                            'bg-amber-100 text-amber-700'
+                                        }`}>
+                                            {chat.orderItem?.status || 'pending'}
+                                        </span>
+                                    )}
                                 </div>
                                 {chat.unreadCount > 0 && (
                                     <div className="w-2.5 h-2.5 bg-red-500 rounded-full self-center ml-2 border border-white shrink-0 shadow-sm" />
@@ -426,7 +713,6 @@ export default function MessagesPage() {
                             {/* Chat Header */}
                             {activeChatData && (
                                 <div className="bg-white px-6 py-4 border-b border-gray-100 flex items-center gap-4 shrink-0 shadow-sm">
-                                    {/* Mobile Back Button */}
                                     <button onClick={() => setActiveChatId(null)} className="md:hidden p-2 -ml-2 text-gray-400 hover:text-gray-900">
                                         <ArrowLeft size={20} />
                                     </button>
@@ -445,6 +731,19 @@ export default function MessagesPage() {
                                         </Link>
                                     </div>
 
+                                    {/* Status badge in header */}
+                                    {activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (
+                                        <div className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                                            activeChatData.orderItem.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                            activeChatData.orderItem.status === 'disputed' ? 'bg-red-100 text-red-700' :
+                                            activeChatData.orderItem.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                            activeChatData.orderItem.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
+                                            'bg-amber-100 text-amber-700'
+                                        }`}>
+                                            {activeChatData.orderItem.status || 'pending'}
+                                        </div>
+                                    )}
+
                                     {currentUser?.id === activeChatData.buyer_id && (
                                         <button
                                             onClick={() => setShowProposalModal(true)}
@@ -456,39 +755,79 @@ export default function MessagesPage() {
                                 </div>
                             )}
 
-                            {/* --- STATUS TRANSITION UI --- */}
-                            {activeChatData?.order_id && activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (
-                                <div className="bg-blue-50/50 px-6 py-3 border-b border-blue-100 flex items-center justify-between shadow-sm">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">Transaction Status</span>
-                                        <span className="text-sm font-bold text-gray-900 capitalize">
-                                            {activeChatData.orderItem.status || 'pending'}
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        {/* Seller Actions */}
-                                        {currentUser?.id === activeChatData.seller_id && (!activeChatData.orderItem.status || activeChatData.orderItem.status === 'pending') && (
-                                            <button onClick={() => handleStatusUpdate('shipped')} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black tracking-widest uppercase transition shadow shadow-blue-600/20">Mark as Sent</button>
-                                        )}
-
-                                        {/* Buyer Actions */}
-                                        {currentUser?.id === activeChatData.buyer_id && activeChatData.orderItem.status === 'shipped' && (
-                                            <button onClick={() => handleStatusUpdate('delivered')} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-black tracking-widest uppercase transition shadow shadow-green-500/20">Item Received</button>
-                                        )}
-
-                                        {currentUser?.id === activeChatData.buyer_id && activeChatData.orderItem.status === 'delivered' && (
-                                            <>
-                                                <button onClick={() => handleStatusUpdate('completed')} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-black tracking-widest uppercase transition shadow shadow-green-600/20">Everything is Fine</button>
-                                                <button onClick={() => handleStatusUpdate('disputed')} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black tracking-widest uppercase transition shadow shadow-red-500/20">I Have a Problem</button>
-                                            </>
-                                        )}
-                                        
-                                        {/* Ended states */}
-                                        {(activeChatData.orderItem.status === 'completed' || activeChatData.orderItem.status === 'disputed') && (
-                                            <div className="text-xs font-black text-gray-400 uppercase self-center tracking-widest">
-                                                Actions Completed
+                            {/* DISPUTE MODAL */}
+                            {showDisputeModal && activeChatData && (
+                                <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
+                                    <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <div>
+                                                <h3 className="font-black text-gray-900 text-lg flex items-center gap-2">
+                                                    <ShieldAlert size={20} className="text-red-500" /> Open a Dispute
+                                                </h3>
+                                                <p className="text-xs text-gray-500 font-medium mt-1">Describe your problem and we'll investigate it.</p>
                                             </div>
-                                        )}
+                                            <button onClick={() => setShowDisputeModal(false)} className="text-gray-400 hover:text-gray-900 p-1 bg-gray-100 rounded-full"><X size={16} /></button>
+                                        </div>
+
+                                        <div className="space-y-5">
+                                            {/* Problem Type */}
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase text-gray-400 block mb-2 tracking-wider">Type of Problem</label>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {PROBLEM_TYPES.map(pt => (
+                                                        <button
+                                                            key={pt.value}
+                                                            onClick={() => setDisputeProblemType(pt.value)}
+                                                            className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                                                disputeProblemType === pt.value 
+                                                                    ? 'border-red-400 bg-red-50 shadow-sm' 
+                                                                    : 'border-gray-100 hover:border-gray-200 bg-white'
+                                                            }`}
+                                                        >
+                                                            <div className="text-base mb-0.5">{pt.icon}</div>
+                                                            <div className="text-xs font-bold text-gray-700">{pt.label}</div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Description */}
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1 tracking-wider">Describe your problem</label>
+                                                <textarea
+                                                    value={disputeDescription}
+                                                    onChange={e => setDisputeDescription(e.target.value)}
+                                                    placeholder="Tell us what happened..."
+                                                    rows={4}
+                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-red-400 rounded-xl text-sm font-medium outline-none resize-none"
+                                                />
+                                            </div>
+
+                                            {/* Contact Email */}
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1 tracking-wider flex items-center gap-1"><Mail size={10} /> Contact Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={disputeEmail}
+                                                    onChange={e => setDisputeEmail(e.target.value)}
+                                                    placeholder="your@email.com"
+                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-red-400 rounded-xl text-sm font-medium outline-none"
+                                                />
+                                                <p className="text-[10px] text-gray-400 font-medium mt-1">We'll contact you at this email about the resolution.</p>
+                                            </div>
+
+                                            <button
+                                                onClick={handleDisputeSubmit}
+                                                disabled={!disputeProblemType || !disputeDescription.trim() || !disputeEmail.trim() || disputeSubmitting}
+                                                className="w-full py-4 mt-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+                                            >
+                                                {disputeSubmitting ? (
+                                                    <><Loader2 size={16} className="animate-spin" /> Submitting...</>
+                                                ) : (
+                                                    <><ShieldAlert size={16} /> Submit Dispute</>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -545,16 +884,11 @@ export default function MessagesPage() {
                                 ) : (
                                     messages.map((msg, idx) => {
                                         const isMe = msg.sender_id === currentUser?.id;
-                                        const isSystem = msg.sender_id === null; // In case we add system messages
+                                        const mType = msg.message_type || 'user';
 
-                                        if (isSystem) {
-                                            return (
-                                                <div key={msg.id || idx} className="flex justify-center my-4">
-                                                    <div className="bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-blue-100">
-                                                        {msg.content}
-                                                    </div>
-                                                </div>
-                                            )
+                                        // System & status messages → special rendering
+                                        if (mType !== 'user') {
+                                            return renderSystemMessage(msg, idx);
                                         }
 
                                         if (msg.content.startsWith('[PROPOSAL]')) {
@@ -599,7 +933,6 @@ export default function MessagesPage() {
                                                                 <div className="mt-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">Waiting for maker approval...</div>
                                                             )}
 
-                                                            {/* SELLER PROPOSED ACTIONS */}
                                                             {pData.status === 'seller_proposed' && isBuyer && (
                                                                 <div className="flex gap-2 mt-4">
                                                                     <button onClick={() => handleBuyerAcceptsSellerProposal(msg.id, pData)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white shadow-lg rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1 transition-all">Accept & Buy</button>
@@ -610,7 +943,6 @@ export default function MessagesPage() {
                                                                 <div className="mt-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">Waiting for buyer to purchase...</div>
                                                             )}
 
-                                                            {/* ADD TO CART ACTION (if previously accepted and buyer is viewing) */}
                                                             {pData.status === 'accepted' && isBuyer && !msg.id.startsWith('temp-') && (
                                                                 <button onClick={() => handleBuyCustomOffer(pData)} className="w-full mt-2 py-3 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
                                                                     Add to Cart
@@ -634,6 +966,10 @@ export default function MessagesPage() {
                                         );
                                     })
                                 )}
+
+                                {/* Action card at the bottom of messages */}
+                                {activeChatData?.order_id && activeChatData?.orderItem && renderActionCard(activeChatData.orderItem, activeChatData)}
+
                                 <div ref={messagesEndRef} />
                             </div>
 

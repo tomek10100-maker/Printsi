@@ -24,23 +24,30 @@ export async function POST(req: Request) {
 
     // Add a system message about the status change
     let messageContent = '';
+    let messageType = 'system';
     
     if (newStatus === 'shipped') {
-      messageContent = `📦 **Status:** Shipped. The seller has sent the package.`;
+      messageContent = `The seller has shipped the package. It's on the way!`;
+      messageType = 'status_shipped';
     } else if (newStatus === 'delivered') {
-      messageContent = `📬 **Status:** Delivered. The buyer has confirmed receipt.`;
+      messageContent = `The buyer has confirmed receiving the package.`;
+      messageType = 'status_delivered';
     } else if (newStatus === 'completed') {
-      messageContent = `✅ **Status:** Completed. The buyer confirmed everything is fine. Transaction finalized, funds have been added to the seller's balance. Thank you!`;
+      messageContent = `Transaction completed successfully! The buyer confirmed everything is fine. Funds have been released to the seller's balance.`;
+      messageType = 'status_completed';
     } else if (newStatus === 'disputed') {
-      messageContent = `🚨 **Status:** Problem (Dispute). The buyer reported an issue. Funds are on hold. The case will be forwarded to Support.`;
+      messageContent = `A dispute has been opened. Funds are on hold until the issue is resolved by support.`;
+      messageType = 'status_disputed';
     } else {
-      messageContent = `🔄 **Status:** Changed to ${newStatus}`;
+      messageContent = `Status changed to: ${newStatus}`;
     }
 
+    // Insert as system message (sender_id = userId who triggered, but message_type marks it as system)
     await supabase.from('messages').insert({
       chat_id: chatId,
-      sender_id: userId, // could be system, but using the user who triggered it is fine
+      sender_id: userId,
       content: messageContent,
+      message_type: messageType,
     });
 
     return NextResponse.json({ success: true, newStatus });
