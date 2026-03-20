@@ -93,23 +93,23 @@ export default function NotificationToast() {
             {toasts.map((toast) => (
                 <div
                     key={toast.id}
-                    className="bg-white border border-gray-100 rounded-2xl shadow-2xl p-4 flex gap-3 items-start animate-slide-in"
+                    className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl shadow-2xl p-4 flex gap-3 items-start animate-slide-in"
                     style={{
                         animation: 'slideIn 0.3s ease-out',
                     }}
                 >
                     {/* Icon */}
-                    <div className={`p-2 rounded-xl flex-shrink-0 ${toast.type === 'sale' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                    <div className={`p-2 rounded-xl flex-shrink-0 ${toast.type === 'sale' ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'}`}>
                         {toast.type === 'sale' ? <CreditCard size={18} /> : <Bell size={18} />}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                        <p className="font-black text-gray-900 text-sm leading-tight">{toast.title}</p>
-                        <p className="text-xs text-gray-500 mt-0.5 font-medium leading-relaxed line-clamp-2">{toast.message}</p>
+                        <p className="font-black text-gray-900 dark:text-gray-100 text-sm leading-tight">{toast.title}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium leading-relaxed line-clamp-2">{toast.message}</p>
                         <Link
                             href="/profile/notifications"
-                            className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline mt-1 inline-block"
+                            className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block"
                             onClick={() => dismiss(toast.id)}
                         >
                             View all →
@@ -119,7 +119,7 @@ export default function NotificationToast() {
                     {/* Dismiss */}
                     <button
                         onClick={() => dismiss(toast.id)}
-                        className="text-gray-300 hover:text-gray-600 transition flex-shrink-0 p-1 rounded-lg hover:bg-gray-100"
+                        className="text-gray-300 dark:text-zinc-600 hover:text-gray-600 dark:hover:text-gray-300 transition flex-shrink-0 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
                     >
                         <X size={14} />
                     </button>

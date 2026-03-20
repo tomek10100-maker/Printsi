@@ -185,29 +185,33 @@ export default function ProfilePage() {
 
             {/* --- BALANCE STATS --- */}
             <div className="flex flex-wrap gap-6 bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl w-fit shadow-lg">
-              {/* Total Earned from Sales */}
-              <div className="flex items-center gap-3 pr-6 border-r border-gray-200">
-                <div className="p-2 bg-green-100 text-green-600 rounded-lg shadow-inner">
-                  <TrendingUp size={20} />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Total Sales Value</p>
-                  <p className="text-xl font-black text-gray-900">{formatPrice(stats.earned + stats.pendingEarned)}</p>
-                  <p className="text-[9px] text-gray-400 font-bold">without shipping</p>
-                </div>
-              </div>
+              {/* Total Earned from Sales — only for printer/cad roles */}
+              {(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) && (
+                <>
+                  <div className="flex items-center gap-3 pr-6 border-r border-gray-200">
+                    <div className="p-2 bg-green-100 text-green-600 rounded-lg shadow-inner">
+                      <TrendingUp size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Total Sales Value</p>
+                      <p className="text-xl font-black text-gray-900">{formatPrice(stats.earned + stats.pendingEarned)}</p>
+                      <p className="text-[9px] text-gray-400 font-bold">without shipping</p>
+                    </div>
+                  </div>
 
-              {/* Pending Funds */}
-              <div className="flex items-center gap-3 pr-6 border-r border-gray-200">
-                <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg shadow-inner">
-                  <Package size={20} />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Pending Funds</p>
-                  <p className="text-xl font-black text-yellow-600">{formatPrice(stats.pendingEarned)}</p>
-                  <p className="text-[9px] text-gray-400 font-bold">awaiting delivery</p>
-                </div>
-              </div>
+                  {/* Pending Funds */}
+                  <div className="flex items-center gap-3 pr-6 border-r border-gray-200">
+                    <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg shadow-inner">
+                      <Package size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Pending Funds</p>
+                      <p className="text-xl font-black text-yellow-600">{formatPrice(stats.pendingEarned)}</p>
+                      <p className="text-[9px] text-gray-400 font-bold">awaiting delivery</p>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Account Balance (available money, never below 0) */}
               <div className="flex items-center gap-3">
@@ -283,9 +287,13 @@ export default function ProfilePage() {
                 <ShoppingBag className="text-blue-600" /> Shop Dashboard
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DashboardCard icon={<CreditCard size={24} />} title="Billing & Payouts" subtitle="Manage cards & earnings" href="/profile/billing" />
+                {(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) && (
+                  <DashboardCard icon={<CreditCard size={24} />} title="Billing & Payouts" subtitle="Manage cards & earnings" href="/profile/billing" />
+                )}
                 <DashboardCard icon={<MapPin size={24} />} title="Shipping Address" subtitle="Your delivery address" href="/profile/address" />
-                <DashboardCard icon={<Wallet size={24} />} title="Delivery Settings" subtitle="Your ship-from country" href="/profile/delivery" />
+                {profile?.roles?.includes('printer') && (
+                  <DashboardCard icon={<Wallet size={24} />} title="Delivery Settings" subtitle="Your ship-from country" href="/profile/delivery" />
+                )}
 
                 <DashboardCard
                   icon={<MessageSquare size={24} />}

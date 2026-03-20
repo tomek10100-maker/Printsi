@@ -18,61 +18,134 @@ const supabase = createClient(
 export default function BillingPage() {
   const router = useRouter();
   const searchParams = useSearchParams(); 
-  const { formatPrice } = useCurrency();
+  const { formatPrice, rates, currency } = useCurrency();
   
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false); 
   const [sales, setSales] = useState<any[]>([]);
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState(0); // Base balance in EUR
   const [isStripeConnected, setIsStripeConnected] = useState(false);
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [requestingPayout, setRequestingPayout] = useState(false);
 
-  useEffect(() => {
-    // Check if we returned from Stripe successfully
-    if (searchParams.get('connected') === 'true') {
-      console.log('Stripe connected successfully!');
+  const fetchBalanceAndData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push('/login');
+      return;
     }
 
-    const fetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      // 1. Check if user has a connected Stripe account
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('stripe_account_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile?.stripe_account_id) {
+    // 1. Fetch Stripe status
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const stripeRes = await fetch(`/api/stripe/status`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        }
+      });
+      const stripeStatus = await stripeRes.json();
+      if (stripeStatus.isConnected) {
         setIsStripeConnected(true);
       }
+    } catch (err) {
+      console.error("Error checking stripe status:", err);
+    }
 
-      // 2. Fetch sales history
-      const { data: salesData } = await supabase
-        .from('order_items')
-        .select(`
-          *,
-          offers ( title, image_urls )
-        `)
-        .eq('seller_id', user.id)
-        .order('created_at', { ascending: false });
+    // 2. Fetch sales history
+    const { data: salesData } = await supabase
+      .from('order_items')
+      .select(`
+        *,
+        offers ( title, image_urls )
+      `)
+      .eq('seller_id', user.id)
+      .eq('status', 'completed') // Only completed items are payoutable
+      .order('created_at', { ascending: false });
 
-      setSales(salesData || []);
+    setSales(salesData || []);
 
-      // 3. Calculate balance
+    // 3. Fetch payouts history
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const payoutRes = await fetch(`/api/billing/payouts`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        }
+      });
+      const payoutData = await payoutRes.json();
+      setPayouts(payoutData.payouts || []);
+      
+      // 4. Calculate balance (Total Sales - (Pending + Completed Payouts))
+      // Assuming price_at_purchase is in base currency (EUR)
       const totalEarned = salesData?.reduce((acc, sale) => acc + (sale.price_at_purchase * (sale.quantity || 1)), 0) || 0;
-      setBalance(totalEarned);
+      const totalPayouts = (payoutData.payouts || []).reduce((acc: number, p: any) => 
+        (p.status === 'pending' || p.status === 'completed') ? acc + Number(p.amount) : acc, 
+      0);
 
-      setLoading(false);
-    };
+      setBalance(totalEarned - totalPayouts);
+    } catch (err) {
+      console.error("Error fetching payouts:", err);
+    }
 
-    fetchData();
-  }, [router, searchParams]);
+    setLoading(false);
+  };
 
-  // --- CONNECT TO STRIPE FUNCTION ---
+  useEffect(() => {
+    fetchBalanceAndData();
+  }, [router, searchParams, currency]); // Refresh balance if currency changes
+
+  const handleRequestPayout = async () => {
+    // 1. Get raw input (amount in user's displayed currency)
+    const rawInputAmt = parseFloat(withdrawAmount);
+    if (!rawInputAmt || rawInputAmt <= 0) return alert("Please enter a valid amount.");
+
+    // 2. Convert rawInputAmt back to base currency (EUR) for comparison and saving
+    let amtInBase = rawInputAmt;
+    if (currency !== 'EUR' && rates && rates[currency]) {
+      amtInBase = rawInputAmt / rates[currency];
+    }
+    
+    // Safety rounding to avoid float issues
+    const finalAmtInBase = Math.round(amtInBase * 100) / 100;
+
+    if (finalAmtInBase > balance) {
+      return alert(`Amount exceeds your available balance.`);
+    }
+    if (!isStripeConnected) return alert("Please connect your bank account first.");
+
+    setRequestingPayout(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/billing/payouts', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        },
+        body: JSON.stringify({ amount: finalAmtInBase }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Success! Payout requested. Funds will be transferred within 3 days.");
+        setWithdrawAmount('');
+        fetchBalanceAndData();
+      } else {
+        if (data.error?.includes('payouts')) {
+          alert("Database error: The 'payouts' table is missing. Please ensure you have run the migration.");
+        } else {
+          alert("Error: " + data.error);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong.");
+    } finally {
+      setRequestingPayout(false);
+    }
+  };
+
   const handleConnectStripe = async () => {
     setConnecting(true);
     try {
@@ -88,7 +161,6 @@ export default function BillingPage() {
       const data = await response.json();
 
       if (data.url) {
-        // Redirect user to Stripe onboarding
         window.location.href = data.url;
       } else {
         alert('Something went wrong connecting to Stripe: ' + (data.error || 'Unknown error'));
@@ -141,20 +213,37 @@ export default function BillingPage() {
               
               <div className="flex flex-wrap gap-4">
                 {isStripeConnected ? (
-                   <button onClick={() => alert("Payouts are handled automatically by Stripe!")} className="bg-white text-blue-700 px-8 py-3 rounded-xl font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-md flex items-center gap-2">
-                     <DollarSign size={18} /> Stripe Dashboard
-                   </button>
+                   <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20">
+                      <input 
+                        type="number" 
+                        placeholder="Amount" 
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        className="bg-transparent border-none text-white placeholder-blue-200 font-bold w-32 focus:ring-0 outline-none"
+                      />
+                      <button 
+                        onClick={handleRequestPayout}
+                        disabled={requestingPayout || !withdrawAmount}
+                        className="bg-white text-blue-700 px-6 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                      >
+                         {requestingPayout ? <Loader2 className="animate-spin" size={18}/> : <DollarSign size={18} />} 
+                         Withdraw
+                      </button>
+                   </div>
                 ) : (
                    <button onClick={handleConnectStripe} className="bg-white text-blue-700 px-8 py-3 rounded-xl font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-md flex items-center gap-2">
                      {connecting ? <Loader2 className="animate-spin"/> : <DollarSign size={18} />} Connect Bank
                    </button>
                 )}
               </div>
+              <p className="text-blue-200 text-[10px] mt-4 font-bold uppercase tracking-wide">
+                * Payouts are processed manually within 3 business days.
+              </p>
             </div>
             
             <Wallet className="absolute -bottom-6 -right-6 text-white opacity-10 w-48 h-48" />
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
           </div>
+
 
           {/* PAYMENT METHODS */}
           <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex flex-col">
@@ -163,13 +252,13 @@ export default function BillingPage() {
             </h3>
             
             {isStripeConnected ? (
-                <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4 border-2 border-green-100 bg-green-50 rounded-2xl p-6 mb-4">
+                <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4 border-2 border-green-100 bg-green-50 rounded-2xl p-6 mb-4 cursor-pointer hover:bg-green-100/50 transition-colors" onClick={() => alert("Payouts are handled via your connected Stripe account.")}>
                     <div className="w-12 h-12 bg-green-200 rounded-full flex items-center justify-center text-green-700">
                         <CheckCircle size={24} />
                     </div>
                     <div>
-                        <p className="font-bold text-gray-900">Bank Connected</p>
-                        <p className="text-xs text-gray-500">Payouts are handled securely by Stripe.</p>
+                        <p className="font-bold text-gray-900">Stripe Connected</p>
+                        <p className="text-xs text-gray-500">Funds will be sent to your bank account.</p>
                     </div>
                 </div>
             ) : (
@@ -197,68 +286,95 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* --- SECTION 2: RECENT TRANSACTIONS (EARNINGS) --- */}
-        <div>
-          <h3 className="text-xl font-black uppercase text-gray-900 mb-6 flex items-center gap-2">
-            <TrendingUp className="text-green-600"/> Recent Earnings
-          </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* --- LEFT: PAYOUT HISTORY --- */}
+          <div>
+            <h3 className="text-xl font-black uppercase text-gray-900 mb-6 flex items-center gap-2">
+              <Wallet className="text-blue-600"/> Payout History
+            </h3>
 
-          {sales.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                <Clock size={24} />
+            {payouts.length === 0 ? (
+              <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
+                <p className="text-gray-500 font-medium text-sm">No payout requests yet.</p>
               </div>
-              <h3 className="text-lg font-bold text-gray-900">No earnings yet</h3>
-              <p className="text-gray-500 mt-2 text-sm">Once you sell an item, it will appear here.</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-widest text-gray-500">
-                      <th className="p-6 font-black">Item</th>
-                      <th className="p-6 font-black">Date</th>
-                      <th className="p-6 font-black">Status</th>
-                      <th className="p-6 font-black text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {sales.map((sale) => (
-                      <tr key={sale.id} className="hover:bg-blue-50/50 transition-colors group">
-                        <td className="p-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
-                               {sale.offers?.image_urls?.[0] && (
-                                 <img src={sale.offers.image_urls[0]} alt="" className="w-full h-full object-cover" />
-                               )}
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">
-                                {sale.offers?.title || 'Unknown Item'}
-                              </p>
-                              <p className="text-xs text-gray-400 font-mono">ID: {sale.id.slice(0, 8)}...</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-6 text-sm font-medium text-gray-500">
-                          {new Date(sale.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="p-6">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-green-100 text-green-700">
-                            <CheckCircle size={12} /> Paid
-                          </span>
-                        </td>
-                        <td className="p-6 text-right font-black text-gray-900">
-                          +{formatPrice(sale.price_at_purchase * (sale.quantity || 1))}
-                        </td>
+            ) : (
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-500">
+                        <th className="p-4 font-black">Date</th>
+                        <th className="p-4 font-black">Status</th>
+                        <th className="p-4 font-black text-right">Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {payouts.map((p) => (
+                        <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="p-4 text-xs font-bold text-gray-600">
+                            {new Date(p.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="p-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide ${
+                              p.status === 'completed' ? 'bg-green-100 text-green-700' :
+                              p.status === 'failed' ? 'bg-red-100 text-red-700' :
+                              'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right font-black text-gray-900 text-sm">
+                            {formatPrice(p.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* --- RIGHT: RECENT EARNINGS --- */}
+          <div>
+            <h3 className="text-xl font-black uppercase text-gray-900 mb-6 flex items-center gap-2">
+              <TrendingUp className="text-green-600"/> Completed Sales
+            </h3>
+
+            {sales.length === 0 ? (
+              <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
+                <p className="text-gray-500 font-medium text-sm">No completed sales yet.</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-500">
+                        <th className="p-4 font-black">Item</th>
+                        <th className="p-4 font-black text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {sales.map((sale) => (
+                        <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="p-4">
+                            <p className="font-bold text-gray-900 text-xs truncate max-w-[150px]">{sale.offers?.title}</p>
+                            <p className="text-[9px] text-gray-400 font-mono">{new Date(sale.created_at).toLocaleDateString()}</p>
+                          </td>
+                          <td className="p-4 text-right font-black text-green-600 text-sm">
+                            +{formatPrice(sale.price_at_purchase * (sale.quantity || 1))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
 
       </div>
