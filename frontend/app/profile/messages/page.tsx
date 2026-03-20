@@ -195,6 +195,17 @@ export default function MessagesPage() {
         } else {
             loadMessages(activeChatId);
             loadChats(currentUser.id);
+
+            // Send new message email notification (fire & forget)
+            fetch('/api/order/new-message-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chatId: activeChatId,
+                    senderId: currentUser.id,
+                    content: content,
+                }),
+            }).catch(() => {});
         }
     };
 

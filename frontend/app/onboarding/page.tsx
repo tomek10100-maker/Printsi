@@ -108,6 +108,16 @@ export default function OnboardingPage() {
             // Zapisz walutę w context
             setCurrency(localCurrency as any);
 
+            // Send welcome email (fire & forget)
+            fetch('/api/order/welcome-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: user.email,
+                    name: fullName || 'New User',
+                }),
+            }).catch(() => {});
+
             router.push('/');
         } catch (err: any) {
             alert(err.message);

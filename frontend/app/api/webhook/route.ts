@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { sendDigitalFileEmail } from '../../lib/sendDigitalFileEmail';
+import { sendOutOfStockEmail } from '../../lib/sendNotificationEmail';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16' as any,
@@ -187,6 +188,22 @@ export async function POST(req: Request) {
           quantity_amt: quantityBought,
         });
         console.log(`✅ Parent Stock updated for: ${parentOfferId}`);
+      }
+
+      // Check if offer is now out of stock → notify seller
+      if (sellerId) {
+        try {
+          const { data: updatedOffer } = await supabase
+            .from('offers')
+            .select('stock, title')
+            .eq('id', offerId)
+            .single();
+          if (updatedOffer && updatedOffer.stock <= 0) {
+            await sendOutOfStockEmail(sellerId, updatedOffer.title || product.name);
+          }
+        } catch (e) {
+          console.error('⚠️ Out-of-stock email check failed (non-fatal):', e);
+        }
       }
 
       // --- 5.5 Decrement filament stock_grams ---

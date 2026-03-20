@@ -236,6 +236,16 @@ function MarketplaceContent() {
           type: 'like',
           is_read: false
         });
+
+        // Send like email notification (fire & forget)
+        fetch('/api/order/like-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sellerId: likedOffer.user_id,
+            productTitle: likedOffer.title,
+          }),
+        }).catch(() => {});
       }
     }
   };

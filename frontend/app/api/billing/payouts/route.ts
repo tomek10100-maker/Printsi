@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendPayoutEmail } from '@/app/lib/sendNotificationEmail';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,6 +66,13 @@ export async function POST(req: Request) {
 
     if (payoutError) {
       throw new Error(payoutError.message);
+    }
+
+    // Send payout confirmation email
+    try {
+      await sendPayoutEmail(user.id, `€${Number(amount).toFixed(2)}`);
+    } catch (emailErr) {
+      console.error('❌ Payout email failed (non-fatal):', emailErr);
     }
 
     return NextResponse.json({ success: true, payout });

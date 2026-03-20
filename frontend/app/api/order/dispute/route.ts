@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendDisputeEmail } from '@/app/lib/sendNotificationEmail';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+const PROBLEM_LABELS: Record<string, string> = {
+  damaged: 'Damaged Item',
+  wrong_item: 'Wrong Item Received',
+  not_received: 'Item Not Received',
+  quality_issue: 'Quality Issue',
+  missing_parts: 'Missing Parts',
+  other: 'Other Issue',
+};
 
 export async function POST(req: Request) {
   try {
@@ -58,20 +68,13 @@ export async function POST(req: Request) {
     }
 
     // 3. Wysłanie wiadomości systemowej
-    const problemLabels: Record<string, string> = {
-      damaged: 'Damaged Item',
-      wrong_item: 'Wrong Item Received',
-      not_received: 'Item Not Received',
-      quality_issue: 'Quality Issue',
-      missing_parts: 'Missing Parts',
-      other: 'Other Issue',
-    };
+    const problemLabel = PROBLEM_LABELS[problemType] || problemType;
 
     const { error: msgError } = await supabase.from('messages').insert({
       chat_id: chatId,
       sender_id: buyerId,
       content: JSON.stringify({
-        problemType: problemLabels[problemType] || problemType,
+        problemType: problemLabel,
         description: description,
         disputeId: dispute.id,
       }),
@@ -80,7 +83,38 @@ export async function POST(req: Request) {
 
     if (msgError) {
       console.error('❌ Message error:', msgError);
-      // Nie przerywamy, bo sam rekord sporu już powstał
+    }
+
+    // 4. Get product title for email
+    const { data: orderItem } = await supabase
+      .from('order_items')
+      .select('offer_id')
+      .eq('id', itemId)
+      .single();
+
+    let productTitle = 'Your product';
+    if (orderItem?.offer_id) {
+      const { data: offer } = await supabase
+        .from('offers')
+        .select('title')
+        .eq('id', orderItem.offer_id)
+        .single();
+      productTitle = offer?.title || productTitle;
+    }
+
+    // 5. Send dispute emails to both parties
+    if (sellerId) {
+      try {
+        await sendDisputeEmail(
+          sellerId,
+          buyerId,
+          productTitle,
+          problemLabel,
+          description
+        );
+      } catch (emailErr) {
+        console.error('❌ Dispute email failed (non-fatal):', emailErr);
+      }
     }
 
     return NextResponse.json({ success: true, disputeId: dispute.id });

@@ -53,6 +53,22 @@ const BASIC_COLORS: Record<string, string> = {
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+type ManualLayer = {
+  id: string;
+  material: string;
+  colorName: string;
+  colorHex: string;
+  weight: string;
+};
+
+type ManualVariant = {
+  id: string;
+  layers: ManualLayer[];
+  priceLocal: string;
+  stock: string;
+  expanded: boolean;
+};
+
 const uid = () => Math.random().toString(36).slice(2);
 
 const defaultVariant = (): ColorVariant => ({
@@ -63,6 +79,22 @@ const defaultVariant = (): ColorVariant => ({
   stock: '1',
   expanded: true,
   openDropdownLayerId: null,
+});
+
+const defaultManualLayer = (): ManualLayer => ({
+  id: uid(),
+  material: 'PLA',
+  colorName: '',
+  colorHex: '#3b82f6',
+  weight: '',
+});
+
+const defaultManualVariant = (): ManualVariant => ({
+  id: uid(),
+  layers: [defaultManualLayer()],
+  priceLocal: '',
+  stock: '1',
+  expanded: true,
 });
 
 /**
@@ -108,6 +140,7 @@ export default function AddOfferPage() {
   const [manualWeight, setManualWeight] = useState('');
   const [manualPriceLocal, setManualPriceLocal] = useState('');
   const [manualStock, setManualStock] = useState('1');
+  const [manualVariants, setManualVariants] = useState<ManualVariant[]>([defaultManualVariant()]);
 
   // Auto mode
   const [myFilaments, setMyFilaments] = useState<Filament[]>([]);
@@ -200,6 +233,29 @@ export default function AddOfferPage() {
   const removeVariant = (variantId: string) =>
     setVariants(prev => prev.length > 1 ? prev.filter(v => v.variantId !== variantId) : prev);
 
+  const updateManualVariant = (id: string, patch: Partial<ManualVariant>) =>
+    setManualVariants(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v));
+
+  const updateManualLayer = (variantId: string, layerId: string, patch: Partial<ManualLayer>) =>
+    setManualVariants(prev => prev.map(v => {
+      if (v.id !== variantId) return v;
+      return { ...v, layers: v.layers.map(l => l.id === layerId ? { ...l, ...patch } : l) };
+    }));
+
+  const addManualLayer = (variantId: string) =>
+    setManualVariants(prev => prev.map(v => v.id === variantId ? { ...v, layers: [...v.layers, defaultManualLayer()] } : v));
+
+  const removeManualLayer = (variantId: string, layerId: string) =>
+    setManualVariants(prev => prev.map(v => v.id === variantId ? { ...v, layers: v.layers.filter(l => l.id !== layerId) } : v));
+
+  const addManualVariant = () => setManualVariants(prev => [
+    ...prev.map(v => ({ ...v, expanded: false })),
+    defaultManualVariant(),
+  ]);
+
+  const removeManualVariant = (id: string) =>
+    setManualVariants(prev => prev.length > 1 ? prev.filter(v => v.id !== id) : prev);
+
   // ─── SUBMIT ──────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,7 +271,13 @@ export default function AddOfferPage() {
           if (!computeVariantEUR(v)) { alert('Complete all filament & weight fields in every variant.'); return; }
         }
       } else {
-        if (!manualPriceLocal) { alert('Price is required.'); return; }
+        // Manual variants validation
+        for (const v of manualVariants) {
+          if (!v.priceLocal || parseFloat(v.priceLocal) <= 0) { alert('Each variant must have a valid price.'); return; }
+          for (const l of v.layers) {
+            if (!l.colorName || !l.colorHex) { alert('Complete all color fields in every layer.'); return; }
+          }
+        }
       }
     } else {
       if (!manualPriceLocal) { alert('Price is required.'); return; }
@@ -252,36 +314,70 @@ export default function AddOfferPage() {
         dbStock = 1;
       let colorVariantsPayload: any[] | undefined;
 
-      if (category === 'physical' && pricingMode === 'auto') {
-        const prices = variants.map(v => computeVariantEUR(v)!);
-        dbPrice = Math.min(...prices.map(p => p.totalEUR));
-        dbStock = variants.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
-        const fl = variants[0].layers[0];
-        dbMaterial = fl.filament?.plastic_type || null;
-        dbColor = fl.filament?.color_hex || null;
-        dbColorName = fl.filament?.color_name || null;
-        dbWeight = variants[0].layers.reduce((s, l) => s + (parseFloat(l.grams) || 0), 0).toString();
-        dbFilamentId = fl.filament?.id || null;
-        colorVariantsPayload = variants.map((v, i) => ({
-          variantId: v.variantId,
-          label: v.layers.map(l => l.filament?.color_name || '').filter(Boolean).join(' + ') || `Variant ${i + 1}`,
-          color_name: v.layers[0]?.filament?.color_name || null,
-          plastic_type: v.layers[0]?.filament?.plastic_type || null,
-          layers: v.layers.map(l => ({
-            filament_id: l.filament?.id,
-            color_hex: l.filament?.color_hex,
-            color_name: l.filament?.color_name,
-            plastic_type: l.filament?.plastic_type,
-            grams: l.grams,
-          })),
-          priceEUR: prices[i].totalEUR,
-          markupType: v.markupType,
-          markupValue: v.markupValue,
-          stock: parseInt(v.stock) || 0,
-          primaryColor: v.layers[0]?.filament?.color_hex || '#888',
-          isMultiColor: v.layers.length > 1,
-        }));
+      if (category === 'physical') {
+        if (pricingMode === 'auto') {
+          const prices = variants.map(v => computeVariantEUR(v)!);
+          dbPrice = Math.min(...prices.map(p => p.totalEUR));
+          dbStock = variants.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
+          const fl = variants[0].layers[0];
+          dbMaterial = fl.filament?.plastic_type || null;
+          dbColor = fl.filament?.color_hex || null;
+          dbColorName = fl.filament?.color_name || null;
+          dbWeight = variants[0].layers.reduce((s, l) => s + (parseFloat(l.grams) || 0), 0).toString();
+          dbFilamentId = fl.filament?.id || null;
+          colorVariantsPayload = variants.map((v, i) => ({
+            variantId: v.variantId,
+            label: v.layers.map(l => l.filament?.color_name || '').filter(Boolean).join(' + ') || `Variant ${i + 1}`,
+            color_name: v.layers[0]?.filament?.color_name || null,
+            plastic_type: v.layers[0]?.filament?.plastic_type || null,
+            layers: v.layers.map(l => ({
+              filament_id: l.filament?.id,
+              color_hex: l.filament?.color_hex,
+              color_name: l.filament?.color_name,
+              plastic_type: l.filament?.plastic_type,
+              grams: l.grams,
+            })),
+            priceEUR: prices[i].totalEUR,
+            markupType: v.markupType,
+            markupValue: v.markupValue,
+            stock: parseInt(v.stock) || 0,
+            primaryColor: v.layers[0]?.filament?.color_hex || '#888',
+            isMultiColor: v.layers.length > 1,
+          }));
+        } else {
+          // MANUAL VARIANTS for Physical
+          const pricesEUR = manualVariants.map(v => (parseFloat(v.priceLocal) || 0) / (rates?.[currency] || 1));
+          dbPrice = Math.min(...pricesEUR);
+          dbStock = manualVariants.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
+          
+          const v0 = manualVariants[0];
+          const l0 = v0.layers[0];
+          dbMaterial = l0.material || null;
+          dbColor = l0.colorHex || null;
+          dbColorName = l0.colorName || null;
+          dbWeight = v0.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0).toString();
+
+          colorVariantsPayload = manualVariants.map((v, i) => ({
+            variantId: v.id,
+            label: v.layers.map(l => l.colorName).filter(Boolean).join(' + ') || `Variant ${i + 1}`,
+            color_name: v.layers[0]?.colorName || null,
+            plastic_type: v.layers[0]?.material || null,
+            layers: v.layers.map(l => ({
+              color_hex: l.colorHex,
+              color_name: l.colorName,
+              plastic_type: l.material,
+              grams: l.weight,
+            })),
+            priceEUR: pricesEUR[i],
+            stock: parseInt(v.stock) || 0,
+            weight: v.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0).toString(),
+            primaryColor: v.layers[0]?.colorHex || '#888',
+            isMultiColor: v.layers.length > 1,
+            manual: true,
+          }));
+        }
       } else {
+        // Digital or Job
         dbPrice = manualPriceEUR!;
         dbMaterial = manualMaterial || null;
         dbColor = manualColorHex || null;
@@ -325,15 +421,23 @@ export default function AddOfferPage() {
   if (!user) return null;
 
   const isPhysicalAuto = category === 'physical' && pricingMode === 'auto';
+  const isPhysicalManual = category === 'physical' && pricingMode === 'manual';
   const isPrinter = userRoles.includes('printer');
 
-  // Precompute prices
+  // Precompute prices for Auto/Manual
   const variantPrices = variants.map(v => computeVariantEUR(v));
-  const validPrices = variantPrices.filter(Boolean) as { materialEUR: number; markupEUR: number; totalEUR: number }[];
-  const minPriceEUR = validPrices.length ? Math.min(...validPrices.map(p => p.totalEUR)) : null;
-  const maxPriceEUR = validPrices.length ? Math.max(...validPrices.map(p => p.totalEUR)) : null;
+  const manualPricesEUR = manualVariants.map(v => (parseFloat(v.priceLocal) || 0) / (rates?.[currency] || 1));
 
-  // Pre-display (stable — no ceil drift)
+  const minPriceEUR = (() => {
+    if (category !== 'physical') return manualPriceEUR;
+    if (pricingMode === 'auto') {
+      const valid = variantPrices.filter(Boolean) as { totalEUR: number }[];
+      return valid.length ? Math.min(...valid.map(p => p.totalEUR)) : null;
+    } else {
+      return manualPricesEUR.length ? Math.min(...manualPricesEUR) : null;
+    }
+  })();
+
   const fmt = (eur: number) => toLocalDisplay(eur, currency, rates);
 
   return (
@@ -382,8 +486,8 @@ export default function AddOfferPage() {
                 <SectionLabel step="" label="Pricing Mode" />
                 <div className="flex rounded-2xl overflow-hidden border-2 border-gray-200 mt-4">
                   {([
-                    { mode: 'auto', label: 'AUTO – Filament Manager', Icon: Settings2 },
-                    { mode: 'manual', label: 'MANUAL – Full Control', Icon: Wrench },
+                    { mode: 'auto', label: 'AUTO – Calc from Filaments', Icon: Settings2 },
+                    { mode: 'manual', label: 'MANUAL – Hand-entered Variants', Icon: Wrench },
                   ] as const).map(({ mode, label, Icon }) => (
                     <button key={mode} type="button" onClick={() => setPricingMode(mode)}
                       className={`flex-1 flex items-center justify-center gap-2 py-3.5 px-5 transition-all font-black text-sm ${pricingMode === mode ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
@@ -446,49 +550,32 @@ export default function AddOfferPage() {
                   className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all" />
               )}
               {!isPhysicalAuto && (
-                <div className="space-y-3">
-                  <div className="relative">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs pointer-events-none">QTY</span>
-                    <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} required
-                      className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
-                  </div>
-                  {(category === 'physical' || category === 'job') && (
-                    <div className={`grid gap-3 ${category === 'physical' ? 'grid-cols-1 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-3'}`}>
-                      <input type="text" placeholder={category === 'job' ? "Preferred Material (optional)" : "Material (PLA…)"} value={manualMaterial} onChange={e => setManualMaterial(e.target.value)}
-                        className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
-
-                      <input type="text" placeholder={category === 'job' ? "Color Name (e.g. Red, Black...)" : "Color Name (Red…)"} value={manualColor}
-                        onChange={e => {
-                          setManualColor(e.target.value);
-                          const lower = e.target.value.toLowerCase().trim();
-                          if (BASIC_COLORS[lower]) setManualColorHex(BASIC_COLORS[lower]);
-                        }}
-                        className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
-
-                      <div className="relative isolate">
-                        <div className="absolute -top-6 right-0 flex items-center gap-1 text-[10px] font-black text-orange-500 uppercase tracking-tighter animate-bounce-v-simple pointer-events-none">
-                          Click to adjust <span className="text-xs">↓</span>
-                        </div>
-                        <div className="flex items-center gap-2 h-full">
-                          <div className="flex items-center gap-1 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 overflow-hidden focus-within:border-orange-400 focus-within:bg-white transition-all h-full min-h-[56px] min-w-[70px]">
-                            <span className="text-gray-400 font-bold text-sm">#</span>
-                            <input type="text" value={manualColorHex.replace('#', '')} onChange={e => {
-                              const val = e.target.value;
-                              setManualColorHex(val.startsWith('#') ? val : '#' + val);
-                            }} maxLength={6} placeholder="HEX" className="w-full py-3 bg-transparent font-mono font-bold text-sm outline-none uppercase" />
-                          </div>
-                          <input type="color" value={manualColorHex.startsWith('#') && manualColorHex.length === 7 ? manualColorHex : '#888888'} onChange={e => { setManualColorHex(e.target.value); if (!BASIC_COLORS[manualColor.toLowerCase().trim()]) setManualColor('Custom Color'); }}
-                            className="w-14 min-h-[56px] h-full rounded-xl border-2 border-orange-200 cursor-pointer overflow-hidden flex-shrink-0 hover:scale-105 hover:shadow-md transition-all shadow-sm shadow-orange-200" title="Click to open color picker" />
-                        </div>
+                <div className="space-y-4">
+                  {category === 'physical' ? (
+                    /* Dimensions handled above, variants below */
+                    <p className="text-xs text-blue-500 font-bold bg-blue-50 p-3 rounded-xl border border-blue-100">
+                      Configure your manual variants in the section below.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs pointer-events-none">QTY</span>
+                        <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} required
+                          className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
                       </div>
-
-                      {category === 'physical' && (
-                        <div className="relative">
-                          <input type="number" step="any" min="0" placeholder="Weight" value={manualWeight} onChange={e => setManualWeight(e.target.value)}
-                            className="w-full p-4 pr-8 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs">g</span>
-                        </div>
-                      )}
+                      <div className={`grid gap-3 grid-cols-1 md:grid-cols-2`}>
+                        {category === 'job' && (
+                          <input type="text" placeholder="Material (optional)" value={manualMaterial} onChange={e => setManualMaterial(e.target.value)}
+                            className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
+                        )}
+                        <input type="text" placeholder="Color Name (optional)" value={manualColor}
+                          onChange={e => {
+                            setManualColor(e.target.value);
+                            const lower = e.target.value.toLowerCase().trim();
+                            if (BASIC_COLORS[lower]) setManualColorHex(BASIC_COLORS[lower]);
+                          }}
+                          className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -803,8 +890,170 @@ export default function AddOfferPage() {
               </section>
             )}
 
+            {/* 5. MANUAL COLOR VARIANTS (manual physical) */}
+            {isPhysicalManual && (
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <SectionLabel step="5" label="Manual Color Variants" />
+                    <p className="text-xs text-gray-400 font-medium mt-1">Add each variant manually. Everything is entered by hand.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {manualVariants.map((v, vIdx) => {
+                    const totalWeight = v.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0);
+                    return (
+                      <div key={v.id} className="border-2 border-gray-100 rounded-2xl overflow-hidden bg-white">
+                        {/* Header */}
+                        <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-all font-sans"
+                          onClick={() => updateManualVariant(v.id, { expanded: !v.expanded })}>
+                          <div className="flex -space-x-1.5 flex-shrink-0">
+                            {v.layers.map((l, li) => (
+                              <div key={l.id} className="w-8 h-8 rounded-lg border-2 border-white shadow transition-all"
+                                style={{ backgroundColor: l.colorHex || '#e5e7eb', zIndex: 4 - li }} />
+                            ))}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-black text-gray-900 text-sm">
+                              {v.layers.map(l => l.colorName || '—').join(' + ')}
+                              {v.layers.length > 1 && <span className="ml-2 text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded uppercase">Multi-color</span>}
+                            </p>
+                            <p className="text-xs text-gray-400 font-medium truncate">
+                              {v.priceLocal ? `${v.priceLocal} ${currency}` : 'config pricing'} · {totalWeight > 0 ? `${totalWeight}g` : 'enter weights'} · qty {v.stock}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {manualVariants.length > 1 && (
+                              <button type="button" onClick={e => { e.stopPropagation(); removeManualVariant(v.id); }}
+                                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all">
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                            {v.expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+                          </div>
+                        </div>
+
+                        {/* Expanded Body */}
+                        {v.expanded && (
+                          <div className="border-t border-gray-100 p-4 space-y-5 bg-gray-50/30 animate-in slide-in-from-top-2 duration-200">
+                            {/* Layers Area */}
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Colors & Materials</span>
+                                <button type="button" onClick={() => addManualLayer(v.id)}
+                                  className="flex items-center gap-1 text-[10px] font-black text-blue-600 hover:text-blue-700 px-2 py-1 rounded bg-blue-50 border border-blue-100 transition-all uppercase">
+                                  <Plus size={10} /> Add Color
+                                </button>
+                              </div>
+
+                              <div className="space-y-3">
+                                {v.layers.map((layer, lIdx) => (
+                                  <div key={layer.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm space-y-3 relative">
+                                    {v.layers.length > 1 && (
+                                      <button type="button" onClick={() => removeManualLayer(v.id, layer.id)}
+                                        className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 transition-all">
+                                        <X size={14} />
+                                      </button>
+                                    )}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      <div>
+                                        <SectionLabel step="" label="Color Name" />
+                                        <input type="text" value={layer.colorName} onChange={e => {
+                                          const val = e.target.value;
+                                          updateManualLayer(v.id, layer.id, { colorName: val });
+                                          const lower = val.toLowerCase().trim();
+                                          if (BASIC_COLORS[lower]) updateManualLayer(v.id, { colorHex: BASIC_COLORS[lower] });
+                                        }} placeholder="e.g. Silk Gold" className="w-full p-2.5 mt-1 bg-gray-50 border border-gray-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500" />
+                                      </div>
+                                      <div>
+                                        <SectionLabel step="" label="HEX Color" />
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <input type="text" value={layer.colorHex} onChange={e => updateManualLayer(v.id, layer.id, { colorHex: e.target.value })} className="flex-1 p-2.5 bg-gray-50 border border-gray-200 rounded-lg font-mono text-[11px] font-bold outline-none focus:border-blue-500" />
+                                          <input type="color" value={layer.colorHex.length === 7 ? layer.colorHex : '#3b82f6'} onChange={e => updateManualLayer(v.id, layer.id, { colorHex: e.target.value })} className="w-10 h-[42px] rounded-lg border-2 border-white shadow-sm cursor-pointer" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <SectionLabel step="" label="Material" />
+                                        <input type="text" value={layer.material} onChange={e => updateManualLayer(v.id, layer.id, { material: e.target.value })} placeholder="PLA" className="w-full p-2.5 mt-1 bg-gray-50 border border-gray-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500" />
+                                      </div>
+                                      <div>
+                                        <SectionLabel step="" label="Layer Weight (g)" />
+                                        <input type="text" value={layer.weight} onChange={e => {
+                                          const val = e.target.value.replace(',', '.');
+                                          if (/^\d*\.?\d*$/.test(val)) updateManualLayer(v.id, layer.id, { weight: val });
+                                        }} placeholder="20" className="w-full p-2.5 mt-1 bg-gray-50 border border-gray-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Variant Pricing/Stock */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-100/50">
+                              <div>
+                                <SectionLabel step="" label={`Price (${currency})`} />
+                                <input type="text" value={v.priceLocal} onChange={e => {
+                                  const val = e.target.value.replace(',', '.');
+                                  if (/^\d*\.?\d*$/.test(val)) updateManualVariant(v.id, { priceLocal: val });
+                                }} placeholder="25.00" className="w-full p-3 mt-1 bg-white border border-gray-200 rounded-xl font-black text-sm outline-none focus:border-blue-500 text-blue-600 shadow-sm" />
+                              </div>
+                              <div>
+                                <SectionLabel step="" label="Stock (qty)" />
+                                <input type="text" value={v.stock} onChange={e => {
+                                  const val = e.target.value;
+                                  if (/^\d*$/.test(val)) updateManualVariant(v.id, { stock: val });
+                                }} placeholder="5" className="w-full p-3 mt-1 bg-white border border-gray-200 rounded-xl font-bold text-sm outline-none focus:border-blue-500 shadow-sm" />
+                              </div>
+                            </div>
+
+                            <div className="bg-white/50 p-2.5 rounded-lg border border-dashed border-gray-200 flex justify-between items-center text-[11px]">
+                              <span className="font-bold text-gray-500 uppercase tracking-widest">Total Weight</span>
+                              <span className="font-black text-gray-900">{totalWeight} g</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <button type="button" onClick={addManualVariant} className="w-full py-3.5 border-2 border-dashed border-gray-300 rounded-2xl flex items-center justify-center gap-2 text-sm font-black text-gray-400 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 hover:shadow-inner transition-all">
+                    <Plus size={18} /> Add Another Variant
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* Summary for Manual Variants */}
+            {isPhysicalManual && manualVariants.length > 1 && (
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Palette size={14} className="text-blue-600" />
+                  <span className="text-xs font-black uppercase text-blue-800 tracking-widest">Pricing Overview</span>
+                </div>
+                <div className="space-y-1.5">
+                  {manualVariants.map((v, i) => (
+                    <div key={v.id} className="flex items-center gap-2.5 bg-white/70 rounded-xl px-3 py-2">
+                      <div className="flex -space-x-1">
+                        {v.layers.map(l => (
+                          <div key={l.id} className="w-5 h-5 rounded-sm border border-white/60 shadow-sm" style={{ backgroundColor: l.colorHex || '#ccc' }} />
+                        ))}
+                      </div>
+                      <span className="flex-1 text-xs font-bold text-blue-900 truncate">
+                        {v.layers.map(l => l.colorName).filter(Boolean).join(' + ') || 'Variant'}
+                      </span>
+                      <span className="text-xs font-black text-blue-800 tabular-nums">{v.priceLocal ? `${v.priceLocal} ${currency}` : '—'}</span>
+                      <span className="text-[10px] text-blue-500 font-bold">×{v.stock || 0}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* FINAL PRICE */}
-            {!isPhysicalAuto && (
+            {category !== 'physical' && (
               <section>
                 <SectionLabel step="5" label="Final Price" />
                 <div className="mt-3">

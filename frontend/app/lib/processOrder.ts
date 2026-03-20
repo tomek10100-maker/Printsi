@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendDigitalFileEmail } from './sendDigitalFileEmail';
+import { sendEmail, EmailTemplates } from './emailService';
+import { sendOutOfStockEmail } from './sendNotificationEmail';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -287,6 +289,21 @@ export async function processOrder(orderId: string, userId: string) {
       await supabase.rpc('decrement_stock', { row_id: parentOfferId, quantity_amt: item.quantity });
     }
 
+    // Check if offer is now out of stock and notify seller
+    try {
+      const { data: updatedOffer } = await supabase
+        .from('offers')
+        .select('stock, title')
+        .eq('id', item.offer_id)
+        .single();
+
+      if (updatedOffer && updatedOffer.stock <= 0) {
+        await sendOutOfStockEmail(sellerId, updatedOffer.title || title);
+      }
+    } catch (stockCheckErr) {
+      console.error('⚠️ Stock check email failed (non-fatal):', stockCheckErr);
+    }
+
     // 7. Decrement filament stock (use offer's color_variants layers as source)
     const colorVariants: any[] = offer.color_variants || [];
     const fallbackLayers = colorVariants[0]?.layers || [];
@@ -319,6 +336,75 @@ export async function processOrder(orderId: string, userId: string) {
       } catch (emailErr) {
         console.error(`❌ Could not send file email for offer ${item.offer_id}:`, emailErr);
       }
+    }
+  }
+
+  console.log('✅ processOrder database work complete, now sending summary emails...');
+
+  // 9. Send Order Confirmation Email to Buyer (Single comprehensive email)
+  if (buyerEmail) {
+    try {
+      // Calculate total price for the email (assuming EUR for now or base price)
+      const totalEur = orderItems.reduce((acc, item) => acc + (item.price_at_purchase * item.quantity), 0);
+      const buyerItems = orderItems.map(item => {
+        const off = offerMap[item.offer_id] || {};
+        return {
+          title: off.title || 'Product',
+          quantity: item.quantity,
+          price: item.price_at_purchase
+        };
+      });
+
+      await sendEmail({
+        to: buyerEmail,
+        subject: `🛍️ Order Confirmed - Printsi #${orderId.slice(0, 8)}`,
+        html: EmailTemplates.orderConfirmation(
+          buyerName,
+          orderId,
+          buyerItems,
+          `€${totalEur.toFixed(2)}`
+        )
+      });
+    } catch (err) {
+      console.error('❌ Failed to send buyer order confirmation email:', err);
+    }
+  }
+
+  // 10. Send Sale Notification Emails to Sellers
+  const uniqueSellerIds = Array.from(new Set(orderItems.map(i => i.seller_id)));
+  for (const sId of uniqueSellerIds) {
+    if (!sId) continue;
+    try {
+      const { data: sellerProf } = await supabase.from('profiles').select('full_name, email_notifs').eq('id', sId).single();
+      
+      // If sellers don't have emails in profiles, we fetch from auth.admin
+      const { data: authUser } = await supabase.auth.admin.getUserById(sId);
+      const sellerEmail = authUser?.user?.email;
+
+      if (sellerEmail) {
+        const sellerItems = orderItems.filter(i => i.seller_id === sId);
+        const sellerName = sellerProf?.full_name || 'Seller';
+        
+        for (const item of sellerItems) {
+          const off = offerMap[item.offer_id] || {};
+          const sellerCurrency = await getSellerCurrency(sId);
+          const earnedEur = item.price_at_purchase * item.quantity;
+          const formattedAmount = await convertFromEur(earnedEur, sellerCurrency);
+
+          await sendEmail({
+            to: sellerEmail,
+            subject: `🎉 New Sale on Printsi: ${off.title}`,
+            html: EmailTemplates.saleNotification(
+              sellerName,
+              buyerName,
+              off.title || 'Your Product',
+              formattedAmount
+            )
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`❌ Failed to send seller notification for ${sId}:`, err);
     }
   }
 
