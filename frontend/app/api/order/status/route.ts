@@ -8,17 +8,23 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { itemId, newStatus, chatId, userId } = await req.json();
+    const { itemId, newStatus, chatId, userId, trackingCode } = await req.json();
 
     if (!itemId || !newStatus || !chatId || !userId) {
       return NextResponse.json({ success: false, error: 'Missing data' }, { status: 400 });
     }
 
-    // Update status in order_items
+    // Update status in order_items (with optional tracking code)
+    const updatePayload: any = { status: newStatus };
+    if (newStatus === 'shipped' && trackingCode) {
+      updatePayload.tracking_code = trackingCode;
+    }
+
     const { error: updateError } = await supabase
       .from('order_items')
-      .update({ status: newStatus })
+      .update(updatePayload)
       .eq('id', itemId);
+
 
     if (updateError) throw updateError;
 

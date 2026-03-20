@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -55,6 +55,9 @@ export default function MessagesPage() {
     const [disputeDescription, setDisputeDescription] = useState('');
     const [disputeEmail, setDisputeEmail] = useState('');
     const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+
+    // Tracking code state
+    const [trackingCodeInput, setTrackingCodeInput] = useState('');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -105,7 +108,7 @@ export default function MessagesPage() {
             if (chat.order_id && chat.offer_id) {
                 const { data: oItem } = await supabase
                     .from('order_items')
-                    .select('id, status, quantity, price_at_purchase')
+                    .select('id, status, quantity, price_at_purchase, tracking_code')
                     .eq('order_id', chat.order_id)
                     .eq('offer_id', chat.offer_id)
                     .limit(1)
@@ -215,15 +218,17 @@ export default function MessagesPage() {
                 newStatus,
                 chatId: activeChatId,
                 userId: currentUser.id,
+                trackingCode: newStatus === 'shipped' ? trackingCodeInput.trim() || null : undefined,
             })
         });
 
         if (res.ok) {
             setChats(prev => prev.map(c =>
                 c.id === activeChatId
-                    ? { ...c, orderItem: { ...c.orderItem, status: newStatus } }
+                    ? { ...c, orderItem: { ...c.orderItem, status: newStatus, tracking_code: newStatus === 'shipped' ? trackingCodeInput.trim() || c.orderItem?.tracking_code : c.orderItem?.tracking_code } }
                     : c
             ));
+            setTrackingCodeInput('');
             loadMessages(activeChatId as string);
         } else {
             alert('Failed to change status');
@@ -532,7 +537,16 @@ export default function MessagesPage() {
                             <Truck size={18} className="text-blue-600" />
                         </div>
                         <p className="text-sm font-bold text-gray-800 mb-1">Ready to ship?</p>
-                        <p className="text-xs text-gray-500 font-medium mb-4">Confirm that you've sent the package to the buyer.</p>
+                        <p className="text-xs text-gray-500 font-medium mb-3">Paste your DHL tracking number and confirm shipment.</p>
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                value={trackingCodeInput}
+                                onChange={e => setTrackingCodeInput(e.target.value)}
+                                placeholder="DHL Tracking Number (e.g. 1234567890)"
+                                className="w-full px-4 py-3 bg-gray-50 border-2 border-blue-200 focus:border-blue-500 rounded-xl text-sm font-bold outline-none text-center tracking-wider placeholder:text-gray-400 placeholder:font-medium placeholder:tracking-normal transition-all"
+                            />
+                        </div>
                         <button
                             onClick={() => handleStatusUpdate('shipped')}
                             className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
@@ -730,6 +744,20 @@ export default function MessagesPage() {
                                             <Package size={12} /> {activeChatData.offers?.title}
                                         </Link>
                                     </div>
+
+                                    {/* DHL Tracking Button */}
+                                    {activeChatData?.orderItem?.tracking_code && (
+                                        <a
+                                            href={`https://www.dhl.com/pl-pl/home/tracking/tracking-parcel.html?submit=1&tracking-id=${activeChatData.orderItem.tracking_code}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-yellow-400/20 shrink-0"
+                                        >
+                                            <Truck size={14} />
+                                            Track DHL
+                                            <ExternalLink size={10} />
+                                        </a>
+                                    )}
 
                                     {/* Status badge in header */}
                                     {activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (

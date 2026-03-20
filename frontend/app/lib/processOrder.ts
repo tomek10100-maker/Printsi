@@ -38,8 +38,9 @@ async function getSellerCurrency(sellerId: string): Promise<string> {
   return data?.currency || 'EUR';
 }
 
-async function decrementFilamentStock(layers: { filament_id?: string; grams?: string | number }[], quantity: number) {
-  if (!layers || layers.length === 0) return;
+async function decrementFilamentStock(layers: { filament_id?: string; grams?: string | number }[], quantity: number): Promise<string[]> {
+  const affectedFilamentIds: string[] = [];
+  if (!layers || layers.length === 0) return affectedFilamentIds;
   for (const layer of layers) {
     if (!layer.filament_id || !layer.grams) continue;
     const gramsPerPiece = parseFloat(String(layer.grams));
@@ -50,7 +51,91 @@ async function decrementFilamentStock(layers: { filament_id?: string; grams?: st
       grams_used: totalGrams,
     });
     if (error) console.error(`❌ Filament stock error for ${layer.filament_id}:`, error);
-    else console.log(`✅ Filament ${layer.filament_id} -${totalGrams}g (qty ${quantity} × ${gramsPerPiece}g)`);
+    else {
+      console.log(`✅ Filament ${layer.filament_id} -${totalGrams}g (qty ${quantity} × ${gramsPerPiece}g)`);
+      affectedFilamentIds.push(layer.filament_id);
+    }
+  }
+  return affectedFilamentIds;
+}
+
+/**
+ * After filament stock is deducted, recalculate the stock of ALL offers
+ * by the same seller that use any of the affected filament IDs.
+ * This ensures that if two products share the same filament,
+ * selling one can make the other go sold out.
+ */
+async function recalculateOffersStockForFilaments(sellerId: string, affectedFilamentIds: string[]) {
+  if (!affectedFilamentIds.length) return;
+
+  // 1. Get current stock of affected filaments
+  const { data: filaments, error: filErr } = await supabase
+    .from('filaments')
+    .select('id, stock_grams')
+    .in('id', affectedFilamentIds);
+
+  if (filErr || !filaments) {
+    console.error('❌ Could not fetch filament stock for recalculation:', filErr);
+    return;
+  }
+
+  const filamentStockMap: Record<string, number> = {};
+  filaments.forEach(f => { filamentStockMap[f.id] = f.stock_grams ?? 0; });
+
+  // 2. Find all offers by this seller that have color_variants using these filaments
+  const { data: offers, error: offErr } = await supabase
+    .from('offers')
+    .select('id, color_variants, stock')
+    .eq('user_id', sellerId)
+    .not('color_variants', 'is', null);
+
+  if (offErr || !offers) {
+    console.error('❌ Could not fetch offers for recalculation:', offErr);
+    return;
+  }
+
+  for (const offer of offers) {
+    const variants: any[] = offer.color_variants || [];
+    let totalNewStock = 0;
+    let usesAffectedFilament = false;
+
+    for (const variant of variants) {
+      const layers: any[] = variant.layers || [];
+      let variantMaxPieces = Infinity;
+      let variantUsesAffected = false;
+
+      for (const layer of layers) {
+        if (!layer.filament_id || !layer.grams) continue;
+        const g = parseFloat(String(layer.grams));
+        if (isNaN(g) || g <= 0) continue;
+
+        if (affectedFilamentIds.includes(layer.filament_id)) {
+          variantUsesAffected = true;
+          const remaining = filamentStockMap[layer.filament_id] ?? 0;
+          variantMaxPieces = Math.min(variantMaxPieces, Math.floor(remaining / g));
+        }
+      }
+
+      if (variantUsesAffected) {
+        usesAffectedFilament = true;
+        // Update the variant stock in the color_variants array
+        const newVarStock = Math.max(0, variantMaxPieces === Infinity ? 0 : variantMaxPieces);
+        variant.stock = newVarStock;
+        totalNewStock += newVarStock;
+      } else {
+        totalNewStock += (variant.stock || 0);
+      }
+    }
+
+    if (usesAffectedFilament) {
+      const { error: updateErr } = await supabase
+        .from('offers')
+        .update({ stock: totalNewStock, color_variants: variants })
+        .eq('id', offer.id);
+
+      if (updateErr) console.error(`❌ Stock recalc failed for offer ${offer.id}:`, updateErr);
+      else console.log(`🔄 Offer ${offer.id} stock recalculated → ${totalNewStock}`);
+    }
   }
 }
 
@@ -206,7 +291,11 @@ export async function processOrder(orderId: string, userId: string) {
     const colorVariants: any[] = offer.color_variants || [];
     const fallbackLayers = colorVariants[0]?.layers || [];
     if (fallbackLayers.length > 0) {
-      await decrementFilamentStock(fallbackLayers, item.quantity);
+      const affectedFilamentIds = await decrementFilamentStock(fallbackLayers, item.quantity);
+      // 7.5 Recalculate stock for ALL offers by this seller using same filaments
+      if (affectedFilamentIds.length > 0) {
+        await recalculateOffersStockForFilaments(sellerId, affectedFilamentIds);
+      }
     }
   }
 

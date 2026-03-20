@@ -191,9 +191,9 @@ export async function POST(req: Request) {
 
       // --- 5.5 Decrement filament stock_grams ---
       const colorVariants: any[] = offerDetails?.color_variants || [];
+      const affectedFilamentIds: string[] = [];
       if (colorVariants.length > 0) {
         // Bierzemy warstwy z pierwszego wariantu (Stripe webhook nie wie który wariant wybrano)
-        // Dla precyzyjnego śledzenia: wariant jest zapisywany przez balance/checkout → order_items.variant_layers
         const layers = colorVariants[0]?.layers || [];
         for (const layer of layers) {
           if (!layer.filament_id || !layer.grams) continue;
@@ -205,9 +205,55 @@ export async function POST(req: Request) {
             grams_used: totalGrams,
           });
           if (filErr) console.error(`❌ Filament stock error for ${layer.filament_id}:`, filErr);
-          else console.log(`✅ Filament ${layer.filament_id} -${totalGrams}g`);
+          else {
+            console.log(`✅ Filament ${layer.filament_id} -${totalGrams}g`);
+            affectedFilamentIds.push(layer.filament_id);
+          }
         }
       }
+
+      // --- 5.6 Recalculate stock for ALL seller's offers using same filaments ---
+      if (sellerId && affectedFilamentIds.length > 0) {
+        try {
+          // Get current filament stock
+          const { data: filStocks } = await supabase
+            .from('filaments').select('id, stock_grams').in('id', affectedFilamentIds);
+          const filMap: Record<string, number> = {};
+          (filStocks || []).forEach(f => { filMap[f.id] = f.stock_grams ?? 0; });
+
+          // Find all offers by this seller with color_variants
+          const { data: sellerOffers } = await supabase
+            .from('offers').select('id, color_variants, stock')
+            .eq('user_id', sellerId).not('color_variants', 'is', null);
+
+          for (const sOffer of (sellerOffers || [])) {
+            const svars: any[] = sOffer.color_variants || [];
+            let totalNew = 0; let touched = false;
+            for (const sv of svars) {
+              const sLayers: any[] = sv.layers || [];
+              let maxPcs = Infinity; let used = false;
+              for (const sl of sLayers) {
+                if (!sl.filament_id || !sl.grams) continue;
+                const sg = parseFloat(String(sl.grams));
+                if (sg <= 0) continue;
+                if (affectedFilamentIds.includes(sl.filament_id)) {
+                  used = true;
+                  maxPcs = Math.min(maxPcs, Math.floor((filMap[sl.filament_id] ?? 0) / sg));
+                }
+              }
+              if (used) { touched = true; sv.stock = Math.max(0, maxPcs === Infinity ? 0 : maxPcs); }
+              totalNew += (sv.stock || 0);
+            }
+            if (touched) {
+              await supabase.from('offers').update({ stock: totalNew, color_variants: svars }).eq('id', sOffer.id);
+              console.log(`🔄 Offer ${sOffer.id} stock recalculated → ${totalNew}`);
+            }
+          }
+        } catch (recalcErr) {
+          console.error('⚠️ Stock recalculation error (non-fatal):', recalcErr);
+        }
+      }
+
 
       // --- 6. Insert order_item ---
       if (!sellerId) {
