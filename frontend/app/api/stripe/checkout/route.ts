@@ -69,9 +69,14 @@ export async function POST(req: Request) {
     }));
 
     // 4. Create Stripe Checkout Session
+    const payment_method_types: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = ['card'];
+    if (currency === 'pln') {
+      payment_method_types.push('blik', 'p24');
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card', 'blik', 'p24'],
+      payment_method_types: payment_method_types,
       customer_email: email,
       line_items,
       metadata: {
