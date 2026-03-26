@@ -106,14 +106,27 @@ export default function MessagesPage() {
 
             let orderItemInfo = null;
             if (chat.order_id && chat.offer_id) {
-                const { data: oItem } = await supabase
+                const { data: rawItems } = await supabase
                     .from('order_items')
-                    .select('id, status, quantity, price_at_purchase, tracking_code')
+                    .select('id, status, quantity, price_at_purchase, tracking_code, offer_id, offers(parent_offer_id)')
                     .eq('order_id', chat.order_id)
-                    .eq('offer_id', chat.offer_id)
-                    .limit(1)
-                    .maybeSingle();
-                orderItemInfo = oItem;
+                    .eq('seller_id', chat.seller_id);
+
+                if (rawItems && rawItems.length > 0) {
+                    const match = rawItems.find((item: any) => 
+                        item.offer_id === chat.offer_id || 
+                        item.offers?.parent_offer_id === chat.offer_id
+                    );
+                    if (match) {
+                        orderItemInfo = {
+                            id: match.id,
+                            status: match.status,
+                            quantity: match.quantity,
+                            price_at_purchase: match.price_at_purchase,
+                            tracking_code: match.tracking_code
+                        };
+                    }
+                }
             }
 
             return { ...chat, otherUser: otherProfile || { full_name: 'Unknown User' }, unreadCount: unreadCount || 0, orderItem: orderItemInfo };
@@ -298,7 +311,7 @@ export default function MessagesPage() {
             finalPrice = finalPrice / rates[currency];
         }
 
-        let payload: any = {
+        const payload: any = {
             price: finalPrice,
             quantity: parseInt(proposalQty),
             material: proposalMaterial || activeChatData.offers?.material || 'Any',

@@ -39,6 +39,7 @@ type ColorVariant = {
   markupType: 'percent' | 'fixed';
   markupValue: string;
   stock: string;
+  stockTracking: 'auto' | 'manual';
   expanded: boolean;
   openDropdownLayerId: string | null;
 };
@@ -59,6 +60,7 @@ const defaultVariant = (): ColorVariant => ({
   markupType: 'percent',
   markupValue: '',
   stock: '1',
+  stockTracking: 'auto',
   expanded: true,
   openDropdownLayerId: null,
 });
@@ -234,6 +236,7 @@ export default function EditOfferPage() {
           markupType: cv.markupType || 'percent',
           markupValue: cv.markupValue?.toString() || '',
           stock: cv.stock?.toString() || '1',
+          stockTracking: cv.stockTracking || 'auto',
           expanded: cvIdx === 0, // expand first variant so user immediately sees pre-filled data
           openDropdownLayerId: null,
         }));
@@ -305,7 +308,7 @@ export default function EditOfferPage() {
     setSaving(true);
     try {
       // Upload new images
-      let uploadedUrls: string[] = [];
+      const uploadedUrls: string[] = [];
       for (const file of newImages) {
         const ext = file.name.split('.').pop();
         const path = `previews/${Date.now()}-${Math.random()}.${ext}`;
@@ -332,8 +335,22 @@ export default function EditOfferPage() {
           if (!computeVariantEUR(v)) { alert('Complete all filament & weight fields in every variant.'); setSaving(false); return; }
         }
         const prices = variants.map(v => computeVariantEUR(v)!);
+        const resolveStock = (v: ColorVariant) => {
+          if (v.stockTracking === 'manual') return parseInt(v.stock) || 0;
+          let maxP = Infinity;
+          let ok = false;
+          for (const l of v.layers) {
+            if (l.filament && l.filament.stock_grams !== null && l.grams) {
+              const g = parseFloat(l.grams);
+              if (g > 0) { maxP = Math.min(maxP, Math.floor(l.filament.stock_grams / g)); ok = true; }
+              else { ok = false; break; }
+            } else { ok = false; break; }
+          }
+          return ok && maxP !== Infinity ? Math.max(0, maxP) : 0;
+        };
+
         const minPrice = Math.min(...prices.map(p => p.totalEUR));
-        const totalStock = variants.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
+        const totalStock = variants.reduce((s, v) => s + resolveStock(v), 0);
         const firstLayer = variants[0].layers[0];
 
         const colorVariantsPayload = variants.map((v, i) => ({
@@ -351,7 +368,8 @@ export default function EditOfferPage() {
           priceEUR: prices[i].totalEUR,
           markupType: v.markupType,
           markupValue: v.markupValue,
-          stock: parseInt(v.stock) || 0,
+          stock: resolveStock(v),
+          stockTracking: v.stockTracking,
           primaryColor: v.layers[0]?.filament?.color_hex || '#888',
           isMultiColor: v.layers.length > 1,
         }));
@@ -741,30 +759,51 @@ export default function EditOfferPage() {
                                       <Box size={12} className="text-gray-500" />
                                       <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Stock (qty)</span>
                                     </div>
-                                    {(() => {
-                                      let maxPieces = Infinity;
-                                      let canCalc = false;
-                                      for (const l of v.layers) {
-                                        if (l.filament && l.filament.stock_grams !== null && l.grams) {
-                                          const g = parseFloat(l.grams);
-                                          if (g > 0) { maxPieces = Math.min(maxPieces, Math.floor(l.filament.stock_grams / g)); canCalc = true; }
-                                          else { canCalc = false; break; }
-                                        } else { canCalc = false; break; }
-                                      }
-                                      if (canCalc && maxPieces !== Infinity && maxPieces >= 0) {
-                                        return (
-                                          <button type="button" onClick={() => updateVariant(v.variantId, { stock: maxPieces.toString() })}
-                                            className="text-[9px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md hover:bg-orange-100 transition-all border border-orange-200">
-                                            Auto-fill: {maxPieces} pcs
-                                          </button>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
+                                    <div className="flex rounded-md border border-gray-200 overflow-hidden text-[10px]">
+                                      <button type="button" onClick={() => updateVariant(v.variantId, { stockTracking: 'auto' })}
+                                        className={`px-2.5 py-1 font-black transition-all ${v.stockTracking === 'auto' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>AUTO</button>
+                                      <button type="button" onClick={() => updateVariant(v.variantId, { stockTracking: 'manual' })}
+                                        className={`px-2.5 py-1 font-black transition-all ${v.stockTracking === 'manual' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>MANUAL</button>
+                                    </div>
                                   </div>
-                                  <input type="text" inputMode="numeric" placeholder="1" value={v.stock}
-                                    onChange={e => { const val = e.target.value; if (/^\d*$/.test(val)) updateVariant(v.variantId, { stock: val }); }}
-                                    className="w-full p-2 bg-gray-50 border border-gray-100 rounded-lg font-black text-2xl outline-none focus:border-blue-400 transition-all" />
+
+                                  {(() => {
+                                    let maxPieces = Infinity;
+                                    let canCalc = false;
+                                    for (const l of v.layers) {
+                                      if (l.filament && l.filament.stock_grams !== null && l.grams) {
+                                        const g = parseFloat(l.grams);
+                                        if (g > 0) {
+                                          maxPieces = Math.min(maxPieces, Math.floor(l.filament.stock_grams / g));
+                                          canCalc = true;
+                                        } else { canCalc = false; break; }
+                                      } else { canCalc = false; break; }
+                                    }
+
+                                    if (v.stockTracking === 'auto') {
+                                      return (
+                                        <div className="w-full p-2 bg-blue-50 border border-blue-100 rounded-lg text-center flex items-center justify-center min-h-[42px]">
+                                          <span className="text-sm font-black text-blue-700">
+                                            {canCalc && maxPieces !== Infinity && maxPieces >= 0 ? `~ ${maxPieces} pcs` : 'Select filament & weight'}
+                                          </span>
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="1"
+                                        value={v.stock}
+                                        onChange={e => {
+                                          const val = e.target.value;
+                                          if (/^\d*$/.test(val)) updateVariant(v.variantId, { stock: val });
+                                        }}
+                                        className="w-full p-2 bg-gray-50 border border-gray-100 rounded-lg font-black text-2xl outline-none focus:border-blue-400 transition-all"
+                                      />
+                                    );
+                                  })()}
                                 </div>
                               </div>
 

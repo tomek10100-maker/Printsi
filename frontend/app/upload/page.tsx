@@ -40,6 +40,7 @@ type ColorVariant = {
   markupType: 'percent' | 'fixed';
   markupValue: string;
   stock: string;
+  stockTracking: 'auto' | 'manual';
   expanded: boolean;
   openDropdownLayerId: string | null;
 };
@@ -77,6 +78,7 @@ const defaultVariant = (): ColorVariant => ({
   markupType: 'percent',
   markupValue: '',
   stock: '1',
+  stockTracking: 'auto',
   expanded: true,
   openDropdownLayerId: null,
 });
@@ -286,7 +288,7 @@ export default function AddOfferPage() {
     setLoading(true);
     try {
       let projUrl: string | null = null;
-      let imageUrls: string[] = [];
+      const imageUrls: string[] = [];
 
       if (projectFile) {
         const ext = projectFile.name.split('.').pop();
@@ -317,8 +319,22 @@ export default function AddOfferPage() {
       if (category === 'physical') {
         if (pricingMode === 'auto') {
           const prices = variants.map(v => computeVariantEUR(v)!);
+          const resolveStock = (v: ColorVariant) => {
+            if (v.stockTracking === 'manual') return parseInt(v.stock) || 0;
+            let maxP = Infinity;
+            let ok = false;
+            for (const l of v.layers) {
+              if (l.filament && l.filament.stock_grams !== null && l.grams) {
+                const g = parseFloat(l.grams);
+                if (g > 0) { maxP = Math.min(maxP, Math.floor(l.filament.stock_grams / g)); ok = true; }
+                else { ok = false; break; }
+              } else { ok = false; break; }
+            }
+            return ok && maxP !== Infinity ? Math.max(0, maxP) : 0;
+          };
+
           dbPrice = Math.min(...prices.map(p => p.totalEUR));
-          dbStock = variants.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
+          dbStock = variants.reduce((s, v) => s + resolveStock(v), 0);
           const fl = variants[0].layers[0];
           dbMaterial = fl.filament?.plastic_type || null;
           dbColor = fl.filament?.color_hex || null;
@@ -340,7 +356,8 @@ export default function AddOfferPage() {
             priceEUR: prices[i].totalEUR,
             markupType: v.markupType,
             markupValue: v.markupValue,
-            stock: parseInt(v.stock) || 0,
+            stock: resolveStock(v),
+            stockTracking: v.stockTracking,
             primaryColor: v.layers[0]?.filament?.color_hex || '#888',
             isMultiColor: v.layers.length > 1,
           }));
@@ -349,7 +366,7 @@ export default function AddOfferPage() {
           const pricesEUR = manualVariants.map(v => (parseFloat(v.priceLocal) || 0) / (rates?.[currency] || 1));
           dbPrice = Math.min(...pricesEUR);
           dbStock = manualVariants.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
-          
+
           const v0 = manualVariants[0];
           const l0 = v0.layers[0];
           dbMaterial = l0.material || null;
@@ -396,7 +413,7 @@ export default function AddOfferPage() {
         user_id: user.id, filament_id: dbFilamentId, created_at: new Date(),
       };
 
-      let { error: dbErr } = await supabase.from('offers').insert({
+      const { error: dbErr } = await supabase.from('offers').insert({
         ...basePayload,
         ...(colorVariantsPayload ? { color_variants: colorVariantsPayload } : {}),
       });
@@ -786,42 +803,51 @@ export default function AddOfferPage() {
                                       <Box size={12} className="text-gray-500" />
                                       <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Stock (qty)</span>
                                     </div>
-                                    {(() => {
-                                      // Calculate possible pieces based on stock
-                                      let maxPieces = Infinity;
-                                      let canCalc = false;
-                                      for (const l of v.layers) {
-                                        if (l.filament && l.filament.stock_grams !== null && l.grams) {
-                                          const g = parseFloat(l.grams);
-                                          if (g > 0) {
-                                            maxPieces = Math.min(maxPieces, Math.floor(l.filament.stock_grams / g));
-                                            canCalc = true;
-                                          } else { canCalc = false; break; }
-                                        } else { canCalc = false; break; }
-                                      }
-                                      if (canCalc && maxPieces !== Infinity && maxPieces >= 0) {
-                                        return (
-                                          <button type="button"
-                                            onClick={() => updateVariant(v.variantId, { stock: maxPieces.toString() })}
-                                            className="text-[9px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md hover:bg-orange-100 transition-all border border-orange-200 animate-pulse-subtle">
-                                            Auto-fill: {maxPieces} pcs
-                                          </button>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
+                                    <div className="flex rounded-md border border-gray-200 overflow-hidden text-[10px]">
+                                      <button type="button" onClick={() => updateVariant(v.variantId, { stockTracking: 'auto' })}
+                                        className={`px-2.5 py-1 font-black transition-all ${v.stockTracking === 'auto' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>AUTO</button>
+                                      <button type="button" onClick={() => updateVariant(v.variantId, { stockTracking: 'manual' })}
+                                        className={`px-2.5 py-1 font-black transition-all ${v.stockTracking === 'manual' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>MANUAL</button>
+                                    </div>
                                   </div>
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    placeholder="1"
-                                    value={v.stock}
-                                    onChange={e => {
-                                      const val = e.target.value;
-                                      if (/^\d*$/.test(val)) updateVariant(v.variantId, { stock: val });
-                                    }}
-                                    className="w-full p-2 bg-gray-50 border border-gray-100 rounded-lg font-black text-2xl outline-none focus:border-blue-400 transition-all"
-                                  />
+
+                                  {(() => {
+                                    let maxPieces = Infinity;
+                                    let canCalc = false;
+                                    for (const l of v.layers) {
+                                      if (l.filament && l.filament.stock_grams !== null && l.grams) {
+                                        const g = parseFloat(l.grams);
+                                        if (g > 0) {
+                                          maxPieces = Math.min(maxPieces, Math.floor(l.filament.stock_grams / g));
+                                          canCalc = true;
+                                        } else { canCalc = false; break; }
+                                      } else { canCalc = false; break; }
+                                    }
+
+                                    if (v.stockTracking === 'auto') {
+                                      return (
+                                        <div className="w-full p-2 bg-blue-50 border border-blue-100 rounded-lg text-center flex items-center justify-center min-h-[42px]">
+                                          <span className="text-sm font-black text-blue-700">
+                                            {canCalc && maxPieces !== Infinity && maxPieces >= 0 ? `~ ${maxPieces} pcs` : 'Select filament & weight'}
+                                          </span>
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="1"
+                                        value={v.stock}
+                                        onChange={e => {
+                                          const val = e.target.value;
+                                          if (/^\d*$/.test(val)) updateVariant(v.variantId, { stock: val });
+                                        }}
+                                        className="w-full p-2 bg-gray-50 border border-gray-100 rounded-lg font-black text-2xl outline-none focus:border-blue-400 transition-all"
+                                      />
+                                    );
+                                  })()}
                                 </div>
                               </div>
 
@@ -963,7 +989,7 @@ export default function AddOfferPage() {
                                           const val = e.target.value;
                                           updateManualLayer(v.id, layer.id, { colorName: val });
                                           const lower = val.toLowerCase().trim();
-                                          if (BASIC_COLORS[lower]) updateManualLayer(v.id, { colorHex: BASIC_COLORS[lower] });
+                                          if (BASIC_COLORS[lower]) updateManualLayer(v.id, layer.id, { colorHex: BASIC_COLORS[lower] });
                                         }} placeholder="e.g. Silk Gold" className="w-full p-2.5 mt-1 bg-gray-50 border border-gray-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500" />
                                       </div>
                                       <div>
@@ -980,7 +1006,7 @@ export default function AddOfferPage() {
                                         <input type="text" value={layer.material} onChange={e => updateManualLayer(v.id, layer.id, { material: e.target.value })} placeholder="PLA" className="w-full p-2.5 mt-1 bg-gray-50 border border-gray-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500" />
                                       </div>
                                       <div>
-                                        <SectionLabel step="" label="Layer Weight (g)" />
+                                        <SectionLabel step="" label="Print Weight (g)" />
                                         <input type="text" value={layer.weight} onChange={e => {
                                           const val = e.target.value.replace(',', '.');
                                           if (/^\d*\.?\d*$/.test(val)) updateManualLayer(v.id, layer.id, { weight: val });

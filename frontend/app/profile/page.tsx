@@ -81,8 +81,11 @@ export default function ProfilePage() {
 
       const inventoryVal = offersData?.reduce((acc, item) => acc + (item.price * item.stock), 0) || 0;
 
-      const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id);
+      const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id).like('stripe_payment_intent_id', 'balance_%');
       const totalSpent = orders?.reduce((acc, order) => acc + order.total_amount, 0) || 0;
+
+      const { data: payouts } = await supabase.from('payouts').select('amount').eq('user_id', user.id).in('status', ['pending', 'completed']);
+      const totalPayouts = payouts?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
 
       // GET SALES WITH STATUS
       // We assume order_items has a 'status' column. If it's missing (e.g. before schema update), it returns undefined or falls back.
@@ -104,7 +107,7 @@ export default function ProfilePage() {
       }
 
       setStats({
-        spent: totalSpent,
+        spent: totalSpent + totalPayouts,
         earned: totalEarned,
         pendingEarned: pendingEarned,
         inventoryValue: inventoryVal

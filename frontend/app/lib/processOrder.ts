@@ -120,12 +120,16 @@ async function recalculateOffersStockForFilaments(sellerId: string, affectedFila
 
       if (variantUsesAffected) {
         usesAffectedFilament = true;
-        // Update the variant stock in the color_variants array
-        const newVarStock = Math.max(0, variantMaxPieces === Infinity ? 0 : variantMaxPieces);
-        variant.stock = newVarStock;
-        totalNewStock += newVarStock;
+        // Only override stock if it is auto-tracked or tracking is unspecified (backward compat)
+        if (variant.stockTracking !== 'manual') {
+          const newVarStock = Math.max(0, variantMaxPieces === Infinity ? 0 : variantMaxPieces);
+          variant.stock = newVarStock;
+          totalNewStock += newVarStock;
+        } else {
+          totalNewStock += (parseInt(variant.stock) || 0);
+        }
       } else {
-        totalNewStock += (variant.stock || 0);
+        totalNewStock += (parseInt(variant.stock) || 0);
       }
     }
 
@@ -186,7 +190,7 @@ export async function processOrder(orderId: string, userId: string) {
 
   // Get buyer email safely - non-fatal if it fails
   let buyerEmail = buyerShipping?.email || '';
-  let buyerName = buyerShipping?.full_name || buyerProfile?.full_name || 'Customer';
+  const buyerName = buyerShipping?.full_name || buyerProfile?.full_name || 'Customer';
   try {
     const { data: authData } = await supabase.auth.admin.getUserById(userId);
     if (authData?.user?.email && !buyerEmail) buyerEmail = authData.user.email;

@@ -158,11 +158,20 @@ export default function CheckoutPage() {
       } // end if (items.length > 0)
 
       // Fetch user balance
-      const { data: sales } = await supabase.from('order_items').select('price_at_purchase, quantity').eq('seller_id', user.id);
-      const totalEarned = sales?.reduce((acc, s) => acc + (s.price_at_purchase * (s.quantity || 1)), 0) || 0;
-      const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id);
+      const { data: sales } = await supabase.from('order_items').select('price_at_purchase, quantity, status').eq('seller_id', user.id);
+      const totalEarned = sales?.reduce((acc, s) => {
+        if (s.status === 'completed') {
+          return acc + (s.price_at_purchase * (s.quantity || 1));
+        }
+        return acc;
+      }, 0) || 0;
+      const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id).like('stripe_payment_intent_id', 'balance_%');
       const totalSpent = orders?.reduce((acc, o) => acc + Number(o.total_amount), 0) || 0;
-      setBalance(Math.max(0, totalEarned - totalSpent));
+      
+      const { data: payouts } = await supabase.from('payouts').select('amount').eq('user_id', user.id).in('status', ['pending', 'completed']);
+      const totalPayouts = payouts?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
+      
+      setBalance(Math.max(0, totalEarned - totalSpent - totalPayouts));
 
       setFetchingProfile(false);
     };

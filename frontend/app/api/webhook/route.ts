@@ -343,6 +343,8 @@ export async function POST(req: Request) {
 
         if (chatError) console.error('❌ Chat insert error:', JSON.stringify(chatError));
         else chatId = newChat.id;
+      } else {
+        await supabase.from('chats').update({ order_id: newOrder.id }).eq('id', chatId);
       }
 
       if (chatId) {

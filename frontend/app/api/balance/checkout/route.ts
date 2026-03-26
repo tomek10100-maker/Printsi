@@ -39,13 +39,22 @@ export async function POST(req: Request) {
     const { data: prevOrders } = await supabase
       .from('orders')
       .select('total_amount')
-      .eq('buyer_id', userId);
+      .eq('buyer_id', userId)
+      .like('stripe_payment_intent_id', 'balance_%');
 
     const totalSpent = prevOrders?.reduce(
       (acc, o) => acc + Number(o.total_amount), 0
     ) || 0;
 
-    const userBalance = Math.max(0, totalEarned - totalSpent);
+    const { data: payoutsData } = await supabase
+      .from('payouts')
+      .select('amount')
+      .eq('user_id', userId)
+      .in('status', ['pending', 'completed']);
+
+    const totalPayouts = payoutsData?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
+
+    const userBalance = Math.max(0, totalEarned - totalSpent - totalPayouts);
 
     // 3. Check if user can afford the order
     if (userBalance < orderTotalEur) {
