@@ -560,9 +560,9 @@ export default function MessagesPage() {
         const dhlBar = (['shipped', 'delivered', 'completed'].includes(status)) ? (
             <div className="flex justify-center my-2 px-4 w-full">
                 <div className="w-full max-w-md bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-center gap-3">
-                    <Truck size={16} className="text-yellow-600 shrink-0" />
+                    <Truck size={16} className={trackingCode ? 'text-yellow-600 shrink-0' : 'text-gray-400 shrink-0'} />
                     <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black uppercase text-yellow-700 tracking-wider mb-0.5">DHL Tracking Nr</p>
+                        <p className={`text-[10px] font-black uppercase tracking-wider mb-0.5 ${trackingCode ? 'text-yellow-700' : 'text-gray-400'}`}>DHL Tracking Nr</p>
                         {trackingCode ? (
                             <a
                                 href={dhlUrl}
@@ -573,7 +573,7 @@ export default function MessagesPage() {
                                 {trackingCode}
                             </a>
                         ) : (
-                            <span className="text-sm font-bold text-yellow-500 italic">Awaiting tracking number...</span>
+                            <span className="text-sm font-bold text-gray-400 italic">Awaiting tracking number from admin...</span>
                         )}
                     </div>
                     {trackingCode ? (
@@ -583,15 +583,15 @@ export default function MessagesPage() {
                             <ExternalLink size={10} /> Track
                         </a>
                     ) : (
-                        <span className="shrink-0 px-3 py-1.5 bg-gray-200 text-gray-400 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-not-allowed">
-                            N/A
+                        <span className="shrink-0 px-3 py-1.5 bg-gray-100 text-gray-300 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-not-allowed">
+                            Inactive
                         </span>
                     )}
                 </div>
             </div>
         ) : null;
 
-        // PENDING → seller sees ship button
+        // PENDING → seller sees ship button (no tracking input - admin adds tracking code)
         if (status === 'pending' && isSeller) {
             return (
                 <div className="flex flex-col gap-2 my-4">
@@ -601,16 +601,7 @@ export default function MessagesPage() {
                                 <Truck size={18} className="text-blue-600" />
                             </div>
                             <p className="text-sm font-bold text-gray-800 mb-1">Ready to ship?</p>
-                            <p className="text-xs text-gray-500 font-medium mb-3">Paste your DHL tracking number and confirm shipment. You have 4 days before the order is cancelled.</p>
-                            <div className="mb-4">
-                                <input
-                                    type="text"
-                                    value={trackingCodeInput}
-                                    onChange={e => setTrackingCodeInput(e.target.value)}
-                                    placeholder="DHL Tracking Number (e.g. 1234567890)"
-                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-blue-200 focus:border-blue-500 rounded-xl text-sm font-bold outline-none text-center tracking-wider placeholder:text-gray-400 placeholder:font-medium placeholder:tracking-normal transition-all"
-                                />
-                            </div>
+                            <p className="text-xs text-gray-500 font-medium mb-4">Pack the order and click below when you've handed it to the courier. You have 4 days before the order is cancelled.</p>
                             <button
                                 onClick={() => handleStatusUpdate('shipped')}
                                 className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"

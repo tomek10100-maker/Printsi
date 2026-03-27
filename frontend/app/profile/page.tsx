@@ -405,33 +405,43 @@ export default function ProfilePage() {
                             </span>
                           </div>
 
-                          {/* Price + Stock */}
+                          {/* Price */}
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-sm font-black text-blue-600">{formatPrice(offer.price)}</span>
-                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${offer.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                            {!hasVariants && (
+                              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                                offer.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
                               }`}>
-                              {offer.stock > 0 ? `${offer.stock} in stock` : 'Sold Out'}
-                            </span>
+                                {offer.stock > 0 ? `${offer.stock} in stock` : 'Sold Out'}
+                              </span>
+                            )}
                           </div>
 
-                          {/* Variant color swatches */}
-                          {hasVariants && (
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <div className="flex -space-x-1">
-                                {variants.slice(0, 6).map((v: any, vi: number) => (
-                                  <div key={vi} title={v.color_name || v.label}
-                                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
-                                    style={{ backgroundColor: v.primaryColor || '#ccc' }} />
-                                ))}
-                                {variants.length > 6 && (
-                                  <div className="w-4 h-4 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center">
-                                    <span className="text-[6px] font-black text-gray-500">+{variants.length - 6}</span>
+                          {/* Variant breakdown — per-color stock */}
+                          {hasVariants ? (
+                            <div className="mt-1.5 flex flex-col gap-1">
+                              {variants.map((v: any, vi: number) => {
+                                const vStock = parseInt(v.stock) || 0;
+                                return (
+                                  <div key={vi} className="flex items-center gap-1.5">
+                                    <div
+                                      className="w-3 h-3 rounded-full border border-white/80 shadow-sm flex-shrink-0"
+                                      style={{ backgroundColor: v.primaryColor || '#ccc' }}
+                                    />
+                                    <span className="text-[10px] font-bold text-gray-600 truncate max-w-[120px]">
+                                      {v.label || v.color_name || 'Variant'}
+                                    </span>
+                                    <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                                      vStock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'
+                                    }`}>
+                                      {vStock > 0 ? `${vStock}` : '0'}
+                                    </span>
                                   </div>
-                                )}
-                              </div>
-                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">{variants.length} colors</span>
+                                );
+                              })}
                             </div>
-                          )}
+                          ) : null}
+
                         </div>
 
                         {/* Action Buttons */}
