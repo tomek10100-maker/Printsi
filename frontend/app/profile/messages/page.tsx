@@ -113,20 +113,21 @@ export default function MessagesPage() {
                     .eq('seller_id', chat.seller_id);
 
                 if (rawItems && rawItems.length > 0) {
-                    const match = rawItems.find((item: any) => 
-                        item.offer_id === chat.offer_id || 
-                        item.offers?.parent_offer_id === chat.offer_id
-                    );
+                    const match = rawItems.find((item: any) => {
+                        const parentId = Array.isArray(item.offers) ? item.offers[0]?.parent_offer_id : item.offers?.parent_offer_id;
+                        return item.offer_id === chat.offer_id || parentId === chat.offer_id;
+                    });
                     if (match) {
                         orderItemInfo = {
                             id: match.id,
-                            status: match.status,
+                            status: match.status || 'pending',
                             quantity: match.quantity,
                             price_at_purchase: match.price_at_purchase,
                             tracking_code: match.tracking_code
                         };
                     }
                 }
+
             }
 
             return { ...chat, otherUser: otherProfile || { full_name: 'Unknown User' }, unreadCount: unreadCount || 0, orderItem: orderItemInfo };
@@ -530,14 +531,15 @@ export default function MessagesPage() {
                         {disputeData ? (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black uppercase text-red-400 tracking-wider">Problem:</span>
-                                    <span className="text-sm font-bold text-gray-800">{disputeData.problemType}</span>
+                                    <span className="text-[10px] font-black uppercase text-red-500 tracking-wider">Problem:</span>
+                                    <span className="text-sm font-bold text-slate-800">{disputeData.problemType}</span>
                                 </div>
-                                <p className="text-sm text-gray-600 font-medium leading-relaxed">{disputeData.description}</p>
+                                <p className="text-sm text-slate-600 font-medium leading-relaxed">{disputeData.description}</p>
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-700 font-medium leading-relaxed">{msg.content}</p>
+                            <p className="text-sm text-slate-800 font-bold leading-relaxed">{msg.content}</p>
                         )}
+
                     </div>
                 </div>
             </div>
@@ -546,83 +548,74 @@ export default function MessagesPage() {
 
     // Render action card in chat (shipped/received/completed/dispute buttons)
     const renderActionCard = (orderItem: any, chatData: any) => {
-        if (!orderItem || !currentUser || chatData?.offers?.category === 'digital') return null;
+        if (!orderItem || !currentUser) return null;
 
-        const status = orderItem.status || 'pending';
-        const isSeller = currentUser.id === chatData?.seller_id;
-        const isBuyer = currentUser.id === chatData?.buyer_id;
+        const status = (orderItem.status || 'pending').toLowerCase();
+        const isSeller = String(currentUser.id) === String(chatData?.seller_id);
+        const isBuyer = String(currentUser.id) === String(chatData?.buyer_id);
+        const trackingCode = orderItem.tracking_code || '';
+        const dhlUrl = `https://www.dhl.com/pl-pl/home/tracking/tracking-parcel.html?submit=1&tracking-id=${trackingCode}`;
 
-        // Only render the appropriate action card based on current status
+        // DHL tracking bar — always shown when status >= shipped
+        const dhlBar = (['shipped', 'delivered', 'completed'].includes(status)) ? (
+            <div className="flex justify-center my-2 px-4 w-full">
+                <div className="w-full max-w-md bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                    <Truck size={16} className="text-yellow-600 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black uppercase text-yellow-700 tracking-wider mb-0.5">DHL Tracking Nr</p>
+                        {trackingCode ? (
+                            <a
+                                href={dhlUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-black text-yellow-800 hover:text-yellow-600 underline font-mono truncate block"
+                            >
+                                {trackingCode}
+                            </a>
+                        ) : (
+                            <span className="text-sm font-bold text-yellow-500 italic">Awaiting tracking number...</span>
+                        )}
+                    </div>
+                    {trackingCode ? (
+                        <a href={dhlUrl} target="_blank" rel="noopener noreferrer"
+                            className="shrink-0 px-3 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
+                        >
+                            <ExternalLink size={10} /> Track
+                        </a>
+                    ) : (
+                        <span className="shrink-0 px-3 py-1.5 bg-gray-200 text-gray-400 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-not-allowed">
+                            N/A
+                        </span>
+                    )}
+                </div>
+            </div>
+        ) : null;
+
+        // PENDING → seller sees ship button
         if (status === 'pending' && isSeller) {
             return (
-                <div className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-white border-2 border-dashed border-blue-200 rounded-2xl p-5 text-center">
-                        <div className="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                            <Truck size={18} className="text-blue-600" />
-                        </div>
-                        <p className="text-sm font-bold text-gray-800 mb-1">Ready to ship?</p>
-                        <p className="text-xs text-gray-500 font-medium mb-3">Paste your DHL tracking number and confirm shipment.</p>
-                        <div className="mb-4">
-                            <input
-                                type="text"
-                                value={trackingCodeInput}
-                                onChange={e => setTrackingCodeInput(e.target.value)}
-                                placeholder="DHL Tracking Number (e.g. 1234567890)"
-                                className="w-full px-4 py-3 bg-gray-50 border-2 border-blue-200 focus:border-blue-500 rounded-xl text-sm font-bold outline-none text-center tracking-wider placeholder:text-gray-400 placeholder:font-medium placeholder:tracking-normal transition-all"
-                            />
-                        </div>
-                        <button
-                            onClick={() => handleStatusUpdate('shipped')}
-                            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
-                        >
-                            <Truck size={14} className="inline mr-2 -mt-0.5" /> Mark as Sent
-                        </button>
-                    </div>
-                </div>
-            );
-        }
-
-        if (status === 'shipped' && isBuyer) {
-            return (
-                <div className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-200 rounded-2xl p-5 text-center">
-                        <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
-                            <PackageCheck size={18} className="text-emerald-600" />
-                        </div>
-                        <p className="text-sm font-bold text-gray-800 mb-1">Package on its way!</p>
-                        <p className="text-xs text-gray-500 font-medium mb-4">Have you received the package? Confirm delivery below.</p>
-                        <button
-                            onClick={() => handleStatusUpdate('delivered')}
-                            className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
-                        >
-                            <PackageCheck size={14} className="inline mr-2 -mt-0.5" /> I Received It
-                        </button>
-                    </div>
-                </div>
-            );
-        }
-
-        if (status === 'delivered' && isBuyer) {
-            return (
-                <div className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-white border-2 border-dashed border-green-200 rounded-2xl p-5 text-center">
-                        <div className="w-10 h-10 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
-                            <CheckCircle2 size={18} className="text-green-600" />
-                        </div>
-                        <p className="text-sm font-bold text-gray-800 mb-1">Is everything OK?</p>
-                        <p className="text-xs text-gray-500 font-medium mb-4">Check your item and let us know if everything is fine, or report a problem.</p>
-                        <div className="flex gap-3 justify-center">
+                <div className="flex flex-col gap-2 my-4">
+                    <div className="flex justify-center px-4 w-full">
+                        <div className="w-full max-w-md bg-white border-2 border-dashed border-blue-200 rounded-2xl p-5 text-center shadow-sm">
+                            <div className="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                                <Truck size={18} className="text-blue-600" />
+                            </div>
+                            <p className="text-sm font-bold text-gray-800 mb-1">Ready to ship?</p>
+                            <p className="text-xs text-gray-500 font-medium mb-3">Paste your DHL tracking number and confirm shipment. You have 4 days before the order is cancelled.</p>
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    value={trackingCodeInput}
+                                    onChange={e => setTrackingCodeInput(e.target.value)}
+                                    placeholder="DHL Tracking Number (e.g. 1234567890)"
+                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-blue-200 focus:border-blue-500 rounded-xl text-sm font-bold outline-none text-center tracking-wider placeholder:text-gray-400 placeholder:font-medium placeholder:tracking-normal transition-all"
+                                />
+                            </div>
                             <button
-                                onClick={() => handleStatusUpdate('completed')}
-                                className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-green-500/20"
+                                onClick={() => handleStatusUpdate('shipped')}
+                                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
                             >
-                                <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" /> All Good!
-                            </button>
-                            <button
-                                onClick={() => handleStatusUpdate('disputed')}
-                                className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20"
-                            >
-                                <AlertTriangle size={14} className="inline mr-2 -mt-0.5" /> Problem
+                                <Truck size={14} className="inline mr-2 -mt-0.5" /> Mark as Sent
                             </button>
                         </div>
                     </div>
@@ -630,44 +623,117 @@ export default function MessagesPage() {
             );
         }
 
-        if (status === 'completed' || status === 'disputed') {
-            return (
-                <div className="flex justify-center my-4 px-4">
-                    <div className={`w-full max-w-md rounded-2xl p-4 text-center ${status === 'completed' ? 'bg-green-50/80 border border-green-100' : 'bg-red-50/80 border border-red-100'}`}>
-                        <p className={`text-xs font-black uppercase tracking-widest ${status === 'completed' ? 'text-green-600' : 'text-red-600'}`}>
-                            {status === 'completed' ? '✅ Transaction Finalized' : '⚠️ Dispute Open'}
-                        </p>
-                    </div>
-                </div>
-            );
-        }
-
-        // Pending buyer or shipped seller → info message
+        // PENDING → buyer sees waiting info
         if (status === 'pending' && isBuyer) {
             return (
-                <div className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-amber-50/80 border border-amber-100 rounded-2xl p-4 text-center">
+                <div className="flex justify-center my-4 px-4 w-full">
+                    <div className="w-full max-w-md bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-center">
                         <p className="text-xs font-bold text-amber-700">⏳ Waiting for the seller to ship the package...</p>
+                        <p className="text-[10px] text-amber-500 mt-1">The seller has 4 days to send the order before it gets cancelled.</p>
                     </div>
                 </div>
             );
         }
 
+        // SHIPPED → buyer sees confirm delivery button + DHL link
+        if (status === 'shipped' && isBuyer) {
+            return (
+                <div className="flex flex-col gap-2 my-4">
+                    {dhlBar}
+                    <div className="flex justify-center px-4 w-full">
+                        <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-200 rounded-2xl p-5 text-center shadow-sm">
+                            <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
+                                <PackageCheck size={18} className="text-emerald-600" />
+                            </div>
+                            <p className="text-sm font-bold text-gray-800 mb-1">Package on its way!</p>
+                            <p className="text-xs text-gray-500 font-medium mb-4">Have you received the package? Confirm delivery below.</p>
+                            <button
+                                onClick={() => handleStatusUpdate('delivered')}
+                                className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+                            >
+                                <PackageCheck size={14} className="inline mr-2 -mt-0.5" /> I Received It
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // SHIPPED → seller sees waiting info + DHL link
         if (status === 'shipped' && isSeller) {
             return (
-                <div className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
-                        <p className="text-xs font-bold text-blue-700">📦 Package sent! Waiting for the buyer to confirm delivery...</p>
+                <div className="flex flex-col gap-2 my-4">
+                    {dhlBar}
+                    <div className="flex justify-center px-4 w-full">
+                        <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
+                            <p className="text-xs font-bold text-blue-700">📦 Package sent! Waiting for the buyer to confirm delivery...</p>
+                        </div>
                     </div>
                 </div>
             );
         }
 
+        // DELIVERED → buyer sees All Good / Problem buttons
+        if (status === 'delivered' && isBuyer) {
+            return (
+                <div className="flex flex-col gap-2 my-4">
+                    {dhlBar}
+                    <div className="flex justify-center px-4 w-full">
+                        <div className="w-full max-w-md bg-white border-2 border-dashed border-green-200 rounded-2xl p-5 text-center shadow-sm">
+                            <div className="w-10 h-10 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
+                                <CheckCircle2 size={18} className="text-green-600" />
+                            </div>
+                            <p className="text-sm font-bold text-gray-800 mb-1">Is everything OK?</p>
+                            <p className="text-xs text-gray-500 font-medium mb-4">Check your item and let us know if everything is fine, or report a problem.</p>
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    onClick={() => handleStatusUpdate('completed')}
+                                    className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-green-500/20"
+                                >
+                                    <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" /> All Good!
+                                </button>
+                                <button
+                                    onClick={() => handleStatusUpdate('disputed')}
+                                    className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20"
+                                >
+                                    <AlertTriangle size={14} className="inline mr-2 -mt-0.5" /> Problem
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // DELIVERED → seller sees waiting info
         if (status === 'delivered' && isSeller) {
             return (
-                <div className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 text-center">
-                        <p className="text-xs font-bold text-emerald-700">📬 Buyer received the package! Waiting for their final confirmation...</p>
+                <div className="flex flex-col gap-2 my-4">
+                    {dhlBar}
+                    <div className="flex justify-center px-4 w-full">
+                        <div className="w-full max-w-md bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 text-center">
+                            <p className="text-xs font-bold text-emerald-700">📬 Buyer received the package! Waiting for their final confirmation...</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // COMPLETED / DISPUTED → final state
+        if (status === 'completed' || status === 'disputed') {
+            return (
+                <div className="flex flex-col gap-2 my-4">
+                    {status === 'completed' && dhlBar}
+                    <div className="flex justify-center px-4 w-full">
+                        <div className={`w-full max-w-md rounded-2xl p-4 text-center ${
+                            status === 'completed' ? 'bg-green-50/80 border border-green-100' : 'bg-red-50/80 border border-red-100'
+                        }`}>
+                            <p className={`text-xs font-black uppercase tracking-widest ${
+                                status === 'completed' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                                {status === 'completed' ? '✅ Transaction Finalized' : '⚠️ Dispute Open — Funds on hold'}
+                            </p>
+                        </div>
                     </div>
                 </div>
             );
@@ -675,6 +741,7 @@ export default function MessagesPage() {
 
         return null;
     };
+
 
     return (
         <main className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">

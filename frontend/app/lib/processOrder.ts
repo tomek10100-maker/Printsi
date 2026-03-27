@@ -277,7 +277,7 @@ export async function processOrder(orderId: string, userId: string) {
       await supabase.from('messages').insert({
         chat_id: chatId,
         sender_id: userId,
-        content: `The seller has 4 days to ship the item. Use the confirmation buttons below to track delivery progress.`,
+        content: `The seller has 4 days to ship the item. If not shipped within this time, the order will be cancelled. Use the confirmation buttons below to track delivery progress.`,
         message_type: 'system',
       });
     }
