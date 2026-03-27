@@ -556,41 +556,6 @@ export default function MessagesPage() {
         const trackingCode = orderItem.tracking_code || '';
         const dhlUrl = `https://www.dhl.com/pl-pl/home/tracking/tracking-parcel.html?submit=1&tracking-id=${trackingCode}`;
 
-        // DHL tracking bar — always shown when status >= shipped
-        const dhlBar = (['shipped', 'delivered', 'completed'].includes(status)) ? (
-            <div className="flex justify-center my-2 px-4 w-full">
-                <div className="w-full max-w-md bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-center gap-3">
-                    <Truck size={16} className={trackingCode ? 'text-yellow-600 shrink-0' : 'text-gray-400 shrink-0'} />
-                    <div className="flex-1 min-w-0">
-                        <p className={`text-[10px] font-black uppercase tracking-wider mb-0.5 ${trackingCode ? 'text-yellow-700' : 'text-gray-400'}`}>DHL Tracking Nr</p>
-                        {trackingCode ? (
-                            <a
-                                href={dhlUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm font-black text-yellow-800 hover:text-yellow-600 underline font-mono truncate block"
-                            >
-                                {trackingCode}
-                            </a>
-                        ) : (
-                            <span className="text-sm font-bold text-gray-400 italic">Awaiting tracking number from admin...</span>
-                        )}
-                    </div>
-                    {trackingCode ? (
-                        <a href={dhlUrl} target="_blank" rel="noopener noreferrer"
-                            className="shrink-0 px-3 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
-                        >
-                            <ExternalLink size={10} /> Track
-                        </a>
-                    ) : (
-                        <span className="shrink-0 px-3 py-1.5 bg-gray-100 text-gray-300 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-not-allowed">
-                            Inactive
-                        </span>
-                    )}
-                </div>
-            </div>
-        ) : null;
-
         // PENDING → seller sees ship button (no tracking input - admin adds tracking code)
         if (status === 'pending' && isSeller) {
             return (
@@ -630,7 +595,6 @@ export default function MessagesPage() {
         if (status === 'shipped' && isBuyer) {
             return (
                 <div className="flex flex-col gap-2 my-4">
-                    {dhlBar}
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-200 rounded-2xl p-5 text-center shadow-sm">
                             <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
@@ -654,7 +618,6 @@ export default function MessagesPage() {
         if (status === 'shipped' && isSeller) {
             return (
                 <div className="flex flex-col gap-2 my-4">
-                    {dhlBar}
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
                             <p className="text-xs font-bold text-blue-700">📦 Package sent! Waiting for the buyer to confirm delivery...</p>
@@ -668,7 +631,6 @@ export default function MessagesPage() {
         if (status === 'delivered' && isBuyer) {
             return (
                 <div className="flex flex-col gap-2 my-4">
-                    {dhlBar}
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-white border-2 border-dashed border-green-200 rounded-2xl p-5 text-center shadow-sm">
                             <div className="w-10 h-10 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
@@ -700,7 +662,6 @@ export default function MessagesPage() {
         if (status === 'delivered' && isSeller) {
             return (
                 <div className="flex flex-col gap-2 my-4">
-                    {dhlBar}
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 text-center">
                             <p className="text-xs font-bold text-emerald-700">📬 Buyer received the package! Waiting for their final confirmation...</p>
@@ -714,7 +675,6 @@ export default function MessagesPage() {
         if (status === 'completed' || status === 'disputed') {
             return (
                 <div className="flex flex-col gap-2 my-4">
-                    {status === 'completed' && dhlBar}
                     <div className="flex justify-center px-4 w-full">
                         <div className={`w-full max-w-md rounded-2xl p-4 text-center ${
                             status === 'completed' ? 'bg-green-50/80 border border-green-100' : 'bg-red-50/80 border border-red-100'
@@ -826,20 +786,6 @@ export default function MessagesPage() {
                                             <Package size={12} /> {activeChatData.offers?.title}
                                         </Link>
                                     </div>
-
-                                    {/* DHL Tracking Button */}
-                                    {activeChatData?.orderItem?.tracking_code && (
-                                        <a
-                                            href={`https://www.dhl.com/pl-pl/home/tracking/tracking-parcel.html?submit=1&tracking-id=${activeChatData.orderItem.tracking_code}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-yellow-400/20 shrink-0"
-                                        >
-                                            <Truck size={14} />
-                                            Track DHL
-                                            <ExternalLink size={10} />
-                                        </a>
-                                    )}
 
                                     {/* Status badge in header */}
                                     {activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (
@@ -1086,6 +1032,32 @@ export default function MessagesPage() {
                             {/* Input Area */}
                             <div className="p-4 bg-white border-t border-gray-100 shrink-0">
                                 <form onSubmit={handleSendMessage} className="flex items-end gap-2 max-w-4xl mx-auto">
+                                    {/* DHL TRACKING SHORTCUT (shown if order exists) */}
+                                    {activeChatData?.orderItem && (
+                                        <div className="pb-1.5 shrink-0">
+                                            {activeChatData.orderItem.tracking_code ? (
+                                                <a
+                                                    href={`https://www.dhl.com/pl-pl/home/tracking/tracking-parcel.html?submit=1&tracking-id=${activeChatData.orderItem.tracking_code}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title={`Track DHL: ${activeChatData.orderItem.tracking_code}`}
+                                                    className="h-[50px] px-5 bg-[#ffcc00] hover:bg-[#e6b800] text-gray-900 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 border-2 border-transparent"
+                                                >
+                                                    <Truck size={18} />
+                                                    <span className="font-black uppercase tracking-widest text-xs">Track DHL</span>
+                                                    <ExternalLink size={14} className="opacity-70" />
+                                                </a>
+                                            ) : (
+                                                <div 
+                                                    title="Tracking number not yet provided"
+                                                    className="h-[50px] px-5 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed border-2 border-dashed border-gray-200"
+                                                >
+                                                    <Truck size={18} />
+                                                    <span className="font-black uppercase tracking-widest text-xs">Track DHL</span>
+                                                </div>
+                                            )}                                        </div>
+                                    )}
+
                                     <textarea
                                         value={newMessage}
                                         onChange={(e) => setNewMessage(e.target.value)}
