@@ -25,12 +25,19 @@ export function AuthGuard() {
                 return;
             }
 
-            // Check if user has roles
+            // Fetch roles and verification status
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('roles')
+                .select('roles, is_verified')
                 .eq('id', session.user.id)
                 .single();
+
+            // Jeśli profil nie jest zweryfikowany, uniemożliwiamy mu bycie po zalogowanej stronie
+            if (profile && profile.is_verified === false) {
+                await supabase.auth.signOut();
+                router.push('/login');
+                return;
+            }
 
             // If missing roles, force onboarding
             if (!profile?.roles || profile.roles.length === 0) {

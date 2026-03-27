@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 const FROM_EMAIL = 'Printsi <noreply@printis.store>';
-const SITE_URL = 'https://printis.store';
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 export interface EmailOptions {
   to: string | string[];
@@ -610,4 +610,56 @@ export const EmailTemplates = {
       body
     );
   },
+  // ────────────────────────────────────────
+  // 15. VERIFICATION LINK (new user)
+  // ────────────────────────────────────────
+  verification: (userName: string, link: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:900;">Account Verification, ${userName}! 🛡️</p>
+      <p style="margin:0 0 32px;color:#64748b;font-size:16px;line-height:1.7;">
+        Thank you for joining Printsi. This is your official verification link. Click the button below to activate your account.
+      </p>
+
+      ${ctaButton('VERIFY ACCOUNT', link, '#000000')}
+
+      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.6;text-align:center;">
+        If the button doesn't work, copy and paste the following link into your browser:<br>
+        <span style="color:#6366f1;font-size:11px;">${link}</span>
+      </p>
+    `;
+
+    return emailWrapper(
+      'linear-gradient(135deg,#000000 0%,#1e293b 100%)',
+      'Verification',
+      'Verification Link',
+      body
+    );
+  },
+
+  // ────────────────────────────────────────
+  // 16. RESET PASSWORD
+  // ────────────────────────────────────────
+  resetPassword: (userName: string, link: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:900;">Reset Your Password, ${userName}! 🔒</p>
+      <p style="margin:0 0 32px;color:#64748b;font-size:16px;line-height:1.7;">
+        We received a request to reset your Printsi account password. Click the button below to set a new password. 
+        If you didn't request this, you can safely ignore this email.
+      </p>
+
+      ${ctaButton('RESET PASSWORD', link, '#4f46e5')}
+
+      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.6;text-align:center;">
+        For security, this link will expire in 24 hours.
+      </p>
+    `;
+
+    return emailWrapper(
+      'linear-gradient(135deg,#312e81 0%,#4f46e5 100%)',
+      'Password Reset',
+      'Reset Your Password',
+      body
+    );
+  },
 };
+

@@ -46,18 +46,17 @@ export default function LoginPage() {
 
       if (error) {
         setStatus({ type: 'error', message: error.message });
-      } else if (data.user && data.session === null) {
-        // Confirmation email sent (Supabase default)
-        setStatus({ type: 'success', message: 'Sprawdź swoją skrzynkę mailową, aby potwierdzić konto!' });
+      } else if (data.user) {
+        setStatus({ type: 'success', message: 'Account created! A verification link has been sent. Check your inbox to activate your account.' });
         
-        // Welcome email via our noreply service
-        fetch('/api/auth/welcome', {
+        await fetch('/api/auth/send-verification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, fullName: email.split('@')[0] }),
+          body: JSON.stringify({ userId: data.user.id, email }),
         }).catch(() => {});
-      } else {
-        window.location.href = '/onboarding';
+        
+        // Sign out immediately to force email click
+        await supabase.auth.signOut();
       }
     } else {
       const { data: sessionData, error } = await supabase.auth.signInWithPassword({
@@ -68,14 +67,16 @@ export default function LoginPage() {
       if (error) {
         setStatus({ type: 'error', message: error.message });
       } else if (sessionData?.user) {
+        // Sprawdź flagę naszej autorskiej weryfikacji w bazie
         const { data: profile } = await supabase
           .from('profiles')
-          .select('roles')
+          .select('is_verified')
           .eq('id', sessionData.user.id)
           .single();
 
-        if (!profile?.roles || profile.roles.length === 0) {
-          window.location.href = '/onboarding';
+        if (profile && profile.is_verified === false) {
+          await supabase.auth.signOut();
+          setStatus({ type: 'error', message: 'Your account is inactive. Please verify your email by clicking the link in the message sent from noreply@printis.store.' });
         } else {
           window.location.href = '/';
         }
@@ -151,7 +152,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">Password</label>
+              {!isSignUp && (
+                <Link href="/forgot-password" className="text-sm font-semibold text-blue-600 hover:text-blue-500 hover:underline">
+                  Forgot Password?
+                </Link>
+              )}
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
