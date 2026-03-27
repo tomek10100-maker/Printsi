@@ -167,13 +167,27 @@ export async function processOrder(orderId: string, userId: string) {
 
   // 2. Fetch offer details
   const offerIds = orderItems.map(i => i.offer_id);
-  const { data: offers } = await supabase
+  const { data: initialOffers } = await supabase
     .from('offers')
     .select('id, title, is_custom, parent_offer_id, color_variants, category, file_url')
     .in('id', offerIds);
 
   const offerMap: Record<string, any> = {};
-  (offers || []).forEach(o => { offerMap[o.id] = o; });
+  (initialOffers || []).forEach(o => { offerMap[o.id] = o; });
+
+  // Fetch parent offers for custom items to ensure we have filament data for deduction
+  const neededParentIds = (initialOffers || [])
+    .filter(o => o.is_custom && o.parent_offer_id && !offerMap[o.parent_offer_id])
+    .map(o => o.parent_offer_id);
+
+  if (neededParentIds.length > 0) {
+    const { data: parents } = await supabase
+      .from('offers')
+      .select('id, color_variants')
+      .in('id', neededParentIds);
+    (parents || []).forEach(p => { offerMap[p.id] = p; });
+  }
+
 
   // Fetch buyer info
   const { data: buyerShipping } = await supabase
@@ -301,18 +315,26 @@ export async function processOrder(orderId: string, userId: string) {
         .eq('id', item.offer_id)
         .single();
 
-      if (updatedOffer && updatedOffer.stock <= 0) {
+      if (updatedOffer && updatedOffer.stock <= 0 && !offer.is_custom) {
         await sendOutOfStockEmail(sellerId, updatedOffer.title || title);
       }
     } catch (stockCheckErr) {
       console.error('⚠️ Stock check email failed (non-fatal):', stockCheckErr);
     }
 
-    // 7. Decrement filament stock (use offer's color_variants layers as source)
-    const colorVariants: any[] = offer.color_variants || [];
-    const fallbackLayers = colorVariants[0]?.layers || [];
-    if (fallbackLayers.length > 0) {
-      const affectedFilamentIds = await decrementFilamentStock(fallbackLayers, item.quantity);
+    // 7. Decrement filament stock (use offer's or parent's color_variants)
+    let layersToUse = (offer.color_variants && offer.color_variants[0]?.layers) || [];
+
+    // If it's a custom offer and has no layers, try to get them from parent
+    if (layersToUse.length === 0 && offer.is_custom && offer.parent_offer_id) {
+      const parentOffer = offerMap[offer.parent_offer_id];
+      if (parentOffer?.color_variants && parentOffer.color_variants[0]?.layers) {
+        layersToUse = parentOffer.color_variants[0].layers;
+      }
+    }
+
+    if (layersToUse.length > 0) {
+      const affectedFilamentIds = await decrementFilamentStock(layersToUse, item.quantity);
       // 7.5 Recalculate stock for ALL offers by this seller using same filaments
       if (affectedFilamentIds.length > 0) {
         await recalculateOffersStockForFilaments(sellerId, affectedFilamentIds);
