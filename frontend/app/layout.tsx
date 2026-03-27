@@ -5,6 +5,7 @@ import { CartProvider } from '../context/CartContext';
 import { CurrencyProvider } from '../context/CurrencyContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import NotificationToast from './components/NotificationToast';
+import GlobalToast from './components/GlobalToast';
 import { AuthGuard } from './components/AuthGuard';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -28,6 +29,8 @@ export default function RootLayout({
               {children}
               {/* Global real-time notification toasts */}
               <NotificationToast />
+              {/* Global application alert toasts */}
+              <GlobalToast />
             </CurrencyProvider>
           </CartProvider>
         </ThemeProvider>
