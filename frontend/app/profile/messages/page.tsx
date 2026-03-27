@@ -16,14 +16,16 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// ─── Problem types for disputes ────────────────────────
 const PROBLEM_TYPES = [
-    { value: 'damaged', label: 'Damaged Item', icon: '📦💥' },
-    { value: 'wrong_item', label: 'Wrong Item Received', icon: '🔄' },
-    { value: 'not_received', label: 'Item Not Received', icon: '❌📦' },
-    { value: 'quality_issue', label: 'Quality Issue', icon: '⚠️' },
-    { value: 'missing_parts', label: 'Missing Parts', icon: '🧩' },
-    { value: 'other', label: 'Other Issue', icon: '❓' },
+    { value: 'damaged', label: 'Damaged Item', icon: '📦💥', digital: false },
+    { value: 'wrong_item', label: 'Wrong Item Received', icon: '🔄', digital: false },
+    { value: 'not_received', label: 'Item Not Received', icon: '❌📦', digital: true },
+    { value: 'quality_issue', label: 'Quality Issue', icon: '⚠️', digital: true },
+    { value: 'missing_parts', label: 'Missing Parts/Textures', icon: '🧩', digital: true },
+    { value: 'format_issue', label: 'Incompatible File Format', icon: '📄', digital: true },
+    { value: 'corrupted_file', label: 'Corrupted/Broken File', icon: '🚫', digital: true },
+    { value: 'copyright_issue', label: 'Copyright/License Issue', icon: '⚖️', digital: true },
+    { value: 'other', label: 'Other Issue', icon: '❓', digital: true },
 ];
 
 export default function MessagesPage() {
@@ -256,9 +258,17 @@ export default function MessagesPage() {
             setTrackingCodeInput('');
             loadMessages(activeChatId as string);
         } else {
-            alert('Failed to change status');
+            setFormError('Failed to update order status.');
         }
     };
+
+    const [formError, setFormError] = useState('');
+    useEffect(() => {
+        if (formError) {
+            const t = setTimeout(() => setFormError(''), 4000);
+            return () => clearTimeout(t);
+        }
+    }, [formError]);
 
     // --- DISPUTE SUBMIT ---
     const handleDisputeSubmit = async () => {
@@ -553,25 +563,29 @@ export default function MessagesPage() {
         const status = (orderItem.status || 'pending').toLowerCase();
         const isSeller = String(currentUser.id) === String(chatData?.seller_id);
         const isBuyer = String(currentUser.id) === String(chatData?.buyer_id);
-        const trackingCode = orderItem.tracking_code || '';
-        const dhlUrl = `https://www.dhl.com/pl-pl/home/tracking/tracking-parcel.html?submit=1&tracking-id=${trackingCode}`;
+        const isDigital = chatData?.offers?.category === 'digital';
 
-        // PENDING → seller sees ship button (no tracking input - admin adds tracking code)
+        // PENDING → seller
         if (status === 'pending' && isSeller) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-white border-2 border-dashed border-blue-200 rounded-2xl p-5 text-center shadow-sm">
                             <div className="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                                <Truck size={18} className="text-blue-600" />
+                                {isDigital ? <Mail size={18} className="text-blue-600" /> : <Truck size={18} className="text-blue-600" />}
                             </div>
-                            <p className="text-sm font-bold text-gray-800 mb-1">Ready to ship?</p>
-                            <p className="text-xs text-gray-500 font-medium mb-4">Pack the order and click below when you've handed it to the courier. You have 4 days before the order is cancelled.</p>
+                            <p className="text-sm font-bold text-gray-800 mb-1">{isDigital ? 'Ready to deliver?' : 'Ready to ship?'}</p>
+                            <p className="text-xs text-gray-500 font-medium mb-4">
+                                {isDigital 
+                                    ? "Once you've sent the files to the buyer's email, mark it as delivered below." 
+                                    : "Pack the order and click below when you've handed it to the courier."}
+                            </p>
                             <button
-                                onClick={() => handleStatusUpdate('shipped')}
+                                onClick={() => handleStatusUpdate(isDigital ? 'shipped' : 'shipped')}
                                 className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
                             >
-                                <Truck size={14} className="inline mr-2 -mt-0.5" /> Mark as Sent
+                                {isDigital ? <Check size={14} className="inline mr-2 -mt-0.5" /> : <Truck size={14} className="inline mr-2 -mt-0.5" />}
+                                {isDigital ? 'Mark as Sent to Email' : 'Mark as Sent'}
                             </button>
                         </div>
                     </div>
@@ -579,56 +593,73 @@ export default function MessagesPage() {
             );
         }
 
-        // PENDING → buyer sees waiting info
+        // PENDING → buyer
         if (status === 'pending' && isBuyer) {
             return (
                 <div className="flex justify-center my-4 px-4 w-full">
                     <div className="w-full max-w-md bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-center">
-                        <p className="text-xs font-bold text-amber-700">⏳ Waiting for the seller to ship the package...</p>
-                        <p className="text-[10px] text-amber-500 mt-1">The seller has 4 days to send the order before it gets cancelled.</p>
+                        <p className="text-xs font-bold text-amber-700">
+                            {isDigital ? '⏳ Waiting for the seller to send files to your email...' : '⏳ Waiting for the seller to ship the package...'}
+                        </p>
                     </div>
                 </div>
             );
         }
 
-        // SHIPPED → buyer sees confirm delivery button + DHL link
+        // SHIPPED/SENT → buyer
         if (status === 'shipped' && isBuyer) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-200 rounded-2xl p-5 text-center shadow-sm">
                             <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
-                                <PackageCheck size={18} className="text-emerald-600" />
+                                {isDigital ? <Mail size={18} className="text-emerald-600" /> : <PackageCheck size={18} className="text-emerald-600" />}
                             </div>
-                            <p className="text-sm font-bold text-gray-800 mb-1">Package on its way!</p>
-                            <p className="text-xs text-gray-500 font-medium mb-4">Have you received the package? Confirm delivery below.</p>
-                            <button
-                                onClick={() => handleStatusUpdate('delivered')}
-                                className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
-                            >
-                                <PackageCheck size={14} className="inline mr-2 -mt-0.5" /> I Received It
-                            </button>
+                            <p className="text-sm font-bold text-gray-800 mb-1">{isDigital ? 'Files delivered!' : 'Package on its way!'}</p>
+                            <p className="text-xs text-gray-500 font-medium mb-4">
+                                {isDigital 
+                                    ? "The seller reported that files were sent to your email. Do you accept the delivery or is there a problem?" 
+                                    : "Have you received the package? Confirm delivery below."}
+                            </p>
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    onClick={() => handleStatusUpdate('completed')}
+                                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+                                >
+                                    <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" /> {isDigital ? 'Accept Files' : 'I Received It'}
+                                </button>
+                                {isDigital && (
+                                    <button
+                                        onClick={() => handleStatusUpdate('disputed')}
+                                        className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20"
+                                    >
+                                        <AlertTriangle size={14} className="inline mr-2 -mt-0.5" /> Problem
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             );
         }
 
-        // SHIPPED → seller sees waiting info + DHL link
+        // SHIPPED/SENT → seller
         if (status === 'shipped' && isSeller) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
-                            <p className="text-xs font-bold text-blue-700">📦 Package sent! Waiting for the buyer to confirm delivery...</p>
+                            <p className="text-xs font-bold text-blue-700">
+                                {isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
+                            </p>
                         </div>
                     </div>
                 </div>
             );
         }
 
-        // DELIVERED → buyer sees All Good / Problem buttons
-        if (status === 'delivered' && isBuyer) {
+        // DELIVERED (Physical only) → buyer
+        if (status === 'delivered' && isBuyer && !isDigital) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
@@ -658,8 +689,8 @@ export default function MessagesPage() {
             );
         }
 
-        // DELIVERED → seller sees waiting info
-        if (status === 'delivered' && isSeller) {
+        // DELIVERED → seller
+        if (status === 'delivered' && isSeller && !isDigital) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
@@ -671,7 +702,7 @@ export default function MessagesPage() {
             );
         }
 
-        // COMPLETED / DISPUTED → final state
+        // COMPLETED / DISPUTED
         if (status === 'completed' || status === 'disputed') {
             return (
                 <div className="flex flex-col gap-2 my-4">
@@ -830,7 +861,7 @@ export default function MessagesPage() {
                                             <div>
                                                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-2 tracking-wider">Type of Problem</label>
                                                 <div className="grid grid-cols-2 gap-2">
-                                                    {PROBLEM_TYPES.map(pt => (
+                                                    {PROBLEM_TYPES.filter(pt => activeChatData?.offers?.category === 'digital' ? pt.digital : !pt.digital || pt.value === 'other').map(pt => (
                                                         <button
                                                             key={pt.value}
                                                             onClick={() => setDisputeProblemType(pt.value)}
@@ -1032,8 +1063,8 @@ export default function MessagesPage() {
                             {/* Input Area */}
                             <div className="p-4 bg-white border-t border-gray-100 shrink-0">
                                 <form onSubmit={handleSendMessage} className="flex items-end gap-2 max-w-4xl mx-auto">
-                                    {/* DHL TRACKING SHORTCUT (shown if order exists) */}
-                                    {activeChatData?.orderItem && (
+                                    {/* DHL TRACKING SHORTCUT (shown if order exists and NOT digital) */}
+                                    {activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (
                                         <div className="pb-1.5 shrink-0">
                                             {activeChatData.orderItem.tracking_code ? (
                                                 <a

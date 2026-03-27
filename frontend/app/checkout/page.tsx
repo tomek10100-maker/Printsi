@@ -263,7 +263,7 @@ export default function CheckoutPage() {
           shippingCostEur: shippingEur || 0,
           shippingLabel: (shippingEur ?? 0) > 0 
             ? `DHL to ${selectedDhlCountry?.name} (${selectedDhlCountry?.deliveryDays} business days)`
-            : 'Digital Delivery (Instant Downlad)',
+            : 'Digital Delivery (Sent to your Email)',
           shipping: (shippingEur ?? 0) > 0 ? {
             name: formData.fullName,
             address: {
@@ -408,7 +408,7 @@ export default function CheckoutPage() {
               {shippingPln === 0 && (
                 <div className="flex justify-between text-sm font-bold mb-3">
                   <span className="flex items-center gap-1 text-green-600">
-                    <ShieldCheck size={14} /> Digital Delivery
+                    <ShieldCheck size={14} /> Digital Delivery (Sent via Email)
                   </span>
                   <span className="text-green-600 uppercase text-[10px] font-black">Free</span>
                 </div>
