@@ -31,6 +31,7 @@ export default function CheckoutPage() {
   const [user, setUser] = useState<any>(null);
   const [fetchingProfile, setFetchingProfile] = useState(true);
   const [offerWeights, setOfferWeights] = useState<Record<string, number>>({}); // offerId -> grams
+  const [offerCategories, setOfferCategories] = useState<Record<string, string>>({}); // offerId -> category
   const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({}); // sellerId -> countryCode
 
   const [formData, setFormData] = useState({
@@ -54,9 +55,14 @@ export default function CheckoutPage() {
     const breakdown: { sellerId: string; fromCode: string; toCode: string; weightGrams: number; costPln: number | null }[] = [];
 
     Object.entries(sellerGroups).forEach(([sellerId, sellerItems]) => {
+      // Filter out digital items from shipping calculation
+      const shippableItems = sellerItems.filter(item => offerCategories[item.id] !== 'digital');
+      
+      if (shippableItems.length === 0) return; // No shippable items for this seller
+
       const fromCode = sellerCountries[sellerId] || 'PL'; // fallback to PL
       const toCode = formData.country;
-      const weightGrams = sellerItems.reduce((total, item) => {
+      const weightGrams = shippableItems.reduce((total, item) => {
         return total + ((offerWeights[item.id] ?? 500) * item.quantity);
       }, 0);
       const costPln = calculateShippingPln(fromCode, toCode, weightGrams);
@@ -64,17 +70,21 @@ export default function CheckoutPage() {
     });
 
     return breakdown;
-  }, [items, sellerCountries, formData.country, offerWeights]);
+  }, [items, sellerCountries, formData.country, offerWeights, offerCategories]);
 
   const totalWeightGrams = useMemo(() =>
     items.reduce((total, item) => total + ((offerWeights[item.id] ?? 500) * item.quantity), 0)
     , [items, offerWeights]);
 
   const shippingPln = useMemo(() => {
+    // If no shippable items at all, shipping is 0
+    const hasShippable = items.some(item => offerCategories[item.id] !== 'digital');
+    if (!hasShippable) return 0;
+
     const allValid = shippingBreakdown.every(s => s.costPln !== null);
     if (!allValid || shippingBreakdown.length === 0) return null;
     return shippingBreakdown.reduce((sum, s) => sum + (s.costPln ?? 0), 0);
-  }, [shippingBreakdown]);
+  }, [shippingBreakdown, items, offerCategories]);
 
   const shippingEur = useMemo(() => {
     if (shippingPln === null) return null;
@@ -127,15 +137,18 @@ export default function CheckoutPage() {
         const offerIds = items.map(i => i.id);
         const { data: offers } = await supabase
           .from('offers')
-          .select('id, weight')
+          .select('id, weight, category')
           .in('id', offerIds);
 
         if (offers) {
           const weightMap: Record<string, number> = {};
+          const catMap: Record<string, string> = {};
           offers.forEach(offer => {
             weightMap[offer.id] = parseWeightToGrams(offer.weight);
+            catMap[offer.id] = offer.category;
           });
           setOfferWeights(weightMap);
+          setOfferCategories(catMap);
         }
 
         // Fetch each seller's ship-from country
@@ -247,9 +260,11 @@ export default function CheckoutPage() {
           email: formData.email,
           selectedCurrency: currency,
           exchangeRate: currentRate,
-          shippingCostEur: shippingEur,
-          shippingLabel: `DHL to ${selectedDhlCountry?.name} (${selectedDhlCountry?.deliveryDays} business days)`,
-          shipping: {
+          shippingCostEur: shippingEur || 0,
+          shippingLabel: (shippingEur ?? 0) > 0 
+            ? `DHL to ${selectedDhlCountry?.name} (${selectedDhlCountry?.deliveryDays} business days)`
+            : 'Digital Delivery (Instant Downlad)',
+          shipping: (shippingEur ?? 0) > 0 ? {
             name: formData.fullName,
             address: {
               line1: formData.address,
@@ -257,7 +272,7 @@ export default function CheckoutPage() {
               postal_code: formData.zip,
               country: formData.country,
             }
-          }
+          } : undefined
         }),
       });
 
@@ -296,7 +311,8 @@ export default function CheckoutPage() {
           <div className="flex-1 space-y-6">
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
               <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
-                <MapPin className="text-blue-600" /> Shipping Details
+                {shippingPln === 0 ? <ShieldCheck className="text-green-600" /> : <MapPin className="text-blue-600" />}
+                {shippingPln === 0 ? 'Order Details' : 'Shipping Details'}
               </h2>
 
               {fetchingProfile ? (
@@ -312,29 +328,31 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* DHL Country Selector */}
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">
-                      Destination Country (DHL Supported)
-                    </label>
-                    <select
-                      name="country"
-                      value={formData.country}
-                      onChange={handleInputChange}
-                      className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
-                    >
-                      {DHL_COUNTRIES.map(c => (
-                        <option key={c.code} value={c.code}>
-                          {c.name} ({c.deliveryDays} business days)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {shippingPln !== 0 && (
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">
+                        Destination Country (DHL Supported)
+                      </label>
+                      <select
+                        name="country"
+                        value={formData.country}
+                        onChange={handleInputChange}
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
+                      >
+                        {DHL_COUNTRIES.map(c => (
+                          <option key={c.code} value={c.code}>
+                            {c.name} ({c.deliveryDays} business days)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </form>
               )}
             </div>
 
             {/* DHL INFO CARD */}
-            {selectedDhlCountry && (
+            {selectedDhlCountry && shippingPln !== 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 flex gap-3">
                 <Truck className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
                 <div>
@@ -375,25 +393,37 @@ export default function CheckoutPage() {
               </div>
 
               {/* Shipping */}
-              <div className="flex justify-between text-sm font-bold mb-3">
-                <span className="flex items-center gap-1 text-gray-600">
-                  <Truck size={14} /> DHL Shipping
-                </span>
-                {shippingEur !== null ? (
-                  <span className="text-blue-600">{formatPrice(shippingEur)}</span>
-                ) : (
-                  <span className="text-red-500 text-xs">Not available</span>
-                )}
-              </div>
+              {shippingPln !== 0 && (
+                <div className="flex justify-between text-sm font-bold mb-3">
+                  <span className="flex items-center gap-1 text-gray-600">
+                    <Truck size={14} /> DHL Shipping
+                  </span>
+                  {shippingEur !== null ? (
+                    <span className="text-blue-600">{formatPrice(shippingEur)}</span>
+                  ) : (
+                    <span className="text-red-500 text-xs">Not available</span>
+                  )}
+                </div>
+              )}
+              {shippingPln === 0 && (
+                <div className="flex justify-between text-sm font-bold mb-3">
+                  <span className="flex items-center gap-1 text-green-600">
+                    <ShieldCheck size={14} /> Digital Delivery
+                  </span>
+                  <span className="text-green-600 uppercase text-[10px] font-black">Free</span>
+                </div>
+              )}
 
               {/* Total shipping weight */}
-              <div className="bg-gray-50 rounded-xl p-3 mb-4 text-xs text-gray-500 font-medium flex items-center gap-2">
-                <Package size={14} />
-                Total weight: <strong className="text-gray-900">{(totalWeightGrams / 1000).toFixed(2)} kg</strong>
-                {shippingPln !== null && (
-                  <span className="ml-auto text-gray-400">{shippingPln.toFixed(2)} PLN</span>
-                )}
-              </div>
+              {shippingPln !== 0 && (
+                <div className="bg-gray-50 rounded-xl p-3 mb-4 text-xs text-gray-500 font-medium flex items-center gap-2">
+                  <Package size={14} />
+                  Total weight: <strong className="text-gray-900">{(totalWeightGrams / 1000).toFixed(2)} kg</strong>
+                  {shippingPln !== null && (
+                    <span className="ml-auto text-gray-400">{shippingPln.toFixed(2)} PLN</span>
+                  )}
+                </div>
+              )}
 
               <div className="h-px bg-gray-100 my-3" />
 

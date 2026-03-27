@@ -46,6 +46,14 @@ export default function OnboardingPage() {
 
     // Step 2: Roles
     const [roles, setRoles] = useState<string[]>([]);
+    const [roleError, setRoleError] = useState('');
+
+    useEffect(() => {
+        if (roleError) {
+            const timer = setTimeout(() => setRoleError(''), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [roleError]);
 
     // Step 3: Localization
     const [country, setCountry] = useState('PL'); // Default
@@ -90,20 +98,29 @@ export default function OnboardingPage() {
         if (group1.includes(role)) {
             if (newRoles.includes(role)) {
                 const othersInGroup1 = newRoles.filter(r => group1.includes(r) && r !== role);
-                if (othersInGroup1.length > 0) newRoles = newRoles.filter(r => r !== role);
+                if (othersInGroup1.length > 0) {
+                    newRoles = newRoles.filter(r => r !== role);
+                } else {
+                    setRoleError('At least one marketplace role must be selected.');
+                    return;
+                }
             } else {
                 newRoles.push(role);
             }
         } else if (group2.includes(role)) {
             if (newRoles.includes(role)) {
-                const othersInGroup2 = newRoles.filter(r => group2.includes(r) && r !== role);
-                if (othersInGroup2.length > 0) newRoles = newRoles.filter(r => r !== role);
+                // Próba odznaczenia jedynego aktywnego typu konta
+                setRoleError('At least one account type must be selected.');
+                return;
             } else {
+                // Switch account type (max 1)
+                newRoles = newRoles.filter(r => !group2.includes(r));
                 newRoles.push(role);
             }
         }
 
         setRoles(newRoles);
+        setRoleError('');
     };
 
     const handleComplete = async () => {
@@ -218,6 +235,11 @@ export default function OnboardingPage() {
                             <p className="text-gray-500 mb-6 font-medium">This helps us tailor the marketplace to your needs.</p>
 
                             <div className="space-y-6">
+                                {roleError && (
+                                    <div className="bg-red-50 text-red-600 p-4 rounded-2xl border border-red-100 font-black text-xs uppercase tracking-widest animate-in fade-in slide-in-from-top-2 duration-300">
+                                        ⚠️ {roleError}
+                                    </div>
+                                )}
                                 {/* MULTI-SELECT ZONE */}
                                 <div>
                                     <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 italic">What do you want to do? (Select at least one)</h3>
@@ -230,7 +252,7 @@ export default function OnboardingPage() {
 
                                 {/* SINGLE-SELECT ZONE */}
                                 <div className="pt-6 border-t border-gray-100">
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 italic">Account Type (Select at least one)</h3>
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 italic">Account Type (Choose one)</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
                                         <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />

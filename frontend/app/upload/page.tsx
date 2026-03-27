@@ -144,6 +144,16 @@ export default function AddOfferPage() {
   const [manualStock, setManualStock] = useState('1');
   const [manualVariants, setManualVariants] = useState<ManualVariant[]>([defaultManualVariant()]);
 
+  const [formError, setFormError] = useState('');
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  useEffect(() => {
+    if (formError) {
+      const timer = setTimeout(() => setFormError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [formError]);
+
   // Auto mode
   const [myFilaments, setMyFilaments] = useState<Filament[]>([]);
   const [variants, setVariants] = useState<ColorVariant[]>([defaultVariant()]);
@@ -197,8 +207,12 @@ export default function AddOfferPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      if (newFiles.length + previewImages.length > 6) { alert('Max 6 photos.'); return; }
+      if (newFiles.length + previewImages.length > 6) {
+        setFormError('Max 6 photos allowed.');
+        return;
+      }
       setPreviewImages(prev => [...prev, ...newFiles]);
+      setFormError('');
     }
   };
   const removeImage = (i: number) => setPreviewImages(prev => prev.filter((_, idx) => idx !== i));
@@ -255,34 +269,54 @@ export default function AddOfferPage() {
     defaultManualVariant(),
   ]);
 
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setDimensions('');
+    setProjectFile(null);
+    setPreviewImages([]);
+    setManualMaterial('');
+    setManualColor('');
+    setManualColorHex('#888888');
+    setManualWeight('');
+    setManualPriceLocal('');
+    setManualStock('1');
+    setManualVariants([defaultManualVariant()]);
+    setVariants([defaultVariant()]);
+    setSubmitSuccess(false);
+    setFormError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const removeManualVariant = (id: string) =>
     setManualVariants(prev => prev.length > 1 ? prev.filter(v => v.id !== id) : prev);
 
   // ─── SUBMIT ──────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title) { alert('Title is required.'); return; }
-    if (category !== 'job' && previewImages.length === 0) { alert('Please upload at least 1 photo.'); return; }
-    if ((category === 'digital' || category === 'job') && !projectFile) { alert('3D File is required.'); return; }
+    setFormError('');
+    if (!title) { setFormError('Title is required.'); return; }
+    if (category !== 'job' && previewImages.length === 0) { setFormError('Please upload at least 1 photo.'); return; }
+    if ((category === 'digital' || category === 'job') && !projectFile) { setFormError('3D File is required.'); return; }
     if (!user?.id) return;
 
     if (category === 'physical') {
-      if (!dimensions.trim()) { alert('Dimensions are required.'); return; }
+      if (!dimensions.trim()) { setFormError('Dimensions are required.'); return; }
       if (pricingMode === 'auto') {
         for (const v of variants) {
-          if (!computeVariantEUR(v)) { alert('Complete all filament & weight fields in every variant.'); return; }
+          if (!computeVariantEUR(v)) { setFormError('Complete all filament & weight fields in every variant.'); return; }
         }
       } else {
         // Manual variants validation
         for (const v of manualVariants) {
-          if (!v.priceLocal || parseFloat(v.priceLocal) <= 0) { alert('Each variant must have a valid price.'); return; }
+          if (!v.priceLocal || parseFloat(v.priceLocal) <= 0) { setFormError('Each variant must have a valid price.'); return; }
           for (const l of v.layers) {
-            if (!l.colorName || !l.colorHex) { alert('Complete all color fields in every layer.'); return; }
+            if (!l.colorHex) { setFormError('Complete all color fields in every layer.'); return; }
           }
         }
       }
     } else {
-      if (!manualPriceLocal) { alert('Price is required.'); return; }
+      if (!manualPriceLocal) { setFormError('Price is required.'); return; }
     }
 
     setLoading(true);
@@ -400,7 +434,7 @@ export default function AddOfferPage() {
         dbColor = manualColorHex || null;
         dbColorName = manualColor || null;
         dbWeight = manualWeight || null;
-        dbStock = parseInt(manualStock) || 1;
+        dbStock = category === 'digital' ? 999999 : (parseInt(manualStock) || 1);
       }
 
       // Try insert with color_variants, fall back without if column missing
@@ -426,10 +460,10 @@ export default function AddOfferPage() {
         throw dbErr;
       }
 
-      alert('Success! Your listing has been published.');
-      router.push('/gallery');
+      setSubmitSuccess(true);
+      // Removed automatic redirect to let user choose
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      setFormError(`Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -569,30 +603,22 @@ export default function AddOfferPage() {
               {!isPhysicalAuto && (
                 <div className="space-y-4">
                   {category === 'physical' ? (
-                    /* Dimensions handled above, variants below */
                     <p className="text-xs text-blue-500 font-bold bg-blue-50 p-3 rounded-xl border border-blue-100">
                       Configure your manual variants in the section below.
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      <div className="relative">
-                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs pointer-events-none">QTY</span>
-                        <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} required
-                          className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
-                      </div>
-                      <div className={`grid gap-3 grid-cols-1 md:grid-cols-2`}>
-                        {category === 'job' && (
-                          <input type="text" placeholder="Material (optional)" value={manualMaterial} onChange={e => setManualMaterial(e.target.value)}
-                            className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
-                        )}
-                        <input type="text" placeholder="Color Name (optional)" value={manualColor}
-                          onChange={e => {
-                            setManualColor(e.target.value);
-                            const lower = e.target.value.toLowerCase().trim();
-                            if (BASIC_COLORS[lower]) setManualColorHex(BASIC_COLORS[lower]);
-                          }}
-                          className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-w-0" />
-                      </div>
+                      {category !== 'digital' && (
+                        <div className="relative">
+                          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs pointer-events-none">QTY</span>
+                          <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} required
+                            className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
+                        </div>
+                      )}
+                      {category === 'job' && (
+                        <input type="text" placeholder="Material (optional)" value={manualMaterial} onChange={e => setManualMaterial(e.target.value)}
+                          className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -982,16 +1008,7 @@ export default function AddOfferPage() {
                                         <X size={14} />
                                       </button>
                                     )}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      <div>
-                                        <SectionLabel step="" label="Color Name" />
-                                        <input type="text" value={layer.colorName} onChange={e => {
-                                          const val = e.target.value;
-                                          updateManualLayer(v.id, layer.id, { colorName: val });
-                                          const lower = val.toLowerCase().trim();
-                                          if (BASIC_COLORS[lower]) updateManualLayer(v.id, layer.id, { colorHex: BASIC_COLORS[lower] });
-                                        }} placeholder="e.g. Silk Gold" className="w-full p-2.5 mt-1 bg-gray-50 border border-gray-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500" />
-                                      </div>
+                                    <div className="grid grid-cols-1 gap-3">
                                       <div>
                                         <SectionLabel step="" label="HEX Color" />
                                         <div className="flex items-center gap-2 mt-1">
@@ -1100,10 +1117,41 @@ export default function AddOfferPage() {
               </section>
             )}
 
+            {formError && (
+              <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 font-bold text-xs uppercase tracking-widest animate-in fade-in slide-in-from-top-2 duration-300">
+                ⚠️ {formError}
+              </div>
+            )}
+
             <button disabled={loading}
               className="w-full py-5 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-600/20 flex justify-center items-center gap-3">
               {loading ? <Loader2 className="animate-spin" size={22} /> : 'Publish Listing'}
             </button>
+
+            {submitSuccess && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-md animate-in fade-in duration-500 p-6">
+                <div className="text-center p-12 bg-[#111111] rounded-[40px] shadow-2xl flex flex-col items-center gap-6 transform animate-in zoom-in-95 duration-500 max-w-sm w-full mx-auto border border-white/5">
+                  <div className="w-20 h-20 bg-[#00d46a] text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/20">
+                    <Box size={40} strokeWidth={3} />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Published!</h2>
+                    <p className="text-gray-400 font-bold mt-3 text-xs italic">Your offer is now live in the gallery.</p>
+                  </div>
+                  
+                  <div className="flex flex-col gap-3 w-full mt-2">
+                    <button type="button" onClick={() => router.push('/gallery')}
+                      className="w-full py-4 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all shadow-xl">
+                      Go to Gallery
+                    </button>
+                    <button type="button" onClick={resetForm}
+                      className="px-6 py-4 bg-white border-2 border-gray-100 text-gray-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm">
+                      Add Another
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </form>
         </div>
       </div>

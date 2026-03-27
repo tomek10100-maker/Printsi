@@ -46,6 +46,15 @@ export default function SettingsPage() {
   const [bio, setBio] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [newPassword, setNewPassword] = useState('');
+  const [roleError, setRoleError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (roleError) {
+      const timer = setTimeout(() => setRoleError(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [roleError]);
 
   useEffect(() => {
     const getData = async () => {
@@ -74,6 +83,7 @@ export default function SettingsPage() {
 
   const handleSaveProfile = async () => {
     setSaving(true);
+    setRoleError('');
     try {
       const updates = {
         id: user.id,
@@ -85,19 +95,27 @@ export default function SettingsPage() {
 
       const { error } = await supabase.from('profiles').upsert(updates);
       if (error) throw error;
-      alert('Profile updated successfully!');
+      
+      setSaveSuccess(true);
+      setTimeout(() => {
+        router.push('/profile');
+      }, 2000);
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      setRoleError('Error: ' + error.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleUpdatePassword = async () => {
-    if (!newPassword) return alert("Enter a new password");
+    if (!newPassword) return setRoleError("Please enter a new password");
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) alert(error.message);
-    else alert("Password updated successfully!");
+    if (error) setRoleError(error.message);
+    else {
+      setSaveSuccess(true);
+      setNewPassword('');
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }
   };
 
   const toggleRole = (role: string) => {
@@ -107,27 +125,30 @@ export default function SettingsPage() {
 
     if (group1.includes(role)) {
       if (newRoles.includes(role)) {
-        // Try to remove - only if there's at least one other role from group1 left
         const othersInGroup1 = newRoles.filter(r => group1.includes(r) && r !== role);
         if (othersInGroup1.length > 0) {
           newRoles = newRoles.filter(r => r !== role);
+        } else {
+          setRoleError('At least one marketplace role must be selected.');
+          return;
         }
       } else {
         newRoles.push(role);
       }
     } else if (group2.includes(role)) {
       if (newRoles.includes(role)) {
-        // Try to remove - only if there's at least one other role from group2 left
-        const othersInGroup2 = newRoles.filter(r => group2.includes(r) && r !== role);
-        if (othersInGroup2.length > 0) {
-          newRoles = newRoles.filter(r => r !== role);
-        }
+        // Trying to deselect the only active account type
+        setRoleError('At least one account type must be selected.');
+        return;
       } else {
+        // Switch account type (max 1)
+        newRoles = newRoles.filter(r => !group2.includes(r));
         newRoles.push(role);
       }
     }
 
     setRoles(newRoles);
+    setRoleError('');
   };
 
   const handleCurrencyChange = async (newCode: string) => {
@@ -228,7 +249,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <ActionButtons onSave={handleSaveProfile} saving={saving} />
+            <ActionButtons onSave={handleSaveProfile} saving={saving} saveSuccess={saveSuccess} />
           </div>
         )}
 
@@ -241,6 +262,11 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-8">
+              {roleError && (
+                <div className="bg-red-50 text-red-600 p-4 rounded-2xl border border-red-100 font-black text-xs uppercase tracking-widest animate-in fade-in slide-in-from-top-2 duration-300">
+                  ⚠️ {roleError}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-4 italic">What do you want to do? (Select at least one)</label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -251,7 +277,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="pt-4">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-4 italic">Account Type (Select at least one)</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-4 italic">Account Type (Choose one)</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
                   <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />
@@ -262,12 +288,12 @@ export default function SettingsPage() {
             <div className="bg-red-50 p-8 rounded-3xl border border-red-100 space-y-4 mt-8">
               <h3 className="font-black text-red-800 flex items-center gap-2 uppercase text-sm tracking-widest"><Trash2 size={18} /> Danger Zone</h3>
               <p className="text-red-600/80 text-sm font-medium">Once you delete your account, there is no going back. Please be certain.</p>
-              <button onClick={() => alert("Contact support.")} className="px-6 py-3 bg-white border border-red-200 text-red-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm">
+              <button onClick={() => setRoleError("Support contact is being updated. Please try again later.")} className="px-6 py-3 bg-white border border-red-200 text-red-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm">
                 Delete Account
               </button>
             </div>
 
-            <ActionButtons onSave={handleSaveProfile} saving={saving} />
+            <ActionButtons onSave={handleSaveProfile} saving={saving} saveSuccess={saveSuccess} />
           </div>
         )}
 
@@ -309,7 +335,10 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <ActionButtons onSave={() => alert(`Currency changed to ${currency} and saved!`)} saving={false} />
+            <ActionButtons onSave={() => {
+              setSaveSuccess(true);
+              setTimeout(() => setSaveSuccess(false), 2000);
+            }} saving={false} saveSuccess={saveSuccess} />
           </div>
         )}
 
@@ -350,10 +379,23 @@ function RoleCard({ title, desc, active, onClick }: any) {
   );
 }
 
-function ActionButtons({ onSave, saving }: any) {
+function ActionButtons({ onSave, saving, saveSuccess }: any) {
   return (
     <div className="fixed bottom-8 left-0 md:left-80 right-0 px-8 flex justify-end z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-10 duration-500">
-      <div className="max-w-3xl w-full mx-auto flex justify-end">
+        <div className="max-w-3xl w-full mx-auto flex justify-end">
+        {saveSuccess && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-md animate-in fade-in duration-500 p-6">
+            <div className="text-center p-12 bg-[#111111] rounded-[40px] shadow-2xl flex flex-col items-center gap-6 transform animate-in zoom-in-95 duration-500 max-w-sm w-full mx-auto border border-white/5">
+              <div className="w-20 h-20 bg-[#00d46a] text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/20 animate-bounce">
+                <Check size={40} strokeWidth={3} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Success!</h2>
+                <p className="text-gray-400 font-bold mt-3 text-xs italic">Settings updated successfully.</p>
+              </div>
+            </div>
+          </div>
+        )}
         <button
           onClick={onSave}
           disabled={saving}
