@@ -226,3 +226,64 @@ export async function sendWelcomeEmail(email: string, name: string) {
     console.error('❌ Failed to send welcome email:', err);
   }
 }
+
+/**
+ * Send "tracking code added" email to BOTH buyer and seller.
+ */
+export async function sendTrackingAddedEmails(
+  buyerId: string,
+  sellerId: string,
+  productTitle: string,
+  trackingCode: string,
+  orderShippingEmail?: string,
+  orderShippingName?: string
+) {
+  try {
+    // Email to buyer
+    const buyerEmail = orderShippingEmail || (await getUserEmailInfo(buyerId))?.email;
+    const buyerName = orderShippingName || (await getUserEmailInfo(buyerId))?.name || 'Customer';
+    if (buyerEmail) {
+      await sendEmail({
+        to: buyerEmail,
+        subject: `📦 Tracking number added: ${productTitle}`,
+        html: EmailTemplates.trackingAddedBuyer(buyerName, productTitle, trackingCode),
+      });
+    }
+
+    // Email to seller
+    const seller = await getUserEmailInfo(sellerId);
+    if (seller?.email) {
+      await sendEmail({
+        to: seller.email,
+        subject: `📦 Tracking assigned to your order: ${productTitle}`,
+        html: EmailTemplates.trackingAddedSeller(seller.name, productTitle, trackingCode),
+      });
+    }
+  } catch (err) {
+    console.error('❌ Failed to send tracking added emails:', err);
+  }
+}
+
+/**
+ * Send "low filament warning" email to seller.
+ * Only sends when stock_grams <= 75g.
+ */
+export async function sendLowFilamentWarning(
+  sellerId: string,
+  filamentName: string,
+  remainingGrams: number
+) {
+  try {
+    if (remainingGrams > 75) return; // Only trigger at 75g or below
+    const seller = await getUserEmailInfo(sellerId);
+    if (!seller?.email) return;
+
+    await sendEmail({
+      to: seller.email,
+      subject: `🧵 Low filament warning: ${filamentName} (${remainingGrams}g left)`,
+      html: EmailTemplates.lowFilamentWarning(seller.name, filamentName, remainingGrams),
+    });
+  } catch (err) {
+    console.error('❌ Failed to send low filament warning:', err);
+  }
+}

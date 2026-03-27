@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendDigitalFileEmail } from './sendDigitalFileEmail';
 import { sendEmail, EmailTemplates } from './emailService';
-import { sendOutOfStockEmail } from './sendNotificationEmail';
+import { sendOutOfStockEmail, sendLowFilamentWarning } from './sendNotificationEmail';
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -348,6 +349,24 @@ export async function processOrder(orderId: string, userId: string) {
       // Recalculate stock for ALL offers by this seller using same filaments → updates marketplace instantly
       if (affectedFilamentIds.length > 0) {
         await recalculateOffersStockForFilaments(sellerId, affectedFilamentIds);
+
+        // Check if any affected filament dropped to 75g or below → send low filament warning
+        try {
+          const { data: lowFilaments } = await supabase
+            .from('filaments')
+            .select('id, name, stock_grams, color')
+            .in('id', affectedFilamentIds)
+            .lte('stock_grams', 75);
+
+          if (lowFilaments && lowFilaments.length > 0) {
+            for (const fil of lowFilaments) {
+              const displayName = fil.name || fil.color || 'Unknown Filament';
+              await sendLowFilamentWarning(sellerId, displayName, fil.stock_grams ?? 0);
+            }
+          }
+        } catch (lowFilErr) {
+          console.error('⚠️ Low filament check failed (non-fatal):', lowFilErr);
+        }
       }
     } else {
       console.warn(`⚠️ No filament layers found for offer ${item.offer_id} (variant: ${item.variant_name || 'none'}) - skipping filament deduction`);
@@ -410,7 +429,11 @@ export async function processOrder(orderId: string, userId: string) {
   }
 
   // 10. Send Sale Notification Emails to Sellers
+  // De-duplicate: custom offers + their parent might both be in order, send only once per seller
   const uniqueSellerIds = Array.from(new Set(orderItems.map(i => i.seller_id)));
+  // Track which offer IDs have already sent a sale email (to avoid double for custom+parent)
+  const emailedOfferIds = new Set<string>();
+
   for (const sId of uniqueSellerIds) {
     if (!sId) continue;
     try {
@@ -426,17 +449,34 @@ export async function processOrder(orderId: string, userId: string) {
         
         for (const item of sellerItems) {
           const off = offerMap[item.offer_id] || {};
+
+          // Skip if this is a custom offer and the parent was already emailed
+          // (prevents seller from getting 2 "you made a sale" emails for 1 transaction)
+          const emailKey = off.is_custom && off.parent_offer_id
+            ? `${sId}:${off.parent_offer_id}`
+            : `${sId}:${item.offer_id}`;
+          if (emailedOfferIds.has(emailKey)) {
+            console.log(`⏭️ Skipping duplicate sale email for ${emailKey}`);
+            continue;
+          }
+          emailedOfferIds.add(emailKey);
+
           const sellerCurrency = await getSellerCurrency(sId);
           const earnedEur = item.price_at_purchase * item.quantity;
           const formattedAmount = await convertFromEur(earnedEur, sellerCurrency);
 
+          // Use parent offer title when it's a custom/negotiated offer
+          const displayTitle = (off.is_custom && off.parent_offer_id && offerMap[off.parent_offer_id]?.title)
+            ? offerMap[off.parent_offer_id].title
+            : (off.title || 'Your Product');
+
           await sendEmail({
             to: sellerEmail,
-            subject: `🎉 New Sale on Printsi: ${off.title}`,
+            subject: `🎉 New Sale on Printsi: ${displayTitle}`,
             html: EmailTemplates.saleNotification(
               sellerName,
               buyerName,
-              off.title || 'Your Product',
+              displayTitle,
               formattedAmount
             )
           });

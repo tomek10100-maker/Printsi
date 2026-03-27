@@ -512,4 +512,102 @@ export const EmailTemplates = {
       body
     );
   },
+  // ────────────────────────────────────────
+  // 12. TRACKING NUMBER ADDED (buyer)
+  // ────────────────────────────────────────
+  trackingAddedBuyer: (buyerName: string, productTitle: string, trackingCode: string) => {
+    const dhlUrl = `https://www.dhl.com/pl-pl/home/tracking/tracking-parcel.html?submit=1&tracking-id=${trackingCode}`;
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Your package has a tracking number! 📦</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        We've assigned a DHL tracking number to your order: <strong>${productTitle}</strong>.
+      </p>
+
+      <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:16px;padding:28px;margin:24px 0;border:1px solid #fcd34d;text-align:center;">
+        <div style="font-size:40px;margin-bottom:8px;">🚚</div>
+        <div style="color:#92400e;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">DHL Tracking Number</div>
+        <div style="color:#d97706;font-size:28px;font-weight:900;font-family:monospace;letter-spacing:2px;">${trackingCode}</div>
+      </div>
+
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${dhlUrl}" style="display:inline-block;background-color:#ffcc00;color:#1a1a1a;text-decoration:none;font-size:16px;font-weight:900;padding:16px 32px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.15);">
+          🔍 Track on DHL
+        </a>
+      </div>
+
+      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;text-align:center;">
+        Tracking may take a few hours to become active on the DHL website after the package is handed to the courier.
+      </p>
+    `;
+    return emailWrapper(
+      'linear-gradient(135deg,#78350f 0%,#d97706 100%)',
+      '📦 Tracking Added!',
+      'Your Tracking Number is Ready',
+      body
+    );
+  },
+
+  // ────────────────────────────────────────
+  // 13. TRACKING NUMBER ADDED (seller)
+  // ────────────────────────────────────────
+  trackingAddedSeller: (sellerName: string, productTitle: string, trackingCode: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Tracking number assigned, ${sellerName}!</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        A DHL tracking number has been added to the order: <strong>${productTitle}</strong>. The buyer has been notified.
+      </p>
+
+      <div style="background:#f8fafc;border-radius:16px;padding:24px;margin:24px 0;border:1px solid #e2e8f0;text-align:center;">
+        <div style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Tracking Code</div>
+        <div style="color:#0f172a;font-size:24px;font-weight:900;font-family:monospace;letter-spacing:2px;">${trackingCode}</div>
+      </div>
+
+      <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
+        The buyer can now track the package through DHL directly from their chat. Once they confirm delivery, funds will be released to your balance.
+      </p>
+
+      ${ctaButton('View Chat', `${SITE_URL}/profile/messages`, '#2563eb')}
+    `;
+    return emailWrapper(
+      'linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%)',
+      '📦 Tracking Assigned',
+      'Tracking Number Added to Order',
+      body
+    );
+  },
+
+  // ────────────────────────────────────────
+  // 14. LOW FILAMENT WARNING (seller)
+  // ────────────────────────────────────────
+  lowFilamentWarning: (sellerName: string, filamentName: string, remainingGrams: number) => {
+    const urgency = remainingGrams <= 20 ? '🚨 CRITICAL' : remainingGrams <= 50 ? '⚠️ LOW' : '⚡ WARNING';
+    const urgencyColor = remainingGrams <= 20 ? '#dc2626' : remainingGrams <= 50 ? '#d97706' : '#f59e0b';
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Filament Running Low, ${sellerName}!</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        One of your filaments is running low. Restock soon to avoid orders failing!
+      </p>
+
+      <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:16px;padding:28px;margin:24px 0;border:1px solid #fca5a5;text-align:center;">
+        <div style="font-size:40px;margin-bottom:8px;">🧵</div>
+        <div style="color:#991b1b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${urgency}</div>
+        <div style="color:#1e293b;font-size:20px;font-weight:900;margin-bottom:8px;">${filamentName}</div>
+        <div style="display:inline-block;background:${urgencyColor};color:white;font-size:18px;font-weight:900;padding:8px 24px;border-radius:100px;">
+          ${remainingGrams}g remaining
+        </div>
+      </div>
+
+      <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
+        Products that depend on this filament may go out of stock automatically. Please restock your filament supply.
+      </p>
+
+      ${ctaButton('Manage Filaments', `${SITE_URL}/profile/filaments`, '#dc2626')}
+    `;
+    return emailWrapper(
+      'linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)',
+      '🧵 Low Filament!',
+      'Filament Running Low',
+      body
+    );
+  },
 };

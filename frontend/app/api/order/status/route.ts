@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendShippedEmail, sendDeliveredEmail, sendCompletedEmail, getUserEmailInfo } from '@/app/lib/sendNotificationEmail';
+import { sendShippedEmail, sendDeliveredEmail, sendCompletedEmail, getUserEmailInfo, sendTrackingAddedEmails } from '@/app/lib/sendNotificationEmail';
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -55,6 +56,50 @@ export async function POST(req: Request) {
 
 
     if (updateError) throw updateError;
+
+    // If tracking code was just added → send emails to both parties
+    if (trackingCode) {
+      try {
+        const { data: trackItem } = await supabase
+          .from('order_items')
+          .select('order_id, offer_id, seller_id')
+          .eq('id', itemId)
+          .single();
+
+        if (trackItem) {
+          const { data: trackOffer } = await supabase
+            .from('offers')
+            .select('title')
+            .eq('id', trackItem.offer_id)
+            .single();
+
+          const { data: trackChat } = await supabase
+            .from('chats')
+            .select('buyer_id')
+            .eq('id', chatId)
+            .single();
+
+          const { data: trackShipping } = await supabase
+            .from('order_shipping_details')
+            .select('email, full_name')
+            .eq('order_id', trackItem.order_id)
+            .maybeSingle();
+
+          if (trackChat?.buyer_id && trackItem.seller_id) {
+            await sendTrackingAddedEmails(
+              trackChat.buyer_id,
+              trackItem.seller_id,
+              trackOffer?.title || 'Your Order',
+              trackingCode,
+              trackShipping?.email,
+              trackShipping?.full_name
+            );
+          }
+        }
+      } catch (trackEmailErr) {
+        console.error('⚠️ Tracking email failed (non-fatal):', trackEmailErr);
+      }
+    }
 
     // Fetch order item info (order_id, offer_id, seller_id, price, quantity)
     const { data: orderItem } = await supabase
