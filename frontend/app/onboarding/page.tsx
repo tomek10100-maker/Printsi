@@ -84,11 +84,26 @@ export default function OnboardingPage() {
 
     const toggleRole = (role: string) => {
         let newRoles = [...roles];
-        if (role === 'business') newRoles = newRoles.filter(r => r !== 'hobbyist');
-        else if (role === 'hobbyist') newRoles = newRoles.filter(r => r !== 'business');
+        const group1 = ['customer', 'designer', 'printer'];
+        const group2 = ['hobbyist', 'business'];
 
-        if (newRoles.includes(role)) setRoles(newRoles.filter(r => r !== role));
-        else setRoles([...newRoles, role]);
+        if (group1.includes(role)) {
+            if (newRoles.includes(role)) {
+                const othersInGroup1 = newRoles.filter(r => group1.includes(r) && r !== role);
+                if (othersInGroup1.length > 0) newRoles = newRoles.filter(r => r !== role);
+            } else {
+                newRoles.push(role);
+            }
+        } else if (group2.includes(role)) {
+            if (newRoles.includes(role)) {
+                const othersInGroup2 = newRoles.filter(r => group2.includes(r) && r !== role);
+                if (othersInGroup2.length > 0) newRoles = newRoles.filter(r => r !== role);
+            } else {
+                newRoles.push(role);
+            }
+        }
+
+        setRoles(newRoles);
     };
 
     const handleComplete = async () => {
@@ -205,8 +220,8 @@ export default function OnboardingPage() {
                             <div className="space-y-6">
                                 {/* MULTI-SELECT ZONE */}
                                 <div>
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">What do you want to do? (Multiple choice)</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 italic">What do you want to do? (Select at least one)</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <RoleCard title="Customer" desc="I want to buy products." active={roles.includes('customer')} onClick={() => toggleRole('customer')} />
                                         <RoleCard title="CAD Designer" desc="I want to sell 3D models." active={roles.includes('designer')} onClick={() => toggleRole('designer')} />
                                         <RoleCard title="3D Printer" desc="I offer printing services." active={roles.includes('printer')} onClick={() => toggleRole('printer')} />
@@ -215,7 +230,7 @@ export default function OnboardingPage() {
 
                                 {/* SINGLE-SELECT ZONE */}
                                 <div className="pt-6 border-t border-gray-100">
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Account Type (Choose one)</h3>
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 italic">Account Type (Select at least one)</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
                                         <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />

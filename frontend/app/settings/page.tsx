@@ -102,18 +102,32 @@ export default function SettingsPage() {
 
   const toggleRole = (role: string) => {
     let newRoles = [...roles];
+    const group1 = ['customer', 'designer', 'printer'];
+    const group2 = ['hobbyist', 'business'];
 
-    if (role === 'business') {
-      newRoles = newRoles.filter(r => r !== 'hobbyist');
-    } else if (role === 'hobbyist') {
-      newRoles = newRoles.filter(r => r !== 'business');
+    if (group1.includes(role)) {
+      if (newRoles.includes(role)) {
+        // Try to remove - only if there's at least one other role from group1 left
+        const othersInGroup1 = newRoles.filter(r => group1.includes(r) && r !== role);
+        if (othersInGroup1.length > 0) {
+          newRoles = newRoles.filter(r => r !== role);
+        }
+      } else {
+        newRoles.push(role);
+      }
+    } else if (group2.includes(role)) {
+      if (newRoles.includes(role)) {
+        // Try to remove - only if there's at least one other role from group2 left
+        const othersInGroup2 = newRoles.filter(r => group2.includes(r) && r !== role);
+        if (othersInGroup2.length > 0) {
+          newRoles = newRoles.filter(r => r !== role);
+        }
+      } else {
+        newRoles.push(role);
+      }
     }
 
-    if (newRoles.includes(role)) {
-      setRoles(newRoles.filter(r => r !== role));
-    } else {
-      setRoles([...newRoles, role]);
-    }
+    setRoles(newRoles);
   };
 
   const handleCurrencyChange = async (newCode: string) => {
@@ -226,12 +240,23 @@ export default function SettingsPage() {
               <p className="text-gray-500 font-medium mt-2">Select how you want to interact with the marketplace.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <RoleCard title="Customer" desc="I want to buy products." active={roles.includes('customer')} onClick={() => toggleRole('customer')} />
-              <RoleCard title="CAD Designer" desc="I want to sell models." active={roles.includes('designer')} onClick={() => toggleRole('designer')} />
-              <RoleCard title="3D Printer" desc="I want to offer printing services." active={roles.includes('printer')} onClick={() => toggleRole('printer')} />
-              <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />
-              <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
+            <div className="space-y-8">
+              <div>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-4 italic">What do you want to do? (Select at least one)</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <RoleCard title="Customer" desc="I want to buy products." active={roles.includes('customer')} onClick={() => toggleRole('customer')} />
+                  <RoleCard title="CAD Designer" desc="I want to sell models." active={roles.includes('designer')} onClick={() => toggleRole('designer')} />
+                  <RoleCard title="3D Printer" desc="I want to offer printing services." active={roles.includes('printer')} onClick={() => toggleRole('printer')} />
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-4 italic">Account Type (Select at least one)</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
+                  <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />
+                </div>
+              </div>
             </div>
 
             <div className="bg-red-50 p-8 rounded-3xl border border-red-100 space-y-4 mt-8">
