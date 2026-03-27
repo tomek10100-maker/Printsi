@@ -305,10 +305,12 @@ export async function processOrder(orderId: string, userId: string) {
       console.error('❌ Seller notification threw:', notifErr);
     }
 
-    // 6. Decrement offer stock
-    await supabase.rpc('decrement_stock', { row_id: item.offer_id, quantity_amt: item.quantity });
-    if (isCustom && parentOfferId) {
-      await supabase.rpc('decrement_stock', { row_id: parentOfferId, quantity_amt: item.quantity });
+    // 6. Decrement offer stock (Physical items only)
+    if (offer.category !== 'digital') {
+      await supabase.rpc('decrement_stock', { row_id: item.offer_id, quantity_amt: item.quantity });
+      if (isCustom && parentOfferId) {
+        await supabase.rpc('decrement_stock', { row_id: parentOfferId, quantity_amt: item.quantity });
+      }
     }
 
     // Check if offer is now out of stock and notify seller
