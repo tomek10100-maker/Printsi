@@ -321,11 +321,15 @@ export default function CheckoutPage() {
                 <form id="checkout-form" onSubmit={handlePayment} className="space-y-4">
                   <input name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                   <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email Address" type="email" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                  <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Street Address" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                  <div className="grid grid-cols-2 gap-4">
-                    <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" required className="p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                    <input name="zip" value={formData.zip} onChange={handleInputChange} placeholder="ZIP Code" required className="p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                  </div>
+                  {shippingPln !== 0 && (
+                    <>
+                      <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Street Address" required={shippingPln !== 0} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                      <div className="grid grid-cols-2 gap-4">
+                        <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" required={shippingPln !== 0} className="p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                        <input name="zip" value={formData.zip} onChange={handleInputChange} placeholder="ZIP Code" required={shippingPln !== 0} className="p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                      </div>
+                    </>
+                  )}
 
                   {/* DHL Country Selector */}
                   {shippingPln !== 0 && (
