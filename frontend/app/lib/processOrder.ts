@@ -120,7 +120,6 @@ async function recalculateOffersStockForFilaments(sellerId: string, affectedFila
 
       if (variantUsesAffected) {
         usesAffectedFilament = true;
-        // Only override stock if it is auto-tracked or tracking is unspecified (backward compat)
         if (variant.stockTracking !== 'manual') {
           const newVarStock = Math.max(0, variantMaxPieces === Infinity ? 0 : variantMaxPieces);
           variant.stock = newVarStock;
@@ -129,21 +128,24 @@ async function recalculateOffersStockForFilaments(sellerId: string, affectedFila
           totalNewStock += (parseInt(variant.stock) || 0);
         }
       } else {
+        // This variant doesn't use affected filament – keep its stock as-is
         totalNewStock += (parseInt(variant.stock) || 0);
       }
     }
 
     if (usesAffectedFilament) {
+      // offer.stock = total across ALL variants (so marketplace shows correct total)
       const { error: updateErr } = await supabase
         .from('offers')
         .update({ stock: totalNewStock, color_variants: variants })
         .eq('id', offer.id);
 
       if (updateErr) console.error(`❌ Stock recalc failed for offer ${offer.id}:`, updateErr);
-      else console.log(`🔄 Offer ${offer.id} stock recalculated → ${totalNewStock}`);
+      else console.log(`🔄 Offer ${offer.id} stock recalculated → ${totalNewStock} (across all variants)`);
     }
   }
 }
+
 
 /**
  * Core order processing: creates chats, sends messages, notifications, decrements stock.
@@ -152,11 +154,12 @@ async function recalculateOffersStockForFilaments(sellerId: string, affectedFila
 export async function processOrder(orderId: string, userId: string) {
   console.log(`🔄 processOrder: orderId=${orderId}, userId=${userId}`);
 
-  // 1. Fetch all order items
+  // 1. Fetch all order items (including variant_layers - the specific filament composition of what was bought)
   const { data: orderItems, error: itemsErr } = await supabase
     .from('order_items')
-    .select('id, offer_id, seller_id, quantity, price_at_purchase')
+    .select('id, offer_id, seller_id, quantity, price_at_purchase, variant_layers, variant_name')
     .eq('order_id', orderId);
+
 
   if (itemsErr || !orderItems?.length) {
     console.error('❌ Could not fetch order items:', itemsErr);
@@ -322,10 +325,16 @@ export async function processOrder(orderId: string, userId: string) {
       console.error('⚠️ Stock check email failed (non-fatal):', stockCheckErr);
     }
 
-    // 7. Decrement filament stock (use offer's or parent's color_variants)
-    let layersToUse = (offer.color_variants && offer.color_variants[0]?.layers) || [];
+    // 7. Decrement filament stock using the EXACT layers of the purchased variant
+    // variant_layers is stored in order_items at checkout time (specific to which color was bought)
+    let layersToUse: { filament_id: string; grams: string | number }[] = item.variant_layers || [];
 
-    // If it's a custom offer and has no layers, try to get them from parent
+    // Fallback: if no variant_layers saved (older order or custom offer), try offer's color_variants
+    if (layersToUse.length === 0) {
+      layersToUse = (offer.color_variants && offer.color_variants[0]?.layers) || [];
+    }
+
+    // Last fallback: try parent offer layers (for custom/negotiated offers)
     if (layersToUse.length === 0 && offer.is_custom && offer.parent_offer_id) {
       const parentOffer = offerMap[offer.parent_offer_id];
       if (parentOffer?.color_variants && parentOffer.color_variants[0]?.layers) {
@@ -334,12 +343,16 @@ export async function processOrder(orderId: string, userId: string) {
     }
 
     if (layersToUse.length > 0) {
+      console.log(`🎨 Deducting filament for variant: ${item.variant_name || 'default'}, layers: ${layersToUse.length}`);
       const affectedFilamentIds = await decrementFilamentStock(layersToUse, item.quantity);
-      // 7.5 Recalculate stock for ALL offers by this seller using same filaments
+      // Recalculate stock for ALL offers by this seller using same filaments → updates marketplace instantly
       if (affectedFilamentIds.length > 0) {
         await recalculateOffersStockForFilaments(sellerId, affectedFilamentIds);
       }
+    } else {
+      console.warn(`⚠️ No filament layers found for offer ${item.offer_id} (variant: ${item.variant_name || 'none'}) - skipping filament deduction`);
     }
+
   }
 
   // 8. Send digital file emails

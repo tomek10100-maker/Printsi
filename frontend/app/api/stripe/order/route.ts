@@ -66,6 +66,9 @@ export async function POST(req: Request) {
             seller_id: item.seller_id,
             quantity: item.quantity,
             price_at_purchase: item.price,
+            variant_name: item.variant_name || null,
+            variant_color_hex: item.variant_color || null,
+            variant_layers: item.variant_layers || null,
         }));
 
         const { error: itemsError } = await supabase
