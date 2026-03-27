@@ -268,14 +268,14 @@ export async function processOrder(orderId: string, userId: string) {
     });
     if (msgOrder.error) console.error('❌ Order message failed:', msgOrder.error);
 
-    // Auto-complete if digital, else remind about 4 days limit
+    // Set to 'shipped' for digital (allows buyer to confirm/dispute), else remind about 4 days limit
     if (offer.category === 'digital') {
-      await supabase.from('order_items').update({ status: 'completed' }).eq('id', item.id);
+      await supabase.from('order_items').update({ status: 'shipped' }).eq('id', item.id);
       await supabase.from('messages').insert({
         chat_id: chatId,
         sender_id: userId,
-        content: `Digital file delivered automatically. Transaction completed!`,
-        message_type: 'status_completed',
+        content: `Digital file delivered automatically to your email. Please check it and confirm everything is correct!`,
+        message_type: 'status_shipped',
       });
     } else {
       await supabase.from('messages').insert({
@@ -295,7 +295,7 @@ export async function processOrder(orderId: string, userId: string) {
         user_id: sellerId,
         title: '🎉 New sale!',
         message: offer.category === 'digital' 
-          ? `You sold ${item.quantity}x "${title}" for ${formattedAmount}. Funds added to your Printsi balance.`
+          ? `You sold ${item.quantity}x "${title}" for ${formattedAmount}. Funds will be added to your balance once the buyer confirms delivery.`
           : `You sold ${item.quantity}x "${title}" for ${formattedAmount}. Funds added to Pending Balance.`,
         type: 'sale',
         is_read: false,

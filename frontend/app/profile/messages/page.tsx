@@ -21,10 +21,10 @@ const PROBLEM_TYPES = [
     { value: 'wrong_item', label: 'Wrong Item Received', icon: '🔄', digital: false },
     { value: 'not_received', label: 'Item Not Received', icon: '❌📦', digital: true },
     { value: 'quality_issue', label: 'Quality Issue', icon: '⚠️', digital: true },
-    { value: 'missing_parts', label: 'Missing Parts/Textures', icon: '🧩', digital: true },
-    { value: 'format_issue', label: 'Incompatible File Format', icon: '📄', digital: true },
-    { value: 'corrupted_file', label: 'Corrupted/Broken File', icon: '🚫', digital: true },
-    { value: 'copyright_issue', label: 'Copyright/License Issue', icon: '⚖️', digital: true },
+    { value: 'missing_parts', label: 'Missing Parts', icon: '🧩', digital: true },
+    { value: 'format_issue', label: 'Format Issue', icon: '📄', digital: true },
+    { value: 'corrupted_file', label: 'Corrupted File', icon: '🚫', digital: true },
+    { value: 'copyright_issue', label: 'Copyright Issue', icon: '⚖️', digital: true },
     { value: 'other', label: 'Other Issue', icon: '❓', digital: true },
 ];
 
