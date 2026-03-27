@@ -20,8 +20,9 @@ const supabase = createClient(
 export default function OfferDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const { formatPrice } = useCurrency();
+  const [showModal, setShowModal] = useState(false);
 
   const [offer, setOffer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -101,7 +102,7 @@ export default function OfferDetailsPage() {
         : undefined,
       category: offer.category
     }, isDigital ? 1 : quantity);
-    alert(`Added ${isDigital ? 1 : quantity} x ${offer.title} (${currentColor}) to cart!`);
+    setShowModal(true);
   };
 
   const handleShare = () => {
@@ -192,6 +193,8 @@ export default function OfferDetailsPage() {
   const isOutOfStock = currentStock === 0;
 
   const weightGrams = currentWeight ? parseWeightToGrams(currentWeight.toString()) : null;
+
+  const isAlreadyInCart = isDigital && items.some(i => i.id === offer.id);
 
   return (
     <main className="min-h-screen bg-white font-sans text-gray-900 pb-20">
@@ -471,10 +474,10 @@ export default function OfferDetailsPage() {
             ) : (
               <button
                 onClick={handleAddToCart}
-                disabled={isOutOfStock}
-                className={`flex-1 py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600'}`}
+                disabled={isOutOfStock || isAlreadyInCart}
+                className={`flex-1 py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-green-100 text-green-600 cursor-not-allowed shadow-none border border-green-200' : 'bg-gray-900 text-white hover:bg-blue-600'}`}
               >
-                {isOutOfStock ? 'Sold Out' : <><ShoppingBag size={20} /> {offer.category === 'job' ? 'Fulfill Request' : 'Add to Cart'}</>}
+                {isOutOfStock ? 'Sold Out' : isAlreadyInCart ? <><Check size={20} /> Already in Cart</> : <><ShoppingBag size={20} /> {offer.category === 'job' ? 'Fulfill Request' : 'Add to Cart'}</>}
               </button>
             )}
 
@@ -507,6 +510,42 @@ export default function OfferDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Added to Cart Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-gray-100 animate-in zoom-in-95 duration-300 relative overflow-hidden">
+            {/* Background Accent */}
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-indigo-600" />
+            
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-500 mb-6 shadow-inner ring-8 ring-green-50/50">
+                <Check size={40} strokeWidth={3} />
+              </div>
+              
+              <h3 className="text-2xl font-black uppercase text-gray-900 mb-2 tracking-tight">Added to Cart!</h3>
+              <p className="text-gray-500 text-sm mb-8 font-medium leading-relaxed">
+                <span className="text-gray-900 font-bold">"{offer.title}"</span> has been added to your shopping bag.
+              </p>
+              
+              <div className="flex flex-col gap-3 w-full">
+                <button 
+                  onClick={() => router.push('/cart')} 
+                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-blue-600 transition-all shadow-lg hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <ShoppingBag size={16} /> View Cart & Checkout
+                </button>
+                <button 
+                  onClick={() => setShowModal(false)} 
+                  className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-gray-200 transition-all active:scale-95"
+                >
+                  Continue Shopping
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
