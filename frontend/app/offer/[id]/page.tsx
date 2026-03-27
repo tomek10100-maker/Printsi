@@ -99,8 +99,9 @@ export default function OfferDetailsPage() {
       variant_layers: currentVariant?.layers
         ? currentVariant.layers.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams }))
         : undefined,
-    }, quantity);
-    alert(`Added ${quantity} x ${offer.title} (${currentColor}) to cart!`);
+      category: offer.category
+    }, isDigital ? 1 : quantity);
+    alert(`Added ${isDigital ? 1 : quantity} x ${offer.title} (${currentColor}) to cart!`);
   };
 
   const handleShare = () => {
@@ -425,30 +426,32 @@ export default function OfferDetailsPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 mb-8 w-fit">
-            <div className={`flex items-center gap-6 p-4 border border-gray-100 rounded-2xl ${isOutOfStock || isOwner ? 'opacity-50 pointer-events-none' : ''}`}>
-              <span className="text-xs font-black uppercase text-gray-400">Quantity:</span>
-              <div className="flex items-center gap-4">
-                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full hover:bg-gray-200 transition"><Minus size={14} /></button>
-                <span className="font-bold text-xl w-6 text-center">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
-                  className={`w-8 h-8 flex items-center justify-center rounded-full transition ${quantity >= currentStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200'}`}
-                  disabled={quantity >= currentStock}
-                >
-                  <Plus size={14} />
-                </button>
+          {!isDigital && (
+            <div className="flex flex-col gap-3 mb-8 w-fit">
+              <div className={`flex items-center gap-6 p-4 border border-gray-100 rounded-2xl ${isOutOfStock || isOwner ? 'opacity-50 pointer-events-none' : ''}`}>
+                <span className="text-xs font-black uppercase text-gray-400">Quantity:</span>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full hover:bg-gray-200 transition"><Minus size={14} /></button>
+                  <span className="font-bold text-xl w-6 text-center">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
+                    className={`w-8 h-8 flex items-center justify-center rounded-full transition ${quantity >= currentStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200'}`}
+                    disabled={quantity >= currentStock}
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase">{currentStock} available</span>
               </div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase">{currentStock} available</span>
-            </div>
 
-            {quantity > 1 && !isDigital && !isOwner && (
-              <div className="flex items-start gap-2 px-3 py-2 text-xs font-bold text-green-700 bg-green-50 rounded-xl border border-green-100 animate-in fade-in slide-in-from-top-2 duration-300">
-                <MessageSquare size={14} className="mt-0.5 shrink-0 text-green-500" />
-                <span>Planning to buy more? <button onClick={handleContactMaker} disabled={creatingChat} className="underline decoration-green-300 underline-offset-2 hover:text-green-900 transition hover:decoration-green-500">Ask the maker</button> for volume discounts!</span>
-              </div>
-            )}
-          </div>
+              {quantity > 1 && !isOwner && (
+                <div className="flex items-start gap-2 px-3 py-2 text-xs font-bold text-green-700 bg-green-50 rounded-xl border border-green-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <MessageSquare size={14} className="mt-0.5 shrink-0 text-green-500" />
+                  <span>Planning to buy more? <button onClick={handleContactMaker} disabled={creatingChat} className="underline decoration-green-300 underline-offset-2 hover:text-green-900 transition hover:decoration-green-500">Ask the maker</button> for volume discounts!</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-4 mt-auto">
             {isOwner ? (
@@ -494,7 +497,12 @@ export default function OfferDetailsPage() {
           </div>
 
           <div className="mt-8 flex items-center gap-6 text-[10px] font-bold uppercase text-gray-400 tracking-wider">
-            <span className="flex items-center gap-1"><Truck size={14} /> Shipping with DHL</span>
+            {!isDigital && (
+              <span className="flex items-center gap-1"><Truck size={14} /> Shipping with DHL</span>
+            )}
+            {isDigital && (
+              <span className="flex items-center gap-1 text-green-600"><Check size={14} /> Instant Email Delivery</span>
+            )}
             <span className="flex items-center gap-1"><ShieldCheck size={14} /> Buyer Protection</span>
           </div>
         </div>

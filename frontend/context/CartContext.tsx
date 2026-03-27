@@ -17,6 +17,7 @@ export type CartItem = {
   // Warstwy filamentu dla wybranego wariantu – używane do zmniejszania stock_grams po sprzedaży
   // Format: [{filament_id: string, grams: string|number}]
   variant_layers?: { filament_id: string; grams: string | number }[];
+  category: string;
 };
 
 type CartContextType = {

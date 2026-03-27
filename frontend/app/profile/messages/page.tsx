@@ -452,8 +452,9 @@ export default function MessagesPage() {
             image_url: activeChatData.offers?.image_urls?.[0] || null,
             seller_id: activeChatData.seller_id,
             stock: parsedData.quantity,
-            is_custom: true
-        }, parsedData.quantity);
+            is_custom: true,
+            category: activeChatData.offers?.category || 'physical'
+        }, (activeChatData.offers?.category === 'digital') ? 1 : parsedData.quantity);
 
         router.push('/cart');
     };

@@ -161,7 +161,8 @@ function MarketplaceContent() {
       variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
       variant_color: firstVariant ? getVariantColor(firstVariant) : offer.color_hex,
       variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
-    });
+      category: offer.category,
+    }, offer.category === 'digital' ? 1 : 1);
     setLastAddedItem(offer);
     setShowModal(true);
   };
@@ -186,7 +187,8 @@ function MarketplaceContent() {
       variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
       variant_color: firstVariant ? getVariantColor(firstVariant) : offer.color_hex,
       variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
-    });
+      category: offer.category,
+    }, offer.category === 'digital' ? 1 : 1);
     router.push('/cart');
   };
 
@@ -204,7 +206,8 @@ function MarketplaceContent() {
       variant_name: v ? v.color_name : colorPickerOffer.color_name,
       variant_color: v ? getVariantColor(v) : colorPickerOffer.color_hex,
       variant_layers: v?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
-    });
+      category: colorPickerOffer.category,
+    }, colorPickerOffer.category === 'digital' ? 1 : 1);
     if (colorPickerMode === 'buy') {
       setColorPickerOffer(null);
       router.push('/cart');

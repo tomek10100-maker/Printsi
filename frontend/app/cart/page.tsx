@@ -114,7 +114,7 @@ export default function CartPage() {
                   <div className="flex-1">
                     <h3 className="font-bold text-lg leading-tight mb-1">{item.title}</h3>
                     <p className="text-sm font-bold text-gray-500">
-                      {formatPrice(item.price)} <span className="text-[10px] font-normal text-gray-400">/ each</span>
+                      {formatPrice(item.price)} {item.category !== 'digital' && <span className="text-[10px] font-normal text-gray-400">/ each</span>}
                     </p>
                     {item.variant_name && (
                       <div className="flex items-center gap-2 mt-1">
@@ -122,16 +122,18 @@ export default function CartPage() {
                         <span className="text-[11px] font-black text-gray-900 truncate uppercase tracking-widest">{item.variant_name}</span>
                       </div>
                     )}
-                    {item.stock !== undefined && (
+                    {item.stock !== undefined && item.category !== 'digital' && (
                       <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-wider">
                         Stock: {item.stock}
                       </p>
                     )}
                   </div>
 
-                  {item.is_custom ? (
-                    <div className="flex bg-blue-50 border border-blue-100 items-center justify-center gap-2 rounded-lg py-2 px-4 shadow-sm" title="Quantity locked by accepted custom proposal">
-                      <span className="font-black text-sm text-blue-800 text-center">{item.quantity}</span>
+                  {(item.is_custom || item.category === 'digital') ? (
+                    <div className={`flex items-center justify-center gap-2 rounded-lg py-2 px-4 shadow-sm ${item.category === 'digital' ? 'bg-purple-50 border border-purple-100' : 'bg-blue-50 border border-blue-100'}`} title={item.category === 'digital' ? 'Digital license: max 1' : 'Quantity locked by accepted custom proposal'}>
+                      <span className={`font-black text-sm text-center ${item.category === 'digital' ? 'text-purple-800' : 'text-blue-800'}`}>
+                        {item.category === 'digital' ? '1x' : item.quantity}
+                      </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
