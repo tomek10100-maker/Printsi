@@ -16,7 +16,7 @@ export default function HowItWorksPage() {
           <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-gray-900 mb-4">
             Simple. Transparent. <span className="text-blue-600">Creative.</span>
           </h1>
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">How the Printsi ecosystem works</p>
+          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">How the Printis ecosystem works</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">

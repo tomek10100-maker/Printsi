@@ -19,7 +19,7 @@ export default function VerifyEmailPage() {
                 <h1 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Check your inbox</h1>
 
                 <p className="text-gray-500 mb-8 leading-relaxed font-medium">
-                    We've sent a verification link to your email address. Please click the link to activate your account and gain full access to Printsi.
+                    We've sent a verification link to your email address. Please click the link to activate your account and gain full access to Printis.
                 </p>
 
                 <div className="bg-gray-50 rounded-2xl p-5 mb-8 border border-gray-100 text-left">

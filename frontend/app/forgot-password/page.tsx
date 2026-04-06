@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">Printsi</h1>
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">Printis</h1>
           <p className="text-gray-500">
             Reset Your Password
           </p>

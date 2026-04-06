@@ -71,19 +71,19 @@ async function decrementFilamentStock(layers: { filament_id?: string; grams?: st
 async function recalculateOffersStockForFilaments(sellerId: string, affectedFilamentIds: string[]) {
   if (!affectedFilamentIds.length) return;
 
-  // 1. Get current stock of affected filaments
-  const { data: filaments, error: filErr } = await supabase
+  // 1. Get ALL filaments for this seller to ensure we have stock info for every required layer
+  const { data: allFilaments, error: filErr } = await supabase
     .from('filaments')
     .select('id, stock_grams')
-    .in('id', affectedFilamentIds);
+    .eq('user_id', sellerId);
 
-  if (filErr || !filaments) {
-    console.error('❌ Could not fetch filament stock for recalculation:', filErr);
+  if (filErr || !allFilaments) {
+    console.error('❌ Could not fetch filaments for recalculation:', filErr);
     return;
   }
 
   const filamentStockMap: Record<string, number> = {};
-  filaments.forEach(f => { filamentStockMap[f.id] = f.stock_grams ?? 0; });
+  allFilaments.forEach(f => { filamentStockMap[f.id] = f.stock_grams ?? 0; });
 
   // 2. Find all offers by this seller that have color_variants using these filaments
   const { data: offers, error: offErr } = await supabase
@@ -99,50 +99,59 @@ async function recalculateOffersStockForFilaments(sellerId: string, affectedFila
 
   for (const offer of offers) {
     const variants: any[] = offer.color_variants || [];
-    let totalNewStock = 0;
-    let usesAffectedFilament = false;
+    let totalOfferNewStock = 0;
+    let offerNeedsUpdate = false;
 
-    for (const variant of variants) {
+    // We only update the offer IF at least one of its variants uses one of the AFFECTED filaments.
+    // (Optimization to avoid updating every single product every time).
+    let anyVariantUsesAffected = false;
+
+    const updatedVariants = variants.map(variant => {
       const layers: any[] = variant.layers || [];
-      let variantMaxPieces = Infinity;
+      if (layers.length === 0) {
+        totalOfferNewStock += (parseInt(variant.stock) || 0);
+        return variant;
+      }
+
       let variantUsesAffected = false;
+      let variantMaxPieces = Infinity;
+      let usesFilamentTracking = false;
 
       for (const layer of layers) {
         if (!layer.filament_id || !layer.grams) continue;
         const g = parseFloat(String(layer.grams));
         if (isNaN(g) || g <= 0) continue;
 
+        usesFilamentTracking = true;
         if (affectedFilamentIds.includes(layer.filament_id)) {
           variantUsesAffected = true;
-          const remaining = filamentStockMap[layer.filament_id] ?? 0;
-          variantMaxPieces = Math.min(variantMaxPieces, Math.floor(remaining / g));
+          anyVariantUsesAffected = true;
         }
+
+        // IMPORTANT: We check stock for EVERY layer, not just affected ones
+        const remaining = filamentStockMap[layer.filament_id] ?? 0;
+        variantMaxPieces = Math.min(variantMaxPieces, Math.floor(remaining / g));
       }
 
-      if (variantUsesAffected) {
-        usesAffectedFilament = true;
-        if (variant.stockTracking !== 'manual') {
-          const newVarStock = Math.max(0, variantMaxPieces === Infinity ? 0 : variantMaxPieces);
-          variant.stock = newVarStock;
-          totalNewStock += newVarStock;
-        } else {
-          totalNewStock += (parseInt(variant.stock) || 0);
-        }
+      if (variantUsesAffected && variant.stockTracking !== 'manual') {
+        const newVarStock = Math.max(0, variantMaxPieces === Infinity ? 0 : variantMaxPieces);
+        totalOfferNewStock += newVarStock;
+        offerNeedsUpdate = true;
+        return { ...variant, stock: newVarStock };
       } else {
-        // This variant doesn't use affected filament – keep its stock as-is
-        totalNewStock += (parseInt(variant.stock) || 0);
+        totalOfferNewStock += (parseInt(variant.stock) || 0);
+        return variant;
       }
-    }
+    });
 
-    if (usesAffectedFilament) {
-      // offer.stock = total across ALL variants (so marketplace shows correct total)
+    if (anyVariantUsesAffected && offerNeedsUpdate) {
       const { error: updateErr } = await supabase
         .from('offers')
-        .update({ stock: totalNewStock, color_variants: variants })
+        .update({ stock: totalOfferNewStock, color_variants: updatedVariants })
         .eq('id', offer.id);
 
-      if (updateErr) console.error(`❌ Stock recalc failed for offer ${offer.id}:`, updateErr);
-      else console.log(`🔄 Offer ${offer.id} stock recalculated → ${totalNewStock} (across all variants)`);
+      if (updateErr) console.error(`❌ Stock recalc failed for offer ${offer.id}: ${updateErr.message}`);
+      else console.log(`🔄 Offer ${offer.id} stock recalculated → ${totalOfferNewStock}`);
     }
   }
 }
@@ -356,13 +365,13 @@ export async function processOrder(orderId: string, userId: string) {
         try {
           const { data: lowFilaments } = await supabase
             .from('filaments')
-            .select('id, name, stock_grams, color')
+            .select('id, color_name, color_hex, stock_grams, color')
             .in('id', affectedFilamentIds)
-            .lte('stock_grams', 75);
+            .lte('stock_grams', 100);
 
           if (lowFilaments && lowFilaments.length > 0) {
             for (const fil of lowFilaments) {
-              const displayName = fil.name || fil.color || 'Unknown Filament';
+              const displayName = fil.color_name || fil.color || 'Unknown Filament';
               await sendLowFilamentWarning(sellerId, displayName, fil.stock_grams ?? 0);
             }
           }
@@ -417,7 +426,7 @@ export async function processOrder(orderId: string, userId: string) {
 
       await sendEmail({
         to: buyerEmail,
-        subject: `🛍️ Order Confirmed - Printsi #${orderId.slice(0, 8)}`,
+        subject: `🛍️ Order Confirmed - Printis #${orderId.slice(0, 8)}`,
         html: EmailTemplates.orderConfirmation(
           buyerName,
           orderId,
@@ -474,7 +483,7 @@ export async function processOrder(orderId: string, userId: string) {
 
           await sendEmail({
             to: sellerEmail,
-            subject: `🎉 New Sale on Printsi: ${displayTitle}`,
+            subject: `🎉 New Sale on Printis: ${displayTitle}`,
             html: EmailTemplates.saleNotification(
               sellerName,
               buyerName,

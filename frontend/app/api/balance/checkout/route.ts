@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     if (userBalance < orderTotalEur) {
       return NextResponse.json({
         success: false,
-        error: `Insufficient Printsi Balance. You have €${userBalance.toFixed(2)} but need €${orderTotalEur.toFixed(2)}`
+        error: `Insufficient Printis Balance. You have €${userBalance.toFixed(2)} but need €${orderTotalEur.toFixed(2)}`
       }, { status: 400 });
     }
 
@@ -91,6 +91,7 @@ export async function POST(req: Request) {
           order_id: newOrder.id,
           full_name: shipping.fullName || '',
           email: shipping.email || '',
+          phone: shipping.phone || '',
           address: shipping.address || '',
           city: shipping.city || '',
           zip_code: shipping.zip || '',

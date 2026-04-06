@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import {
   ArrowLeft, ShoppingBag, Truck, ShieldCheck, Box,
-  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit
+  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -32,9 +32,8 @@ export default function OfferDetailsPage() {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [sellerOffers, setSellerOffers] = useState<any[]>([]);
   const [creatingChat, setCreatingChat] = useState(false);
-
-  // --- NOWY STAN: Czy polubione ---
   const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
@@ -47,7 +46,7 @@ export default function OfferDetailsPage() {
       // 1. Pobierz ofertę
       const { data, error } = await supabase
         .from('offers')
-        .select('*, profiles(full_name, avatar_url)')
+        .select('*, profiles(full_name, avatar_url, city, country)')
         .eq('id', params.id)
         .single();
 
@@ -57,6 +56,17 @@ export default function OfferDetailsPage() {
       } else {
         setOffer(data);
         if (data.image_urls && data.image_urls.length > 0) setSelectedImage(data.image_urls[0]);
+
+        // Pobierz inne oferty tego usera
+        const { data: otherOffers } = await supabase
+          .from('offers')
+          .select('*')
+          .eq('user_id', data.user_id)
+          .eq('is_custom', false)
+          .neq('id', data.id)
+          .limit(4);
+        
+        setSellerOffers(otherOffers || []);
       }
 
       // 2. Sprawdź czy polubione i role usera
@@ -87,6 +97,7 @@ export default function OfferDetailsPage() {
   }, [params.id, router]);
 
   const handleAddToCart = () => {
+    // ... item logic ...
     if (!offer) return;
     addItem({
       id: offer.id,
@@ -123,6 +134,33 @@ export default function OfferDetailsPage() {
     } else {
       setIsFavorite(true);
       await supabase.from('favorites').insert({ user_id: currentUser.id, offer_id: offer.id });
+
+      // Notify seller
+      const isSelfLike = offer.user_id === currentUser.id;
+      
+      // In-app Notification
+      await supabase.from('notifications').insert({
+        user_id: offer.user_id,
+        title: isSelfLike ? "You're your biggest fan! 😉" : "New Like! ❤️",
+        message: isSelfLike
+          ? `No wonder you like "${offer.title}"! It's your work after all.`
+          : `Someone liked your "${offer.title}" item! Start a conversation!`,
+        type: 'like',
+        sender_id: isSelfLike ? null : currentUser.id,
+        offer_id: isSelfLike ? null : offer.id,
+        is_read: false
+      });
+
+      // Email notification (fire & forget)
+      fetch('/api/order/like-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sellerId: offer.user_id,
+          productTitle: offer.title,
+          isSelfLike
+        }),
+      }).catch(() => { });
     }
   };
 
@@ -132,51 +170,16 @@ export default function OfferDetailsPage() {
       return;
     }
     if (isOwner) return;
-
-    // Przekieruj do utworzenia chatu lub istniejącego
-    setCreatingChat(true);
-
-    const { data: existingChat } = await supabase
-      .from('chats')
-      .select('id')
-      .eq('buyer_id', currentUser.id)
-      .eq('seller_id', offer.user_id)
-      .eq('offer_id', offer.id)
-      .single();
-
-    if (existingChat) {
-      router.push(`/profile/messages?chat=${existingChat.id}`);
-      return;
-    }
-
-    const { data: newChat, error } = await supabase
-      .from('chats')
-      .insert({
-        buyer_id: currentUser.id,
-        seller_id: offer.user_id,
-        offer_id: offer.id
-      })
-      .select('id')
-      .single();
-
-    if (error) {
-      console.error(error);
-      alert("Error starting chat.");
-      setCreatingChat(false);
-      return;
-    }
-
-    router.push(`/profile/messages?chat=${newChat.id}`);
+    router.push(`/profile/messages?seller_id=${offer.user_id}&offer_id=${offer.id}`);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-gray-900" size={40} /></div>;
   if (!offer) return <div className="min-h-screen flex items-center justify-center">Product not found.</div>;
 
   const seller = offer.profiles;
   const isOwner = currentUser && currentUser.id === offer.user_id;
   const isDigital = offer.category === 'digital';
 
-  // --- VARIANT LOGIC ---
   const variants = offer.color_variants || [];
   const hasVariants = variants.length > 0;
   const currentVariant = hasVariants ? variants[selectedVariantIndex] : null;
@@ -191,35 +194,44 @@ export default function OfferDetailsPage() {
     : offer.weight;
 
   const isOutOfStock = currentStock === 0;
-
   const weightGrams = currentWeight ? parseWeightToGrams(currentWeight.toString()) : null;
-
   const isAlreadyInCart = isDigital && items.some(i => i.id === offer.id);
 
   return (
     <main className="min-h-screen bg-white font-sans text-gray-900 pb-20">
 
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 flex justify-between items-center transition-all duration-300">
         <Link href="/gallery" className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-gray-900 transition"><ArrowLeft size={16} /> Back to Gallery</Link>
-        <Link href="/cart" className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition"><ShoppingBag size={20} /></Link>
+        <Link href="/cart" className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition relative">
+          <ShoppingBag size={20} />
+          {items.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-in zoom-in duration-300">{items.length}</span>}
+        </Link>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* LEWA STRONA */}
-        <div className="space-y-4">
-          <div className="aspect-square bg-gray-50 rounded-3xl overflow-hidden border border-gray-100 relative">
+      <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-16">
+        {/* LEWA STRONA (IMAGE) */}
+        <div className="space-y-6">
+          <div className="aspect-square bg-gray-50 rounded-[40px] overflow-hidden border border-gray-100 relative shadow-2xl">
             {isOutOfStock && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/20 backdrop-blur-sm">
-                <div className="bg-red-600 text-white text-xl font-black uppercase tracking-[0.2em] py-3 px-12 -rotate-12 border-4 border-white shadow-2xl">Sold Out</div>
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/30 backdrop-blur-sm">
+                <div className="bg-red-600 text-white text-xl font-black uppercase tracking-[0.2em] py-4 px-12 -rotate-12 border-4 border-white shadow-2xl">Sold Out</div>
               </div>
             )}
-            {selectedImage ? <img src={selectedImage} alt={offer.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><Box size={64} /></div>}
-            <div className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[10px] font-black uppercase tracking-wider">{offer.category}</div>
+            {selectedImage ? (
+              <img src={selectedImage} alt={offer.title} className="w-full h-full object-cover animate-in fade-in duration-500" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-200"><Box size={80} strokeWidth={1} /></div>
+            )}
+            <div className="absolute top-6 left-6 px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-gray-900 shadow-sm border border-gray-100">{offer.category}</div>
           </div>
           {offer.image_urls && offer.image_urls.length > 1 && (
-            <div className="flex gap-4 overflow-x-auto pb-2">
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
               {offer.image_urls.map((url: string, idx: number) => (
-                <button key={idx} onClick={() => setSelectedImage(url)} className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${selectedImage === url ? 'border-blue-600 opacity-100' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                <button 
+                  key={idx} 
+                  onClick={() => setSelectedImage(url)} 
+                  className={`w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all flex-shrink-0 shadow-sm ${selectedImage === url ? 'border-blue-600 scale-105 shadow-blue-100' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`}
+                >
                   <img src={url} className="w-full h-full object-cover" />
                 </button>
               ))}
@@ -227,114 +239,79 @@ export default function OfferDetailsPage() {
           )}
         </div>
 
-        {/* PRAWA STRONA */}
+        {/* PRAWA STRONA (CONTENT) */}
         <div className="flex flex-col">
-          <h1 className="text-4xl font-black uppercase tracking-tight text-gray-900 mb-2">{offer.title}</h1>
-
-          <div className="mb-6 flex flex-col items-start gap-1">
-            <div className="text-2xl font-bold text-blue-600 flex items-baseline gap-1">
-              {formatPrice(currentPrice)}
-              <span className="text-sm text-gray-400 font-medium normal-case">/ piece</span>
+          <div className="mb-8">
+            <h1 className="text-5xl font-black uppercase tracking-tight text-gray-900 mb-4 leading-[1.1]">{offer.title}</h1>
+            
+            <div className="flex items-center gap-4">
+              <div className="text-3xl font-black text-blue-600">
+                {formatPrice(currentPrice)}
+              </div>
+              <div className="h-6 w-px bg-gray-200" />
+              <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isOutOfStock ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                {isOutOfStock ? 'Currently Unavailable' : (isDigital ? 'Ready to Download' : 'Ready to Ship')}
+              </div>
             </div>
-            {!isDigital && hasVariants && variants.length > 1 && (() => {
-              const prices = variants.map((v: any) => v.priceEUR).filter(Boolean);
-              const minP = Math.min(...prices);
-              const maxP = Math.max(...prices);
-              if (maxP > minP + 0.001) {
-                return (
-                  <span className="text-[11px] font-bold text-gray-400">
-                    {formatPrice(minP)} – {formatPrice(maxP)} depending on color
-                  </span>
-                );
-              }
-              return null;
-            })()}
-            {!isDigital && (
-              <span className="text-[11px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
-            )}
           </div>
 
-          <div className="flex items-center gap-4 mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-            <div className="w-12 h-12 bg-white rounded-full overflow-hidden border border-gray-200 flex items-center justify-center">
+          <div className="flex items-center gap-4 mb-8 p-5 bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+            <div className="w-14 h-14 bg-gray-50 rounded-full overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
               {seller?.avatar_url ? (
                 <img src={seller.avatar_url} alt={seller.full_name} className="w-full h-full object-cover" />
               ) : (
-                <UserIcon className="text-gray-400" size={24} />
+                <UserIcon className="text-gray-300" size={28} />
               )}
             </div>
             <div>
-              <span className="block text-[10px] font-black uppercase text-gray-400 tracking-widest">Published by</span>
-              <span className="font-bold text-gray-900">{seller?.full_name || 'Anonymous Maker'}</span>
-              <div className="flex items-center gap-1 mt-0.5">
-                <Star size={10} className="fill-orange-400 text-orange-400" />
-                <span className="text-[10px] font-bold text-gray-500">Verified Seller</span>
-              </div>
+              <span className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-0.5">Crafted by</span>
+              <span className="font-black text-gray-900 text-lg">{seller?.full_name || 'Anonymous Maker'}</span>
             </div>
-            <div className="ml-auto flex flex-col items-end gap-2">
+            <div className="ml-auto">
               <Link
                 href={`/user/${offer.user_id}`}
-                className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition border-b-2 border-transparent hover:border-gray-900"
+                className="px-5 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-gray-200"
               >
-                View Profile
+                Profile
               </Link>
             </div>
           </div>
 
-          <div className="prose prose-sm text-gray-600 mb-8 max-w-none"><p>{offer.description}</p></div>
-
-          {offer.category === 'job' && offer.file_url && (
-            <div className="mb-8">
-              <a href={offer.file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 p-4 bg-purple-50 text-purple-700 rounded-2xl border border-purple-100 font-black uppercase text-sm hover:bg-purple-100 transition-all">
-                <Box size={18} /> Download 3D Project File
-              </a>
-              <p className="text-xs text-gray-400 mt-2 font-medium">Download this file to evaluate the project and prepare your proposal.</p>
-            </div>
-          )}
+          <div className="prose prose-lg text-gray-600 mb-10 max-w-none font-medium leading-relaxed">
+            {offer.description}
+          </div>
 
           {!isDigital && (
-            <div className="space-y-4 mb-8">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-center">
-                  <span className="block text-[10px] font-black uppercase text-gray-400 mb-1">Material</span>
-                  <span className="font-bold text-gray-900 truncate">{currentMaterial || 'Standard PLA'}</span>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-start gap-1">
-                  <span className="block text-[10px] font-black uppercase text-gray-400 mb-0.5">Color</span>
-                  <div className="flex items-center gap-2 w-full">
-                    <div className="w-4 h-4 rounded shadow-sm border border-white" style={{ backgroundColor: currentColorHex || '#ccc' }} />
-                    <span className="font-bold text-gray-900 truncate text-sm">{currentColor || 'Any'}</span>
+            <div className="space-y-6 mb-10">
+              {/* Dimensions & Weight Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                {offer.dimensions && (
+                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Ruler size={16} className="text-blue-500" />
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Scale & Size</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {offer.dimensions.split(',').map((dim: string, idx: number) => (
+                        <span key={idx} className="text-sm font-black text-gray-900 leading-tight">{dim.trim()}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
                 {currentWeight && (
-                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-center">
-                    <span className="block text-[10px] font-black uppercase text-gray-400 mb-1">Weight</span>
-                    <span className="font-bold text-gray-900 truncate">{currentWeight}</span>
+                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Layers size={16} className="text-blue-500" />
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Weight</span>
+                    </div>
+                    <span className="text-2xl font-black text-gray-900 truncate block">{currentWeight}</span>
                   </div>
                 )}
               </div>
 
-              {/* Dimensions Section */}
-              {offer.dimensions && (
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Ruler size={14} className="text-gray-400" />
-                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Dimensions</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-bold text-gray-900">{offer.dimensions}</span>
-                  </div>
-                </div>
-              )}
-
               {/* COLOR VARIANTS SELECTION */}
               {hasVariants && (
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="block text-[10px] font-black uppercase text-gray-400 tracking-widest">Choose Color</span>
-                    {variants.length > 1 && (
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{variants.length} variants</span>
-                    )}
-                  </div>
+                <div className="p-2 bg-gray-100 rounded-[32px] border border-gray-200">
                   <div className="flex flex-col gap-2">
                     {variants.map((v: any, idx: number) => {
                       const isSelected = selectedVariantIndex === idx;
@@ -347,49 +324,46 @@ export default function OfferDetailsPage() {
                             setSelectedVariantIndex(idx);
                             setQuantity(1);
                           }}
-                          className={`relative flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${isSoldOut
-                            ? 'opacity-40 cursor-not-allowed border-gray-100 bg-gray-50'
+                          className={`relative flex items-center gap-4 p-4 rounded-[24px] transition-all text-left group/var ${isSoldOut
+                            ? 'opacity-40 cursor-not-allowed grayscale'
                             : isSelected
-                              ? 'border-blue-600 bg-blue-50 shadow-md'
-                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                              ? 'bg-white shadow-xl ring-2 ring-blue-600/10'
+                              : 'hover:bg-white/60'
                             }`}
                         >
-                          {/* Color swatch(es) */}
-                          <div className="flex -space-x-1.5 flex-shrink-0">
-                            {v.isMultiColor && v.layers ? (
-                              v.layers.slice(0, 4).map((l: any, li: number) => (
-                                <div key={li} className="w-8 h-8 rounded-lg border-2 border-white shadow-sm" style={{ backgroundColor: l.color_hex || '#ccc' }} />
+                          <div className="flex -space-x-4 flex-shrink-0">
+                            {v.layers && v.layers.length > 0 ? (
+                              v.layers.map((l: any, li: number) => (
+                                <div key={li}
+                                  className="w-12 h-12 rounded-full border-4 border-white shadow-lg transition-transform group-hover/var:scale-105"
+                                  style={{ backgroundColor: l.color_hex || '#ccc', zIndex: 10 - li }}
+                                />
                               ))
                             ) : (
-                              <div className="w-8 h-8 rounded-lg border-2 border-white shadow-sm" style={{ backgroundColor: v.primaryColor || '#ccc' }} />
+                              <div className="w-12 h-12 rounded-full border-4 border-white shadow-lg" style={{ backgroundColor: v.primaryColor || v.layers?.[0]?.color_hex || '#ccc' }} />
                             )}
                           </div>
 
-                          {/* Info */}
                           <div className="flex-1 min-w-0">
-                            <span className={`block font-bold text-sm truncate ${isSelected ? 'text-blue-800' : 'text-gray-800'}`}>
-                              {v.label || v.color_name || 'Variant'}
+                            <span className="block font-black text-sm tracking-tight text-gray-900">
+                              {v.layers && v.layers.length > 0 ? (
+                                v.layers.map((l: any, li: number) => (
+                                  <React.Fragment key={li}>
+                                    {li > 0 && <span className="text-blue-500 mx-1">+</span>}
+                                    {l.color_name}
+                                  </React.Fragment>
+                                ))
+                              ) : (
+                                v.label || v.color_name || 'Individual Choice'
+                              )}
                             </span>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                              {v.plastic_type || 'PLA'} · {isSoldOut ? 'Sold out' : `${v.stock} in stock`}
-                            </span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{v.plastic_type || 'Premium Filament'}</span>
                           </div>
 
-                          {/* Price */}
-                          <span className={`text-sm font-black shrink-0 ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>
-                            {formatPrice(v.priceEUR)}
-                          </span>
-
-                          {/* Selected indicator */}
-                          {isSelected && (
-                            <div className="absolute top-2 right-2 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
-                              <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                            </div>
-                          )}
-
-                          {isSoldOut && (
-                            <span className="absolute top-2 right-2 bg-red-100 text-red-500 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Sold Out</span>
-                          )}
+                          <div className="text-right">
+                             <div className={`text-sm font-black transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>{formatPrice(v.priceEUR)}</div>
+                             <div className="text-[9px] font-bold text-gray-400 uppercase">{isSoldOut ? 'Sold out' : `${v.stock} pcs left`}</div>
+                          </div>
                         </button>
                       );
                     })}
@@ -399,148 +373,137 @@ export default function OfferDetailsPage() {
             </div>
           )}
 
-          {!isDigital && !isOwner && (
-            <div className="mb-8 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-inner">
-              <div className="text-center sm:text-left">
-                <h4 className="text-sm font-black text-blue-900 mb-1 capitalize">
-                  {offer.category === 'job' ? 'Discuss Request Details' : 'Need a custom modification or bulk order?'}
-                </h4>
-                <p className="text-xs text-blue-700/70 font-bold leading-relaxed max-w-[280px]">
-                  {offer.category === 'job' ? 'Contact the requester to negotiate terms, or clarify details.' : 'Contact the maker to negotiate bulk pricing, request custom colors or different materials.'}
-                </p>
+          {/* QUANTITY & ACTIONS */}
+          <div className="mt-auto space-y-6">
+            {!isDigital && !isOwner && !isOutOfStock && (
+              <div className="flex items-center justify-between p-5 bg-gray-50 rounded-[32px] border border-gray-100">
+                 <div className="flex flex-col">
+                   <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity</span>
+                   <span className="text-[10px] font-bold text-blue-600">{currentStock} pieces available</span>
+                 </div>
+                 <div className="flex items-center gap-6 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90"><Minus size={16} /></button>
+                    <span className="font-black text-2xl w-8 text-center">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
+                      className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90"
+                      disabled={quantity >= currentStock}
+                    >
+                      <Plus size={16} />
+                    </button>
+                 </div>
               </div>
-              {offer.category === 'job' && !userRoles.includes('printer') ? (
-                <button
-                  disabled
-                  className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 bg-gray-50 text-red-500 px-6 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-sm border border-red-100 cursor-not-allowed"
+            )}
+
+            <div className="flex gap-4">
+              {isOwner ? (
+                <Link
+                  href={`/edit/${offer.id}`}
+                  className="flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest bg-gray-900 text-white hover:bg-blue-600 transition-all shadow-2xl flex items-center justify-center gap-3 group"
                 >
-                  <Ban size={18} /> Printer Role Required
-                </button>
+                  <Edit size={22} className="group-hover:rotate-12 transition-transform" /> Manage Listing
+                </Link>
               ) : (
                 <button
-                  onClick={handleContactMaker}
-                  disabled={creatingChat}
-                  className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg hover:-translate-y-1 hover:shadow-blue-600/30 active:scale-95"
+                  onClick={handleAddToCart}
+                  disabled={isOutOfStock || isAlreadyInCart}
+                  className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1'}`}
                 >
-                  {creatingChat ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
-                  {offer.category === 'job' ? 'Chat with Requester' : 'Chat with Maker'}
+                  {isOutOfStock ? 'Item Sold Out' : isAlreadyInCart ? <><Check size={22} /> Secured in Cart</> : <><ShoppingBag size={22} /> {offer.category === 'job' ? 'Bid for Print' : 'Get this Print'}</>}
                 </button>
               )}
-            </div>
-          )}
 
-          {!isDigital && (
-            <div className="flex flex-col gap-3 mb-8 w-fit">
-              <div className={`flex items-center gap-6 p-4 border border-gray-100 rounded-2xl ${isOutOfStock || isOwner ? 'opacity-50 pointer-events-none' : ''}`}>
-                <span className="text-xs font-black uppercase text-gray-400">Quantity:</span>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full hover:bg-gray-200 transition"><Minus size={14} /></button>
-                  <span className="font-bold text-xl w-6 text-center">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
-                    className={`w-8 h-8 flex items-center justify-center rounded-full transition ${quantity >= currentStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200'}`}
-                    disabled={quantity >= currentStock}
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase">{currentStock} available</span>
+              <button
+                onClick={toggleFavorite}
+                className={`w-16 h-16 rounded-[24px] border-2 transition-all flex items-center justify-center ${isFavorite ? 'bg-red-50 border-red-200 text-red-500 shadow-red-100 shadow-lg' : 'hover:bg-gray-50 text-gray-400 border-gray-100'}`}
+              >
+                <Heart size={24} className={isFavorite ? 'fill-red-500 animate-pulse' : ''} />
+              </button>
+
+              <button onClick={handleShare} className="w-16 h-16 rounded-[24px] border-2 border-gray-100 hover:bg-gray-50 text-gray-400 transition flex items-center justify-center group relative">
+                <Share2 size={24} className="group-hover:scale-110 transition-transform" />
+                {showShareToast && (
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] font-black py-2 px-4 rounded-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap shadow-xl">
+                    <CheckCircle size={12} className="text-green-400" /> Copied to Clipboard
+                  </div>
+                )}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-y-4 gap-x-8 pt-4">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /> Direct from Master-Maker
               </div>
-
-              {quantity > 1 && !isOwner && (
-                <div className="flex items-start gap-2 px-3 py-2 text-xs font-bold text-green-700 bg-green-50 rounded-xl border border-green-100 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <MessageSquare size={14} className="mt-0.5 shrink-0 text-green-500" />
-                  <span>Planning to buy more? <button onClick={handleContactMaker} disabled={creatingChat} className="underline decoration-green-300 underline-offset-2 hover:text-green-900 transition hover:decoration-green-500">Ask the maker</button> for volume discounts!</span>
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                <ShieldCheck size={14} className="text-gray-300" /> Printsi Escrow Protection
+              </div>
+              {isDigital ? (
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-600 tracking-wider">
+                   <div className="w-2 h-2 rounded-full bg-green-500" /> Instant Download
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                  <Truck size={14} className="text-gray-300" /> DHL Global Express
                 </div>
               )}
             </div>
-          )}
-
-          <div className="flex gap-4 mt-auto">
-            {isOwner ? (
-              <Link
-                href={`/edit/${offer.id}`}
-                className="flex-1 py-4 rounded-xl font-black uppercase tracking-widest bg-gray-900 text-white hover:bg-blue-600 transition-all shadow-xl flex items-center justify-center gap-2"
-              >
-                <Edit size={20} /> Edit Listing
-              </Link>
-            ) : offer.category === 'job' && !userRoles.includes('printer') ? (
-              <button
-                disabled
-                className="flex-1 py-4 rounded-xl font-black uppercase tracking-widest bg-red-50 text-red-500 cursor-not-allowed flex items-center justify-center gap-2 border border-red-200 shadow-sm"
-              >
-                <Ban size={20} /> Printer Role Required
-              </button>
-            ) : (
-              <button
-                onClick={handleAddToCart}
-                disabled={isOutOfStock || isAlreadyInCart}
-                className={`flex-1 py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-green-100 text-green-600 cursor-not-allowed shadow-none border border-green-200' : 'bg-gray-900 text-white hover:bg-blue-600'}`}
-              >
-                {isOutOfStock ? 'Sold Out' : isAlreadyInCart ? <><Check size={20} /> Already in Cart</> : <><ShoppingBag size={20} /> {offer.category === 'job' ? 'Fulfill Request' : 'Add to Cart'}</>}
-              </button>
-            )}
-
-            {/* PRZYCISK ULUBIONE (DODANY TUTAJ) */}
-            <button
-              onClick={toggleFavorite}
-              className={`p-4 border border-gray-200 rounded-xl transition flex items-center justify-center ${isFavorite ? 'bg-red-50 border-red-200 text-red-500' : 'hover:bg-gray-50 text-gray-400'}`}
-            >
-              <Heart size={20} className={isFavorite ? 'fill-red-500' : ''} />
-            </button>
-
-            <button onClick={handleShare} className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-400 transition relative">
-              <Share2 size={20} />
-              {showShareToast && (
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] font-black py-1.5 px-3 rounded-lg flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2">
-                  <Check size={10} className="text-green-400" /> LINK COPIED
-                </div>
-              )}
-            </button>
-          </div>
-
-          <div className="mt-8 flex items-center gap-6 text-[10px] font-bold uppercase text-gray-400 tracking-wider">
-            {!isDigital && (
-              <span className="flex items-center gap-1"><Truck size={14} /> Shipping with DHL</span>
-            )}
-            {isDigital && (
-              <span className="flex items-center gap-1 text-green-600"><Check size={14} /> Instant Email Delivery</span>
-            )}
-            <span className="flex items-center gap-1"><ShieldCheck size={14} /> Buyer Protection</span>
           </div>
         </div>
       </div>
+
+      {/* --- MORE FROM THIS SELLER SECTION --- */}
+      {sellerOffers.length > 0 && (
+        <div className="max-w-7xl mx-auto px-6 py-24 border-t border-gray-100 mt-12">
+          <div className="flex items-end justify-between mb-12">
+            <div>
+              <span className="text-[10px] font-black uppercase text-blue-600 tracking-[0.3em] mb-2 block">Discovery</span>
+              <h2 className="text-4xl font-black uppercase tracking-tight text-gray-900">More from {seller?.full_name?.split(' ')[0] || 'this maker'}</h2>
+            </div>
+            <Link href={`/user/${offer.user_id}`} className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-blue-600 transition-colors border-b border-transparent hover:border-blue-600 pb-1">View Collection</Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {sellerOffers.map((item) => (
+              <Link key={item.id} href={`/offer/${item.id}`} className="group block">
+                <div className="aspect-square bg-gray-50 rounded-[32px] overflow-hidden border border-gray-100 mb-4 relative shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
+                  {item.image_urls?.[0] ? (
+                    <img src={item.image_urls[0]} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-200"><Box size={40} /></div>
+                  )}
+                  <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3 rounded-2xl opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0 shadow-lg">
+                    <div className="text-[10px] font-black uppercase text-gray-400 truncate mb-0.5">{item.category}</div>
+                    <div className="text-sm font-black text-gray-900 truncate">{item.title}</div>
+                  </div>
+                </div>
+                <div className="px-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest truncate max-w-[60%]">{item.title}</span>
+                    <span className="text-xs font-black text-blue-600">{formatPrice(item.price)}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Added to Cart Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
           <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-gray-100 animate-in zoom-in-95 duration-300 relative overflow-hidden">
-            {/* Background Accent */}
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-indigo-600" />
-            
             <div className="flex flex-col items-center text-center">
               <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-500 mb-6 shadow-inner ring-8 ring-green-50/50">
-                <Check size={40} strokeWidth={3} />
+                <CheckCircle size={40} strokeWidth={2} />
               </div>
-              
-              <h3 className="text-2xl font-black uppercase text-gray-900 mb-2 tracking-tight">Added to Cart!</h3>
+              <h3 className="text-2xl font-black uppercase text-gray-900 mb-2 tracking-tight">Added to Bag</h3>
               <p className="text-gray-500 text-sm mb-8 font-medium leading-relaxed">
-                <span className="text-gray-900 font-bold">"{offer.title}"</span> has been added to your shopping bag.
+                <span className="text-gray-900 font-bold">"{offer.title}"</span> is ready for checkout.
               </p>
-              
               <div className="flex flex-col gap-3 w-full">
-                <button 
-                  onClick={() => router.push('/cart')} 
-                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-blue-600 transition-all shadow-lg hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <ShoppingBag size={16} /> View Cart & Checkout
-                </button>
-                <button 
-                  onClick={() => setShowModal(false)} 
-                  className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-gray-200 transition-all active:scale-95"
-                >
-                  Continue Shopping
-                </button>
+                <button onClick={() => router.push('/cart')} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-blue-600 transition-all shadow-lg hover:-translate-y-1 flex items-center justify-center gap-2"><ShoppingBag size={16} /> Checkout Now</button>
+                <button onClick={() => setShowModal(false)} className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-gray-200 transition-all">Keep Shopping</button>
               </div>
             </div>
           </div>

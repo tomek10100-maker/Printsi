@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -28,12 +28,15 @@ const PROBLEM_TYPES = [
     { value: 'other', label: 'Other Issue', icon: '❓', digital: true },
 ];
 
-export default function MessagesPage() {
+function MessagesInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const initialChatId = searchParams?.get('chat');
+    const paramSellerId = searchParams?.get('seller_id');
+    const paramBuyerId = searchParams?.get('buyer_id');
+    const paramOfferId = searchParams?.get('offer_id');
 
-    const { addItem } = useCart();
+    const { addItem, items: cartItems } = useCart();
     const { formatPrice, currency, rates } = useCurrency();
 
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -50,6 +53,17 @@ export default function MessagesPage() {
     const [proposalQty, setProposalQty] = useState('1');
     const [proposalMaterial, setProposalMaterial] = useState('');
     const [proposalColor, setProposalColor] = useState('');
+    const [proposalColorHex, setProposalColorHex] = useState('#cccccc');
+    const [selectedFilamentId, setSelectedFilamentId] = useState<string | null>(null);
+    const [sellerFilaments, setSellerFilaments] = useState<any[]>([]);
+    const [showCustomFilamentInput, setShowCustomFilamentInput] = useState(false);
+    const [customFilamentText, setCustomFilamentText] = useState('');
+    const [loadingFilaments, setLoadingFilaments] = useState(false);
+
+    type ParsedDim = { name: string; originalValue: number; currentValueStr: string; unit: string; isBase: boolean; };
+    const [proposalDims, setProposalDims] = useState<ParsedDim[]>([]);
+    const [proposalScale, setProposalScale] = useState<number>(100);
+    const [editingProposalData, setEditingProposalData] = useState<any>(null);
 
     // Dispute Modal State
     const [showDisputeModal, setShowDisputeModal] = useState(false);
@@ -60,8 +74,13 @@ export default function MessagesPage() {
 
     // Tracking code state
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
+    const [swappedLayers, setSwappedLayers] = useState<any[]>([]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setShowProposalModal(false);
+    }, [activeChatId]);
 
     useEffect(() => {
         const init = async () => {
@@ -80,7 +99,7 @@ export default function MessagesPage() {
         id, created_at, updated_at, order_id,
         buyer_id, seller_id,
         offer_id,
-        offers ( id, title, image_urls, category, price, material, color )
+        offers ( id, title, image_urls, category, price, material, color, dimensions, color_variants )
       `)
             .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
             .order('updated_at', { ascending: false });
@@ -93,6 +112,24 @@ export default function MessagesPage() {
 
         const enrichChats = await Promise.all((fetchedChats || []).map(async (chat) => {
             const otherUserId = chat.buyer_id === userId ? chat.seller_id : chat.buyer_id;
+
+            // Check if there are messages. Filter out empty chats to clean up database/clutter.
+            const { data: mData, error: mError } = await supabase
+                .from('messages')
+                .select('id')
+                .eq('chat_id', chat.id)
+                .limit(1);
+
+            const isEmpty = !mError && (!mData || mData.length === 0);
+
+            if (isEmpty) {
+                // User requirement: delete chats that have NO user content and NO order attached
+                if (!chat.order_id) {
+                    await supabase.from('chats').delete().eq('id', chat.id);
+                    return null;
+                }
+            }
+
             const { data: otherProfile } = await supabase
                 .from('profiles')
                 .select('full_name, avatar_url')
@@ -129,24 +166,56 @@ export default function MessagesPage() {
                         };
                     }
                 }
-
             }
 
             return { ...chat, otherUser: otherProfile || { full_name: 'Unknown User' }, unreadCount: unreadCount || 0, orderItem: orderItemInfo };
         }));
 
-        setChats(enrichChats);
+        const filteredChats = enrichChats.filter(c => c !== null) as any[];
+
+        // HANDLE DRAFT CHAT (INITIATED BY EITHER BUYER OR SELLER)
+        if ((paramSellerId || paramBuyerId) && paramOfferId && userId) {
+            const otherUserId = paramSellerId || paramBuyerId;
+            const existing = filteredChats.find(c =>
+                ((c.seller_id === paramSellerId && c.buyer_id === userId) || (c.buyer_id === paramBuyerId && c.seller_id === userId)) &&
+                c.offer_id === paramOfferId
+            );
+
+            if (existing) {
+                setActiveChatId(existing.id);
+            } else {
+                const { data: otherProf } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', otherUserId).single();
+                const { data: offerData } = await supabase.from('offers').select('id, title, image_urls, category, price, material, color, dimensions').eq('id', paramOfferId).single();
+
+                if (otherProf && offerData) {
+                    const draftChat = {
+                        id: 'draft',
+                        buyer_id: paramBuyerId || userId,
+                        seller_id: paramSellerId || userId,
+                        offer_id: paramOfferId,
+                        offers: offerData,
+                        otherUser: otherProf,
+                        unreadCount: 0,
+                        created_at: new Date().toISOString(),
+                    };
+                    filteredChats.unshift(draftChat);
+                    setActiveChatId('draft');
+                }
+            }
+        }
+
+        setChats(filteredChats);
         setLoadingChats(false);
 
-        if (initialChatId && enrichChats.some(c => c.id === initialChatId)) {
+        if (initialChatId && filteredChats.some(c => c.id === initialChatId)) {
             setActiveChatId(initialChatId);
-        } else if (!initialChatId && enrichChats.length > 0) {
-            setActiveChatId(enrichChats[0].id);
+        } else if (!initialChatId && !paramSellerId && !paramBuyerId && filteredChats.length > 0) {
+            setActiveChatId(filteredChats[0].id);
         }
     };
 
     useEffect(() => {
-        if (activeChatId && currentUser) {
+        if (activeChatId && currentUser && activeChatId !== 'draft') {
             const currentChatId = activeChatId;
             loadMessages(currentChatId);
 
@@ -159,6 +228,9 @@ export default function MessagesPage() {
             markAsRead();
 
             setChats(prev => prev.map(c => c.id === currentChatId ? { ...c, unreadCount: 0 } : c));
+        } else if (activeChatId === 'draft') {
+            setMessages([]);
+            setLoadingMessages(false);
         }
     }, [activeChatId, currentUser]);
 
@@ -187,10 +259,36 @@ export default function MessagesPage() {
 
         const content = newMessage.trim();
         setNewMessage('');
+        let currentActiveId = activeChatId;
+
+        if (currentActiveId === 'draft') {
+            const draft = chats.find(c => c.id === 'draft');
+            if (!draft) return;
+
+            const { data: newChat, error: chatErr } = await supabase
+                .from('chats')
+                .insert({
+                    buyer_id: currentUser.id,
+                    seller_id: draft.seller_id,
+                    offer_id: draft.offer_id
+                })
+                .select('id')
+                .single();
+
+            if (chatErr || !newChat) {
+                console.error("Error creating chat:", chatErr);
+                alert("Failed to start chat session.");
+                return;
+            }
+
+            currentActiveId = newChat.id;
+            setActiveChatId(currentActiveId);
+            router.replace(`/profile/messages?chat=${currentActiveId}`);
+        }
 
         const tempMsg = {
             id: 'temp-' + Date.now(),
-            chat_id: activeChatId,
+            chat_id: currentActiveId,
             sender_id: currentUser.id,
             content: content,
             message_type: 'user',
@@ -200,7 +298,7 @@ export default function MessagesPage() {
         scrollToBottom();
 
         const { error } = await supabase.from('messages').insert({
-            chat_id: activeChatId,
+            chat_id: currentActiveId,
             sender_id: currentUser.id,
             content: content,
         });
@@ -209,30 +307,28 @@ export default function MessagesPage() {
             console.error(error);
             alert("Failed to send message");
         } else {
-            loadMessages(activeChatId);
+            loadMessages(currentActiveId);
             loadChats(currentUser.id);
 
-            // Send new message email notification (fire & forget)
             fetch('/api/order/new-message-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    chatId: activeChatId,
+                    chatId: currentActiveId,
                     senderId: currentUser.id,
                     content: content,
                 }),
-            }).catch(() => {});
+            }).catch(() => { });
         }
     };
 
     const activeChatData = chats.find(c => c.id === activeChatId);
 
-    // --- STATUS TRANSITION LOGIC ---
     const handleStatusUpdate = async (newStatus: string) => {
         if (!activeChatData || !activeChatData.orderItem || !currentUser) return;
 
-        // If dispute, open the dispute modal instead
         if (newStatus === 'disputed') {
+            setDisputeEmail(currentUser.email || '');
             setShowDisputeModal(true);
             return;
         }
@@ -270,10 +366,9 @@ export default function MessagesPage() {
         }
     }, [formError]);
 
-    // --- DISPUTE SUBMIT ---
     const handleDisputeSubmit = async () => {
         if (!activeChatData?.orderItem || !currentUser || !disputeProblemType || !disputeDescription.trim() || !disputeEmail.trim()) {
-            alert('Please fill in all fields');
+            setFormError('Please fill in all fields (Reason, Description and Email)');
             return;
         }
 
@@ -293,6 +388,7 @@ export default function MessagesPage() {
             })
         });
 
+        setDisputeSubmitting(true); // Wait, this should be false? Oh, false is below.
         setDisputeSubmitting(false);
 
         if (res.ok) {
@@ -300,7 +396,6 @@ export default function MessagesPage() {
             setDisputeProblemType('');
             setDisputeDescription('');
             setDisputeEmail('');
-            // Update local state
             setChats(prev => prev.map(c =>
                 c.id === activeChatId
                     ? { ...c, orderItem: { ...c.orderItem, status: 'disputed' } }
@@ -313,24 +408,256 @@ export default function MessagesPage() {
         }
     };
 
-    // --- PROPOSAL LOGIC ---
+    const parseDimensionsAdvanced = (dimStr: string): ParsedDim[] => {
+        let parsed: ParsedDim[] = [];
+        if (dimStr) {
+            parsed = dimStr.split(',').map(part => {
+                const match = part.match(/^(.*?):\s*(\d+(?:\.\d+)?)\s*(.*)$/);
+                if (match) {
+                    const name = match[1].trim();
+                    const val = parseFloat(match[2]);
+                    const unit = match[3].trim();
+                    const lowerName = name.toLowerCase();
+                    const isBase = lowerName.includes('width') || lowerName.includes('height') || lowerName.includes('depth') || lowerName.includes('length') ||
+                        lowerName.includes('szerokość') || lowerName.includes('wysokość') || lowerName.includes('głębokość') || lowerName.includes('długość') ||
+                        lowerName.includes('szerokosc') || lowerName.includes('wysokosc') || lowerName.includes('glebokosc') || lowerName.includes('dlugosc') ||
+                        lowerName === 'w' || lowerName === 'h' || lowerName === 'l' || lowerName === 'd';
+                    return { name, originalValue: val, currentValueStr: val.toString(), unit, isBase };
+                }
+                return { name: part.trim(), originalValue: 0, currentValueStr: '', unit: '', isBase: false };
+            }).filter(d => d.originalValue > 0);
+        }
+
+        const hasBase = parsed.some(d => d.isBase);
+        if (!hasBase) {
+            parsed = [
+                { name: 'Width', originalValue: 100, currentValueStr: '100', unit: 'mm', isBase: true },
+                { name: 'Height', originalValue: 100, currentValueStr: '100', unit: 'mm', isBase: true },
+                { name: 'Depth', originalValue: 100, currentValueStr: '100', unit: 'mm', isBase: true },
+                ...parsed
+            ];
+        }
+        return parsed;
+    };
+
+    const [respondingToMsgId, setRespondingToMsgId] = useState<string | null>(null);
+
+    const openProposalModal = async (initialData?: any, msgId: string | null = null) => {
+        if (!activeChatData) return;
+        setEditingProposalData(initialData || null);
+        setRespondingToMsgId(msgId);
+
+        const baseOffer = activeChatData.offers;
+        const sourceData = initialData || baseOffer;
+
+        if (sourceData?.price !== undefined) {
+            const displayPrice = currency !== 'EUR' && rates && rates[currency]
+                ? (sourceData.price * rates[currency]).toFixed(2)
+                : sourceData.price.toFixed(2);
+            setProposalPrice(displayPrice);
+        } else {
+            setProposalPrice('');
+        }
+
+        setProposalQty(sourceData?.quantity?.toString() || '1');
+        setProposalMaterial(sourceData?.material || '');
+        setProposalColor(sourceData?.color || '');
+        setProposalColorHex(sourceData?.colorHex || '#cccccc');
+        setShowCustomFilamentInput(false);
+        setCustomFilamentText('');
+
+        if (sourceData?.swappedLayers) {
+            setSwappedLayers(sourceData.swappedLayers.map((l: any) => ({
+                original_color_name: l.from,
+                original_color_hex: l.from_hex || l.to_hex || '#cccccc',
+                grams: l.grams,
+                swapped_filament_id: null,
+                custom_color_name: l.to !== l.from ? l.to : '',
+                custom_color_hex: l.to !== l.from ? l.to_hex : l.from_hex || '#cccccc',
+                showCustom: l.to !== l.from
+            })));
+        } else {
+            const multiVariant = baseOffer?.color_variants?.find((v: any) => v.isMultiColor && v.layers && v.layers.length > 0);
+            if (multiVariant) {
+                setSwappedLayers(multiVariant.layers.map((l: any) => ({
+                    original_color_name: l.color_name,
+                    original_color_hex: l.color_hex,
+                    grams: l.grams,
+                    swapped_filament_id: null,
+                    custom_color_name: '',
+                    custom_color_hex: l.color_hex || '#cccccc',
+                    showCustom: false
+                })));
+            } else {
+                setSwappedLayers([]);
+            }
+        }
+
+        const dimStr = sourceData?.dimensions || baseOffer?.dimensions || '';
+        setProposalDims(parseDimensionsAdvanced(dimStr));
+        setProposalScale(sourceData?.dimensionScale || 100);
+
+        setLoadingFilaments(true);
+        setShowProposalModal(true);
+        try {
+            const res = await fetch(`/api/filaments?sellerId=${activeChatData.seller_id}`);
+            const data = await res.json();
+            if (data.filaments) {
+                setSellerFilaments(data.filaments);
+            } else {
+                setSellerFilaments([]);
+            }
+        } catch (err) {
+            console.error(err);
+            setSellerFilaments([]);
+        }
+        setLoadingFilaments(false);
+    };
+
+    const handleDimChange = (idx: number, newValStr: string) => {
+        const dim = proposalDims[idx];
+        const newDims = [...proposalDims];
+        newDims[idx].currentValueStr = newValStr;
+        const numVal = parseFloat(newValStr);
+
+        if (dim.isBase && !isNaN(numVal) && numVal > 0 && dim.originalValue > 0) {
+            const scale = numVal / dim.originalValue;
+            setProposalScale(Math.round(scale * 10000) / 100);
+
+            newDims.forEach(d => {
+                if (d !== newDims[idx] && d.originalValue > 0) {
+                    d.currentValueStr = (d.originalValue * scale).toFixed(2).replace(/\.00$/, '');
+                }
+            });
+        }
+        setProposalDims(newDims);
+    };
+
+    const handleScaleChange = (newScaleStr: string) => {
+        const val = parseFloat(newScaleStr);
+        setProposalScale(isNaN(val) ? 0 : val);
+
+        if (!isNaN(val) && val > 0) {
+            const ratio = val / 100;
+            const newDims = [...proposalDims];
+            newDims.forEach(d => {
+                if (d.originalValue > 0) {
+                    d.currentValueStr = (d.originalValue * ratio).toFixed(2).replace(/\.00$/, '');
+                }
+            });
+            setProposalDims(newDims);
+        }
+    };
+
+    const hasProposalChanges = (() => {
+        if (!activeChatData?.offers) return false;
+        const orig = editingProposalData || activeChatData.offers;
+
+        let currentPriceNum = parseFloat(proposalPrice);
+        let finalPrice = currentPriceNum;
+        if (currency !== 'EUR' && rates && rates[currency]) {
+            finalPrice = finalPrice / rates[currency];
+        }
+
+        const priceChanged = Math.abs(finalPrice - (orig.price || 0)) > 0.01;
+        const qtyChanged = parseInt(proposalQty) !== (orig.quantity || 1);
+        const matChanged = proposalMaterial !== (orig.material || '');
+        const colChanged = proposalColor !== (orig.color || '');
+        const scaleChanged = Math.abs(proposalScale - (orig.dimensionScale || 100)) > 0.1;
+        const swapsChanged = swappedLayers.some(sl => {
+            const currentChoiceName = sl.swapped_filament_id
+                ? sellerFilaments.find(f => f.id === sl.swapped_filament_id)?.color_name
+                : (sl.showCustom ? sl.custom_color_name : sl.original_color_name);
+            return currentChoiceName !== sl.original_color_name;
+        });
+
+        return priceChanged || qtyChanged || matChanged || colChanged || scaleChanged || swapsChanged;
+    })();
+
     const sendProposal = async () => {
         if (!activeChatId || !currentUser || !activeChatData) return;
+
+        let currentActiveId = activeChatId;
+
+        // If it's a draft, create the chat before sending proposal
+        if (currentActiveId === 'draft') {
+            const { data: newChat, error: chatErr } = await supabase
+                .from('chats')
+                .insert({
+                    buyer_id: currentUser.id,
+                    seller_id: activeChatData.seller_id,
+                    offer_id: activeChatData.offer_id
+                })
+                .select('id')
+                .single();
+
+            if (chatErr || !newChat) {
+                console.error("Error creating chat for proposal:", chatErr);
+                alert("Failed to create chat session.");
+                return;
+            }
+            currentActiveId = newChat.id;
+            setActiveChatId(currentActiveId);
+            router.replace(`/profile/messages?chat=${currentActiveId}`);
+        }
 
         let finalPrice = parseFloat(proposalPrice);
         if (currency !== 'EUR' && rates && rates[currency]) {
             finalPrice = finalPrice / rates[currency];
         }
 
+        let resolvedMaterial = proposalMaterial || activeChatData.offers?.material || 'Any';
+        let resolvedColor = proposalColor || activeChatData.offers?.color || 'Any';
+        let resolvedColorHex = proposalColorHex !== '#cccccc' ? proposalColorHex : undefined;
+
+        if (selectedFilamentId) {
+            const fil = sellerFilaments.find(f => f.id === selectedFilamentId);
+            if (fil) {
+                resolvedMaterial = fil.plastic_type;
+                resolvedColor = fil.color_name;
+                resolvedColorHex = fil.color_hex;
+            }
+        } else if (showCustomFilamentInput && proposalColor.trim()) {
+            resolvedColor = proposalColor.trim();
+        }
+
+        const swaps = swappedLayers.map(sl => {
+            const fil = sl.swapped_filament_id ? sellerFilaments.find(f => f.id === sl.swapped_filament_id) : null;
+            const toName = fil ? fil.color_name : (sl.custom_color_name || sl.original_color_name);
+            const isActuallyModified = toName !== sl.original_color_name;
+
+            return {
+                from: sl.original_color_name,
+                from_hex: sl.original_color_hex,
+                to: toName,
+                to_hex: fil ? fil.color_hex : (sl.custom_color_hex || sl.original_color_hex),
+                grams: sl.grams,
+                isModified: isActuallyModified
+            };
+        });
+
+
+
         const payload: any = {
             price: finalPrice,
             quantity: parseInt(proposalQty),
-            material: proposalMaterial || activeChatData.offers?.material || 'Any',
-            color: proposalColor || activeChatData.offers?.color || 'Any',
-            status: 'pending'
+            material: resolvedMaterial,
+            color: resolvedColor,
+            colorHex: resolvedColorHex,
+            swappedLayers: swaps.length > 0 ? swaps : undefined,
+            dimensions: proposalDims.length > 0 ? proposalDims.map(d => `${d.name}: ${d.currentValueStr} ${d.unit}`).join(', ') : undefined,
+            dimensionScale: proposalScale,
         };
 
-        const isSeller = currentUser.id === activeChatData.seller_id;
+        const isSeller = currentUser.id === activeChatData?.seller_id;
+
+        if (editingProposalData) {
+            payload.status = 'counter_proposed';
+        } else if (isSeller) {
+            payload.status = 'seller_proposed';
+        } else {
+            payload.status = 'pending';
+        }
 
         if (isSeller) {
             try {
@@ -345,12 +672,20 @@ export default function MessagesPage() {
                     stock: Number(payload.quantity),
                     is_custom: true,
                     parent_offer_id: activeChatData.offers?.id || null,
-                    image_urls: activeChatData.offers?.image_urls || null
+                    image_urls: activeChatData.offers?.image_urls || null,
+                    dimensions: payload.dimensions || activeChatData.offers?.dimensions || null,
+                    color_variants: payload.swappedLayers ? [{
+                        manual: true,
+                        isMultiColor: true,
+                        layers: payload.swappedLayers.map((sl: any) => ({
+                            color_name: sl.to,
+                            color_hex: sl.to_hex,
+                            grams: sl.grams
+                        }))
+                    }] : undefined
                 }).select().single();
 
                 if (offerError) throw offerError;
-
-                payload.status = 'seller_proposed';
                 payload.custom_offer_id = newOffer.id;
             } catch (e) {
                 console.error(e);
@@ -380,15 +715,45 @@ export default function MessagesPage() {
             content: content,
         });
 
+        // Trigger Negotiation Email
+        const emailType = payload.status === 'counter_proposed' ? 'counter_offer' : (payload.status === 'seller_proposed' ? 'seller_offer' : 'new_offer');
+        fetch('/api/order/negotiation-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chatId: activeChatId,
+                senderId: currentUser.id,
+                type: emailType,
+                price: formatPrice(payload.price),
+                productTitle: activeChatData.offers?.title || 'Custom Item'
+            }),
+        }).catch(err => console.error('Negotiation email error:', err));
+
+        if (respondingToMsgId) {
+            try {
+                const origMsg = messages.find(m => m.id === respondingToMsgId);
+                if (origMsg && origMsg.content.startsWith('[PROPOSAL]')) {
+                    const parsed = JSON.parse(origMsg.content.substring(10));
+                    parsed.status = 'countered';
+                    await supabase.from('messages').update({
+                        content: `[PROPOSAL]${JSON.stringify(parsed)}`
+                    }).eq('id', respondingToMsgId);
+                }
+            } catch (e) {
+                console.error("Error updating countered message:", e);
+            }
+            setRespondingToMsgId(null);
+        }
+
         loadMessages(activeChatId);
         loadChats(currentUser.id);
     };
 
     const handleAcceptProposal = async (msgId: string, parsedData: any) => {
-        if (!activeChatData || activeChatData.seller_id !== currentUser.id) return;
+        if (!activeChatData || !activeChatData.offers || activeChatData.seller_id !== currentUser?.id) return;
 
         if (!parsedData || !parsedData.price || isNaN(Number(parsedData.price))) {
-            alert("Error: Proposal lacks a valid price! Try refreshing the page or ask for a new one.");
+            alert("Error: Proposal lacks a valid price!");
             return;
         }
 
@@ -404,7 +769,18 @@ export default function MessagesPage() {
                 stock: Number(parsedData.quantity) || 1,
                 is_custom: true,
                 parent_offer_id: activeChatData.offers?.id || null,
-                image_urls: activeChatData.offers?.image_urls || null
+                image_urls: activeChatData.offers?.image_urls || null,
+                dimensions: parsedData.dimensions || activeChatData.offers?.dimensions || null,
+                dimensionScale: parsedData.dimensionScale || 100,
+                color_variants: parsedData.swappedLayers ? [{
+                    manual: true,
+                    isMultiColor: true,
+                    layers: parsedData.swappedLayers.map((sl: any) => ({
+                        color_name: sl.to,
+                        color_hex: sl.to_hex,
+                        grams: sl.grams
+                    }))
+                }] : undefined
             }).select().single();
 
             if (offerError) throw offerError;
@@ -415,10 +791,23 @@ export default function MessagesPage() {
             await supabase.from('messages').update({
                 content: `[PROPOSAL]${JSON.stringify(parsedData)}`
             }).eq('id', msgId);
+
+            // Trigger Accepted Email
+            fetch('/api/order/negotiation-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chatId: activeChatId,
+                    senderId: currentUser.id,
+                    type: 'accept',
+                    productTitle: activeChatData?.offers?.title || 'Custom Item'
+                }),
+            }).catch(() => { });
+
             loadMessages(activeChatId as string);
         } catch (e: any) {
             console.error("Failed to accept proposal", e);
-            alert(`Error accepting offer: ${e.message || JSON.stringify(e)} \n(Make sure you ran the latest SQL script!)`);
+            alert(`Error accepting offer: ${e.message}`);
         }
     };
 
@@ -430,6 +819,18 @@ export default function MessagesPage() {
             content: `[PROPOSAL]${JSON.stringify(parsedData)}`
         }).eq('id', msgId);
 
+        // Trigger Accepted Email
+        fetch('/api/order/negotiation-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chatId: activeChatId,
+                senderId: currentUser.id,
+                type: 'accept',
+                productTitle: activeChatData.offers?.title || 'Custom Item'
+            }),
+        }).catch(() => { });
+
         loadMessages(activeChatId as string);
         handleBuyCustomOffer(parsedData);
     };
@@ -439,6 +840,19 @@ export default function MessagesPage() {
         await supabase.from('messages').update({
             content: `[PROPOSAL]${JSON.stringify(parsedData)}`
         }).eq('id', msgId);
+
+        // Trigger Rejected Email
+        fetch('/api/order/negotiation-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chatId: activeChatId,
+                senderId: currentUser.id,
+                type: 'reject',
+                productTitle: activeChatData?.offers?.title || 'Custom Item'
+            }),
+        }).catch(() => { });
+
         loadMessages(activeChatId as string);
     };
 
@@ -459,12 +873,8 @@ export default function MessagesPage() {
         router.push('/cart');
     };
 
-    // ─── RENDER HELPERS ────────────────────────────────────
-
     const renderSystemMessage = (msg: any, idx: number) => {
         const messageType = msg.message_type || 'system';
-
-        // Define styles per type
         const typeStyles: Record<string, { bg: string; border: string; icon: any; iconColor: string; label: string; accent: string }> = {
             system: {
                 bg: 'bg-gradient-to-r from-slate-50 to-blue-50/50',
@@ -517,27 +927,21 @@ export default function MessagesPage() {
         };
 
         const style = typeStyles[messageType] || typeStyles.system;
-
-        // Parse dispute details if it's a dispute message
         let disputeData: any = null;
         if (messageType === 'dispute_opened') {
-            try {
-                disputeData = JSON.parse(msg.content);
-            } catch { }
+            try { disputeData = JSON.parse(msg.content); } catch { }
         }
 
         return (
             <div key={msg.id || idx} className="flex justify-center my-5 px-4">
                 <div className={`w-full max-w-md ${style.bg} border ${style.border} rounded-2xl overflow-hidden shadow-sm`}>
-                    {/* Header bar */}
                     <div className={`bg-gradient-to-r ${style.accent} px-4 py-2 flex items-center gap-2`}>
                         <div className="text-white/90">{style.icon}</div>
                         <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">{style.label}</span>
                         <span className="ml-auto text-[9px] text-white/60 font-bold">
-                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </span>
                     </div>
-                    {/* Body */}
                     <div className="px-4 py-3">
                         {disputeData ? (
                             <div className="space-y-2">
@@ -550,23 +954,19 @@ export default function MessagesPage() {
                         ) : (
                             <p className="text-sm text-slate-800 font-bold leading-relaxed">{msg.content}</p>
                         )}
-
                     </div>
                 </div>
             </div>
         );
     };
 
-    // Render action card in chat (shipped/received/completed/dispute buttons)
     const renderActionCard = (orderItem: any, chatData: any) => {
         if (!orderItem || !currentUser) return null;
-
         const status = (orderItem.status || 'pending').toLowerCase();
         const isSeller = String(currentUser.id) === String(chatData?.seller_id);
         const isBuyer = String(currentUser.id) === String(chatData?.buyer_id);
         const isDigital = chatData?.offers?.category === 'digital';
 
-        // PENDING → seller
         if (status === 'pending' && isSeller) {
             return (
                 <div className="flex flex-col gap-2 my-4">
@@ -576,17 +976,28 @@ export default function MessagesPage() {
                                 {isDigital ? <Mail size={18} className="text-blue-600" /> : <Truck size={18} className="text-blue-600" />}
                             </div>
                             <p className="text-sm font-bold text-gray-800 mb-1">{isDigital ? 'Ready to deliver?' : 'Ready to ship?'}</p>
-                            <p className="text-xs text-gray-500 font-medium mb-4">
-                                {isDigital 
-                                    ? "Once you've sent the files to the buyer's email, mark it as delivered below." 
-                                    : "Pack the order and click below when you've handed it to the courier."}
+                            <p className="text-xs text-gray-500 font-medium mb-3">
+                                {isDigital
+                                    ? "Once you've sent the files to the buyer's email, mark it as delivered below."
+                                    : "Pack the order securely and hand it over to the courier."}
                             </p>
+                            {!isDigital && (
+                                <div className="bg-[#FFCC00]/10 border border-[#FFCC00]/30 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-left text-[11px] font-bold text-gray-700">
+                                    <div className="bg-white p-1 rounded-md shadow-sm border border-[#FFCC00]/50 shrink-0">
+                                        <Mail size={14} className="text-[#D40511]" />
+                                    </div>
+                                    <p className="leading-snug">
+                                        <span className="text-[#D40511] font-black uppercase tracking-wider block mb-0.5 text-[9px]">Important</span>
+                                        A DHL shipping label will be sent to your email shortly. Please print and attach it to the package.
+                                    </p>
+                                </div>
+                            )}
                             <button
-                                onClick={() => handleStatusUpdate(isDigital ? 'shipped' : 'shipped')}
+                                onClick={() => handleStatusUpdate('shipped')}
                                 className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
                             >
                                 {isDigital ? <Check size={14} className="inline mr-2 -mt-0.5" /> : <Truck size={14} className="inline mr-2 -mt-0.5" />}
-                                {isDigital ? 'Mark as Sent to Email' : 'Mark as Sent'}
+                                {isDigital ? 'Mark as Sent to Email' : 'Mark as Shipped via DHL'}
                             </button>
                         </div>
                     </div>
@@ -594,7 +1005,6 @@ export default function MessagesPage() {
             );
         }
 
-        // PENDING → buyer
         if (status === 'pending' && isBuyer) {
             return (
                 <div className="flex justify-center my-4 px-4 w-full">
@@ -607,7 +1017,6 @@ export default function MessagesPage() {
             );
         }
 
-        // SHIPPED/SENT → buyer
         if (status === 'shipped' && isBuyer) {
             return (
                 <div className="flex flex-col gap-2 my-4">
@@ -618,9 +1027,9 @@ export default function MessagesPage() {
                             </div>
                             <p className="text-sm font-bold text-gray-800 mb-1">{isDigital ? 'Files delivered!' : 'Package on its way!'}</p>
                             <p className="text-xs text-gray-500 font-medium mb-4">
-                                {isDigital 
-                                    ? "The seller reported that files were sent to your email. Do you accept the delivery or is there a problem?" 
-                                    : "Have you received the package? Confirm delivery below."}
+                                {isDigital
+                                    ? "The seller reported that files were sent to your email. Do you accept the delivery?"
+                                    : "The seller has shipped your order via DHL. Have you received the package? Confirm delivery below."}
                             </p>
                             <div className="flex gap-3 justify-center">
                                 <button
@@ -628,54 +1037,6 @@ export default function MessagesPage() {
                                     className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
                                 >
                                     <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" /> {isDigital ? 'Accept Files' : 'I Received It'}
-                                </button>
-                                {isDigital && (
-                                    <button
-                                        onClick={() => handleStatusUpdate('disputed')}
-                                        className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20"
-                                    >
-                                        <AlertTriangle size={14} className="inline mr-2 -mt-0.5" /> Problem
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        // SHIPPED/SENT → seller
-        if (status === 'shipped' && isSeller) {
-            return (
-                <div className="flex flex-col gap-2 my-4">
-                    <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
-                            <p className="text-xs font-bold text-blue-700">
-                                {isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        // DELIVERED (Physical only) → buyer
-        if (status === 'delivered' && isBuyer && !isDigital) {
-            return (
-                <div className="flex flex-col gap-2 my-4">
-                    <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-white border-2 border-dashed border-green-200 rounded-2xl p-5 text-center shadow-sm">
-                            <div className="w-10 h-10 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
-                                <CheckCircle2 size={18} className="text-green-600" />
-                            </div>
-                            <p className="text-sm font-bold text-gray-800 mb-1">Is everything OK?</p>
-                            <p className="text-xs text-gray-500 font-medium mb-4">Check your item and let us know if everything is fine, or report a problem.</p>
-                            <div className="flex gap-3 justify-center">
-                                <button
-                                    onClick={() => handleStatusUpdate('completed')}
-                                    className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-green-500/20"
-                                >
-                                    <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" /> All Good!
                                 </button>
                                 <button
                                     onClick={() => handleStatusUpdate('disputed')}
@@ -690,31 +1051,13 @@ export default function MessagesPage() {
             );
         }
 
-        // DELIVERED → seller
-        if (status === 'delivered' && isSeller && !isDigital) {
+        if (status === 'shipped' && isSeller) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 text-center">
-                            <p className="text-xs font-bold text-emerald-700">📬 Buyer received the package! Waiting for their final confirmation...</p>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        // COMPLETED / DISPUTED
-        if (status === 'completed' || status === 'disputed') {
-            return (
-                <div className="flex flex-col gap-2 my-4">
-                    <div className="flex justify-center px-4 w-full">
-                        <div className={`w-full max-w-md rounded-2xl p-4 text-center ${
-                            status === 'completed' ? 'bg-green-50/80 border border-green-100' : 'bg-red-50/80 border border-red-100'
-                        }`}>
-                            <p className={`text-xs font-black uppercase tracking-widest ${
-                                status === 'completed' ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                                {status === 'completed' ? '✅ Transaction Finalized' : '⚠️ Dispute Open — Funds on hold'}
+                        <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
+                            <p className="text-xs font-bold text-blue-700">
+                                {isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
                             </p>
                         </div>
                     </div>
@@ -722,14 +1065,26 @@ export default function MessagesPage() {
             );
         }
 
+        if (status === 'completed' || status === 'disputed') {
+            return (
+                <div className="flex flex-col gap-2 my-4">
+                    <div className="flex justify-center px-4 w-full">
+                        <div className={`w-full max-w-md rounded-2xl p-4 text-center ${status === 'completed' ? 'bg-green-50/80 border border-green-100' : 'bg-red-50/80 border border-red-100'
+                            }`}>
+                            <p className={`text-xs font-black uppercase tracking-widest ${status === 'completed' ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                {status === 'completed' ? '✅ Transaction Finalized' : '⚠️ Dispute Open — Funds on hold'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
         return null;
     };
 
-
     return (
         <main className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
-
-            {/* HEADER */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shrink-0">
                 <div className="flex items-center gap-4">
                     <Link href="/profile" className="p-2 bg-gray-50 text-gray-500 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors">
@@ -742,8 +1097,6 @@ export default function MessagesPage() {
             </div>
 
             <div className="flex flex-1 overflow-hidden h-[calc(100vh-73px)]">
-
-                {/* LEFT PANEL: CHAT LIST */}
                 <div className="w-full md:w-1/3 max-w-sm bg-white border-r border-gray-100 flex flex-col overflow-y-auto">
                     {loadingChats ? (
                         <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>
@@ -767,16 +1120,16 @@ export default function MessagesPage() {
                                     )}
                                 </div>
                                 <div className="overflow-hidden flex-1 flex flex-col justify-center">
-                                    <h3 className={`truncate text-sm ${chat.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-700'}`}>{chat.otherUser?.full_name}</h3>
+                                    <h3 className={`truncate text-sm ${chat.id === 'draft' ? 'text-blue-500 font-black' : (chat.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-700')}`}>
+                                        {chat.otherUser?.full_name}
+                                    </h3>
                                     <p className={`text-xs truncate mt-0.5 ${chat.unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-blue-600 font-bold'}`}>{chat.offers?.title || 'Unknown Item'}</p>
                                     {chat.order_id && (
-                                        <span className={`inline-block mt-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${
-                                            chat.orderItem?.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                        <span className={`inline-block mt-1.5 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${chat.orderItem?.status === 'completed' ? 'bg-green-100 text-green-700' :
                                             chat.orderItem?.status === 'disputed' ? 'bg-red-100 text-red-700' :
-                                            chat.orderItem?.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                                            chat.orderItem?.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
-                                            'bg-amber-100 text-amber-700'
-                                        }`}>
+                                                chat.orderItem?.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                                    'bg-amber-100 text-amber-700'
+                                            }`}>
                                             {chat.orderItem?.status || 'pending'}
                                         </span>
                                     )}
@@ -789,7 +1142,6 @@ export default function MessagesPage() {
                     )}
                 </div>
 
-                {/* RIGHT PANEL: ACTIVE CHAT */}
                 <div className={`flex-1 flex flex-col bg-gray-50 relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`}>
                     {!activeChatId ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
@@ -798,13 +1150,11 @@ export default function MessagesPage() {
                         </div>
                     ) : (
                         <>
-                            {/* Chat Header */}
                             {activeChatData && (
                                 <div className="bg-white px-6 py-4 border-b border-gray-100 flex items-center gap-4 shrink-0 shadow-sm">
                                     <button onClick={() => setActiveChatId(null)} className="md:hidden p-2 -ml-2 text-gray-400 hover:text-gray-900">
                                         <ArrowLeft size={20} />
                                     </button>
-
                                     <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
                                         {activeChatData.otherUser?.avatar_url ? (
                                             <img src={activeChatData.otherUser.avatar_url} alt="avatar" className="w-full h-full object-cover" />
@@ -814,230 +1164,611 @@ export default function MessagesPage() {
                                     </div>
                                     <div className="flex-1">
                                         <h2 className="font-bold text-gray-900">{activeChatData.otherUser?.full_name}</h2>
-                                        <Link href={`/offer/${activeChatData.offer_id}`} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 w-fit">
-                                            <Package size={12} /> {activeChatData.offers?.title}
-                                        </Link>
-                                    </div>
-
-                                    {/* Status badge in header */}
-                                    {activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (
-                                        <div className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                                            activeChatData.orderItem.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                            activeChatData.orderItem.status === 'disputed' ? 'bg-red-100 text-red-700' :
-                                            activeChatData.orderItem.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                                            activeChatData.orderItem.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
-                                            'bg-amber-100 text-amber-700'
-                                        }`}>
-                                            {activeChatData.orderItem.status || 'pending'}
+                                        <div className="flex items-center gap-3 mt-0.5">
+                                            <Link href={`/offer/${activeChatData.offer_id}`} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 w-fit">
+                                                <Package size={12} /> {activeChatData.offers?.title}
+                                            </Link>
+                                            {activeChatData.offers?.category !== 'digital' && (
+                                                <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 animate-in fade-in">
+                                                    <Truck size={12} className="text-blue-500" />
+                                                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">DHL Shipping</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-
-                                    {currentUser?.id === activeChatData.buyer_id && (
-                                        <button
-                                            onClick={() => setShowProposalModal(true)}
-                                            className="px-4 py-2 shrink-0 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2"
-                                        >
-                                            <Handshake size={14} /> Negotiate
-                                        </button>
-                                    )}
+                                    </div>
                                 </div>
                             )}
 
-                            {/* DISPUTE MODAL */}
                             {showDisputeModal && activeChatData && (
-                                <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
-                                    <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
+                                    <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                                         <div className="flex justify-between items-center mb-6">
                                             <div>
-                                                <h3 className="font-black text-gray-900 text-lg flex items-center gap-2">
-                                                    <ShieldAlert size={20} className="text-red-500" /> Open a Dispute
-                                                </h3>
-                                                <p className="text-xs text-gray-500 font-medium mt-1">Describe your problem and we'll investigate it.</p>
+                                                <h3 className="font-black text-gray-900 text-lg flex items-center gap-2"><ShieldAlert size={20} className="text-red-500" /> Open a Dispute</h3>
+                                                <p className="text-xs text-gray-500 font-medium mt-1">Describe your problem.</p>
                                             </div>
                                             <button onClick={() => setShowDisputeModal(false)} className="text-gray-400 hover:text-gray-900 p-1 bg-gray-100 rounded-full"><X size={16} /></button>
                                         </div>
-
                                         <div className="space-y-5">
-                                            {/* Problem Type */}
                                             <div>
                                                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-2 tracking-wider">Type of Problem</label>
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {PROBLEM_TYPES.filter(pt => activeChatData?.offers?.category === 'digital' ? pt.digital : !pt.digital || pt.value === 'other').map(pt => (
-                                                        <button
-                                                            key={pt.value}
-                                                            onClick={() => setDisputeProblemType(pt.value)}
-                                                            className={`p-3 rounded-xl border-2 text-left transition-all ${
-                                                                disputeProblemType === pt.value 
-                                                                    ? 'border-red-400 bg-red-50 shadow-sm' 
-                                                                    : 'border-gray-100 hover:border-gray-200 bg-white'
-                                                            }`}
-                                                        >
+                                                        <button key={pt.value} onClick={() => setDisputeProblemType(pt.value)} className={`p-3 rounded-xl border-2 text-left transition-all ${disputeProblemType === pt.value ? 'border-red-400 bg-red-50' : 'border-gray-100 bg-white'}`}>
                                                             <div className="text-base mb-0.5">{pt.icon}</div>
                                                             <div className="text-xs font-bold text-gray-700">{pt.label}</div>
                                                         </button>
                                                     ))}
                                                 </div>
                                             </div>
-
-                                            {/* Description */}
                                             <div>
                                                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-1 tracking-wider">Describe your problem</label>
-                                                <textarea
-                                                    value={disputeDescription}
-                                                    onChange={e => setDisputeDescription(e.target.value)}
-                                                    placeholder="Tell us what happened..."
-                                                    rows={4}
-                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-red-400 rounded-xl text-sm font-medium outline-none resize-none"
-                                                />
+                                                <textarea value={disputeDescription} onChange={e => setDisputeDescription(e.target.value)} rows={4} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-red-400 rounded-xl text-sm font-medium outline-none resize-none" placeholder="Explain what went wrong..." />
                                             </div>
-
-                                            {/* Contact Email */}
                                             <div>
-                                                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1 tracking-wider flex items-center gap-1"><Mail size={10} /> Contact Email</label>
-                                                <input
-                                                    type="email"
-                                                    value={disputeEmail}
-                                                    onChange={e => setDisputeEmail(e.target.value)}
-                                                    placeholder="your@email.com"
-                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-red-400 rounded-xl text-sm font-medium outline-none"
-                                                />
-                                                <p className="text-[10px] text-gray-400 font-medium mt-1">We'll contact you at this email about the resolution.</p>
+                                                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1 tracking-wider">Contact Email</label>
+                                                <input value={disputeEmail} onChange={e => setDisputeEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-red-400 rounded-xl text-sm font-medium outline-none" />
                                             </div>
-
-                                            <button
-                                                onClick={handleDisputeSubmit}
-                                                disabled={!disputeProblemType || !disputeDescription.trim() || !disputeEmail.trim() || disputeSubmitting}
-                                                className="w-full py-4 mt-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+                                            {formError && (
+                                                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-top-1 text-center">
+                                                    {formError}
+                                                </div>
+                                            )}
+                                            <button 
+                                                onClick={handleDisputeSubmit} 
+                                                disabled={!disputeProblemType || !disputeDescription.trim() || !disputeEmail.trim() || disputeSubmitting} 
+                                                className="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 hover:bg-red-700 transition-all shadow-lg flex items-center justify-center gap-2 transform active:scale-95"
                                             >
-                                                {disputeSubmitting ? (
-                                                    <><Loader2 size={16} className="animate-spin" /> Submitting...</>
-                                                ) : (
-                                                    <><ShieldAlert size={16} /> Submit Dispute</>
-                                                )}
+                                                {disputeSubmitting ? <Loader2 size={16} className="animate-spin" /> : <><ShieldAlert size={16} /> Submit Dispute</>}
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* PROPOSAL MODAL */}
                             {showProposalModal && activeChatData && (
-                                <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
-                                    <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <h3 className="font-black text-gray-900 uppercase">Propose Customization</h3>
-                                            <button onClick={() => setShowProposalModal(false)} className="text-gray-400 hover:text-gray-900 p-1 bg-gray-100 rounded-full"><X size={16} /></button>
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/40 backdrop-blur-md p-4">
+                                    <div className="bg-white p-8 rounded-[40px] w-full max-w-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-y-auto max-h-[90vh] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300 transition-all border border-white/20">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h3 className="text-gray-900 font-black tracking-tight text-xl flex items-center gap-2"><Handshake className="text-blue-600" /> PROPOSE CHANGES</h3>
+                                            <button onClick={() => setShowProposalModal(false)} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full hover:bg-gray-200 transition"><X size={16} /></button>
                                         </div>
+                                        <div className="space-y-6">
+                                            <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100 space-y-5 shadow-inner">
+                                                {(() => {
+                                                    const sd = editingProposalData || activeChatData.offers;
+                                                    const sp = sd?.price !== undefined ? (currency !== 'EUR' && rates && rates[currency] ? sd.price * rates[currency] : sd.price) : 0;
+                                                    const pDiff = Math.abs(parseFloat(proposalPrice || '0') - sp) > 0.01;
+                                                    const qDiff = proposalQty !== (sd?.quantity?.toString() || '1');
 
-                                        <div className="space-y-4">
+                                                    // Comprehensive change detection
+                                                    const hasMatChanges = activeChatData.offers?.category === 'physical' && (
+                                                        swappedLayers.some(sl => {
+                                                            const currentChoiceName = sl.swapped_filament_id
+                                                                ? sellerFilaments.find(f => f.id === sl.swapped_filament_id)?.color_name
+                                                                : (sl.showCustom ? sl.custom_color_name : '');
+
+                                                            // It's a change if:
+                                                            // 1. We picked a filament and its name is different from original
+                                                            // 2. We picked custom and its name is different from original AND not empty
+                                                            return currentChoiceName && currentChoiceName !== sl.original_color_name;
+                                                        }) ||
+                                                        (proposalMaterial !== (sd?.material || '')) ||
+                                                        (proposalColor !== (sd?.color || ''))
+                                                    );
+
+                                                    const originalDims = parseDimensionsAdvanced(sd?.dimensions || activeChatData.offers?.dimensions || '');
+                                                    const hasDimChanges = proposalScale !== 100 || proposalDims.some((dim, idx) => {
+                                                        const orig = originalDims[idx]?.originalValue || dim.originalValue;
+                                                        return Math.abs(parseFloat(dim.currentValueStr || '0') - orig) > 0.01;
+                                                    });
+
+                                                    const hasProposalChanges = pDiff || qDiff || hasMatChanges || hasDimChanges;
+
+                                                    return (
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <div className="flex justify-between items-center mb-1">
+                                                                    <label className={`text-[9px] font-black uppercase ${pDiff ? 'text-blue-600' : 'text-gray-400'}`}>Price per item</label>
+                                                                    {activeChatData.offers && (
+                                                                        <span className="text-[8px] font-bold text-blue-500/60 tracking-tight">Original: {formatPrice(activeChatData.offers.price)}</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="relative">
+                                                                    <input type="number" step="0.01" value={proposalPrice} onChange={e => setProposalPrice(e.target.value)} className={`w-full pl-10 pr-4 py-3 bg-white border ${pDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-900 shadow-sm`} />
+                                                                    <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-black text-[10px] uppercase tracking-widest ${pDiff ? 'text-blue-600' : 'text-gray-400'}`}>{currency}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex justify-between items-center mb-1">
+                                                                    <label className={`text-[9px] font-black uppercase ${qDiff ? 'text-blue-600' : 'text-gray-400'}`}>Quantity</label>
+                                                                    <span className="text-[8px] font-bold text-blue-500/60 tracking-tight">Original: 1</span>
+                                                                </div>
+                                                                <input type="number" min="1" value={proposalQty} onChange={e => setProposalQty(e.target.value)} className={`w-full px-4 py-3 bg-white border ${qDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-900 shadow-sm`} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+
+                                            {/* FILAMENT SELECTION / MULTI-COLOR SWAPPING */}
+                                            {activeChatData.offers?.category === 'physical' && (
+                                                <div className="space-y-4">
+                                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Material & Color</span>
+
+                                                    {swappedLayers.length > 0 ? (
+                                                        /* MULTI-COLOR SWAP VIEW */
+                                                        <div className="space-y-6">
+                                                            {swappedLayers.map((layer, lIdx) => (
+                                                                <div key={lIdx} className="bg-gray-50 border border-gray-100 rounded-3xl p-5 flex flex-col sm:flex-row items-center gap-6 animate-in fade-in slide-in-from-left-2 transition-all">
+                                                                    {/* ORIGINAL COLOR SQUADRON */}
+                                                                    <div className="flex flex-col items-center gap-2 min-w-[80px]">
+                                                                        <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest leading-none">Original</div>
+                                                                        <div className="w-10 h-10 rounded-full border-2 border-white shadow-md ring-2 ring-gray-100" style={{ backgroundColor: layer.original_color_hex }} />
+                                                                        <div className="text-center">
+                                                                            <div className="text-[10px] font-black text-gray-800 leading-tight truncate">{layer.original_color_name}</div>
+                                                                            <div className="text-[9px] font-bold text-blue-500 uppercase">{layer.grams}g</div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* BIG SWAP ARROW */}
+                                                                    <div className="flex flex-col items-center gap-1">
+                                                                        <div className="w-10 h-1 bg-gradient-to-r from-gray-200 to-blue-400 rounded-full" />
+                                                                        <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest">SWAP</div>
+                                                                        <ArrowLeft className="rotate-180 text-blue-500" size={16} />
+                                                                    </div>
+
+                                                                    {/* REPLACEMENT CHOICE */}
+                                                                    <div className="flex-1 space-y-3">
+                                                                        <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest leading-none text-center sm:text-left">Replace with</div>
+                                                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                                            {loadingFilaments ? (
+                                                                                <div className="col-span-full py-4 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>
+                                                                            ) : (
+                                                                                <>
+                                                                                    {sellerFilaments.map(fil => {
+                                                                                        const isSelected = layer.swapped_filament_id === fil.id || (!layer.swapped_filament_id && !layer.showCustom && fil.color_name === layer.original_color_name);
+                                                                                        return (
+                                                                                            <button
+                                                                                                key={fil.id}
+                                                                                                onClick={() => {
+                                                                                                    const updated = [...swappedLayers];
+                                                                                                    updated[lIdx].swapped_filament_id = fil.id;
+                                                                                                    updated[lIdx].showCustom = false;
+                                                                                                    updated[lIdx].custom_color_name = '';
+                                                                                                    setSwappedLayers(updated);
+                                                                                                }}
+                                                                                                title={fil.color_name}
+                                                                                                className={`p-2.5 rounded-2xl border-2 transition-all flex flex-col items-center gap-1.5 group ${isSelected ? 'border-blue-600 bg-blue-50/50 shadow-[0_0_15px_rgba(37,99,235,0.1)]' : 'border-gray-100 bg-white hover:border-blue-200 hover:bg-gray-50/50'}`}
+                                                                                            >
+                                                                                                <div className={`w-8 h-8 rounded-full border-2 shadow-sm transition-transform group-hover:scale-110 ${isSelected ? 'border-blue-400' : 'border-white'}`} style={{ backgroundColor: fil.color_hex }} />
+                                                                                                <div className={`text-[9px] font-black leading-tight truncate w-full text-center ${isSelected ? 'text-blue-700' : 'text-gray-500'}`}>{fil.color_name}</div>
+                                                                                            </button>
+                                                                                        );
+                                                                                    })}
+                                                                                    <button
+                                                                                        onClick={() => {
+                                                                                            const updated = [...swappedLayers];
+                                                                                            updated[lIdx].swapped_filament_id = null;
+                                                                                            updated[lIdx].showCustom = true;
+                                                                                            setSwappedLayers(updated);
+                                                                                        }}
+                                                                                        className={`p-2 rounded-xl border-2 border-dashed transition-all flex flex-col items-center gap-1 ${layer.showCustom ? 'border-blue-600 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+                                                                                    >
+                                                                                        <Palette size={16} className="text-gray-400" />
+                                                                                        <div className="text-[8px] font-black text-gray-600 uppercase">Custom</div>
+                                                                                    </button>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {layer.showCustom && (
+                                                                            <div className="flex gap-2 animate-in fade-in">
+                                                                                <div className="relative shrink-0">
+                                                                                    <div className="w-9 h-9 rounded-xl border border-gray-200 shadow-sm flex items-center justify-center transition-transform hover:scale-105 overflow-hidden" style={{ backgroundColor: layer.custom_color_hex }}>
+                                                                                        <input
+                                                                                            type="color"
+                                                                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                                                                            value={layer.custom_color_hex}
+                                                                                            onChange={e => {
+                                                                                                const updated = [...swappedLayers];
+                                                                                                updated[lIdx].custom_color_hex = e.target.value;
+                                                                                                setSwappedLayers(updated);
+                                                                                            }}
+                                                                                        />
+                                                                                        {layer.custom_color_hex === '#cccccc' && <Palette size={14} className="text-gray-400 pointer-events-none" />}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    placeholder="Color name or HEX..."
+                                                                                    value={layer.custom_color_name}
+                                                                                    onChange={e => {
+                                                                                        const updated = [...swappedLayers];
+                                                                                        updated[lIdx].custom_color_name = e.target.value;
+                                                                                        setSwappedLayers(updated);
+                                                                                    }}
+                                                                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold outline-none"
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        /* STANDARD VIEW (Existing code) */
+                                                        <>
+                                                            {loadingFilaments ? (
+                                                                <div className="flex justify-center p-4"><Loader2 className="animate-spin text-blue-600" /></div>
+                                                            ) : (
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                                    {sellerFilaments.map(fil => (
+                                                                        <button
+                                                                            key={fil.id}
+                                                                            onClick={() => { setSelectedFilamentId(fil.id); setShowCustomFilamentInput(false); }}
+                                                                            className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${selectedFilamentId === fil.id ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}
+                                                                        >
+                                                                            <div className="w-8 h-8 rounded-full border border-gray-100 shadow-sm" style={{ backgroundColor: fil.color_hex }} />
+                                                                            <div className="text-center w-full">
+                                                                                <div className="text-[10px] font-black text-gray-900 leading-tight truncate">{fil.color_name}</div>
+                                                                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{fil.plastic_type}</div>
+                                                                            </div>
+                                                                        </button>
+                                                                    ))}
+                                                                    <button
+                                                                        onClick={() => { setSelectedFilamentId(null); setShowCustomFilamentInput(true); }}
+                                                                        className={`p-3 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center gap-2 ${showCustomFilamentInput ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                                                                    >
+                                                                        <Palette size={20} className="text-gray-400" />
+                                                                        <div className="text-[10px] font-black text-gray-600 uppercase">Custom</div>
+                                                                    </button>
+                                                                </div>
+                                                            )}                                                                <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-blue-100/50 space-y-3 animate-in fade-in slide-in-from-top-2 shadow-sm">
+                                                                {(() => {
+                                                                    const sd = editingProposalData || activeChatData.offers;
+                                                                    const matDiff = proposalMaterial !== (sd?.material || '');
+                                                                    const colDiff = proposalColor !== (sd?.color || '');
+                                                                    return (
+                                                                        <div className="grid grid-cols-2 gap-3">
+                                                                            <div>
+                                                                                <div className="flex justify-between items-center mb-1">
+                                                                                    <label className={`text-[9px] font-black uppercase ${matDiff ? 'text-blue-600' : 'text-gray-400'}`}>Plastic</label>
+                                                                                    <span className="text-[8px] font-bold text-blue-500/60 truncate max-w-[60px]">Orig: {activeChatData.offers?.material}</span>
+                                                                                </div>
+                                                                                <input type="text" placeholder="PLA, PETG..." value={proposalMaterial} onChange={e => setProposalMaterial(e.target.value)} className={`w-full px-4 py-3 bg-white border ${matDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-xs font-bold outline-none text-gray-900 transition-all`} />
+                                                                            </div>
+                                                                            <div>
+                                                                                <div className="flex justify-between items-center mb-1">
+                                                                                    <label className={`text-[9px] font-black uppercase ${colDiff ? 'text-blue-600' : 'text-gray-400'}`}>Color</label>
+                                                                                    <span className="text-[8px] font-bold text-blue-500/60 truncate max-w-[60px]">Orig: {activeChatData.offers?.color}</span>
+                                                                                </div>
+                                                                                <div className="flex gap-2">
+                                                                                    <div className="relative shrink-0">
+                                                                                        <div className="w-[42px] h-[42px] rounded-xl border border-gray-200 shadow-sm flex items-center justify-center transition-transform hover:scale-105 overflow-hidden" style={{ backgroundColor: proposalColorHex }}>
+                                                                                            <input
+                                                                                                type="color"
+                                                                                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                                                                                value={proposalColorHex}
+                                                                                                onChange={e => setProposalColorHex(e.target.value)}
+                                                                                            />
+                                                                                            {proposalColorHex === '#cccccc' && <Palette size={16} className="text-gray-400 pointer-events-none" />}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <input type="text" placeholder="Name or HEX..." value={proposalColor} onChange={e => setProposalColor(e.target.value)} className={`flex-1 px-4 py-3 bg-white border ${colDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-xs font-bold outline-none text-gray-900 transition-all`} />
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
                                             <div>
-                                                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Target Price per item</label>
-                                                <div className="relative">
-                                                    <input type="number" min="0" step="0.01" value={proposalPrice} onChange={e => setProposalPrice(e.target.value)} placeholder="0.00" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 focus:border-blue-500 rounded-xl text-sm font-bold outline-none" />
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-black text-[10px] tracking-wider pointer-events-none">{currency}</span>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Dimensions</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] font-black text-gray-500">Scale %:</span>
+                                                        <input type="number" step="1" value={proposalScale} onChange={e => handleScaleChange(e.target.value)} className="w-14 px-1 py-1 border rounded text-xs font-bold text-center" />
+                                                    </div>
+                                                </div>
+                                                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
+                                                    {(() => {
+                                                        const sd = editingProposalData || activeChatData.offers;
+                                                        const originalDims = parseDimensionsAdvanced(sd?.dimensions || activeChatData.offers?.dimensions || '');
+                                                        return proposalDims.map((dim, idx) => {
+                                                            const orig = originalDims[idx]?.originalValue || dim.originalValue;
+                                                            const isDimChanged = Math.abs(parseFloat(dim.currentValueStr || '0') - orig) > 0.01;
+                                                            return (
+                                                                <div key={idx} className="flex items-center gap-2">
+                                                                    <span className={`w-20 text-[10px] font-black uppercase ${isDimChanged ? 'text-blue-600' : 'text-gray-500'} truncate`}>{dim.name}</span>
+                                                                    <input type="number" step="0.1" value={dim.currentValueStr} onChange={e => handleDimChange(idx, e.target.value)} className={`flex-1 px-3 py-2 border ${isDimChanged ? 'border-blue-400 ring-2 ring-blue-50 bg-white' : 'border-gray-200'} rounded-lg text-sm font-bold transition-all`} />
+                                                                    <span className="text-[10px] font-bold text-gray-400">{dim.unit}</span>
+                                                                </div>
+                                                            );
+                                                        });
+                                                    })()}
                                                 </div>
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Quantity</label>
-                                                <input type="number" min="1" value={proposalQty} onChange={e => setProposalQty(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-blue-500 rounded-xl text-sm font-bold outline-none" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Material</label>
-                                                    <input type="text" value={proposalMaterial} onChange={e => setProposalMaterial(e.target.value)} placeholder={activeChatData.offers?.material || 'Any'} className="w-full px-3 py-3 bg-gray-50 border border-gray-200 focus:border-blue-500 rounded-xl text-xs font-bold outline-none" />
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Color</label>
-                                                    <input type="text" value={proposalColor} onChange={e => setProposalColor(e.target.value)} placeholder={activeChatData.offers?.color || 'Any'} className="w-full px-3 py-3 bg-gray-50 border border-gray-200 focus:border-blue-500 rounded-xl text-xs font-bold outline-none" />
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={sendProposal}
-                                                disabled={!proposalPrice || !proposalQty}
-                                                className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 transition"
-                                            >
-                                                Send Proposal
+                                            <button onClick={sendProposal} disabled={!proposalPrice || !proposalQty || !hasProposalChanges} className={`w-full py-4 text-white rounded-xl font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:shadow-none transition-all ${currentUser?.id === activeChatData.seller_id ? 'bg-amber-500' : 'bg-blue-600'}`}>
+                                                <Handshake size={15} /> {currentUser?.id === activeChatData.seller_id ? 'Send Offer' : 'Send Proposal'}
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Messages Area */}
                             <div className="flex-1 overflow-y-auto p-6 space-y-4">
                                 {loadingMessages ? (
                                     <div className="flex justify-center py-10"><Loader2 className="animate-spin text-blue-600" /></div>
-                                ) : messages.length === 0 ? (
-                                    <div className="text-center py-10 text-gray-400 font-medium text-sm">No messages yet. Send a message to start!</div>
-                                ) : (
-                                    messages.map((msg, idx) => {
-                                        const isMe = msg.sender_id === currentUser?.id;
-                                        const mType = msg.message_type || 'user';
+                                ) : (() => {
+                                    const chronList = messages.map(m => ({ ...m, _type: 'message', _time: new Date(m.created_at).getTime() }));
 
-                                        // System & status messages → special rendering
-                                        if (mType !== 'user') {
-                                            return renderSystemMessage(msg, idx);
+                                    if (activeChatData?.orderItem) {
+                                        let cardTime = Date.now() + 1000000; // default active actions to bottom
+
+                                        if (activeChatData?.orderItem?.status === 'completed' || activeChatData?.orderItem?.status === 'disputed') {
+                                            const sysMsgType = activeChatData.orderItem.status === 'completed' ? 'status_completed' : 'status_disputed';
+                                            const sysMsg = messages.slice().reverse().find(m => m.message_type === sysMsgType);
+                                            if (sysMsg) {
+                                                cardTime = new Date(sysMsg.created_at).getTime() + 1;
+                                            } else {
+                                                // fallback if no system message is found
+                                                cardTime = messages.length > 0 ? new Date(messages[messages.length - 1].created_at).getTime() : Date.now();
+                                            }
                                         }
 
+                                        chronList.push({
+                                            _type: 'action_card',
+                                            _time: cardTime,
+                                            id: 'action-card-entry',
+                                            content: '',
+                                            sender_id: '',
+                                            created_at: '',
+                                        });
+                                    }
+                                    chronList.sort((a, b) => a._time - b._time);
+
+                                    if (chronList.length === 0 && activeChatId !== 'draft') {
+                                        return <div className="text-center py-10 text-gray-400 font-medium text-sm">Empty chat. Send a message to start!</div>;
+                                    }
+
+                                    return chronList.map((msg, idx) => {
+                                        if (msg._type === 'action_card') {
+                                            return <div key={`ac-${idx}`}>{renderActionCard(activeChatData?.orderItem, activeChatData)}</div>;
+                                        }
+
+                                        const isMe = msg.sender_id === currentUser?.id;
+                                        if (msg.message_type && msg.message_type !== 'user') return renderSystemMessage(msg, idx);
+
                                         if (msg.content.startsWith('[PROPOSAL]')) {
-                                            const jsonStr = msg.content.substring(10);
-                                            let pData: any = {};
-                                            try { pData = JSON.parse(jsonStr); } catch (e) { }
-
-                                            const isBuyer = currentUser?.id === activeChatData?.buyer_id;
+                                            const pData = JSON.parse(msg.content.substring(10));
                                             const isSeller = currentUser?.id === activeChatData?.seller_id;
-
+                                            const isBuyer = currentUser?.id === activeChatData?.buyer_id;
                                             return (
-                                                <div key={msg.id || idx} className={`flex flex-col w-full my-6 ${isMe ? 'items-end' : 'items-start'}`}>
-                                                    <div className={`w-64 sm:w-80 rounded-2xl overflow-hidden border shadow-sm ${pData.status === 'accepted' ? 'border-green-200 bg-green-50' : pData.status === 'rejected' ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-white'}`}>
-                                                        <div className={`px-4 py-2 flex items-center justify-between border-b ${pData.status === 'accepted' ? 'bg-green-100 border-green-200' : pData.status === 'rejected' ? 'bg-red-100 border-red-200' : 'bg-blue-50 border-blue-100'}`}>
-                                                            <span className="text-[10px] font-black uppercase flex items-center gap-1 text-gray-700">
-                                                                <Handshake size={12} /> Custom Proposal
-                                                            </span>
-                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-white ${pData.status === 'accepted' ? 'bg-green-500' : pData.status === 'rejected' ? 'bg-red-500' : 'bg-blue-500'}`}>
-                                                                {pData.status}
-                                                            </span>
-                                                        </div>
-                                                        <div className="p-4 space-y-3">
-                                                            <div className="flex justify-between items-end">
-                                                                <div>
-                                                                    <div className="text-[10px] font-black uppercase text-gray-400">Total / Piece</div>
-                                                                    <div className="text-xl font-black text-gray-900">{formatPrice(pData.price)} <span className="text-xs text-gray-400 font-bold">x {pData.quantity}</span></div>
+                                                <div key={msg.id || idx} className="flex flex-col w-full my-8 px-2 items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                                    <div className={`w-[280px] sm:w-[320px] rounded-[24px] overflow-hidden border shadow-2xl transition-all hover:scale-[1.02] ${pData.status === 'accepted' ? 'border-emerald-500/30 bg-emerald-900/10' :
+                                                        pData.status === 'rejected' ? 'border-rose-500/30 bg-rose-900/10' :
+                                                            pData.status === 'counter_proposed' ? 'border-fuchsia-500/30 bg-fuchsia-900/10' :
+                                                                'border-white/10 bg-[#0f172a]/80 backdrop-blur-xl'
+                                                        }`}>
+                                                        {/* HEADER DECORATION */}
+                                                        <div className={`h-1.5 w-full ${pData.status === 'accepted' ? 'bg-emerald-500' :
+                                                            pData.status === 'rejected' ? 'bg-rose-500' :
+                                                                pData.status === 'counter_proposed' ? 'bg-gradient-to-r from-violet-500 to-purple-600' :
+                                                                    pData.status === 'seller_proposed' ? 'bg-gradient-to-r from-amber-400 to-yellow-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                                                            }`} />
+
+                                                        <div className="p-5 space-y-5">
+                                                            {/* TITLEBAR */}
+                                                            <div className="flex justify-between items-start">
+                                                                <div className="flex flex-col">
+                                                                    <div className="flex items-center gap-2 mb-1.5">
+                                                                        <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-md border ${pData.status === 'counter_proposed'
+                                                                            ? 'bg-violet-500/10 border-violet-500/30 text-violet-400'
+                                                                            : pData.status === 'seller_proposed'
+                                                                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                                                                                : 'bg-blue-500/10 border-blue-500/30 text-blue-500'
+                                                                            }`}>
+                                                                            {pData.status === 'counter_proposed' ? 'Counter Offer' : (pData.status === 'seller_proposed' ? 'Seller Offer' : "Customer Request")}
+                                                                        </span>
+                                                                        <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[100px]">
+                                                                            {msg.sender_id === currentUser?.id ? 'YOU' : (msg.sender_id === activeChatData?.seller_id ? activeChatData?.otherUser?.full_name : 'Customer')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${pData.status === 'accepted' ? 'text-emerald-400' :
+                                                                        pData.status === 'rejected' ? 'text-rose-400' :
+                                                                            pData.status === 'counter_proposed' ? 'text-violet-400' :
+                                                                                pData.status === 'seller_proposed' ? 'text-amber-400' : 'text-blue-400'
+                                                                        }`}>
+                                                                        {pData.status === 'counter_proposed' ? 'Counter Offer' :
+                                                                            pData.status === 'accepted' ? 'Deal Reached' :
+                                                                                pData.status === 'rejected' ? 'Offer Declined' :
+                                                                                    pData.status === 'seller_proposed' ? 'Seller Offer' : 'Customer Request'}
+                                                                    </span>
+                                                                    <h4 className="text-white text-xs font-bold mt-0.5">
+                                                                        {pData.status === 'counter_proposed' ? 'Revised Offer' :
+                                                                            pData.status === 'accepted' ? 'Final Agreement' :
+                                                                                pData.status === 'seller_proposed' ? 'Special Deal' : 'Custom Request'}
+                                                                    </h4>
                                                                 </div>
+                                                                <span className={`text-[8px] font-black uppercase px-2.5 py-1 rounded-full border ${pData.status === 'accepted' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' :
+                                                                    pData.status === 'rejected' ? 'border-rose-500 text-rose-400 bg-rose-900/20' :
+                                                                        pData.status === 'countered' ? 'border-slate-500 text-slate-400 bg-slate-500/10' :
+                                                                            pData.status === 'counter_proposed' ? 'border-violet-500 text-violet-400 bg-violet-500/10' :
+                                                                                'border-blue-500/50 text-blue-400 bg-blue-500/10'
+                                                                    }`}>
+                                                                    {pData.status === 'countered' ? 'Offer Replaced' : pData.status.replace('_', ' ')}
+                                                                </span>
                                                             </div>
-                                                            <div className="flex gap-2 mb-2">
-                                                                <div className="text-[10px] font-bold text-gray-600 bg-white/50 px-2 py-1 rounded">Mat: {pData.material}</div>
-                                                                <div className="text-[10px] font-bold text-gray-600 bg-white/50 px-2 py-1 rounded">Col: {pData.color}</div>
-                                                            </div>
+
+                                                            {(() => {
+                                                                const orig = activeChatData?.offers;
+                                                                const isPriceChanged = orig && Math.abs(parseFloat(pData.price) - orig.price) > 0.01;
+                                                                const isQtyChanged = pData.quantity !== 1;
+                                                                const isDimChanged = pData.dimensionScale !== 100 || (pData.dimensions && pData.dimensions !== orig?.dimensions);
+                                                                const isMatChanged = orig && (pData.material !== orig.material || pData.color !== orig.color);
+
+                                                                return (
+                                                                    <div className="space-y-4">
+                                                                        {/* PRICE TAG */}
+                                                                        <div className="relative">
+                                                                            <div className="flex items-baseline gap-1.5">
+                                                                                <span className={`text-3xl font-black tracking-tight ${isPriceChanged ? 'text-amber-400' : 'text-white'}`}>
+                                                                                    {formatPrice(pData.price)}
+                                                                                </span>
+                                                                                <div className={`flex items-center self-center px-1.5 py-0.5 rounded bg-white/5 border border-white/10 ${isQtyChanged ? 'ring-1 ring-amber-400/50' : ''}`}>
+                                                                                    <span className={`text-[10px] font-bold ${isQtyChanged ? 'text-amber-400' : 'text-slate-400'}`}>×{pData.quantity}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                            {isPriceChanged && (
+                                                                                <div className="absolute -top-3 -right-1 text-[8px] font-bold text-amber-400/70 uppercase">Special Price</div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        <div className="grid gap-2">
+                                                                            {/* SPECS SECTION */}
+                                                                            {pData.dimensions && (
+                                                                                <div className={`group flex flex-col p-2.5 rounded-xl border transition-all ${isDimChanged ? 'bg-amber-400/5 border-amber-400/20 shadow-[0_0_15px_rgba(251,191,36,0.05)]' : 'bg-white/5 border-white/10'}`}>
+                                                                                    <div className="flex items-center justify-between mb-1">
+                                                                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                                                                            <Ruler size={10} /> Specifications
+                                                                                        </span>
+                                                                                        {isDimChanged && <span className="text-[8px] font-black text-amber-500/80">MODIFIED {pData.dimensionScale}%</span>}
+                                                                                    </div>
+                                                                                    <div className={`text-[10px] leading-tight font-bold ${isDimChanged ? 'text-amber-200/90' : 'text-slate-300'}`}>
+                                                                                        {pData.dimensions}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* MATERIAL/COLORS SECTION */}
+                                                                            {pData.swappedLayers ? (
+                                                                                <div className="space-y-1.5 mt-1">
+                                                                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">Exquisite Selection</span>
+                                                                                    <div className="grid gap-1.5">
+                                                                                        {pData.swappedLayers.map((sl: any, slIdx: number) => (
+                                                                                            <div key={slIdx} className={`flex items-center justify-between p-2 rounded-lg border transition-all ${sl.isModified ? 'bg-amber-400/10 border-amber-400/30 shadow-sm' : 'bg-white/5 border-white/10'}`}>
+                                                                                                <div className="flex items-center gap-1.5">
+                                                                                                    <div className="w-3 h-3 rounded-full border border-white/20 shadow-inner" style={{ backgroundColor: sl.from_hex || '#ccc' }} />
+                                                                                                    <span className={`text-[10px] font-bold ${sl.isModified ? 'text-slate-400' : 'text-slate-200'}`}>{sl.from}</span>
+                                                                                                </div>
+
+                                                                                                {sl.isModified && (
+                                                                                                    <div className="flex items-center gap-2">
+                                                                                                        <ArrowLeft size={10} className="rotate-180 text-amber-500" />
+                                                                                                        <div className="flex items-center gap-1.5">
+                                                                                                            <div className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-lg shrink-0" style={{ backgroundColor: sl.to_hex || '#ccc' }} />
+                                                                                                            <span className="text-[10px] font-black text-amber-100 truncate max-w-[100px]">
+                                                                                                                {sl.to}
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className={`flex items-center justify-between p-2.5 rounded-xl border ${isMatChanged ? 'bg-amber-400/5 border-amber-400/20' : 'bg-white/5 border-white/10'}`}>
+                                                                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                                                                        <Palette size={10} /> {pData.swappedLayers ? 'Multi-Layer' : 'Material Choice'}
+                                                                                    </span>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <div className={`w-3.5 h-3.5 rounded-full border shadow-inner shrink-0 ${isMatChanged ? 'border-amber-400' : 'border-white/20'}`} style={{ backgroundColor: pData.colorHex || activeChatData?.offers?.colorHex || '#ccc' }} />
+                                                                                        <span className={`text-[10px] font-black ${isMatChanged ? 'text-amber-100' : 'text-slate-200'}`}>
+                                                                                            {pData.material || activeChatData?.offers?.material || 'Resin'} • {pData.color || activeChatData?.offers?.color || 'Original'}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
 
                                                             {/* ACTIONS */}
-                                                            {pData.status === 'pending' && isSeller && (
-                                                                <div className="flex gap-2 mt-4">
-                                                                    <button onClick={() => handleAcceptProposal(msg.id, pData)} className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-all"><Check size={14} /> Accept Offer</button>
-                                                                    <button onClick={() => handleRejectProposal(msg.id, pData)} className="flex-1 py-2 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-all"><X size={14} /> Reject</button>
-                                                                </div>
-                                                            )}
-                                                            {pData.status === 'pending' && isBuyer && (
-                                                                <div className="mt-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">Waiting for maker approval...</div>
-                                                            )}
+                                                            {(() => {
+                                                                const inCart = cartItems.some(i => i.id === pData.custom_offer_id);
 
-                                                            {pData.status === 'seller_proposed' && isBuyer && (
-                                                                <div className="flex gap-2 mt-4">
-                                                                    <button onClick={() => handleBuyerAcceptsSellerProposal(msg.id, pData)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white shadow-lg rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1 transition-all">Accept & Buy</button>
-                                                                    <button onClick={() => handleRejectProposal(msg.id, pData)} className="px-3 py-2 bg-gray-200 hover:bg-red-500 hover:text-white text-gray-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all"><X size={14} /></button>
-                                                                </div>
-                                                            )}
-                                                            {pData.status === 'seller_proposed' && isSeller && (
-                                                                <div className="mt-2 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">Waiting for buyer to purchase...</div>
-                                                            )}
+                                                                if (inCart && isBuyer) {
+                                                                    return (
+                                                                        <div className="flex items-center justify-center gap-2 py-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500 text-[10px] font-black uppercase tracking-widest mt-2 animate-pulse">
+                                                                            <Package size={14} /> Already in your Cart
+                                                                        </div>
+                                                                    );
+                                                                }
 
-                                                            {pData.status === 'accepted' && isBuyer && !msg.id.startsWith('temp-') && (
-                                                                <button onClick={() => handleBuyCustomOffer(pData)} className="w-full mt-2 py-3 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
-                                                                    Add to Cart
-                                                                </button>
-                                                            )}
+                                                                const isOfferForBuyer = (pData.status === 'seller_proposed' || pData.status === 'counter_proposed' || pData.status === 'pending') && isBuyer && !isMe;
+
+                                                                if (isOfferForBuyer) {
+                                                                    return (
+                                                                        <div className="space-y-2 pt-2">
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    if (isBuyer) {
+                                                                                        handleBuyerAcceptsSellerProposal(msg.id, pData);
+                                                                                    } else {
+                                                                                        handleAcceptProposal(msg.id, pData);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-emerald-900/40 transition-all transform active:scale-[0.98]"
+                                                                            >
+                                                                                <CreditCard size={14} className="inline mr-2 -mt-0.5" />
+                                                                                {pData.status === 'accepted' ? 'Add to Cart & Checkout' : 'Buy Now'}
+                                                                            </button>
+                                                                            {isBuyer && (
+                                                                                <button
+                                                                                    onClick={() => openProposalModal(pData, msg.id)}
+                                                                                    className="w-full py-2.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                                                >
+                                                                                    <RefreshCcw size={12} /> Make Counter-Offer
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                }
+
+                                                                if (pData.status === 'pending' && isSeller && !isMe) {
+                                                                    return (
+                                                                        <div className="space-y-2 pt-2">
+                                                                            <button
+                                                                                onClick={() => handleAcceptProposal(msg.id, pData)}
+                                                                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all active:scale-95 shadow-lg shadow-emerald-900/20"
+                                                                            >
+                                                                                Accept Request
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => openProposalModal(pData, msg.id)}
+                                                                                className="w-full py-2.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                                            >
+                                                                                <RefreshCcw size={12} /> Make Counter-Offer
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                }
+
+                                                                if (pData.status === 'accepted' && isBuyer) {
+                                                                    return (
+                                                                        <button
+                                                                            onClick={() => handleBuyCustomOffer(pData)}
+                                                                            className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-emerald-900/40 transition-all transform active:scale-[0.98] mt-2"
+                                                                        >
+                                                                            <CreditCard size={14} className="inline mr-2 -mt-0.5" />
+                                                                            Add to Cart & Checkout
+                                                                        </button>
+                                                                    );
+                                                                }
+
+                                                                return null;
+                                                            })()}
                                                         </div>
                                                     </div>
+                                                    <span className={`text-[9px] text-slate-500 font-bold mt-2 tracking-wide ${isMe ? 'mr-2' : 'ml-2'}`}>
+                                                        {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })} • Secured Transaction
+                                                    </span>
                                                 </div>
                                             );
                                         }
@@ -1045,78 +1776,75 @@ export default function MessagesPage() {
                                         return (
                                             <div key={msg.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                                                 <div className={`max-w-[75%] rounded-2xl px-5 py-3 ${isMe ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
-                                                    <p className="text-sm font-medium leading-relaxed" style={{ wordBreak: 'break-word' }}>{msg.content}</p>
+                                                    <p className="text-sm font-medium leading-relaxed">{msg.content}</p>
                                                 </div>
-                                                <span className="text-[10px] text-gray-400 font-bold mt-1 px-1">
-                                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                <span className="text-[10px] text-gray-400 font-bold mt-1">
+                                                    {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
                                         );
-                                    })
-                                )}
-
-                                {/* Action card at the bottom of messages */}
-                                {activeChatData?.order_id && activeChatData?.orderItem && renderActionCard(activeChatData.orderItem, activeChatData)}
-
+                                    });
+                                })()}
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            {/* Input Area */}
                             <div className="p-4 bg-white border-t border-gray-100 shrink-0">
-                                <form onSubmit={handleSendMessage} className="flex items-end gap-2 max-w-4xl mx-auto">
-                                    {/* DHL TRACKING SHORTCUT (shown if order exists and NOT digital) */}
-                                    {activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (
-                                        <div className="pb-1.5 shrink-0">
-                                            {activeChatData.orderItem.tracking_code ? (
-                                                <a
-                                                    href={`https://www.dhl.com/pl-pl/home/tracking/tracking-parcel.html?submit=1&tracking-id=${activeChatData.orderItem.tracking_code}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    title={`Track DHL: ${activeChatData.orderItem.tracking_code}`}
-                                                    className="h-[50px] px-5 bg-[#ffcc00] hover:bg-[#e6b800] text-gray-900 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 border-2 border-transparent"
-                                                >
-                                                    <Truck size={18} />
-                                                    <span className="font-black uppercase tracking-widest text-xs">Track DHL</span>
-                                                    <ExternalLink size={14} className="opacity-70" />
-                                                </a>
-                                            ) : (
-                                                <div 
-                                                    title="Tracking number not yet provided"
-                                                    className="h-[50px] px-5 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed border-2 border-dashed border-gray-200"
-                                                >
-                                                    <Truck size={18} />
-                                                    <span className="font-black uppercase tracking-widest text-xs">Track DHL</span>
-                                                </div>
-                                            )}                                        </div>
+                                <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto items-end">
+                                    {activeChatData?.orderItem && activeChatData.offers?.category !== 'digital' && (
+                                        activeChatData.orderItem.tracking_code ? (
+                                            <a
+                                                href={`https://www.dhl.com/pl-pl/home/tracking.html?tracking-id=${activeChatData.orderItem.tracking_code}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="group relative flex flex-col items-center justify-center h-[50px] w-[60px] rounded-xl bg-gray-900 border border-gray-800 text-white shadow hover:shadow-lg hover:-translate-y-0.5 transition-all shrink-0 overflow-hidden"
+                                                title={`Track DHL: ${activeChatData.orderItem.tracking_code}`}
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                <Truck size={20} strokeWidth={2} className="relative z-10 mb-0.5 text-[#FFCC00]" />
+                                                <span className="relative z-10 text-[8px] uppercase tracking-widest leading-none font-bold text-gray-300 group-hover:text-white transition-colors">Track</span>
+                                            </a>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-[50px] w-[60px] rounded-xl bg-gray-50/50 border border-dashed border-gray-200 text-gray-400 shrink-0" title="Waiting for DHL tracking code">
+                                                <Truck size={20} strokeWidth={1.5} className="mb-0.5 opacity-40" />
+                                                <span className="text-[8px] uppercase tracking-widest leading-none font-bold opacity-60">Status</span>
+                                            </div>
+                                        )
                                     )}
-
                                     <textarea
                                         value={newMessage}
                                         onChange={(e) => setNewMessage(e.target.value)}
                                         placeholder="Type a message..."
-                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[50px] max-h-[150px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all text-sm font-medium text-gray-800"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleSendMessage(e);
-                                            }
-                                        }}
+                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[50px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
+                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                                     />
-                                    <button
-                                        type="submit"
-                                        disabled={!newMessage.trim()}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-blue-600 shrink-0 shadow-md"
-                                    >
-                                        <Send size={20} className="ml-1" />
+                                    <button type="submit" disabled={!newMessage.trim()} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
+                                        <Send size={20} />
                                     </button>
+
+                                    {currentUser?.id === activeChatData?.buyer_id && (
+                                        <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] shrink-0 whitespace-nowrap shadow-sm">
+                                            <Handshake size={14} /> Negotiate
+                                        </button>
+                                    )}
+                                    {currentUser?.id === activeChatData?.seller_id && (
+                                        <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] shrink-0 whitespace-nowrap shadow-sm">
+                                            <Handshake size={14} /> Special Offer
+                                        </button>
+                                    )}
                                 </form>
-                                <p className="text-center text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">Press Enter to send, Shift + Enter for new line</p>
                             </div>
                         </>
                     )}
                 </div>
-
             </div>
         </main>
+    );
+}
+
+export default function MessagesPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+            <MessagesInner />
+        </Suspense>
     );
 }

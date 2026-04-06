@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     
     await sendEmail({
       to: email,
-      subject: '🛡️ Official Printsi Verification Link',
+      subject: '🛡️ Official Printis Verification Link',
       html,
     });
 

@@ -7,7 +7,7 @@ import { ArrowLeft, HelpCircle } from 'lucide-react';
 export default function FAQPage() {
   const faqs = [
     {
-      q: "Is it safe to buy on Printsi?",
+      q: "Is it safe to buy on Printis?",
       a: "Absolutely. We use secure payment processing to ensure your financial data is protected. We also hold payments in escrow until the order is processed to guarantee satisfaction."
     },
     {

@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const FROM_EMAIL = 'Printsi <noreply@printis.store>';
+const FROM_EMAIL = 'Printis <noreply@printis.store>';
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 export interface EmailOptions {
@@ -43,34 +43,41 @@ function emailWrapper(headerBg: string, headerTitle: string, headerSubtitle: str
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${headerSubtitle} - Printsi</title>
+  <title>${headerSubtitle} - Printis</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f8fafc;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:40px 20px;">
+<body style="margin:0;padding:0;background-color:#f9fafb;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;padding:40px 20px;">
     <tr>
       <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
+        <!-- Main Container -->
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.08);border:1px solid #f1f5f9;">
           <!-- Header -->
           <tr>
-            <td style="background:${headerBg};padding:48px 40px;text-align:center;">
-              <div style="font-size:32px;font-weight:900;color:#ffffff;letter-spacing:-1.5px;margin-bottom:8px;">🖨️ Printsi</div>
-              <div style="color:rgba(255,255,255,0.8);font-size:14px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">${headerSubtitle}</div>
+            <td style="background:${headerBg};padding:60px 40px;text-align:center;">
+              <div style="font-size:36px;font-weight:900;color:#ffffff;letter-spacing:-1.5px;margin-bottom:12px;">${headerTitle}</div>
+              <div style="color:rgba(255,255,255,0.9);font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">${headerSubtitle}</div>
             </td>
           </tr>
           <!-- Body -->
           <tr>
-            <td style="padding:40px;">
+            <td style="padding:48px 40px;">
               ${bodyHtml}
             </td>
           </tr>
           <!-- Footer -->
           <tr>
-            <td style="background-color:#f8fafc;padding:32px 40px;border-top:1px solid #e2e8f0;text-align:center;">
+            <td style="background-color:#fafafa;padding:32px 40px;border-top:1px solid #f1f5f9;text-align:center;">
               ${footerExtra || ''}
-              <p style="margin:0;color:#94a3b8;font-size:12px;">© 2025 Printsi. The 3D Printing Marketplace.</p>
-              <p style="margin:8px 0 0;color:#cbd5e1;font-size:11px;">
-                <a href="${SITE_URL}" style="color:#94a3b8;text-decoration:none;">printis.store</a>
-              </p>
+              <div style="margin-bottom:16px;">
+                <a href="${SITE_URL}" style="display:inline-block;margin:0 10px;color:#94a3b8;text-decoration:none;font-size:12px;font-weight:600;">Website</a>
+                <a href="${SITE_URL}/profile/messages" style="display:inline-block;margin:0 10px;color:#94a3b8;text-decoration:none;font-size:12px;font-weight:600;">Messages</a>
+                <a href="${SITE_URL}/support" style="display:inline-block;margin:0 10px;color:#94a3b8;text-decoration:none;font-size:12px;font-weight:600;">Support</a>
+              </div>
+              <p style="margin:0;color:#cbd5e1;font-size:11px;font-weight:500;">© 2025 Printis. The Premium 3D Printing Marketplace.</p>
             </td>
           </tr>
         </table>
@@ -81,20 +88,20 @@ function emailWrapper(headerBg: string, headerTitle: string, headerSubtitle: str
 </html>`;
 }
 
-function ctaButton(text: string, href: string, color: string = '#4f46e5') {
+function ctaButton(text: string, href: string, color: string = '#7c3aed') {
   return `
-    <div style="text-align:center;margin:28px 0;">
-      <a href="${href}" style="display:inline-block;background-color:${color};color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 32px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.15);">
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${href}" style="display:inline-block;background-color:${color};color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:18px 40px;border-radius:14px;box-shadow:0 10px 20px rgba(124,58,237,0.25);letter-spacing:0.5px;">
         ${text}
       </a>
     </div>`;
 }
 
-function infoBox(title: string, value: string, color: string = '#4f46e5') {
+function infoBox(title: string, value: string, color: string = '#7c3aed', bgColor: string = '#f5f3ff') {
   return `
-    <div style="background-color:#f8fafc;border-radius:16px;padding:24px;margin:24px 0;border:1px solid #e2e8f0;text-align:center;">
-      <div style="color:#64748b;font-size:14px;font-weight:600;margin-bottom:8px;">${title}</div>
-      <div style="color:${color};font-size:36px;font-weight:900;">${value}</div>
+    <div style="background-color:${bgColor};border-radius:20px;padding:32px 24px;margin:32px 0;border:1px solid rgba(0,0,0,0.03);text-align:center;">
+      <div style="color:#64748b;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${title}</div>
+      <div style="color:${color};font-size:42px;font-weight:900;letter-spacing:-1px;">${value}</div>
     </div>`;
 }
 
@@ -142,9 +149,9 @@ export const EmailTemplates = {
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#1e1b4b 0%,#312e81 100%)',
+      'linear-gradient(135deg,#1e1b4b 0%,#4338ca 100%)',
       'Order Confirmation',
-      'Order Confirmation',
+      'Confirmation #'+orderId.slice(0,8),
       body
     );
   },
@@ -169,9 +176,9 @@ export const EmailTemplates = {
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#14532d 0%,#166534 100%)',
+      'linear-gradient(135deg,#064e3b 0%,#059669 100%)',
       '🎉 New Sale!',
-      'New Sale',
+      'Sale Notification',
       body
     );
   },
@@ -179,8 +186,25 @@ export const EmailTemplates = {
   // ────────────────────────────────────────
   // 3. ITEM LIKED (seller)
   // ────────────────────────────────────────
-  itemLiked: (sellerName: string, productTitle: string) => {
-    const body = `
+  itemLiked: (sellerName: string, productTitle: string, isSelfLike?: boolean) => {
+    const body = isSelfLike ? `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">You're your biggest fan! 😉</p>
+      <p style="margin:0 0 8px;color:#64748b;font-size:16px;line-height:1.6;">
+        No wonder you like <strong>"${productTitle}"</strong>! It's your work after all.
+      </p>
+
+      <div style="background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-radius:16px;padding:24px;margin:24px 0;border:1px solid #fbcfe8;text-align:center;">
+        <div style="font-size:40px;margin-bottom:12px;">💖</div>
+        <div style="color:#db2777;font-size:20px;font-weight:900;">${productTitle}</div>
+        <div style="color:#f472b6;font-size:13px;font-weight:600;margin-top:8px;">Self-love is important!</div>
+      </div>
+
+      <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
+        Keep up the great work! Your listings look amazing.
+      </p>
+
+      ${ctaButton('View My Listings', `${SITE_URL}/profile`, '#db2777')}
+    ` : `
       <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Hey ${sellerName}! ❤️</p>
       <p style="margin:0 0 8px;color:#64748b;font-size:16px;line-height:1.6;">
         Someone just liked your listing:
@@ -200,9 +224,9 @@ export const EmailTemplates = {
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#881337 0%,#be123c 100%)',
-      '❤️ New Like!',
-      'Someone Liked Your Item',
+      isSelfLike ? 'linear-gradient(135deg,#831843 0%,#db2777 100%)' : 'linear-gradient(135deg,#881337 0%,#be123c 100%)',
+      isSelfLike ? '💖 Self-Love!' : '❤️ New Like!',
+      isSelfLike ? 'You Liked Your Own Item' : 'Someone Liked Your Item',
       body
     );
   },
@@ -244,44 +268,28 @@ export const EmailTemplates = {
   orderShipped: (buyerName: string, productTitle: string, sellerName: string) => {
     const body = `
       <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Good news, ${buyerName}! 🚚</p>
-      <p style="margin:0 0 8px;color:#64748b;font-size:16px;line-height:1.6;">
-        Your order is on its way!
+      <p style="margin:0 0 32px;color:#64748b;font-size:16px;line-height:1.6;">
+        Your package for <strong>${productTitle}</strong> has been handed over to the courier and is now on its way to you.
       </p>
 
-      <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:16px;padding:24px;margin:24px 0;border:1px solid #93c5fd;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="padding-bottom:12px;">
-              <span style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Item</span><br>
-              <span style="color:#1e293b;font-size:16px;font-weight:800;">${productTitle}</span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding-bottom:12px;">
-              <span style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Seller</span><br>
-              <span style="color:#1e293b;font-size:16px;font-weight:800;">${sellerName}</span>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <span style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Status</span><br>
-              <span style="display:inline-block;background:#2563eb;color:white;font-size:12px;font-weight:900;padding:6px 14px;border-radius:100px;margin-top:4px;">📦 SHIPPED</span>
-            </td>
-          </tr>
-        </table>
+      <div style="background-color:#f8fafc;border-radius:20px;padding:32px;margin:32px 0;border:1px solid #e2e8f0;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">🚚</div>
+        <div style="color:#64748b;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Status</div>
+        <div style="color:#2563eb;font-size:24px;font-weight:900;">IN TRANSIT</div>
+        <div style="color:#64748b;font-size:13px;margin-top:8px;">Sent by ${sellerName}</div>
       </div>
 
       <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
-        You'll be able to confirm delivery once the package arrives. Check your chat for updates from the seller.
+        You can track the progress of your delivery directly in the chat or on the DHL website if a tracking number was provided.
       </p>
 
-      ${ctaButton('Track in Chat', `${SITE_URL}/profile/messages`, '#2563eb')}
+      ${ctaButton('Check Status in Chat', `${SITE_URL}/profile/messages`, '#2563eb')}
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%)',
-      '🚚 Shipped!',
-      'Your Order Has Been Shipped',
+      'linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)',
+      '📦 Shipped!',
+      'Your order is on the way',
       body
     );
   },
@@ -292,27 +300,27 @@ export const EmailTemplates = {
   orderDelivered: (sellerName: string, buyerName: string, productTitle: string) => {
     const body = `
       <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Great news, ${sellerName}! 📬</p>
-      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
-        <strong>${buyerName}</strong> has confirmed receiving your item: <strong>${productTitle}</strong>.
+      <p style="margin:0 0 32px;color:#64748b;font-size:16px;line-height:1.6;">
+        <strong>${buyerName}</strong> has confirmed receiving your item: <strong>${productTitle}</strong>. 
       </p>
 
-      <div style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:16px;padding:24px;margin:24px 0;border:1px solid #6ee7b7;text-align:center;">
-        <div style="font-size:40px;margin-bottom:8px;">📬</div>
-        <div style="color:#065f46;font-size:16px;font-weight:800;">Package Delivered Successfully</div>
-        <div style="color:#059669;font-size:13px;margin-top:4px;">Waiting for buyer's final confirmation</div>
+      <div style="background-color:#f0fdf4;border-radius:20px;padding:32px;margin:32px 0;border:1px solid #dcfce7;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">📬</div>
+        <div style="color:#166534;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Current Status</div>
+        <div style="color:#15803d;font-size:24px;font-weight:900;">DELIVERED</div>
       </div>
 
       <p style="margin:0;color:#475569;font-size:15px;line-height:1.6;">
-        Once the buyer confirms everything is OK, the funds will be released to your available balance.
+        Once the buyer does a final check and clicks "Complete Transaction", the funds will be released to your available balance.
       </p>
 
-      ${ctaButton('View Chat', `${SITE_URL}/profile/messages`, '#059669')}
+      ${ctaButton('Open Chat', `${SITE_URL}/profile/messages`, '#15803d')}
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#064e3b 0%,#059669 100%)',
+      'linear-gradient(135deg,#064e3b 0%,#15803d 100%)',
       '📬 Delivered!',
-      'Package Has Been Delivered',
+      'Proof of Delivery',
       body
     );
   },
@@ -344,9 +352,9 @@ export const EmailTemplates = {
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#14532d 0%,#15803d 100%)',
+      'linear-gradient(135deg,#14532d 0%,#10b981 100%)',
       '✅ Complete!',
-      'Transaction Completed',
+      'Transaction Success',
       body
     );
   },
@@ -391,9 +399,9 @@ export const EmailTemplates = {
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#7f1d1d 0%,#dc2626 100%)',
+      'linear-gradient(135deg,#7f1d1d 0%,#ef4444 100%)',
       '⚠️ Dispute',
-      'Dispute Opened',
+      'Dispute Notification',
       body
     );
   },
@@ -423,9 +431,9 @@ export const EmailTemplates = {
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#4c1d95 0%,#7c3aed 100%)',
+      'linear-gradient(135deg,#4c1d95 0%,#8b5cf6 100%)',
       '💳 Payout',
-      'Payout Requested',
+      'Payout Request Received',
       body
     );
   },
@@ -450,14 +458,14 @@ export const EmailTemplates = {
       ${ctaButton('Reply Now', `${SITE_URL}/profile/messages`, '#3b82f6')}
 
       <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">
-        Don't miss messages — check your Printsi account regularly!
+        Don't miss messages — check your Printis account regularly!
       </p>
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#1e3a5f 0%,#3b82f6 100%)',
+      'linear-gradient(135deg,#1e3a8a 0%,#3b82f6 100%)',
       '💬 New Message',
-      'New Message',
+      'Chat Notification',
       body
     );
   },
@@ -467,7 +475,7 @@ export const EmailTemplates = {
   // ────────────────────────────────────────
   welcome: (userName: string) => {
     const body = `
-      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:900;">Welcome to Printsi, ${userName}! 🎊</p>
+      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:900;">Welcome to Printis, ${userName}! 🎊</p>
       <p style="margin:0 0 32px;color:#64748b;font-size:16px;line-height:1.7;">
         You've just joined the marketplace for 3D printing enthusiasts. Here's what you can do:
       </p>
@@ -506,9 +514,9 @@ export const EmailTemplates = {
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#312e81 0%,#4f46e5 50%,#6366f1 100%)',
+      'linear-gradient(135deg,#4338ca 0%,#6366f1 100%)',
       '🎉 Welcome!',
-      'Welcome to Printsi',
+      'Welcome to the Family',
       body
     );
   },
@@ -617,7 +625,7 @@ export const EmailTemplates = {
     const body = `
       <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:900;">Account Verification, ${userName}! 🛡️</p>
       <p style="margin:0 0 32px;color:#64748b;font-size:16px;line-height:1.7;">
-        Thank you for joining Printsi. This is your official verification link. Click the button below to activate your account.
+        Thank you for joining Printis. This is your official verification link. Click the button below to activate your account.
       </p>
 
       ${ctaButton('VERIFY ACCOUNT', link, '#000000')}
@@ -629,9 +637,9 @@ export const EmailTemplates = {
     `;
 
     return emailWrapper(
-      'linear-gradient(135deg,#000000 0%,#1e293b 100%)',
+      'linear-gradient(135deg,#000000 0%,#334155 100%)',
       'Verification',
-      'Verification Link',
+      'Security Check',
       body
     );
   },
@@ -643,7 +651,7 @@ export const EmailTemplates = {
     const body = `
       <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:900;">Reset Your Password, ${userName}! 🔒</p>
       <p style="margin:0 0 32px;color:#64748b;font-size:16px;line-height:1.7;">
-        We received a request to reset your Printsi account password. Click the button below to set a new password. 
+        We received a request to reset your Printis account password. Click the button below to set a new password. 
         If you didn't request this, you can safely ignore this email.
       </p>
 
@@ -658,6 +666,147 @@ export const EmailTemplates = {
       'linear-gradient(135deg,#312e81 0%,#4f46e5 100%)',
       'Password Reset',
       'Reset Your Password',
+      body
+    );
+  },
+  // ────────────────────────────────────────
+  // 17. NEW OFFER RECEIVED (seller)
+  // ────────────────────────────────────────
+  newOfferReceived: (sellerName: string, buyerName: string, productTitle: string, price: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:800;">Customer Request, ${sellerName}! 🤝</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        <strong>${buyerName}</strong> has sent you a custom request for <strong>${productTitle}</strong>.
+      </p>
+
+      ${infoBox('Proposed Price', price, '#2563eb', '#eff6ff')}
+
+      <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
+        You can accept this offer, send a counter-offer, or decline it directly from the chat.
+      </p>
+
+      ${ctaButton('Review Request', `${SITE_URL}/profile/messages`, '#2563eb')}
+    `;
+
+    return emailWrapper(
+      'linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)',
+      '🤝 Request',
+      'Customer Request Received',
+      body
+    );
+  },
+
+  // ────────────────────────────────────────
+  // 17.5 SELLER OFFER RECEIVED (buyer)
+  // ────────────────────────────────────────
+  sellerOfferReceived: (buyerName: string, sellerName: string, productTitle: string, price: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:800;">Special Offer, ${buyerName}! ✨</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        <strong>${sellerName}</strong> has sent you a special deal for <strong>${productTitle}</strong>.
+      </p>
+
+      ${infoBox('Special Price', price, '#d97706', '#fffbeb')}
+
+      <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
+        Grab it while it lasts! This offer is exclusive to you.
+      </p>
+
+      ${ctaButton('Claim Offer', `${SITE_URL}/profile/messages`, '#d97706')}
+    `;
+
+    return emailWrapper(
+      'linear-gradient(135deg,#b45309 0%,#f59e0b 100%)',
+      '✨ Special Deal',
+      'Seller Offer Received',
+      body
+    );
+  },
+
+  // ────────────────────────────────────────
+  // 18. COUNTER-OFFER RECEIVED (buyer)
+  // ────────────────────────────────────────
+  counterOfferReceived: (buyerName: string, sellerName: string, productTitle: string, price: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:800;">Counter-Offer received! ⚡</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        <strong>${sellerName}</strong> has sent you a counter-offer for <strong>${productTitle}</strong>.
+      </p>
+
+      ${infoBox('Revised Propositon', price, '#7c3aed', '#f5f3ff')}
+
+      <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
+        This revised price is waiting for your review. Check it out in the chat!
+      </p>
+
+      ${ctaButton('View Counter-Offer', `${SITE_URL}/profile/messages`, '#7c3aed')}
+    `;
+
+    return emailWrapper(
+      'linear-gradient(135deg,#6d28d9 0%,#7c3aed 100%)',
+      '⚡ Counter Offer',
+      'Counter Offer Received',
+      body
+    );
+  },
+
+  // ────────────────────────────────────────
+  // 19. OFFER ACCEPTED (buyer/seller)
+  // ────────────────────────────────────────
+  offerAccepted: (userName: string, otherName: string, productTitle: string, role: 'buyer' | 'seller') => {
+    const intro = role === 'buyer' 
+      ? `Good news! <strong>${otherName}</strong> has accepted your offer for <strong>${productTitle}</strong>.`
+      : `You've successfully accepted the offer from <strong>${otherName}</strong> for <strong>${productTitle}</strong>.`;
+    
+    const actionText = role === 'buyer' ? 'Complete Purchase' : 'Go to Chat';
+    const actionUrl = role === 'buyer' ? `${SITE_URL}/profile/messages` : `${SITE_URL}/profile/messages`;
+
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:800;">Offer Accepted! 🎉</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        ${intro}
+      </p>
+
+      <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:20px;padding:32px;margin:32px 0;border:1px solid #86efac;text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">✅</div>
+        <div style="color:#166534;font-size:18px;font-weight:900;">Negotiation Successful</div>
+        <div style="color:#15803d;font-size:14px;font-weight:600;margin-top:4px;">${productTitle}</div>
+      </div>
+
+      ${ctaButton(actionText, actionUrl, '#15803d')}
+    `;
+
+    return emailWrapper(
+      'linear-gradient(135deg,#166534 0%,#22c55e 100%)',
+      '🎉 Accepted!',
+      'Offer Accepted',
+      body
+    );
+  },
+
+  // ────────────────────────────────────────
+  // 20. OFFER REJECTED (buyer/seller)
+  // ────────────────────────────────────────
+  offerRejected: (userName: string, otherName: string, productTitle: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:22px;font-weight:800;">Offer Update</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        The recent proposal for <strong>${productTitle}</strong> was not accepted by <strong>${otherName}</strong>.
+      </p>
+
+      <div style="background:#fef2f2;border-radius:20px;padding:32px;margin:32px 0;border:1px solid #fee2e2;text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">✖️</div>
+        <div style="color:#991b1b;font-size:18px;font-weight:900;">Offer Declined</div>
+        <div style="color:#b91c1c;font-size:13px;font-weight:500;margin-top:4px;">But don't worry, you can always try again!</div>
+      </div>
+
+      ${ctaButton('Back to Chat', `${SITE_URL}/profile/messages`, '#991b1b')}
+    `;
+
+    return emailWrapper(
+      'linear-gradient(135deg,#7f1d1d 0%,#ef4444 100%)',
+      '✖️ Update',
+      'Offer Rejected',
       body
     );
   },

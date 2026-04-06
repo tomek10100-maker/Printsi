@@ -186,7 +186,7 @@ export default function OnboardingPage() {
                 {/* HEADER */}
                 <div className="text-center mb-10">
                     <div className="inline-block bg-blue-100 text-blue-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
-                        Welcome to Printsi
+                        Welcome to Printis
                     </div>
                     <h1 className="text-4xl font-black text-gray-900 tracking-tight">Let's set up your account.</h1>
                     <p className="text-gray-500 mt-2 font-medium">It only takes a minute to personalize your experience.</p>

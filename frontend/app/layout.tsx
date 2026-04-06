@@ -11,7 +11,7 @@ import { AuthGuard } from './components/AuthGuard';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Printsi - 3D Ecosystem',
+  title: 'Printis - 3D Ecosystem',
   description: 'Future of Creation',
 };
 

@@ -48,7 +48,7 @@ function SuccessContent() {
         if (!user) { router.push('/login'); return; }
 
         // 2. Read cart from localStorage (it's still there before clearCart)
-        const raw = typeof window !== 'undefined' ? localStorage.getItem('printsi_cart') : null;
+        const raw = typeof window !== 'undefined' ? localStorage.getItem('printis_cart') : null;
         const cartItems: any[] = raw ? JSON.parse(raw) : items;
 
         if (!cartItems || cartItems.length === 0) {
@@ -61,9 +61,9 @@ function SuccessContent() {
           (total: number, item: any) => total + (item.price * item.quantity), 0
         );
 
-        const shippingRaw = typeof window !== 'undefined' ? localStorage.getItem('printsi_checkout_shipping') : null;
+        const shippingRaw = typeof window !== 'undefined' ? localStorage.getItem('printis_checkout_shipping') : null;
         const shippingCostEur = typeof window !== 'undefined'
-          ? parseFloat(localStorage.getItem('printsi_checkout_shipping_eur') || '0')
+          ? parseFloat(localStorage.getItem('printis_checkout_shipping_eur') || '0')
           : 0;
         const orderTotalEur = cartTotalEur + (shippingCostEur || 0);
 
@@ -89,8 +89,8 @@ function SuccessContent() {
         // 4. Clear cart
         clearCart();
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('printsi_checkout_shipping');
-          localStorage.removeItem('printsi_checkout_shipping_eur');
+          localStorage.removeItem('printis_checkout_shipping');
+          localStorage.removeItem('printis_checkout_shipping_eur');
         }
 
         setStatus('done');

@@ -140,6 +140,71 @@ export default function FilamentsPage() {
         setForm(f => ({ ...f, color_hex: hex, color_name: name }));
     };
 
+    const syncOffersStock = async (userId: string, targetFilamentId?: string) => {
+        // 1. Fetch ALL filaments to have stock info for every required layer
+        const { data: allFils } = await supabase.from('filaments').select('id, stock_grams').eq('user_id', userId);
+        if (!allFils) return;
+        const filStockMap: Record<string, number> = {};
+        allFils.forEach(f => filStockMap[f.id] = f.stock_grams ?? 0);
+
+        // 2. Fetch ALL offers that use color variants
+        const { data: offers } = await supabase.from('offers').select('id, color_variants, stock').eq('user_id', userId).not('color_variants', 'is', null);
+        if (!offers) return;
+
+        for (const offer of offers) {
+            const variants = (offer.color_variants || []) as any[];
+            let totalOfferStock = 0;
+            let offerWasUpdated = false;
+            let usesTargetFilament = false;
+
+            const updatedVariants = variants.map(v => {
+                const layers = (v.layers || []) as any[];
+                if (layers.length === 0) {
+                    totalOfferStock += (parseInt(v.stock) || 0);
+                    return v;
+                }
+
+                let varUsesTarget = false;
+                let varMaxPieces = Infinity;
+                let usesTracking = false;
+
+                for (const l of layers) {
+                    if (l.filament_id && l.grams) {
+                        usesTracking = true;
+                        if (targetFilamentId && l.filament_id === targetFilamentId) varUsesTarget = true;
+                        
+                        const stock = filStockMap[l.filament_id] ?? 0;
+                        const needed = parseFloat(String(l.grams));
+                        if (needed > 0) {
+                            varMaxPieces = Math.min(varMaxPieces, Math.floor(stock / needed));
+                        }
+                    }
+                }
+
+                if (varUsesTarget) usesTargetFilament = true;
+
+                if (usesTracking && v.stockTracking !== 'manual') {
+                    const finalVarStock = isFinite(varMaxPieces) ? Math.max(0, varMaxPieces) : 0;
+                    if (finalVarStock !== (parseInt(v.stock) || 0)) offerWasUpdated = true;
+                    totalOfferStock += finalVarStock;
+                    return { ...v, stock: finalVarStock };
+                } else {
+                    totalOfferStock += (parseInt(v.stock) || 0);
+                    return v;
+                }
+            });
+
+            // If we provided a targetFilamentId, we only update IF this offer actually uses it.
+            // If no target provided, we update everything (full sync).
+            if ((!targetFilamentId || usesTargetFilament) && offerWasUpdated) {
+                await supabase.from('offers').update({
+                    stock: totalOfferStock,
+                    color_variants: updatedVariants
+                }).eq('id', offer.id);
+            }
+        }
+    };
+
     const handleHexInput = (val: string) => {
         const clean = val.startsWith('#') ? val : '#' + val;
         setForm(f => ({
@@ -206,7 +271,7 @@ export default function FilamentsPage() {
             await supabase.from('filaments').update(payload).eq('id', editingId);
 
             // ─── Sync linked offers ───────────────────────────────────────────
-            // Find all offer color_variants that reference this filament_id
+            // First, update color names/hex in variants
             const { data: linkedOffers } = await supabase
                 .from('offers')
                 .select('id, color_variants, stock')
@@ -220,7 +285,6 @@ export default function FilamentsPage() {
                 );
                 if (!isLinked) continue;
 
-                // Update color name/hex inside the variant that uses this filament
                 const updatedVariants: any[] = variants.map((v: any) => ({
                     ...v,
                     layers: (v.layers || []).map((l: any) =>
@@ -228,39 +292,21 @@ export default function FilamentsPage() {
                             ? { ...l, color_name: form.color_name, color_hex: newColorHex }
                             : l
                     ),
-                    // If the first layer of this variant is our filament - update the variant name too
                     ...(v.layers?.[0]?.filament_id === editingId ? {
                         color_name: form.color_name,
                         color_hex: newColorHex,
                     } : {})
                 }));
 
-                // Recalculate total stock from filament grams if stock_grams is set
-                let newStock = offer.stock;
-                const newFilamentStock = form.stock_grams ? parseFloat(form.stock_grams) : null;
-                if (newFilamentStock !== null) {
-                    // For each variant find the grams needed, compute max qty from this filament
-                    let minQty = Infinity;
-                    for (const v of updatedVariants) {
-                        for (const l of v.layers || []) {
-                            if (l.filament_id === editingId) {
-                                const gramsNeeded = parseFloat(String(l.grams || 0));
-                                if (gramsNeeded > 0) {
-                                    minQty = Math.min(minQty, Math.floor(newFilamentStock / gramsNeeded));
-                                }
-                            }
-                        }
-                    }
-                    if (isFinite(minQty)) newStock = Math.max(0, minQty);
-                }
-
                 await supabase.from('offers').update({
                     color_variants: updatedVariants,
-                    stock: newStock,
                     color: newColorHex,
                     color_name: form.color_name,
                 }).eq('id', offer.id);
             }
+
+            // Then, recalculate stocks robustly
+            await syncOffersStock(user.id, editingId);
         } else {
             await supabase.from('filaments').insert(payload);
         }
@@ -280,43 +326,17 @@ export default function FilamentsPage() {
         if (!confirm('Delete this filament permanently?')) return;
         await supabase.from('filaments').delete().eq('id', id);
         await fetchFilaments(user.id);
+        await syncOffersStock(user.id);
     };
 
     const handleUpdateStock = async (id: string, current: number | null, change: number) => {
         if (!user) return;
-        const newStock = Math.max(0, (current || 0) + change);
-        setFilaments(prev => prev.map(f => f.id === id ? { ...f, stock_grams: newStock } : f));
-        await supabase.from('filaments').update({ stock_grams: newStock }).eq('id', id);
+        const newStockTotal = Math.max(0, (current || 0) + change);
+        setFilaments(prev => prev.map(f => f.id === id ? { ...f, stock_grams: newStockTotal } : f));
+        await supabase.from('filaments').update({ stock_grams: newStockTotal }).eq('id', id);
 
-        // ─── Sync offer stock for all linked offers ───────────────────────────
-        const { data: linkedOffers } = await supabase
-            .from('offers')
-            .select('id, color_variants, stock')
-            .eq('user_id', user.id)
-            .not('color_variants', 'is', null);
-
-        for (const offer of (linkedOffers || [])) {
-            const variants: any[] = offer.color_variants || [];
-            const isLinked = variants.some(v =>
-                (v.layers || []).some((l: any) => l.filament_id === id)
-            );
-            if (!isLinked) continue;
-
-            // Compute how many units the seller can make from remaining filament
-            let minQty = Infinity;
-            for (const v of variants as any[]) {
-                for (const l of (v.layers || []) as any[]) {
-                    if (l.filament_id === id) {
-                        const gramsNeeded = parseFloat(String(l.grams || 0));
-                        if (gramsNeeded > 0) {
-                            minQty = Math.min(minQty, Math.floor(newStock / gramsNeeded));
-                        }
-                    }
-                }
-            }
-            if (!isFinite(minQty)) continue;
-            await supabase.from('offers').update({ stock: Math.max(0, minQty) }).eq('id', offer.id);
-        }
+        // Compute robust sync for linked offers
+        await syncOffersStock(user.id, id);
     };
 
     const visible = filaments.filter(f => showArchived ? !f.is_active : f.is_active);
@@ -594,6 +614,7 @@ export default function FilamentsPage() {
                                             min="0"
                                             value={form.price_input}
                                             onChange={e => setForm(f => ({ ...f, price_input: e.target.value }))}
+                                            onWheel={(e) => e.currentTarget.blur()}
                                             placeholder="0.00"
                                             className="w-full p-3 pl-14 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-orange-400 transition-all"
                                         />
@@ -642,6 +663,7 @@ export default function FilamentsPage() {
                                         min="0"
                                         value={form.stock_grams}
                                         onChange={e => setForm(f => ({ ...f, stock_grams: e.target.value }))}
+                                        onWheel={(e) => e.currentTarget.blur()}
                                         placeholder="e.g. 500"
                                         className="w-full p-3 pr-16 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm outline-none focus:border-orange-400 transition-all"
                                     />
@@ -746,7 +768,7 @@ function FilamentCard({ filament, onEdit, onToggle, onDelete, onUpdateStock }: {
                                     <p className="text-[9px] font-black uppercase text-gray-400 tracking-wide mb-1">Quick Adjust (g)</p>
                                     <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
                                         <button onClick={(e) => { e.stopPropagation(); onUpdateStock(-Number(adjustValue || 0)); setAdjustValue(''); }} className="px-2 h-6 flex items-center justify-center text-[10px] uppercase text-gray-500 hover:text-red-600 hover:bg-red-50 rounded font-black transition">Subtract</button>
-                                        <input type="number" min="1" placeholder="g" value={adjustValue} onClick={e => e.stopPropagation()} onChange={e => setAdjustValue(e.target.value)} className="w-12 text-center text-xs font-bold text-gray-700 outline-none bg-gray-50 rounded py-0.5 placeholder:text-gray-300 placeholder:font-medium border border-gray-100 focus:border-orange-300 focus:bg-white transition-all" title="Enter grams to add/subtract" />
+                                        <input type="number" min="1" placeholder="g" value={adjustValue} onClick={e => e.stopPropagation()} onChange={e => setAdjustValue(e.target.value)} onWheel={(e) => e.currentTarget.blur()} className="w-12 text-center text-xs font-bold text-gray-700 outline-none bg-gray-50 rounded py-0.5 placeholder:text-gray-300 placeholder:font-medium border border-gray-100 focus:border-orange-300 focus:bg-white transition-all" title="Enter grams to add/subtract" />
                                         <button onClick={(e) => { e.stopPropagation(); onUpdateStock(Number(adjustValue || 0)); setAdjustValue(''); }} className="px-2 h-6 flex items-center justify-center text-[10px] uppercase text-gray-500 hover:text-green-600 hover:bg-green-50 rounded font-black transition">Add</button>
                                     </div>
                                 </div>

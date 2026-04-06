@@ -91,7 +91,7 @@ export default function LoginPage() {
       <div className="absolute top-6 left-6">
         <Link
           href="/"
-          className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors font-bold text-sm bg-white/50 px-4 py-2 rounded-full hover:bg-white border border-transparent hover:border-gray-200"
+          className="flex items-center gap-2 text-slate-800 hover:text-blue-600 transition-colors font-black text-sm bg-white px-5 py-2.5 rounded-full hover:bg-slate-50 border border-slate-200 hover:border-slate-300 shadow-sm"
         >
           <ArrowLeft size={18} /> Back to Home
         </Link>
@@ -100,8 +100,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
 
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">Printsi</h1>
-          <p className="text-gray-500">
+          <h1 className="text-3xl font-black text-blue-600 mb-2 tracking-tight">Printis</h1>
+          <p className="text-slate-600 font-medium">
             {isSignUp ? 'Create a new account' : 'Welcome back!'}
           </p>
         </div>
@@ -118,7 +118,7 @@ export default function LoginPage() {
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-lg transition-all shadow-sm mb-6"
+          className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 font-bold py-3 px-4 rounded-lg transition-all shadow-sm mb-6"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -130,45 +130,45 @@ export default function LoginPage() {
         </button>
 
         <div className="relative flex py-2 items-center mb-6">
-          <div className="flex-grow border-t border-gray-200"></div>
-          <span className="flex-shrink-0 mx-4 text-gray-400 text-sm">or email</span>
-          <div className="flex-grow border-t border-gray-200"></div>
+          <div className="flex-grow border-t border-slate-200"></div>
+          <span className="flex-shrink-0 mx-4 text-slate-500 font-bold text-sm uppercase tracking-wider">or email</span>
+          <div className="flex-grow border-t border-slate-200"></div>
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-bold text-slate-800 mb-1.5">Email</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
+              <Mail className="absolute left-3 top-3 text-slate-500" size={20} />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-2 bg-white border-2 border-slate-200 hover:border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium transition-colors"
                 placeholder="john@example.com"
               />
             </div>
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">Password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-bold text-slate-800">Password</label>
               {!isSignUp && (
-                <Link href="/forgot-password" className="text-sm font-semibold text-blue-600 hover:text-blue-500 hover:underline">
+                <Link href="/forgot-password" className="text-sm font-bold text-blue-600 hover:text-blue-700 hover:underline">
                   Forgot Password?
                 </Link>
               )}
             </div>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+              <Lock className="absolute left-3 top-3 text-slate-500" size={20} />
               <input
                 type="password"
                 required
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-2 bg-white border-2 border-slate-200 hover:border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none font-medium transition-colors"
                 placeholder="••••••••"
               />
             </div>
@@ -177,7 +177,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow flex items-center justify-center gap-2"
           >
             {loading ? (
               <Loader2 className="animate-spin" size={20} />
@@ -187,11 +187,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <p className="mt-8 text-center text-sm font-bold text-slate-600">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}
           <button
             onClick={() => { setIsSignUp(!isSignUp); setStatus(null); }}
-            className="ml-2 text-blue-600 font-semibold hover:underline"
+            className="ml-2 text-blue-600 font-black hover:underline"
           >
             {isSignUp ? 'Sign In' : 'Sign Up'}
           </button>

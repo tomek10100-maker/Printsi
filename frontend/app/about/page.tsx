@@ -18,7 +18,7 @@ export default function AboutPage() {
             The Future of <span className="text-blue-600">Creation.</span>
           </h1>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto font-medium">
-            Bridging the gap between digital imagination and physical reality. Printsi is the ecosystem for the next generation of makers.
+            Bridging the gap between digital imagination and physical reality. Printis is the ecosystem for the next generation of makers.
           </p>
         </div>
 
@@ -30,7 +30,7 @@ export default function AboutPage() {
               Who We Are
             </h2>
             <p className="text-gray-600 leading-relaxed text-sm font-medium">
-              Printsi is more than just a marketplace; it's a global ecosystem for makers, designers, and innovators. We believe that 3D printing technology shouldn't be limited to those with machines. We connect talented 3D designers with passionate makers and buyers looking for unique, custom-made items.
+              Printis is more than just a marketplace; it's a global ecosystem for makers, designers, and innovators. We believe that 3D printing technology shouldn't be limited to those with machines. We connect talented 3D designers with passionate makers and buyers looking for unique, custom-made items.
             </p>
           </div>
 
@@ -40,7 +40,7 @@ export default function AboutPage() {
               Our Mission
             </h2>
             <p className="text-gray-600 leading-relaxed text-sm font-medium">
-              To democratize manufacturing. Whether you need a replacement part, a custom figurine, or a digital file to print at home, Printsi is the bridge that makes it happen. We empower creators to earn from their passion.
+              To democratize manufacturing. Whether you need a replacement part, a custom figurine, or a digital file to print at home, Printis is the bridge that makes it happen. We empower creators to earn from their passion.
             </p>
           </div>
         </div>

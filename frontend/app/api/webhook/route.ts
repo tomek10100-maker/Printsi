@@ -106,6 +106,7 @@ export async function POST(req: Request) {
           order_id: newOrder.id,
           full_name: shippingDetails.name || '',
           email: session.customer_details?.email || '',
+          phone: shippingDetails.phone || '',
           address: addressObj.line1 || '',
           city: addressObj.city || '',
           zip_code: addressObj.postal_code || '',
@@ -308,7 +309,7 @@ export async function POST(req: Request) {
         .insert({
           user_id: sellerId,
           title: '🎉 You made a sale!',
-          message: `Your product "${product.name}" (x${quantityBought}) was purchased by ${buyerName} for ${formattedAmount}. Funds added to your Printsi balance.`,
+          message: `Your product "${product.name}" (x${quantityBought}) was purchased by ${buyerName} for ${formattedAmount}. Funds added to your Printis balance.`,
           type: 'sale',
           is_read: false,
         });

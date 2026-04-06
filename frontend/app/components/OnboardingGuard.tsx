@@ -10,7 +10,7 @@ const supabase = createClient(
 );
 
 const EXEMPT_PATHS = ['/onboarding', '/login', '/auth'];
-const SESSION_KEY = 'printsi_onboarding_ok';
+const SESSION_KEY = 'printis_onboarding_ok';
 
 export default function OnboardingGuard() {
     const router = useRouter();

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   Settings, MapPin, Link as LinkIcon, Calendar, Loader2, Home, LogOut,
   CreditCard, Bell, Package, ChevronRight, ShoppingBag, Plus, Trash2, Eye, Edit,
-  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers
+  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers, CheckCircle
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -26,6 +26,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
   const [myOffers, setMyOffers] = useState<any[]>([]);
 
   const [stats, setStats] = useState({
@@ -35,87 +36,108 @@ export default function ProfilePage() {
     inventoryValue: 0
   });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+  // MODAL STATE
+  const [modal, setModal] = useState<{
+    show: boolean;
+    type: 'confirm' | 'error' | 'success';
+    title: string;
+    message: string;
+    action?: () => Promise<void>;
+  }>({ show: false, type: 'confirm', title: '', message: '' });
 
-      // 1. Fetch Profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+  const [isDeleting, setIsDeleting] = useState(false);
 
-      setProfile(profileData);
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push('/login');
+      return;
+    }
 
-      // 2. Fetch Notifications Count
-      const { count } = await supabase
-        .from('notifications')
+    // 1. Fetch Profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    setProfile(profileData);
+
+    // 2. Fetch Notifications Count
+    const { count } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+
+    setUnreadCount(count || 0);
+
+    // 2b. Fetch Unread Messages Count
+    const { count: unreadMsgsCount } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_read', false)
+      .neq('sender_id', user.id);
+
+    setUnreadMessages(unreadMsgsCount || 0);
+
+    // 2c. Fetch Low Stock Filaments Count
+    if (profileData?.roles?.includes('printer')) {
+      const { count: lowStock } = await supabase
+        .from('filaments')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .eq('is_read', false);
+        .eq('is_active', true)
+        .lte('stock_grams', 100);
+      setLowStockCount(lowStock || 0);
+    }
 
-      setUnreadCount(count || 0);
+    // 3. FETCH OFFERS & INVENTORY
+    const { data: offersData } = await supabase
+      .from('offers')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
 
-      // 2b. Fetch Unread Messages Count
-      const { count: unreadMsgsCount } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_read', false)
-        .neq('sender_id', user.id);
+    setMyOffers(offersData || []);
 
-      setUnreadMessages(unreadMsgsCount || 0);
+    const inventoryVal = offersData?.reduce((acc, item) => acc + (item.price * item.stock), 0) || 0;
 
-      // 3. FETCH OFFERS & INVENTORY
-      const { data: offersData } = await supabase
-        .from('offers')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+    const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id).like('stripe_payment_intent_id', 'balance_%');
+    const totalSpent = orders?.reduce((acc, order) => acc + order.total_amount, 0) || 0;
 
-      setMyOffers(offersData || []);
+    const { data: payouts } = await supabase.from('payouts').select('amount').eq('user_id', user.id).in('status', ['pending', 'completed']);
+    const totalPayouts = payouts?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
 
-      const inventoryVal = offersData?.reduce((acc, item) => acc + (item.price * item.stock), 0) || 0;
+    // GET SALES WITH STATUS
+    const { data: sales, error: salesError } = await supabase.from('order_items').select('price_at_purchase, quantity, status').eq('seller_id', user.id);
+    
+    let totalEarned = 0;
+    let pendingEarned = 0;
 
-      const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id).like('stripe_payment_intent_id', 'balance_%');
-      const totalSpent = orders?.reduce((acc, order) => acc + order.total_amount, 0) || 0;
-
-      const { data: payouts } = await supabase.from('payouts').select('amount').eq('user_id', user.id).in('status', ['pending', 'completed']);
-      const totalPayouts = payouts?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
-
-      // GET SALES WITH STATUS
-      // We assume order_items has a 'status' column. If it's missing (e.g. before schema update), it returns undefined or falls back.
-      const { data: sales, error: salesError } = await supabase.from('order_items').select('price_at_purchase, quantity, status').eq('seller_id', user.id);
-      
-      let totalEarned = 0;
-      let pendingEarned = 0;
-
-      if (!salesError && sales) {
-        sales.forEach(sale => {
-          const amt = sale.price_at_purchase * (sale.quantity || 1);
-          // Only 'completed' adds to available balance. Others (pending, shipped, delivered, disputed) are pending.
-          if (sale.status === 'completed') {
-            totalEarned += amt;
-          } else {
-            pendingEarned += amt;
-          }
-        });
-      }
-
-      setStats({
-        spent: totalSpent + totalPayouts,
-        earned: totalEarned,
-        pendingEarned: pendingEarned,
-        inventoryValue: inventoryVal
+    if (!salesError && sales) {
+      sales.forEach(sale => {
+        const amt = sale.price_at_purchase * (sale.quantity || 1);
+        if (sale.status === 'completed') {
+          totalEarned += amt;
+        } else {
+          pendingEarned += amt;
+        }
       });
+    }
 
-      setLoading(false);
-    };
+    setStats({
+      spent: totalSpent + totalPayouts,
+      earned: totalEarned,
+      pendingEarned: pendingEarned,
+      inventoryValue: inventoryVal
+    });
 
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchData();
   }, [router]);
 
@@ -125,12 +147,54 @@ export default function ProfilePage() {
     router.refresh();
   };
 
-  const handleDeleteOffer = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this listing?")) return;
-
-    const { error } = await supabase.from('offers').delete().eq('id', id);
+  const executeArchive = async (id: string) => {
+    setIsDeleting(true);
+    const { error } = await supabase.from('offers').update({ is_active: false }).eq('id', id);
     if (!error) {
-      setMyOffers(myOffers.filter(offer => offer.id !== id));
+      setMyOffers(prev => prev.filter(offer => offer.id !== id));
+      setModal({
+        show: true,
+        type: 'success',
+        title: 'Listing Archived',
+        message: 'Since this item was sold before, it cannot be deleted. It has been moved to your archives.'
+      });
+    } else {
+      setModal({
+        show: true,
+        type: 'error',
+        title: 'Archiving Failed',
+        message: 'Could not archive this listing: ' + error.message
+      });
+    }
+    setIsDeleting(false);
+  };
+
+  const executeDelete = async (id: string) => {
+    setIsDeleting(true);
+    const { error } = await supabase.from('offers').delete().eq('id', id);
+    
+    if (error) {
+      console.error("Deletion Failed:", (error as any).message || error);
+      
+      if (error.code === '23503') {
+        const listing = myOffers.find(o => o.id === id);
+        setModal({
+          show: true,
+          type: 'confirm',
+          title: 'Cannot Delete Sold Item',
+          message: `Because "${listing?.title || 'this item'}" has sales history, it must remain in the system for your customers. Do you want to Archive (hide) it from your profile instead?`,
+          action: () => executeArchive(id)
+        });
+      } else {
+        setModal({
+          show: true,
+          type: 'error',
+          title: 'Deletion Error',
+          message: error.message || 'An unexpected error occurred while deleting.'
+        });
+      }
+    } else {
+      setMyOffers(prev => prev.filter(offer => offer.id !== id));
       const deletedItem = myOffers.find(o => o.id === id);
       if (deletedItem) {
         setStats(prev => ({
@@ -138,15 +202,30 @@ export default function ProfilePage() {
           inventoryValue: prev.inventoryValue - (deletedItem.price * deletedItem.stock)
         }));
       }
-    } else {
-      alert("Error deleting offer: " + error.message);
+      setModal({
+        show: true,
+        type: 'success',
+        title: 'Listing Removed',
+        message: 'Your offer has been successfully deleted.'
+      });
     }
+    setIsDeleting(false);
+  };
+
+  const confirmDelete = (id: string) => {
+    setModal({
+      show: true,
+      type: 'confirm',
+      title: 'Delete Listing?',
+      message: 'Are you sure you want to permanently remove this listing? This action cannot be undone.',
+      action: () => executeDelete(id)
+    });
   };
 
   // --- OBLICZANIE SALDA (NET BALANCE) ---
   const netBalance = stats.earned - stats.spent;
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
 
   return (
     <main className="min-h-screen bg-gray-50 font-sans text-gray-900 relative">
@@ -265,7 +344,6 @@ export default function ProfilePage() {
                   <MapPin size={16} />
                   {profile?.city ? `${profile.city}, ${profile.country}` : 'Poland'}
                 </div>
-                <div className="flex items-center gap-3 text-gray-500 text-sm font-bold opacity-60"><LinkIcon size={16} /> printsi.com/user</div>
                 <div className="flex items-center gap-3 text-gray-500 text-sm font-bold"><Calendar size={16} /> Joined Feb 2026</div>
               </div>
             </div>
@@ -327,7 +405,11 @@ export default function ProfilePage() {
                     icon={
                       <div className="relative">
                         <Layers size={24} />
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white" />
+                        {lowStockCount > 0 && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+                            {lowStockCount}
+                          </div>
+                        )}
                       </div>
                     }
                     title="My Filaments"
@@ -359,9 +441,7 @@ export default function ProfilePage() {
                     <Plus size={14} /> Add New
                   </Link>
                 )}
-              </div>
-
-              {myOffers.length === 0 ? (
+              </div>              {myOffers.length === 0 ? (
                 <div className="bg-white p-10 rounded-2xl shadow-sm border border-gray-100 text-center py-20">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                     <Package size={28} />
@@ -373,94 +453,77 @@ export default function ProfilePage() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {myOffers.map((offer) => {
                     const variants = offer.color_variants || [];
                     const hasVariants = variants.length > 1;
                     return (
-                      <div key={offer.id} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+                      <div key={offer.id} className="group bg-white rounded-[32px] overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col relative">
                         {/* Thumbnail */}
-                        <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 relative">
-                          {offer.image_urls?.[0] ? (
-                            <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400"><Package size={20} /></div>
-                          )}
-                          {offer.stock === 0 && (
-                            <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center">
-                              <span className="text-white text-[7px] font-black uppercase tracking-wider">Sold Out</span>
-                            </div>
-                          )}
+                        <div className="aspect-square bg-gray-50 overflow-hidden relative">
+                           {offer.image_urls?.[0] ? (
+                             <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                           ) : (
+                             <div className="w-full h-full flex items-center justify-center text-gray-200 bg-gray-50"><Package size={48} /></div>
+                           )}
+                           <div className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[9px] font-black uppercase text-gray-900 shadow-sm z-20">
+                             {offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}
+                           </div>
+                           {offer.stock === 0 && (
+                             <div className="absolute inset-0 bg-red-500/10 backdrop-blur-[2px] flex items-center justify-center z-30">
+                               <div className="bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] py-2 px-8 -rotate-12 border-2 border-white shadow-xl">Sold Out</div>
+                             </div>
+                           )}
                         </div>
 
                         {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-2 flex-wrap">
-                            <h4 className="font-black text-gray-900 truncate text-sm">{offer.title}</h4>
-                            <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-full flex-shrink-0 ${offer.category === 'physical' ? 'bg-orange-100 text-orange-700'
-                                : offer.category === 'digital' ? 'bg-purple-100 text-purple-700'
-                                  : 'bg-blue-100 text-blue-700'
-                              }`}>
-                              {offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}
-                            </span>
-                          </div>
-
-                          {/* Price */}
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-sm font-black text-blue-600">{formatPrice(offer.price)}</span>
-                            {!hasVariants && (
-                              <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                                offer.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
-                              }`}>
-                                {offer.stock > 0 ? `${offer.stock} in stock` : 'Sold Out'}
+                        <div className="p-6 flex flex-col flex-grow">
+                          <h4 className="font-black text-gray-900 text-lg mb-1 leading-tight group-hover:text-blue-600 transition-colors">{offer.title}</h4>
+                          <div className="flex items-center gap-2 mb-4">
+                            <span className="text-xl font-black text-gray-900">{formatPrice(offer.price)}</span>
+                            {hasVariants && (
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded-md">
+                                {variants.length} colors
                               </span>
                             )}
                           </div>
 
-                          {/* Variant breakdown — per-color stock */}
-                          {hasVariants ? (
-                            <div className="mt-1.5 flex flex-col gap-1">
-                              {variants.map((v: any, vi: number) => {
-                                const vStock = parseInt(v.stock) || 0;
-                                return (
-                                  <div key={vi} className="flex items-center gap-1.5">
-                                    <div
-                                      className="w-3 h-3 rounded-full border border-white/80 shadow-sm flex-shrink-0"
-                                      style={{ backgroundColor: v.primaryColor || '#ccc' }}
-                                    />
-                                    <span className="text-[10px] font-bold text-gray-600 truncate max-w-[120px]">
-                                      {v.label || v.color_name || 'Variant'}
-                                    </span>
-                                    <span className={`ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                                      vStock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'
-                                    }`}>
-                                      {vStock > 0 ? `${vStock}` : '0'}
-                                    </span>
-                                  </div>
-                                );
-                              })}
+                          {/* Quick Stats */}
+                          <div className="grid grid-cols-2 gap-2 mb-6">
+                            <div className="bg-blue-50/50 p-2.5 rounded-2xl border border-blue-50">
+                               <span className="block text-[8px] font-black uppercase text-blue-400 tracking-widest mb-0.5">Total Stock</span>
+                               <span className="block font-black text-blue-900 text-xs">{offer.stock} pcs</span>
                             </div>
-                          ) : null}
+                            <div className={`p-2.5 rounded-2xl border ${
+                               offer.category === 'digital' ? 'bg-orange-50/50 border-orange-50' :
+                               offer.category === 'physical' ? 'bg-emerald-50/50 border-emerald-50' :
+                               'bg-blue-50/50 border-blue-50'
+                             }`}>
+                               <span className={`block text-[8px] font-black uppercase tracking-widest mb-0.5 ${
+                                 offer.category === 'digital' ? 'text-orange-400' :
+                                 offer.category === 'physical' ? 'text-emerald-400' :
+                                 'text-blue-400'
+                               }`}>Category</span>
+                               <span className={`block font-black text-xs capitalize ${
+                                 offer.category === 'digital' ? 'text-orange-900' :
+                                 offer.category === 'physical' ? 'text-emerald-900' :
+                                 'text-blue-900'
+                               }`}>{offer.category}</span>
+                            </div>
+                          </div>
 
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <Link href={`/offer/${offer.id}`}
-                            className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                            title="View listing">
-                            <Eye size={16} />
-                          </Link>
-                          <Link href={`/edit/${offer.id}`}
-                            className="p-2.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all"
-                            title="Edit listing">
-                            <Edit size={16} />
-                          </Link>
-                          <button onClick={() => handleDeleteOffer(offer.id)}
-                            className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                            title="Delete listing">
-                            <Trash2 size={16} />
-                          </button>
+                          {/* Action Buttons */}
+                          <div className="mt-auto flex items-center gap-2 pt-4 border-t border-gray-50">
+                            <Link href={`/offer/${offer.id}`} className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest text-[10px] text-center hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                              <Eye size={14} /> Preview
+                            </Link>
+                            <Link href={`/edit/${offer.id}`} className="flex-1 py-3.5 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-[10px] text-center hover:bg-blue-600 transition-all shadow-lg shadow-blue-600/10 flex items-center justify-center gap-2">
+                              <Edit size={14} /> Edit
+                            </Link>
+                            <button onClick={() => confirmDelete(offer.id)} className="p-3.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -473,6 +536,63 @@ export default function ProfilePage() {
 
         </div>
       </div>
+
+      {/* CUSTOM MODAL SYSTEM */}
+      {modal.show && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 ${
+                modal.type === 'confirm' ? 'bg-blue-50 text-blue-600' :
+                modal.type === 'error' ? 'bg-red-50 text-red-600' :
+                'bg-green-50 text-green-600'
+              }`}>
+                {modal.type === 'confirm' && <Sparkles size={40} className="animate-pulse" />}
+                {modal.type === 'error' && <Trash2 size={40} />}
+                {modal.type === 'success' && <CheckCircle size={40} />}
+              </div>
+              
+              <h3 className="text-2xl font-black text-gray-900 mb-2">{modal.title}</h3>
+              <p className="text-gray-500 font-medium text-sm mb-8 leading-relaxed">{modal.message}</p>
+              
+              <div className="flex flex-col gap-3 w-full">
+                {modal.type === 'confirm' ? (
+                  <>
+                    <button 
+                      onClick={async () => {
+                        if (modal.action) {
+                          await modal.action();
+                        }
+                      }}
+                      disabled={isDeleting}
+                      className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2"
+                    >
+                      {isDeleting ? <Loader2 className="animate-spin" size={20} /> : 'Delete Permanently'}
+                    </button>
+                    <button 
+                      onClick={() => setModal({ ...modal, show: false })}
+                      className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={() => setModal({ ...modal, show: false })}
+                    className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg ${
+                      modal.type === 'error' ? 'bg-gray-900 text-white hover:bg-black shadow-gray-200' : 
+                      'bg-green-600 text-white hover:bg-green-700 shadow-green-200'
+                    }`}
+                  >
+                    Got it
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }

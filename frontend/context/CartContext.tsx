@@ -37,16 +37,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const savedCart = localStorage.getItem('printsi_cart');
+      const savedCart = localStorage.getItem('printis_cart');
       if (savedCart) setItems(JSON.parse(savedCart));
     } catch (e) {
       console.warn("Failed to parse cart JSON. Resetting cart.", e);
-      localStorage.removeItem('printsi_cart');
+      localStorage.removeItem('printis_cart');
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('printsi_cart', JSON.stringify(items));
+    localStorage.setItem('printis_cart', JSON.stringify(items));
   }, [items]);
 
   const addItem = (newItem: Omit<CartItem, 'quantity'>, quantity: number = 1) => {

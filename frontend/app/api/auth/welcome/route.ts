@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     
     await sendEmail({
       to: email,
-      subject: '🎉 Welcome to Printsi! Let\'s get started',
+      subject: '🎉 Welcome to Printis! Let\'s get started',
       html,
     });
 

@@ -17,7 +17,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const [theme, setThemeState] = useState<Theme>('white');
 
     useEffect(() => {
-        const saved = localStorage.getItem('printsi-theme') as Theme;
+        const saved = localStorage.getItem('printis-theme') as Theme;
         if (saved && ['white', 'black', 'midnight'].includes(saved)) {
             setThemeState(saved);
             document.documentElement.setAttribute('data-theme', saved);
@@ -26,7 +26,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
     const setTheme = (newTheme: Theme) => {
         setThemeState(newTheme);
-        localStorage.setItem('printsi-theme', newTheme);
+        localStorage.setItem('printis-theme', newTheme);
         document.documentElement.setAttribute('data-theme', newTheme);
     };
 
@@ -51,6 +51,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         html[data-theme='black'] .border-gray-300 { border-color: #52525b !important; }
         html[data-theme='black'] .shadow-sm, html[data-theme='black'] .shadow-md, html[data-theme='black'] .shadow-lg, html[data-theme='black'] .shadow-xl, html[data-theme='black'] .shadow-2xl { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important; }
         html[data-theme='black'] .bg-white\\/80, html[data-theme='black'] .bg-white\\/90 { background-color: rgba(17, 17, 17, 0.75) !important; backdrop-filter: blur(24px) saturate(150%); border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important; }
+        
+        /* CATEGORY OVERRIDES (Black) */
+        html[data-theme='black'] .bg-active-light { background-color: #ffffff !important; }
+        html[data-theme='black'] .category-btn-active.digital-color { color: #ea580c !important; }
+        html[data-theme='black'] .category-btn-active.job-color { color: #2563eb !important; }
+        html[data-theme='black'] .category-btn-active.physical-color { color: #059669 !important; }
 
         /* MIDNIGHT THEME */
         html[data-theme='midnight'] body { background-color: #020617 !important; color: #f8fafc !important; }
@@ -63,6 +69,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         html[data-theme='midnight'] .text-blue-600 { color: #38bdf8 !important; }
         html[data-theme='midnight'] a.hover\\:text-blue-600:hover { color: #7dd3fc !important; }
         html[data-theme='midnight'] .bg-gray-900 { background-color: #1e293b !important; box-shadow: 0 0 15px rgba(56,189,248,0.3) !important; border-color: #38bdf8 !important;}
+        
+        /* CATEGORY OVERRIDES (Midnight) */
+        html[data-theme='midnight'] .bg-active-light { background-color: #ffffff !important; }
+        html[data-theme='midnight'] .category-btn-active.digital-color { color: #ea580c !important; }
+        html[data-theme='midnight'] .category-btn-active.job-color { color: #2563eb !important; }
+        html[data-theme='midnight'] .category-btn-active.physical-color { color: #059669 !important; }
         
         /* TRANSITIONS for smooth fading */
         body, .bg-white, .bg-gray-50, .bg-gray-100, .text-gray-900, .text-gray-600 {

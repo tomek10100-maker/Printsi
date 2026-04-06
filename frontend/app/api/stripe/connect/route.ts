@@ -36,10 +36,10 @@ export async function POST(req: Request) {
 
     // Stripe business_profile.url requires a valid URL, and sometimes rejects localhost in certain contexts.
     // We'll use a real domain as a fallback for the business profile if we are on localhost.
-    const businessProfileUrl = domain.includes('localhost') ? 'https://printsi.com' : `${domain}/user/${userId}`;
+    const businessProfileUrl = domain.includes('localhost') ? 'https://printis.com' : `${domain}/user/${userId}`;
     
     const businessProfile = {
-      product_description: `Sales of 3D prints and maker services on Printsi platform by user ${profile?.full_name || userId}.`,
+      product_description: `Sales of 3D prints and maker services on Printis platform by user ${profile?.full_name || userId}.`,
       url: businessProfileUrl,
     };
 

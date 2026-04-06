@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       .select('order_id, offer_id, seller_id, price_at_purchase, quantity')
       .eq('id', itemId)
       .single();
-    
+
     const { data: offer } = await supabase
       .from('offers')
       .select('title')
@@ -130,7 +130,7 @@ export async function POST(req: Request) {
     // Add a system message about the status change
     let messageContent = '';
     let messageType = 'system';
-    
+
     if (newStatus === 'shipped') {
       messageContent = `The seller has shipped the package. It's on the way!`;
       messageType = 'status_shipped';
@@ -159,8 +159,8 @@ export async function POST(req: Request) {
 
     const productTitle = offer?.title || 'Your item';
 
-    // SHIPPED → email to buyer
-    if (newStatus === 'shipped' && buyerShipping?.email) {
+    // SHIPPED → email to buyer (only if not already sent via tracking email)
+    if (newStatus === 'shipped' && buyerShipping?.email && !trackingCode) {
       try {
         const sellerInfo = await getUserEmailInfo(orderItem?.seller_id);
         await sendShippedEmail(

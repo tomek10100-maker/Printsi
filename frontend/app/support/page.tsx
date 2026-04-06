@@ -18,7 +18,7 @@ export default function SupportPage() {
             <p className="text-blue-100 text-lg max-w-xl mx-auto font-medium mb-8">
               Need help with an order or have a technical question? Our team is here to assist you.
             </p>
-            <a href="mailto:support@printsi.com" className="inline-flex items-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-full font-black uppercase tracking-widest hover:bg-gray-100 transition-colors text-xs">
+            <a href="mailto:support@printis.com" className="inline-flex items-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-full font-black uppercase tracking-widest hover:bg-gray-100 transition-colors text-xs">
               <Mail size={18} /> Contact Support
             </a>
           </div>

@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
     await sendEmail({
       to: email,
-      subject: '🔒 Reset Your Password - Printsi',
+      subject: '🔒 Reset Your Password - Printis',
       html,
     });
 

@@ -19,7 +19,7 @@ export async function sendDigitalFileEmail(opts: DigitalFileEmailOptions): Promi
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Your 3D File is Ready – Printsi</title>
+  <title>Your 3D File is Ready – Printis</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
@@ -33,7 +33,7 @@ export async function sendDigitalFileEmail(opts: DigitalFileEmailOptions): Promi
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <span style="font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-1px;">🖨️ Printsi</span>
+                    <span style="font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-1px;">🖨️ Printis</span>
                     <p style="margin:8px 0 0;color:#94a3b8;font-size:13px;font-weight:500;letter-spacing:0.5px;">3D File Marketplace</p>
                   </td>
                   <td align="right">
@@ -56,7 +56,7 @@ export async function sendDigitalFileEmail(opts: DigitalFileEmailOptions): Promi
             <td style="padding:40px;">
               <p style="margin:0 0 8px;color:#374151;font-size:16px;">Hi <strong>${buyerName}</strong>,</p>
               <p style="margin:0 0 24px;color:#6b7280;font-size:15px;line-height:1.6;">
-                Thank you for your purchase on <strong>Printsi</strong>! 🎊<br/>
+                Thank you for your purchase on <strong>Printis</strong>! 🎊<br/>
                 Your 3D file is now ready. Click the button below to download it.
               </p>
 
@@ -112,12 +112,12 @@ export async function sendDigitalFileEmail(opts: DigitalFileEmailOptions): Promi
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <p style="margin:0 0 4px;color:#111827;font-size:13px;font-weight:800;">🖨️ Printsi</p>
+                    <p style="margin:0 0 4px;color:#111827;font-size:13px;font-weight:800;">🖨️ Printis</p>
                     <p style="margin:0;color:#9ca3af;font-size:12px;">The marketplace for 3D printing enthusiasts</p>
                   </td>
                   <td align="right">
                     <p style="margin:0;color:#d1d5db;font-size:11px;">
-                      Questions? Visit <a href="https://printsi.com" style="color:#6366f1;text-decoration:none;">printsi.com</a>
+                      Questions? Visit <a href="https://printis.com" style="color:#6366f1;text-decoration:none;">printis.com</a>
                     </p>
                   </td>
                 </tr>
@@ -134,7 +134,7 @@ export async function sendDigitalFileEmail(opts: DigitalFileEmailOptions): Promi
   `.trim();
 
   const { error } = await resend.emails.send({
-    from: 'Printsi <noreply@printis.store>',
+    from: 'Printis <noreply@printis.store>',
     to: buyerEmail,
     subject: `⬇️ Your 3D File is Ready – ${productTitle}`,
     html,

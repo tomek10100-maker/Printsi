@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import ThemeToggle from '../components/ThemeToggle';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -56,6 +57,7 @@ function MarketplaceContent() {
   const initialCategory = searchParams.get('category') || 'physical';
   const { addItem, items } = useCart();
   const { formatPrice } = useCurrency();
+  const [isThemeHovered, setIsThemeHovered] = useState(false);
 
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +80,7 @@ function MarketplaceContent() {
     const { data, error } = await supabase
       .from('offers')
       .select('*')
-      .eq('is_custom', false);
+      .or('is_custom.eq.false,is_custom.is.null');
     if (error) {
       console.error('Error fetching offers:', error);
     } else {
@@ -231,24 +233,47 @@ function MarketplaceContent() {
       await supabase.from('favorites').insert({ user_id: currentUser.id, offer_id: offerId });
 
       const likedOffer = offers.find(o => o.id === offerId);
-      if (likedOffer && likedOffer.user_id !== currentUser.id) {
-        await supabase.from('notifications').insert({
+      if (likedOffer) {
+        const isSelfLike = likedOffer.user_id === currentUser.id;
+
+        // Fallback-safe insert
+        const { error } = await supabase.from('notifications').insert({
           user_id: likedOffer.user_id,
-          title: "New Like! ❤️",
-          message: `Someone liked your item: "${likedOffer.title}"`,
+          title: isSelfLike ? "You're your biggest fan! 😉" : "New Like! ❤️",
+          message: isSelfLike
+            ? `No wonder you like "${likedOffer.title}"! It's your own masterpiece, after all.`
+            : `Someone liked your "${likedOffer.title}" item! Start a conversation!`,
           type: 'like',
+          // Only offer chat if it's NOT a self-like
+          sender_id: isSelfLike ? null : currentUser.id,
+          offer_id: isSelfLike ? null : offerId,
           is_read: false
         });
 
-        // Send like email notification (fire & forget)
+        // If above failed (missing columns), try without extra data
+        if (error) {
+          console.warn("Retrying notification without extra columns:", error.message);
+          await supabase.from('notifications').insert({
+            user_id: likedOffer.user_id,
+            title: isSelfLike ? "You're your biggest fan! 😉" : "New Like! ❤️",
+            message: isSelfLike
+              ? `No wonder you like "${likedOffer.title}"! It's your own masterpiece, after all.`
+              : `Someone liked your "${likedOffer.title}" item! [USER:${currentUser.id}:${offerId}]`,
+            type: 'like',
+            is_read: false
+          });
+        }
+
+        // Email notification (fire & forget)
         fetch('/api/order/like-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sellerId: likedOffer.user_id,
             productTitle: likedOffer.title,
+            isSelfLike,
           }),
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   };
@@ -372,19 +397,51 @@ function MarketplaceContent() {
       )}
 
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4">
-        <Link href="/" className="flex-shrink-0"><img src="/logo.jpg" alt="Printsi" className="h-8 w-auto rounded-xl object-cover hover:opacity-80 transition" /></Link>
+        <Link href="/" className="flex-shrink-0"><img src="/logo.jpg" alt="Printis" className="h-8 w-auto rounded-xl object-cover hover:opacity-80 transition" /></Link>
         <div className="flex-1 max-w-2xl relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input type="text" placeholder="Search items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-gray-100 hover:bg-white focus:bg-white border-2 border-transparent focus:border-blue-600 rounded-full text-sm font-medium transition-all outline-none" />
         </div>
-        <div className="flex items-center gap-3"><Link href="/" className="p-3 rounded-full bg-gray-900 text-white hover:bg-red-600 transition shadow-lg"><X size={20} /></Link></div>
+        <div className="flex items-center gap-3">
+          <div 
+            onMouseEnter={() => setIsThemeHovered(true)} 
+            onMouseLeave={() => setIsThemeHovered(false)}
+          >
+            <ThemeToggle isHoveredExternal={isThemeHovered} />
+          </div>
+          <Link 
+            href="/" 
+            className="p-3 rounded-full bg-gray-900 text-white hover:bg-red-600 shadow-lg transition-all" 
+            style={{ 
+              transitionDuration: '1.5s',
+              transform: isThemeHovered ? 'translateX(-128px)' : 'translateX(0)'
+            }}
+          >
+            <X size={20} />
+          </Link>
+        </div>
       </nav>
 
       <div className="px-6 py-8 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex p-1 bg-gray-100 rounded-full shadow-inner">
-          {['physical', 'digital', 'job'].map((cat) => {
+        <div className="flex p-1 bg-black/5 rounded-full shadow-inner border border-black/5 backdrop-blur-sm">
+          {['job', 'physical', 'digital'].map((cat) => {
+            const isActive = categoryFilter === cat;
+            const colors: any = {
+              digital: 'text-orange-600 digital-color',
+              job: 'text-blue-600 job-color',
+              physical: 'text-emerald-600 physical-color'
+            };
             return (
-              <button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-6 py-3 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${categoryFilter === cat ? (cat === 'digital' ? 'bg-white text-purple-600 shadow-md' : cat === 'job' ? 'bg-white text-orange-600 shadow-md' : 'bg-white text-blue-600 shadow-md') : 'text-gray-400 hover:text-gray-600 text-center'}`}>
+              <button 
+                key={cat} 
+                onClick={() => setCategoryFilter(cat)} 
+                className={`px-7 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
+                  isActive 
+                    ? `bg-active-light ${colors[cat]} shadow-xl scale-105 z-10 category-btn-active` 
+                    : 'text-gray-400 hover:text-gray-600'
+                } text-center`}
+                style={{ transitionDuration: '1.5s' }}
+              >
                 {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : 'Physical Items'}
               </button>
             )

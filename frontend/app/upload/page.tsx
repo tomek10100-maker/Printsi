@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   Loader2, FileText, Image as ImageIcon, Box, Layers, Printer,
   X, Trash2, ChevronDown, EyeOff, Calculator, Zap, Settings2,
-  Wrench, Plus, Minus, Palette, ChevronUp
+  Wrench, Plus, Minus, Palette, ChevronUp, Ruler
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 
@@ -52,6 +52,8 @@ const BASIC_COLORS: Record<string, string> = {
   navy: '#000080', lime: '#00ff00', maroon: '#800000', olive: '#808000', teal: '#008080',
   silver: '#c0c0c0', gold: '#ffd700'
 };
+
+type DimensionEntry = { id: string; label: string; value: string };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 type ManualLayer = {
@@ -131,7 +133,22 @@ export default function AddOfferPage() {
   // Common
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [dimensions, setDimensions] = useState('');
+  // Dimensions: structured list of { label, value } entries, serialized to string on submit
+  const [dimensionEntries, setDimensionEntries] = useState<DimensionEntry[]>([
+    { id: uid(), label: 'Width', value: '' },
+    { id: uid(), label: 'Height', value: '' },
+    { id: uid(), label: 'Depth', value: '' },
+  ]);
+
+  const addDimension = () => setDimensionEntries(prev => [...prev, { id: uid(), label: '', value: '' }]);
+  const removeDimension = (id: string) => setDimensionEntries(prev => prev.length > 1 ? prev.filter(d => d.id !== id) : prev);
+  const updateDimension = (id: string, patch: Partial<DimensionEntry>) =>
+    setDimensionEntries(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d));
+  const serializeDimensions = () =>
+    dimensionEntries
+      .filter(d => d.value.trim())
+      .map(d => `${d.label || 'Dim'}: ${d.value} mm`)
+      .join(', ');
   const [projectFile, setProjectFile] = useState<File | null>(null);
   const [previewImages, setPreviewImages] = useState<File[]>([]);
 
@@ -272,7 +289,11 @@ export default function AddOfferPage() {
   const resetForm = () => {
     setTitle('');
     setDescription('');
-    setDimensions('');
+    setDimensionEntries([
+      { id: uid(), label: 'Width', value: '' },
+      { id: uid(), label: 'Height', value: '' },
+      { id: uid(), label: 'Depth', value: '' },
+    ]);
     setProjectFile(null);
     setPreviewImages([]);
     setManualMaterial('');
@@ -301,7 +322,8 @@ export default function AddOfferPage() {
     if (!user?.id) return;
 
     if (category === 'physical') {
-      if (!dimensions.trim()) { setFormError('Dimensions are required.'); return; }
+      const dimStr = serializeDimensions();
+      if (!dimStr) { setFormError('Please enter at least one dimension.'); return; }
       if (pricingMode === 'auto') {
         for (const v of variants) {
           if (!computeVariantEUR(v)) { setFormError('Complete all filament & weight fields in every variant.'); return; }
@@ -438,19 +460,22 @@ export default function AddOfferPage() {
       }
 
       // Try insert with color_variants, fall back without if column missing
+      const finalDimensions = (category === 'physical' || category === 'job') ? serializeDimensions() || null : null;
       const basePayload = {
         title, description, price: dbPrice, category,
         material: dbMaterial, color: dbColor, color_name: dbColorName,
-        weight: dbWeight, dimensions: dimensions || null,
+        weight: dbWeight, dimensions: finalDimensions,
         stock: dbStock, file_url: projUrl,
         image_url: imageUrls[0] || null, image_urls: imageUrls,
         user_id: user.id, filament_id: dbFilamentId, created_at: new Date(),
+        is_custom: false, // Ensure it shows in standard gallery
       };
 
-      const { error: dbErr } = await supabase.from('offers').insert({
-        ...basePayload,
-        ...(colorVariantsPayload ? { color_variants: colorVariantsPayload } : {}),
-      });
+      const { error: dbErr } = await supabase.from('offers')
+        .insert({
+          ...basePayload,
+          ...(colorVariantsPayload ? { color_variants: colorVariantsPayload } : {}),
+        });
 
       // If color_variants column missing, retry without it
       if (dbErr && dbErr.message?.includes('color_variants')) {
@@ -461,7 +486,10 @@ export default function AddOfferPage() {
       }
 
       setSubmitSuccess(true);
-      // Removed automatic redirect to let user choose
+      // Automatic redirect after a short delay for premium feel
+      setTimeout(() => {
+        router.push('/profile');
+      }, 1500);
     } catch (err: any) {
       setFormError(`Error: ${err.message}`);
     } finally {
@@ -511,13 +539,23 @@ export default function AddOfferPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {([
                   { key: 'job', label: 'Print Request', Icon: Printer, c: 'blue', req: false },
-                  { key: 'digital', label: 'Digital File', Icon: Layers, c: 'purple', req: false },
-                  { key: 'physical', label: 'Physical Item', Icon: Box, c: 'orange', req: true },
+                  { key: 'digital', label: 'Digital File', Icon: Layers, c: 'orange', req: false },
+                  { key: 'physical', label: 'Physical Item', Icon: Box, c: 'emerald', req: true },
                 ] as const).map(({ key, label, Icon, c, req }) => {
                   const disabled = !!req && !isPrinter;
                   const active = category === key;
-                  const ac = { blue: 'border-blue-500 bg-blue-50 text-blue-800', purple: 'border-purple-500 bg-purple-50 text-purple-800', orange: 'border-orange-500 bg-orange-50 text-orange-800' };
-                  const hc = { blue: 'hover:border-blue-200', purple: 'hover:border-purple-200', orange: 'hover:border-orange-200' };
+                  const ac: any = { 
+                    blue: 'border-blue-500 bg-blue-50 text-blue-800', 
+                    purple: 'border-purple-500 bg-purple-50 text-purple-800', 
+                    orange: 'border-orange-500 bg-orange-50 text-orange-800',
+                    emerald: 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                  };
+                  const hc: any = { 
+                    blue: 'hover:border-blue-200', 
+                    purple: 'hover:border-purple-200', 
+                    orange: 'hover:border-orange-200',
+                    emerald: 'hover:border-emerald-200'
+                  };
                   return (
                     <button key={key} type="button" disabled={disabled}
                       onClick={() => { if (!disabled) { setCategory(key); setPreviewImages([]); } }}
@@ -595,11 +633,64 @@ export default function AddOfferPage() {
             {/* 4. SPECS */}
             <section className="space-y-4">
               <SectionLabel step="4" label="Specs" />
-              {category === 'physical' && (
-                <input type="text" placeholder="Dimensions (e.g. 15×15×10 cm)" value={dimensions}
-                  onChange={e => setDimensions(e.target.value)} required
-                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all" />
+
+              {/* Dimensions block — shown for physical, digital & job */}
+              {(category === 'physical' || category === 'job' || category === 'digital') && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Ruler size={14} className="text-gray-400" />
+                      <span className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Dimensions</span>
+                    </div>
+                    <button type="button" onClick={addDimension}
+                      className="flex items-center gap-1 text-[10px] font-black text-blue-600 hover:text-blue-700 px-2.5 py-1 rounded-lg hover:bg-blue-50 border border-blue-100 transition-all uppercase tracking-widest">
+                      <Plus size={11} /> Add dimension
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {dimensionEntries.map((dim, idx) => (
+                      <div key={dim.id} className="flex items-center gap-2">
+                        {/* Label */}
+                        <input
+                          type="text"
+                          value={dim.label}
+                          onChange={e => updateDimension(dim.id, { label: e.target.value })}
+                          placeholder={idx === 0 ? 'Width' : idx === 1 ? 'Height' : idx === 2 ? 'Depth' : 'Label'}
+                          className="w-24 flex-shrink-0 p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-xs outline-none focus:border-blue-500 focus:bg-white transition-all"
+                        />
+                        {/* Value */}
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={dim.value}
+                            onChange={e => {
+                              const val = e.target.value.replace(',', '.');
+                              if (/^\d*\.?\d*$/.test(val)) updateDimension(dim.id, { value: val });
+                            }}
+                            placeholder="0"
+                            className="w-full p-3 pr-12 bg-white border-2 border-orange-200 rounded-xl font-black text-sm outline-none focus:border-orange-500 transition-all"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 font-black text-[10px]">mm</span>
+                        </div>
+                        {/* Remove */}
+                        {dimensionEntries.length > 1 && (
+                          <button type="button" onClick={() => removeDimension(dim.id)}
+                            className="p-2.5 rounded-xl bg-white border-2 border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all flex-shrink-0">
+                            <Minus size={13} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {serializeDimensions() && (
+                    <p className="text-[10px] text-gray-400 font-bold bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-100">
+                      📐 {serializeDimensions()}
+                    </p>
+                  )}
+                </div>
               )}
+
               {!isPhysicalAuto && (
                 <div className="space-y-4">
                   {category === 'physical' ? (
@@ -611,7 +702,7 @@ export default function AddOfferPage() {
                       {category !== 'digital' && (
                         <div className="relative">
                           <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs pointer-events-none">QTY</span>
-                          <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} required
+                          <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} onWheel={(e) => e.currentTarget.blur()} required
                             className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
                         </div>
                       )}
@@ -654,6 +745,22 @@ export default function AddOfferPage() {
                       const price = variantPrices[vIdx];
                       const isMulti = v.layers.length > 1;
 
+                      let calculatedStock = 0;
+                      if (v.stockTracking === 'manual') {
+                        calculatedStock = parseInt(v.stock) || 0;
+                      } else {
+                        let maxP = Infinity;
+                        let ok = false;
+                        for (const l of v.layers) {
+                          if (l.filament && l.filament.stock_grams !== null && l.grams) {
+                            const g = parseFloat(l.grams);
+                            if (g > 0) { maxP = Math.min(maxP, Math.floor(l.filament.stock_grams / g)); ok = true; }
+                            else { ok = false; break; }
+                          } else { ok = false; break; }
+                        }
+                        calculatedStock = ok && maxP !== Infinity ? Math.max(0, maxP) : 0;
+                      }
+
                       return (
                         <div key={v.variantId} className="border-2 border-gray-100 rounded-2xl overflow-hidden bg-white">
                           {/* Header */}
@@ -678,7 +785,7 @@ export default function AddOfferPage() {
                               <p className="text-xs text-gray-400 font-medium truncate">
                                 {v.layers.map(l => l.filament?.color_name || '—').join(' + ')}
                                 {price ? ` · ${fmt(price.totalEUR)}` : ' · configure below'}
-                                {v.stock ? ` · qty ${v.stock}` : ''}
+                                 · qty {calculatedStock}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -722,7 +829,7 @@ export default function AddOfferPage() {
                                               <p className="font-black text-gray-900 text-xs truncate">{layer.filament.color_name}</p>
                                               {/* Show price_per_gram * 1000 DIRECTLY in EUR without conversion to avoid drift */}
                                               <p className="text-[10px] text-gray-400 truncate">
-                                                {layer.filament.plastic_type} · {fmt(layer.filament.price_per_gram * 1000)}/kg
+                                                {layer.filament.plastic_type} · {fmt(layer.filament.price_per_gram * 1000)}/kg · <span className="text-orange-500 font-bold">{Math.round(layer.filament.stock_grams || 0)}g left</span>
                                               </p>
                                             </div>
                                           </>
@@ -746,7 +853,10 @@ export default function AddOfferPage() {
                                                 <p className="font-bold text-gray-900 text-xs truncate">{fil.color_name}</p>
                                                 <p className="text-[10px] text-gray-400">{fil.plastic_type}</p>
                                               </div>
-                                              <span className="text-[10px] font-bold text-gray-500 flex-shrink-0">{fmt(fil.price_per_gram * 1000)}/kg</span>
+                                              <div className="flex flex-col items-end flex-shrink-0">
+                                                <span className="text-[10px] font-bold text-gray-500">{fmt(fil.price_per_gram * 1000)}/kg</span>
+                                                <span className="text-[9px] font-black text-orange-500">{Math.round(fil.stock_grams || 0)}g left</span>
+                                              </div>
                                             </button>
                                           ))}
                                           <div className="border-t border-gray-100 mt-1 sticky bottom-0 bg-white">
@@ -829,11 +939,15 @@ export default function AddOfferPage() {
                                       <Box size={12} className="text-gray-500" />
                                       <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Stock (qty)</span>
                                     </div>
-                                    <div className="flex rounded-md border border-gray-200 overflow-hidden text-[10px]">
-                                      <button type="button" onClick={() => updateVariant(v.variantId, { stockTracking: 'auto' })}
-                                        className={`px-2.5 py-1 font-black transition-all ${v.stockTracking === 'auto' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>AUTO</button>
-                                      <button type="button" onClick={() => updateVariant(v.variantId, { stockTracking: 'manual' })}
-                                        className={`px-2.5 py-1 font-black transition-all ${v.stockTracking === 'manual' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>MANUAL</button>
+                                    <div 
+                                      onClick={() => updateVariant(v.variantId, { stockTracking: v.stockTracking === 'auto' ? 'manual' : 'auto' })}
+                                      className="relative w-28 h-7 bg-gray-100 rounded-full cursor-pointer flex items-center p-1 group transition-all hover:bg-gray-200 border border-gray-200"
+                                    >
+                                      <div 
+                                        className={`absolute h-5 w-[calc(50%-2px)] bg-gray-900 rounded-full shadow-sm transition-all duration-300 ease-in-out ${v.stockTracking === 'manual' ? 'translate-x-[calc(100%-2px)]' : 'translate-x-0'}`}
+                                      />
+                                      <span className={`flex-1 text-center text-[8px] font-black z-10 transition-colors duration-300 ${v.stockTracking === 'auto' ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'}`}>AUTO</span>
+                                      <span className={`flex-1 text-center text-[8px] font-black z-10 transition-colors duration-300 ${v.stockTracking === 'manual' ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'}`}>MANUAL</span>
                                     </div>
                                   </div>
 

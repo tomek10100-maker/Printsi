@@ -36,15 +36,15 @@ export async function getUserEmailInfo(userId: string): Promise<{ email: string;
 /**
  * Send "item liked" email to seller.
  */
-export async function sendLikeEmail(sellerId: string, productTitle: string) {
+export async function sendLikeEmail(sellerId: string, productTitle: string, isSelfLike?: boolean) {
   try {
     const seller = await getUserEmailInfo(sellerId);
     if (!seller?.email) return;
 
     await sendEmail({
       to: seller.email,
-      subject: `❤️ Someone liked your item: ${productTitle}`,
-      html: EmailTemplates.itemLiked(seller.name, productTitle),
+      subject: isSelfLike ? `💖 You liked your own item: ${productTitle}` : `❤️ Someone liked your item: ${productTitle}`,
+      html: EmailTemplates.itemLiked(seller.name, productTitle, isSelfLike),
     });
   } catch (err) {
     console.error('❌ Failed to send like email:', err);
@@ -219,7 +219,7 @@ export async function sendWelcomeEmail(email: string, name: string) {
   try {
     await sendEmail({
       to: email,
-      subject: `🎉 Welcome to Printsi, ${name}!`,
+      subject: `🎉 Welcome to Printis, ${name}!`,
       html: EmailTemplates.welcome(name),
     });
   } catch (err) {
@@ -274,16 +274,121 @@ export async function sendLowFilamentWarning(
   remainingGrams: number
 ) {
   try {
-    if (remainingGrams > 75) return; // Only trigger at 75g or below
+    const threshold = 100; // Increased threshold for warning
+    if (remainingGrams > threshold) return;
+
+    const seller = await getUserEmailInfo(sellerId);
+    
+    // 1. In-App Notification
+    await supabase.from('notifications').insert({
+      user_id: sellerId,
+      title: '🧵 Low Filament Warning',
+      message: `Your filament "${filamentName}" is running low (${remainingGrams}g left). Restock soon!`,
+      type: 'system',
+      is_read: false,
+    });
+
+    // 2. Email Notification
+    if (seller?.email) {
+      await sendEmail({
+        to: seller.email,
+        subject: `🧵 Low filament: ${filamentName} (${remainingGrams}g left)`,
+        html: EmailTemplates.lowFilamentWarning(seller.name, filamentName, remainingGrams),
+      });
+    }
+  } catch (err) {
+    console.error('❌ Failed to send low filament warning:', err);
+  }
+}
+/**
+ * Send "new offer" email to seller.
+ */
+export async function sendOfferEmail(sellerId: string, buyerName: string, productTitle: string, price: string) {
+  try {
     const seller = await getUserEmailInfo(sellerId);
     if (!seller?.email) return;
 
     await sendEmail({
       to: seller.email,
-      subject: `🧵 Low filament warning: ${filamentName} (${remainingGrams}g left)`,
-      html: EmailTemplates.lowFilamentWarning(seller.name, filamentName, remainingGrams),
+      subject: `🤝 New Offer: ${price} for ${productTitle}`,
+      html: EmailTemplates.newOfferReceived(seller.name, buyerName, productTitle, price),
     });
   } catch (err) {
-    console.error('❌ Failed to send low filament warning:', err);
+    console.error('❌ Failed to send offer email:', err);
+  }
+}
+
+/**
+ * Send "counter-offer" email to buyer.
+ */
+/**
+ * Send "counter-offer" email to recipient.
+ */
+export async function sendCounterOfferEmail(userId: string, senderName: string, productTitle: string, price: string) {
+  try {
+    const user = await getUserEmailInfo(userId);
+    if (!user?.email) return;
+
+    await sendEmail({
+      to: user.email,
+      subject: `⚡ Counter Offer: ${productTitle}`,
+      html: EmailTemplates.counterOfferReceived(user.name, senderName, productTitle, price),
+    });
+  } catch (err) {
+    console.error('❌ Failed to send counter-offer email:', err);
+  }
+}
+
+/**
+ * Send "seller offer" email to buyer.
+ */
+export async function sendSellerOfferEmail(userId: string, senderName: string, productTitle: string, price: string) {
+  try {
+    const user = await getUserEmailInfo(userId);
+    if (!user?.email) return;
+
+    await sendEmail({
+      to: user.email,
+      subject: `✨ Special Offer: ${productTitle}`,
+      html: EmailTemplates.sellerOfferReceived(user.name, senderName, productTitle, price),
+    });
+  } catch (err) {
+    console.error('❌ Failed to send seller offer email:', err);
+  }
+}
+
+/**
+ * Send "offer accepted" email to other party.
+ */
+export async function sendOfferAcceptedEmail(recipientId: string, senderName: string, productTitle: string, role: 'buyer' | 'seller') {
+  try {
+    const recipient = await getUserEmailInfo(recipientId);
+    if (!recipient?.email) return;
+
+    await sendEmail({
+      to: recipient.email,
+      subject: `🎉 Offer Accepted: ${productTitle}`,
+      html: EmailTemplates.offerAccepted(recipient.name, senderName, productTitle, role),
+    });
+  } catch (err) {
+    console.error('❌ Failed to send offer accepted email:', err);
+  }
+}
+
+/**
+ * Send "offer rejected" email to other party.
+ */
+export async function sendOfferRejectedEmail(recipientId: string, otherName: string, productTitle: string) {
+  try {
+    const recipient = await getUserEmailInfo(recipientId);
+    if (!recipient?.email) return;
+
+    await sendEmail({
+      to: recipient.email,
+      subject: `✖️ Offer Update: ${productTitle}`,
+      html: EmailTemplates.offerRejected(recipient.name, otherName, productTitle),
+    });
+  } catch (err) {
+    console.error('❌ Failed to send offer rejected email:', err);
   }
 }

@@ -57,7 +57,7 @@ function VerifyContent() {
       {status === 'loading' && (
         <div className="flex flex-col items-center">
           <Loader2 className="animate-spin text-blue-600 mb-6" size={48} />
-          <h1 className="text-2xl font-black uppercase text-gray-900 mb-2 italic tracking-tight">Printsi</h1>
+          <h1 className="text-2xl font-black uppercase text-gray-900 mb-2 italic tracking-tight">Printis</h1>
           <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">{message}</p>
         </div>
       )}
@@ -116,7 +116,7 @@ export default function VerifyTokenPage() {
       </Suspense>
 
       <p className="text-center mt-12 text-[10px] text-gray-300 font-bold uppercase tracking-[0.3em]">
-        Printsi Official Verification System
+        Printis Official Verification System
       </p>
     </main>
   );

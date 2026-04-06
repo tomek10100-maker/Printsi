@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useCart } from '../../context/CartContext';
@@ -14,7 +14,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function CheckoutPage() {
+function CheckoutInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -37,6 +37,7 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
+    phone: '',
     address: '',
     city: '',
     zip: '',
@@ -123,6 +124,7 @@ export default function CheckoutPage() {
         setFormData({
           fullName: profile.full_name || '',
           email: user.email || '',
+          phone: profile.phone || '',
           address: profile.address || '',
           city: profile.city || '',
           zip: profile.zip_code || '',
@@ -192,7 +194,15 @@ export default function CheckoutPage() {
   }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let { name, value } = e.target;
+
+    if (name === 'phone') {
+      if (value && !value.startsWith('+')) value = '+' + value;
+      value = value.replace(/[^\d+ ]/g, ''); // only + digits and spaces
+      if (value.length > 20) return;
+    }
+
+    setFormData({ ...formData, [name]: value });
   };
 
   const handlePayment = async (e: React.FormEvent) => {
@@ -208,6 +218,7 @@ export default function CheckoutPage() {
     if (user) {
       await supabase.from('profiles').update({
         full_name: formData.fullName,
+        phone: formData.phone,
         address: formData.address,
         city: formData.city,
         zip_code: formData.zip,
@@ -248,7 +259,7 @@ export default function CheckoutPage() {
     try {
       // Save shipping cost to localStorage so /success can include it in order total
       if (typeof window !== 'undefined') {
-        localStorage.setItem('printsi_checkout_shipping_eur', String(shippingEur ?? 0));
+        localStorage.setItem('printis_checkout_shipping_eur', String(shippingEur ?? 0));
       }
 
       const response = await fetch('/api/stripe/checkout', {
@@ -266,6 +277,7 @@ export default function CheckoutPage() {
             : 'Digital Delivery (Sent to your Email)',
           shipping: (shippingEur ?? 0) > 0 ? {
             name: formData.fullName,
+            phone: formData.phone,
             address: {
               line1: formData.address,
               city: formData.city,
@@ -323,6 +335,16 @@ export default function CheckoutPage() {
                   <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email Address" type="email" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                   {shippingPln !== 0 && (
                     <>
+                      <input 
+                        name="phone" 
+                        type="tel"
+                        maxLength={20}
+                        value={formData.phone} 
+                        onChange={handleInputChange} 
+                        placeholder="Phone Number (e.g. +48 123 456 789)" 
+                        required 
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" 
+                      />
                       <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Street Address" required={shippingPln !== 0} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                       <div className="grid grid-cols-2 gap-4">
                         <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" required={shippingPln !== 0} className="p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
@@ -484,7 +506,7 @@ export default function CheckoutPage() {
                       />
                       <div className="flex items-center gap-2">
                         <Wallet className={paymentMethod === 'balance' ? 'text-green-600' : 'text-gray-400'} size={18} />
-                        <span className="font-bold text-gray-900 text-sm">Printsi Balance</span>
+                        <span className="font-bold text-gray-900 text-sm">Printis Balance</span>
                       </div>
                     </div>
                     {balance !== null && (
@@ -535,5 +557,13 @@ export default function CheckoutPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+      <CheckoutInner />
+    </Suspense>
   );
 }

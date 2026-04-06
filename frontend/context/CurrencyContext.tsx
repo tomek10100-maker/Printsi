@@ -30,7 +30,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const initCurrency = async () => {
-      let savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('printsi_currency') : null;
+      let savedCurrency = typeof window !== 'undefined' ? localStorage.getItem('printis_currency') : null;
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -38,7 +38,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
           const { data: profile } = await supabase.from('profiles').select('currency').eq('id', user.id).single();
           if (profile?.currency) {
             savedCurrency = profile.currency;
-            if (typeof window !== 'undefined') localStorage.setItem('printsi_currency', savedCurrency!);
+            if (typeof window !== 'undefined') localStorage.setItem('printis_currency', savedCurrency!);
           }
         }
       } catch (err) {
@@ -57,7 +57,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const setCurrency = async (newCurrency: string) => {
     setCurrencyState(newCurrency);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('printsi_currency', newCurrency);
+      localStorage.setItem('printis_currency', newCurrency);
     }
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {

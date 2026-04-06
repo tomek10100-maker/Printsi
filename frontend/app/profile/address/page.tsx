@@ -85,7 +85,22 @@ export default function AddressPage() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let { name, value } = e.target;
+
+    if (name === 'phone_number') {
+      // Ensure it starts with +
+      if (value && !value.startsWith('+')) {
+        value = '+' + value;
+      }
+      
+      // Allow only + and digits and spaces
+      value = value.replace(/[^\d+ ]/g, '');
+
+      // Limit to 20 total chars (approx 15 digits + prefix + spaces)
+      if (value.length > 20) return;
+    }
+
+    setFormData({ ...formData, [name]: value });
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600"/></div>;
@@ -169,6 +184,8 @@ export default function AddressPage() {
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input 
                   name="phone_number"
+                  type="tel"
+                  maxLength={20}
                   value={formData.phone_number}
                   onChange={handleChange}
                   placeholder="+48 123 456 789"

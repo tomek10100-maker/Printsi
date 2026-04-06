@@ -75,7 +75,7 @@ export default function CartPage() {
       {/* NAVBAR */}
       <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <img src="/logo.jpg" alt="Printsi" className="h-8 w-auto rounded-xl object-cover" />
+          <img src="/logo.jpg" alt="Printis" className="h-8 w-auto rounded-xl object-cover" />
         </Link>
         <Link href="/gallery" className="p-2 rounded-full hover:bg-gray-100 transition text-gray-500">
           <X size={24} />
@@ -174,7 +174,7 @@ export default function CartPage() {
                   }`}>
                   <div className="flex items-center gap-2 mb-1">
                     <Wallet size={16} className={balanceLoading ? 'text-gray-400' : canPayWithBalance ? 'text-green-600' : 'text-orange-500'} />
-                    <span className="text-xs font-black uppercase tracking-widest text-gray-600">Printsi Balance</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-gray-600">Printis Balance</span>
                   </div>
 
                   {balanceLoading ? (

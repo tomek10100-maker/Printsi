@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Bell, ShoppingBag, CreditCard, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Bell, ShoppingBag, CreditCard, Loader2, Trash2, Heart, MessageSquare } from 'lucide-react';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -69,28 +69,63 @@ export default function NotificationsPage() {
                <p className="text-gray-900 dark:text-gray-400 font-bold uppercase text-xs">No notifications yet</p>
             </div>
           ) : (
-            notifications.map((n) => (
-              <div key={n.id} className={`p-6 rounded-2xl border transition-all flex gap-4 items-start ${n.is_read ? 'bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800' : 'bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50 shadow-sm'}`}>
-                <div className={`p-3 rounded-full ${n.type === 'sale' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
-                   {n.type === 'sale' ? <CreditCard size={20}/> : <ShoppingBag size={20}/>}
+            notifications.map((n) => {
+              let displayMessage = n.message;
+              let finalSenderId = n.sender_id;
+              let finalOfferId = n.offer_id;
+
+              // Parsing Fallback for old/minimal schema
+              if (n.type === 'like' && !finalSenderId && displayMessage.includes('[USER:')) {
+                const match = displayMessage.match(/\[USER:(.*?):(.*?)\]/);
+                if (match) {
+                   finalSenderId = match[1];
+                   finalOfferId = match[2];
+                   displayMessage = displayMessage.replace(/\[USER:.*?\]/, '').trim();
+                }
+              }
+
+              return (
+                <div key={n.id} className={`p-6 rounded-2xl border transition-all flex gap-4 items-start ${n.is_read ? 'bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800' : 'bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50 shadow-sm'}`}>
+                  <div className={`p-3 rounded-full flex-shrink-0 ${
+                    n.type === 'sale' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 
+                    n.type === 'like' ? 'bg-red-50 dark:bg-red-900/20 text-red-500' :
+                    'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                  }`}>
+                     {n.type === 'sale' ? <CreditCard size={20}/> : 
+                      n.type === 'like' ? <Heart size={20} fill="currentColor"/> :
+                      <ShoppingBag size={20}/>}
+                  </div>
+                  <div className="flex-1">
+                     <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                       {n.title}
+                       {!n.is_read && <span className="w-2 h-2 bg-blue-600 rounded-full"></span>}
+                     </h3>
+                     <p className="text-sm text-gray-900 dark:text-gray-300 mt-1 font-medium italic">
+                        {displayMessage}
+                     </p>
+                     
+                     {/* Chat link for likes */}
+                     {n.type === 'like' && finalSenderId && finalOfferId && (
+                       <Link 
+                         href={`/profile/messages?buyer_id=${finalSenderId}&offer_id=${finalOfferId}`}
+                         className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-blue-200 dark:shadow-none"
+                       >
+                         <MessageSquare size={13} /> Start Conversation
+                       </Link>
+                     )}
+
+                     <span className="text-[10px] text-gray-500 mt-4 block font-black uppercase tracking-wider">{new Date(n.created_at).toLocaleString()}</span>
+                  </div>
+                  <button 
+                    onClick={() => deleteNotification(n.id)} 
+                    className="text-gray-300 dark:text-zinc-700 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-all p-2 flex-shrink-0"
+                    title="Delete notification"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
-                <div className="flex-1">
-                   <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                     {n.title}
-                     {!n.is_read && <span className="w-2 h-2 bg-blue-600 rounded-full"></span>}
-                   </h3>
-                   <p className="text-sm text-gray-900 dark:text-gray-300 mt-1 font-medium">{n.message}</p>
-                   <span className="text-[10px] text-gray-900 dark:text-gray-500 mt-2 block font-black uppercase">{new Date(n.created_at).toLocaleString()}</span>
-                </div>
-                <button 
-                  onClick={() => deleteNotification(n.id)} 
-                  className="text-gray-300 dark:text-zinc-700 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-all p-2"
-                  title="Delete notification"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
