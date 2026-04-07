@@ -5,7 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import { CreditCard, ArrowLeft, Loader2, MapPin, ShieldCheck, Wallet, Package, Truck, AlertCircle } from 'lucide-react';
+import { 
+  CreditCard, ArrowLeft, Loader2, MapPin, 
+  ShieldCheck, Wallet, Package, Truck, 
+  AlertCircle, DollarSign, Zap, TrendingUp, Plus 
+} from 'lucide-react';
 import Link from 'next/link';
 import { DHL_COUNTRIES, calculateShippingPln, countryNameToCode, parseWeightToGrams } from '../lib/dhlRates';
 
@@ -17,22 +21,28 @@ const supabase = createClient(
 function CheckoutInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isTopup = searchParams.get('type') === 'topup';
 
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'balance'>((searchParams.get('method') as 'stripe' | 'balance') || 'stripe');
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'balance'>(isTopup ? 'stripe' : ((searchParams.get('method') as 'stripe' | 'balance') || 'stripe'));
   const [balance, setBalance] = useState<number | null>(null);
 
   const { currency, rates, formatPrice } = useCurrency();
   const cart = useCart();
   const items = cart?.items || [];
 
-  const cartTotalEur = items.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const [topupAmount, setTopupAmount] = useState<string>('10');
+
+  const numericTopup = parseFloat(topupAmount) || 0;
+  const cartTotalEur = isTopup 
+    ? (numericTopup / (rates?.[currency] || 1)) 
+    : items.reduce((total, item) => total + (item.price * item.quantity), 0);
 
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [fetchingProfile, setFetchingProfile] = useState(true);
-  const [offerWeights, setOfferWeights] = useState<Record<string, number>>({}); // offerId -> grams
-  const [offerCategories, setOfferCategories] = useState<Record<string, string>>({}); // offerId -> category
-  const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({}); // sellerId -> countryCode
+  const [offerWeights, setOfferWeights] = useState<Record<string, number>>({}); 
+  const [offerCategories, setOfferCategories] = useState<Record<string, string>>({}); 
+  const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({}); 
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -44,9 +54,8 @@ function CheckoutInner() {
     country: 'PL'
   });
 
-  // Per-seller shipping breakdown
   const shippingBreakdown = useMemo(() => {
-    // Group cart items by seller
+    if (isTopup) return [];
     const sellerGroups: Record<string, typeof items> = {};
     items.forEach(item => {
       if (!sellerGroups[item.seller_id]) sellerGroups[item.seller_id] = [];
@@ -54,53 +63,37 @@ function CheckoutInner() {
     });
 
     const breakdown: { sellerId: string; fromCode: string; toCode: string; weightGrams: number; costPln: number | null }[] = [];
-
     Object.entries(sellerGroups).forEach(([sellerId, sellerItems]) => {
-      // Filter out digital items from shipping calculation
-      const shippableItems = sellerItems.filter(item => offerCategories[item.id] !== 'digital');
-      
-      if (shippableItems.length === 0) return; // No shippable items for this seller
-
-      const fromCode = sellerCountries[sellerId] || 'PL'; // fallback to PL
+      const shippableItems = sellerItems.filter(item => (offerCategories as any)[item.id] !== 'digital');
+      if (shippableItems.length === 0) return; 
+      const fromCode = (sellerCountries as any)[sellerId] || 'PL'; 
       const toCode = formData.country;
       const weightGrams = shippableItems.reduce((total, item) => {
-        return total + ((offerWeights[item.id] ?? 500) * item.quantity);
+        return total + (((offerWeights as any)[item.id] ?? 500) * item.quantity);
       }, 0);
       const costPln = calculateShippingPln(fromCode, toCode, weightGrams);
       breakdown.push({ sellerId, fromCode, toCode, weightGrams, costPln });
     });
-
     return breakdown;
-  }, [items, sellerCountries, formData.country, offerWeights, offerCategories]);
-
-  const totalWeightGrams = useMemo(() =>
-    items.reduce((total, item) => total + ((offerWeights[item.id] ?? 500) * item.quantity), 0)
-    , [items, offerWeights]);
+  }, [items, isTopup, formData.country, offerCategories, sellerCountries, offerWeights]);
 
   const shippingPln = useMemo(() => {
-    // If no shippable items at all, shipping is 0
-    const hasShippable = items.some(item => offerCategories[item.id] !== 'digital');
+    if (isTopup) return 0;
+    const hasShippable = items.some(item => (offerCategories as any)[item.id] !== 'digital');
     if (!hasShippable) return 0;
-
     const allValid = shippingBreakdown.every(s => s.costPln !== null);
     if (!allValid || shippingBreakdown.length === 0) return null;
     return shippingBreakdown.reduce((sum, s) => sum + (s.costPln ?? 0), 0);
-  }, [shippingBreakdown, items, offerCategories]);
+  }, [shippingBreakdown, items, offerCategories, isTopup]);
 
   const shippingEur = useMemo(() => {
+    if (isTopup) return 0;
     if (shippingPln === null) return null;
     if (!rates || !rates['PLN']) return shippingPln / 4.25;
     return shippingPln / rates['PLN'];
-  }, [shippingPln, rates]);
+  }, [shippingPln, rates, isTopup]);
 
   const grandTotalEur = cartTotalEur + (shippingEur ?? 0);
-  const selectedDhlCountry = DHL_COUNTRIES.find(c => c.code === formData.country);
-
-  useEffect(() => {
-    if (balance !== null && paymentMethod === 'balance' && balance < grandTotalEur) {
-      setPaymentMethod('stripe');
-    }
-  }, [balance, grandTotalEur, paymentMethod]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -108,19 +101,10 @@ function CheckoutInner() {
       if (!user) { router.push('/login'); return; }
       setUser(user);
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (profile) {
-        // country may be a 2-letter code (e.g. 'PL') or a full name (e.g. 'Poland')
         const rawCountry = profile.country || 'PL';
-        const countryCode = rawCountry.length === 2
-          ? rawCountry.toUpperCase()
-          : (countryNameToCode(rawCountry) || 'PL');
-
+        const countryCode = rawCountry.length === 2 ? rawCountry.toUpperCase() : (countryNameToCode(rawCountry) || 'PL');
         setFormData({
           fullName: profile.full_name || '',
           email: user.email || '',
@@ -130,62 +114,14 @@ function CheckoutInner() {
           zip: profile.zip_code || '',
           country: countryCode,
         });
-      } else {
-        setFormData(prev => ({ ...prev, email: user.email || '' }));
       }
 
-      // Fetch offer weights from Supabase
-      if (items.length > 0) {
-        const offerIds = items.map(i => i.id);
-        const { data: offers } = await supabase
-          .from('offers')
-          .select('id, weight, category')
-          .in('id', offerIds);
-
-        if (offers) {
-          const weightMap: Record<string, number> = {};
-          const catMap: Record<string, string> = {};
-          offers.forEach(offer => {
-            weightMap[offer.id] = parseWeightToGrams(offer.weight);
-            catMap[offer.id] = offer.category;
-          });
-          setOfferWeights(weightMap);
-          setOfferCategories(catMap);
-        }
-
-        // Fetch each seller's ship-from country
-        const uniqueSellerIds = [...new Set(items.map(i => i.seller_id))].filter(Boolean);
-        if (uniqueSellerIds.length > 0) {
-          const { data: sellerProfiles } = await supabase
-            .from('profiles')
-            .select('id, country')
-            .in('id', uniqueSellerIds);
-
-          if (sellerProfiles) {
-            const countryMap: Record<string, string> = {};
-            sellerProfiles.forEach(p => {
-              // Convert full country name (e.g. 'Germany') to code (e.g. 'DE')
-              countryMap[p.id] = countryNameToCode(p.country) || 'PL';
-            });
-            setSellerCountries(countryMap);
-          }
-        }
-      } // end if (items.length > 0)
-
-      // Fetch user balance
       const { data: sales } = await supabase.from('order_items').select('price_at_purchase, quantity, status').eq('seller_id', user.id);
-      const totalEarned = sales?.reduce((acc, s) => {
-        if (s.status === 'completed') {
-          return acc + (s.price_at_purchase * (s.quantity || 1));
-        }
-        return acc;
-      }, 0) || 0;
+      const totalEarned = sales?.reduce((acc, s) => s.status === 'completed' ? acc + (s.price_at_purchase * (s.quantity || 1)) : acc, 0) || 0;
       const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id).like('stripe_payment_intent_id', 'balance_%');
       const totalSpent = orders?.reduce((acc, o) => acc + Number(o.total_amount), 0) || 0;
-      
       const { data: payouts } = await supabase.from('payouts').select('amount').eq('user_id', user.id).in('status', ['pending', 'completed']);
       const totalPayouts = payouts?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
-      
       setBalance(Math.max(0, totalEarned - totalSpent - totalPayouts));
 
       setFetchingProfile(false);
@@ -194,114 +130,36 @@ function CheckoutInner() {
   }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    let { name, value } = e.target;
-
-    if (name === 'phone') {
-      if (value && !value.startsWith('+')) value = '+' + value;
-      value = value.replace(/[^\d+ ]/g, ''); // only + digits and spaces
-      if (value.length > 20) return;
-    }
-
+    const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || items.length === 0) return;
-    if (shippingEur === null) {
-      alert('Please select a valid shipping country.');
-      return;
-    }
+    if (!user) return;
+    if (!isTopup && items.length === 0) return;
+    if (shippingEur === null) { alert('Please select a valid shipping country.'); return; }
+    
     setLoading(true);
-
-    // Save shipping address to profile for next time
-    if (user) {
-      await supabase.from('profiles').update({
-        full_name: formData.fullName,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        zip_code: formData.zip,
-        country: formData.country,
-      }).eq('id', user.id);
-    }
-
     const currentRate = rates?.[currency] || 1;
 
-    if (paymentMethod === 'balance') {
-      try {
-        const response = await fetch('/api/balance/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id,
-            items,
-            email: formData.email,
-            shipping: formData,
-            shippingCostEur: shippingEur,
-          }),
-        });
-        const data = await response.json();
-        if (data.success) {
-          window.location.href = '/success?session_id=balance_pay';
-        } else {
-          alert('Payment Error: ' + (data.error || 'Unknown error'));
-          setLoading(false);
-        }
-      } catch (error) {
-        alert('Could not process balance payment.');
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Stripe payment
     try {
-      // Save shipping cost to localStorage so /success can include it in order total
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('printis_checkout_shipping_eur', String(shippingEur ?? 0));
-      }
+      const body = isTopup 
+        ? { userId: user.id, isTopup: true, topupAmount: numericTopup, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate }
+        : { userId: user.id, items, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate, shippingCostEur: shippingEur || 0, shipping: (shippingEur ?? 0) > 0 ? { name: formData.fullName, address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country } } : undefined };
 
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          items,
-          email: formData.email,
-          selectedCurrency: currency,
-          exchangeRate: currentRate,
-          shippingCostEur: shippingEur || 0,
-          shippingLabel: (shippingEur ?? 0) > 0 
-            ? `DHL to ${selectedDhlCountry?.name} (${selectedDhlCountry?.deliveryDays} business days)`
-            : 'Digital Delivery (Sent to your Email)',
-          shipping: (shippingEur ?? 0) > 0 ? {
-            name: formData.fullName,
-            phone: formData.phone,
-            address: {
-              line1: formData.address,
-              city: formData.city,
-              postal_code: formData.zip,
-              country: formData.country,
-            }
-          } : undefined
-        }),
+        body: JSON.stringify(body),
       });
-
       const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert('Payment Error: ' + (data.error || 'Unknown error'));
-        setLoading(false);
-      }
-    } catch (error) {
-      alert('Could not connect to payment server.');
-      setLoading(false);
-    }
+      if (data.url) window.location.href = data.url;
+      else { alert('Error: ' + data.error); setLoading(false); }
+    } catch (err) { alert('Request error'); setLoading(false); }
   };
 
-  if (items.length === 0 && !loading && !fetchingProfile) {
+  if (!isTopup && items.length === 0 && !loading && !fetchingProfile) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
         <h2 className="text-xl font-bold mb-4">Your cart is empty</h2>
@@ -313,244 +171,199 @@ function CheckoutInner() {
   return (
     <main className="min-h-screen bg-gray-50 font-sans text-gray-900 py-12 px-4">
       <div className="max-w-6xl mx-auto">
-        <Link href="/cart" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-8 font-bold uppercase text-xs tracking-widest">
-          <ArrowLeft size={16} /> Back to Cart
+        <Link href={isTopup ? "/profile/billing" : "/cart"} className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-8 font-bold uppercase text-xs tracking-widest">
+          <ArrowLeft size={16} /> {isTopup ? 'Back to Billing' : 'Back to Cart'}
         </Link>
 
         <div className="flex flex-col lg:flex-row gap-12">
+          
+          <div className="flex-1 space-y-8">
+            {isTopup ? (
+              <>
+                {/* TOPUP SELECTION */}
+                <div className="bg-[#0f1115] p-10 rounded-[40px] shadow-2xl border border-white/5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full -mr-48 -mt-48 blur-[100px] opacity-50" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600/10 rounded-full -ml-32 -mb-32 blur-[80px] opacity-30" />
+                  
+                  <h2 className="text-4xl font-black mb-2 relative z-10 text-white tracking-tight text-center">Add Funds</h2>
+                  <p className="text-gray-400 font-bold mb-12 relative z-10 text-center text-sm">Empower your wallet for frictionless 3D shopping.</p>
 
-          {/* LEFT: SHIPPING DETAILS */}
-          <div className="flex-1 space-y-6">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-              <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
-                {shippingPln === 0 ? <ShieldCheck className="text-green-600" /> : <MapPin className="text-blue-600" />}
-                {shippingPln === 0 ? 'Order Details' : 'Shipping Details'}
-              </h2>
+                  {/* MARKETING FEATURES */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 relative z-10">
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-[28px] flex flex-col items-center text-center group hover:bg-white hover:shadow-2xl hover:scale-105 transition-all duration-500 cursor-default">
+                      <div className="w-14 h-14 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                        <Zap size={28} />
+                      </div>
+                      <p className="font-black text-xs uppercase tracking-widest text-white group-hover:text-gray-900 mb-2 transition-colors">Pay Faster</p>
+                      <p className="text-[10px] text-gray-400 group-hover:text-gray-500 font-bold leading-tight transition-colors">Skip card entry. Shop with a single click.</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-[28px] flex flex-col items-center text-center group hover:bg-white hover:shadow-2xl hover:scale-105 transition-all duration-500 cursor-default">
+                      <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                        <ShieldCheck size={28} />
+                      </div>
+                      <p className="font-black text-xs uppercase tracking-widest text-white group-hover:text-gray-900 mb-2 transition-colors">Secure</p>
+                      <p className="text-[10px] text-gray-400 group-hover:text-gray-500 font-bold leading-tight transition-colors">Bank-grade encryption powered by Stripe.</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-[28px] flex flex-col items-center text-center group hover:bg-white hover:shadow-2xl hover:scale-105 transition-all duration-500 cursor-default">
+                      <div className="w-14 h-14 bg-orange-500/10 text-orange-400 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-orange-50 group-hover:text-orange-600 transition-colors">
+                        <TrendingUp size={28} />
+                      </div>
+                      <p className="font-black text-xs uppercase tracking-widest text-white group-hover:text-gray-900 mb-2 transition-colors">Instant</p>
+                      <p className="text-[10px] text-gray-400 group-hover:text-gray-500 font-bold leading-tight transition-colors">Funds available in your wallet instantly.</p>
+                    </div>
+                  </div>
 
-              {fetchingProfile ? (
-                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" /></div>
-              ) : (
+                  <div className="relative group max-w-xl mx-auto z-10">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-[32px] blur opacity-25 group-hover:opacity-60 transition duration-1000 animate-pulse"></div>
+                    <div className="relative bg-[#1a1c22] border border-white/10 rounded-[28px] focus-within:border-blue-500 p-2 flex items-center transition-all">
+                      <div className="pl-6 pr-4"><Wallet className="text-gray-500" size={36} /></div>
+                      <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] mb-1 block">Top-up amount</label>
+                        <input 
+                          type="text"
+                          value={topupAmount}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                              setTopupAmount(val);
+                            }
+                          }}
+                          className="w-full bg-transparent text-4xl font-black text-white focus:outline-none placeholder-gray-700"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="pr-8 text-white text-3xl font-black flex items-center gap-2">
+                        {currency}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-900 text-white p-8 rounded-[32px] flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600 rounded-full -mr-32 -mt-32 blur-[80px] opacity-20 group-hover:opacity-30 transition-opacity" />
+                  <div className="relative z-10 flex-1">
+                    <h4 className="text-lg font-black uppercase tracking-tight mb-2">Skip checkout in the future</h4>
+                    <p className="text-gray-400 text-xs font-semibold leading-relaxed">
+                      Use your internal balance to buy 3D files and physical items without pulling out your card every time. It's the fastest way to get your items.
+                    </p>
+                  </div>
+                  <div className="relative z-10 hidden md:block">
+                    <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400 hover:scale-110 transition-transform">
+                      <Plus size={32} />
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
+                  {shippingPln === 0 ? <ShieldCheck className="text-green-600" /> : <MapPin className="text-blue-600" />}
+                  {shippingPln === 0 ? 'Order Details' : 'Shipping Details'}
+                </h2>
                 <form id="checkout-form" onSubmit={handlePayment} className="space-y-4">
                   <input name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                  <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email Address" type="email" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                  <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" type="email" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                   {shippingPln !== 0 && (
                     <>
-                      <input 
-                        name="phone" 
-                        type="tel"
-                        maxLength={20}
-                        value={formData.phone} 
-                        onChange={handleInputChange} 
-                        placeholder="Phone Number (e.g. +48 123 456 789)" 
-                        required 
-                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" 
-                      />
-                      <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Street Address" required={shippingPln !== 0} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                      <input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Phone" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                      <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Address" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                       <div className="grid grid-cols-2 gap-4">
-                        <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" required={shippingPln !== 0} className="p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                        <input name="zip" value={formData.zip} onChange={handleInputChange} placeholder="ZIP Code" required={shippingPln !== 0} className="p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                        <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" required className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold" />
+                        <input name="zip" value={formData.zip} onChange={handleInputChange} placeholder="ZIP" required className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold" />
                       </div>
+                      <select name="country" value={formData.country} onChange={handleInputChange} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold">
+                        {DHL_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                      </select>
                     </>
                   )}
-
-                  {/* DHL Country Selector */}
-                  {shippingPln !== 0 && (
-                    <div>
-                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">
-                        Destination Country (DHL Supported)
-                      </label>
-                      <select
-                        name="country"
-                        value={formData.country}
-                        onChange={handleInputChange}
-                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
-                      >
-                        {DHL_COUNTRIES.map(c => (
-                          <option key={c.code} value={c.code}>
-                            {c.name} ({c.deliveryDays} business days)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                 </form>
-              )}
-            </div>
-
-            {/* DHL INFO CARD */}
-            {selectedDhlCountry && shippingPln !== 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 flex gap-3">
-                <Truck className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-                <div>
-                  <p className="font-black text-yellow-800 text-sm">DHL Parcel Connect</p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Delivery to <strong>{selectedDhlCountry.name}</strong> in {selectedDhlCountry.deliveryDays} business days.
-                    Total parcel weight: <strong>{(totalWeightGrams / 1000).toFixed(2)} kg</strong>
-                    {totalWeightGrams > 31000 && (
-                      <span className="text-red-600 font-bold"> ⚠️ Exceeds 31kg DHL limit!</span>
-                    )}
-                  </p>
-                </div>
               </div>
             )}
+
+            <div className="bg-blue-50/50 border border-blue-100 p-6 rounded-3xl flex gap-4 items-center">
+              <ShieldCheck className="text-blue-600" size={28} />
+              <div>
+                <p className="font-black text-blue-900 text-sm">Secure Payment</p>
+                <p className="text-xs text-blue-700 font-medium">Your payment is encrypted and processed by Stripe.</p>
+              </div>
+            </div>
           </div>
 
-          {/* RIGHT: ORDER SUMMARY */}
           <div className="w-full lg:w-96">
-            <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 sticky top-8">
-              <h3 className="text-lg font-black uppercase mb-6">Order Summary</h3>
-
-              {/* Items */}
-              <div className="space-y-2 mb-4 text-sm">
-                {items.map((item, i) => (
-                  <div key={i} className="flex justify-between text-gray-600 text-xs font-bold">
-                    <span>{item.title} (x{item.quantity})</span>
-                    <span className="text-gray-900">{formatPrice(item.price * item.quantity)}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="h-px bg-gray-100 my-3" />
-
-              {/* Subtotal */}
-              <div className="flex justify-between text-sm font-bold text-gray-600 mb-2">
-                <span>Subtotal</span>
-                <span>{formatPrice(cartTotalEur)}</span>
-              </div>
-
-              {/* Shipping */}
-              {shippingPln !== 0 && (
-                <div className="flex justify-between text-sm font-bold mb-3">
-                  <span className="flex items-center gap-1 text-gray-600">
-                    <Truck size={14} /> DHL Shipping
-                  </span>
-                  {shippingEur !== null ? (
-                    <span className="text-blue-600">{formatPrice(shippingEur)}</span>
-                  ) : (
-                    <span className="text-red-500 text-xs">Not available</span>
-                  )}
-                </div>
-              )}
-              {shippingPln === 0 && (
-                <div className="flex justify-between text-sm font-bold mb-3">
-                  <span className="flex items-center gap-1 text-green-600">
-                    <ShieldCheck size={14} /> Digital Delivery (Sent via Email)
-                  </span>
-                  <span className="text-green-600 uppercase text-[10px] font-black">Free</span>
-                </div>
-              )}
-
-              {/* Total shipping weight */}
-              {shippingPln !== 0 && (
-                <div className="bg-gray-50 rounded-xl p-3 mb-4 text-xs text-gray-500 font-medium flex items-center gap-2">
-                  <Package size={14} />
-                  Total weight: <strong className="text-gray-900">{(totalWeightGrams / 1000).toFixed(2)} kg</strong>
-                  {shippingPln !== null && (
-                    <span className="ml-auto text-gray-400">{shippingPln.toFixed(2)} PLN</span>
-                  )}
-                </div>
-              )}
-
-              <div className="h-px bg-gray-100 my-3" />
-
-              {/* Grand Total */}
-              <div className="flex justify-between font-black text-xl text-gray-900 mb-6">
-                <span>Total</span>
-                <span className={paymentMethod === 'balance' ? 'text-green-600' : 'text-blue-600'}>
-                  {formatPrice(grandTotalEur)}
-                </span>
-              </div>
-
-              {/* Payment method selector */}
-              <div className="mb-6 space-y-3">
-                <label
-                  className={`flex flex-col p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'stripe' ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200 hover:border-blue-200'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="stripe"
-                      checked={paymentMethod === 'stripe'}
-                      onChange={() => setPaymentMethod('stripe')}
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className={paymentMethod === 'stripe' ? 'text-blue-600' : 'text-gray-400'} size={18} />
-                      <span className="font-bold text-gray-900 text-sm">Credit Card / BLIK (Stripe)</span>
+            <div className="bg-white p-8 rounded-[40px] shadow-2xl border border-gray-100 sticky top-8">
+              <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-2">
+                {isTopup ? <Wallet className="text-blue-600" /> : <Package className="text-blue-600" />} 
+                {isTopup ? 'Wallet Summary' : 'Order Summary'}
+              </h3>
+              <div className="space-y-4 mb-10">
+                {isTopup ? (
+                  <>
+                    <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl">
+                      <span className="text-xs font-bold text-gray-500">Current Balance</span>
+                      <span className="font-black text-gray-900">{formatPrice(balance || 0)}</span>
                     </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2 ml-7">Secure online payment in {currency}.</p>
-                </label>
-
-                <label
-                  className={`flex flex-col p-4 rounded-xl border transition-all ${balance === null
-                    ? 'opacity-50 cursor-not-allowed border-gray-200'
-                    : balance < grandTotalEur
-                      ? 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200'
-                      : paymentMethod === 'balance'
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-white border-gray-200 hover:border-green-200 cursor-pointer'
-                    }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="balance"
-                        checked={paymentMethod === 'balance'}
-                        disabled={balance === null || balance < grandTotalEur}
-                        onChange={() => setPaymentMethod('balance')}
-                        className="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500 disabled:opacity-50"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Wallet className={paymentMethod === 'balance' ? 'text-green-600' : 'text-gray-400'} size={18} />
-                        <span className="font-bold text-gray-900 text-sm">Printis Balance</span>
+                    <div className="flex justify-between items-center bg-blue-500/10 p-5 rounded-2xl border border-blue-500/20">
+                      <span className="text-xs font-bold text-blue-400">Recharge Amount</span>
+                      <span className="font-black text-blue-400">+{formatPrice(numericTopup, true)}</span>
+                    </div>
+                  </>
+                ) : (
+                  items.map((item) => (
+                    <div key={item.id} className="flex justify-between items-start">
+                      <div className="flex gap-4">
+                        <div className="w-12 h-12 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100 flex items-center justify-center">
+                          <Package className="text-gray-300" size={24} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-gray-900 leading-tight mb-0.5 line-clamp-1">{item.name}</p>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{item.quantity} × {formatPrice(item.price)}</p>
+                        </div>
                       </div>
+                      <p className="text-sm font-black text-gray-900">{formatPrice(item.price * item.quantity)}</p>
                     </div>
-                    {balance !== null && (
-                      <span className="text-[10px] font-black uppercase text-green-700 bg-green-100 px-2 py-1 rounded-md tracking-wider border border-green-200">
-                        {formatPrice(balance)} available
-                      </span>
-                    )}
-                  </div>
-                  {balance !== null && balance < grandTotalEur ? (
-                    <p className="text-xs text-red-500 mt-2 ml-7 font-bold">Insufficient funds (need {formatPrice(grandTotalEur)})</p>
-                  ) : (
-                    <p className="text-xs text-gray-500 mt-2 ml-7">Funds will be deducted from your account.</p>
-                  )}
-                </label>
+                  ))
+                )}
               </div>
 
-              {/* Warning if shipping not available */}
-              {shippingEur === null && (
-                <div className="bg-red-50 p-3 rounded-xl mb-4 flex items-center gap-2 border border-red-100">
-                  <AlertCircle size={16} className="text-red-500" />
-                  <p className="text-xs text-red-600 font-bold">
-                    DHL does not ship to the selected country or parcel exceeds 31kg.
-                  </p>
+              <div className="pt-8 border-t border-gray-100 space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-black uppercase text-gray-400 tracking-widest">Subtotal</span>
+                  <span className="font-black text-gray-900">{isTopup ? formatPrice(numericTopup, true) : formatPrice(cartTotalEur)}</span>
                 </div>
-              )}
+                {!isTopup && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black uppercase text-gray-400 tracking-widest">Shipping</span>
+                    <span className="font-black text-emerald-600">{shippingEur === null ? 'Select delivery' : (shippingEur === 0 ? 'FREE' : formatPrice(shippingEur))}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-end pt-4">
+                  <span className="text-sm font-black uppercase text-gray-900 tracking-tighter">Total</span>
+                  <div className="text-right">
+                    <p className="text-3xl font-black text-gray-900 tracking-tight leading-none mb-1">
+                      {isTopup ? formatPrice(numericTopup, true) : formatPrice(grandTotalEur ?? 0)}
+                    </p>
+                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Including VAT</p>
+                  </div>
+                </div>
+              </div>
 
-              <button
+              <button 
                 type="submit"
                 form="checkout-form"
-                disabled={loading || shippingEur === null || fetchingProfile}
-                className={`w-full py-4 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg flex justify-center items-center gap-2 ${loading || shippingEur === null
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : paymentMethod === 'balance'
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-gray-900 hover:bg-blue-600'
-                  }`}
+                onClick={(e) => { if (isTopup) handlePayment(e); }}
+                disabled={loading || (!isTopup && shippingEur === null)}
+                className="w-full mt-10 py-5 bg-gray-900 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-600 transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:grayscale"
               >
-                {loading ? <Loader2 className="animate-spin" /> : (
+                {loading ? <Loader2 className="animate-spin" size={20} /> : (
                   <>
                     {paymentMethod === 'balance' ? <Wallet size={18} /> : <CreditCard size={18} />}
-                    Pay {formatPrice(grandTotalEur)}
+                    {isTopup ? 'Pay Now' : `Pay ${formatPrice(isTopup ? cartTotalEur : (grandTotalEur ?? 0))}`}
                   </>
                 )}
               </button>
+              <p className="text-[10px] text-gray-400 font-bold text-center mt-6 uppercase tracking-widest">
+                {isTopup ? 'Instant funding upon success' : 'Secure payment guaranteed'}
+              </p>
             </div>
           </div>
 
@@ -560,9 +373,21 @@ function CheckoutInner() {
   );
 }
 
+function PaymentRadio({ label, value, current, set, disabled, badge }: any) {
+  return (
+    <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${current === value ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-100 hover:border-blue-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+      <div className="flex items-center gap-3">
+        <input type="radio" checked={current === value} onChange={() => !disabled && set(value)} className="w-4 h-4 text-blue-600" />
+        <span className="font-bold text-sm text-gray-900">{label}</span>
+      </div>
+      {badge && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md">{badge}</span>}
+    </label>
+  );
+}
+
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="animate-spin text-blue-600" size={40} /></div>}>
       <CheckoutInner />
     </Suspense>
   );

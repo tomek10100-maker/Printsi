@@ -48,7 +48,7 @@ export default function HomePage() {
             router.push('/onboarding');
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     };
     checkUser();
 
@@ -112,7 +112,7 @@ export default function HomePage() {
       {/* STATS OVERLAY */}
       {showStats && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-500">
-           <style jsx global>{`
+          <style jsx global>{`
             .custom-scroll::-webkit-scrollbar { width: 6px; }
             .custom-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); border-radius: 10px; }
             .custom-scroll::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, #2563eb, #4f46e5); border-radius: 10px; }
@@ -121,33 +121,33 @@ export default function HomePage() {
           <div className="bg-white rounded-[32px] p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-[0_40px_100px_rgba(0,0,0,0.6)] border border-gray-100 animate-in zoom-in-95 duration-500 relative custom-scroll pb-16">
             <button onClick={() => setShowStats(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-900 rounded-full hover:bg-gray-900 hover:text-white transition-all font-bold text-xl z-20">×</button>
             <div className="text-center mb-8">
-               <h2 className="text-4xl font-black uppercase tracking-tighter text-gray-900 leading-tight mb-1">Live <span className="text-blue-600">Growth.</span></h2>
-               <p className="text-gray-400 font-bold uppercase text-[9px] tracking-[0.4em]">Printsi Community Tracker</p>
+              <h2 className="text-4xl font-black uppercase tracking-tighter text-gray-900 leading-tight mb-1">Live <span className="text-blue-600">Growth.</span></h2>
+              <p className="text-gray-400 font-bold uppercase text-[9px] tracking-[0.4em]">Printsi Community Tracker</p>
             </div>
             <div className="space-y-6">
-               <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="h-[1px] bg-gray-200 flex-1" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Community Hub</span>
-                    <div className="h-[1px] bg-gray-200 flex-1" />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <StatCard icon={<Zap size={22} />} label="Printed" value={stats.printers} color="blue" />
-                    <StatCard icon={<Globe size={22} />} label="CAD Makers" value={stats.designers} color="indigo" />
-                    <StatCard icon={<Users size={22} />} label="Customers" value={stats.customers} color="green" />
-                  </div>
-               </div>
-               <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="h-[1px] bg-gray-200 flex-1" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 px-3 py-1 rounded-full">Market Activity</span>
-                    <div className="h-[1px] bg-gray-200 flex-1" />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <StatCard icon={<ShoppingBag size={22} />} label="Total Orders" value={stats.orders} color="orange" />
-                    <StatCard icon={<UploadCloud size={22} />} label="Active Offers" value={stats.offers} color="purple" />
-                  </div>
-               </div>
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-[1px] bg-gray-200 flex-1" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Community Hub</span>
+                  <div className="h-[1px] bg-gray-200 flex-1" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <StatCard icon={<Zap size={22} />} label="Printed" value={stats.printers} color="blue" />
+                  <StatCard icon={<Globe size={22} />} label="CAD Makers" value={stats.designers} color="indigo" />
+                  <StatCard icon={<Users size={22} />} label="Customers" value={stats.customers} color="green" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-[1px] bg-gray-200 flex-1" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 px-3 py-1 rounded-full">Market Activity</span>
+                  <div className="h-[1px] bg-gray-200 flex-1" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <StatCard icon={<ShoppingBag size={22} />} label="Total Orders" value={stats.orders} color="orange" />
+                  <StatCard icon={<UploadCloud size={22} />} label="Active Offers" value={stats.offers} color="purple" />
+                </div>
+              </div>
             </div>
             <div className="mt-10 pt-6 border-t border-gray-100 text-center">
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest italic">Global Growth Tracker • {new Date().toLocaleDateString()}</p>
@@ -159,35 +159,67 @@ export default function HomePage() {
       {/* NAVBAR */}
       <div className="relative z-50 px-6 py-6 md:px-12">
         <nav className="mx-auto w-full max-w-7xl flex items-center justify-between bg-white/80 backdrop-blur-xl px-8 py-4 rounded-3xl shadow-lg border border-gray-100">
-          <div className="flex items-center gap-14">
-            <Link href="/"><img src="/logo.jpg" alt="Printis Logo" className="h-10 w-auto rounded-xl object-cover" /></Link>
-            <div className="hidden lg:flex items-center gap-8 text-[11px] uppercase tracking-[0.2em] font-black text-gray-800">
+          <div className="flex items-center gap-8 lg:gap-12 shrink-0">
+            <Link href="/" className="shrink-0">
+              <img src="/logo.jpg" alt="Printis Logo" className="h-10 w-auto rounded-xl object-cover" />
+            </Link>
+
+            <div className="hidden lg:flex items-center gap-6 xl:gap-8 text-[11px] uppercase tracking-[0.2em] font-black text-gray-800">
               <button 
                 onClick={() => setShowStats(true)} 
-                className="hover:text-blue-600 transition-colors flex items-center gap-2 group"
+                className="group flex flex-col items-center gap-1 cursor-pointer transition-colors hover:text-blue-600"
               >
-                Stats <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                <span className="flex items-center gap-2 whitespace-nowrap">
+                  Stats <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                </span>
+                <div className="h-0.5 w-6 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 rounded-full" />
               </button>
-              <Link href="/support" className="hover:text-blue-600 transition-colors">Support</Link>
-              <Link href="/about" className="hover:text-blue-600 transition-colors">About Us</Link>
-              <Link href="/faq" className="hover:text-blue-600 transition-colors">FAQ</Link>
-              <Link href="/how-it-works" className="hover:text-blue-600 transition-colors">How it Works</Link>
+
+              <Link href="/support" className="group flex flex-col items-center gap-1 hover:text-blue-600 transition-colors">
+                <span className="whitespace-nowrap">Support</span>
+                <div className="h-0.5 w-6 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 rounded-full" />
+              </Link>
+
+              <Link href="/about" className="group flex flex-col items-center gap-1 hover:text-blue-600 transition-colors">
+                <span className="whitespace-nowrap">About Us</span>
+                <div className="h-0.5 w-6 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 rounded-full" />
+              </Link>
+
+              <Link href="/faq" className="group flex flex-col items-center gap-1 hover:text-blue-600 transition-colors">
+                <span className="whitespace-nowrap">FAQ</span>
+                <div className="h-0.5 w-6 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 rounded-full" />
+              </Link>
+
+              <Link href="/how-it-works" className="group flex flex-col items-center gap-1 hover:text-blue-600 transition-colors">
+                <span className="whitespace-nowrap">How it Works</span>
+                <div className="h-0.5 w-6 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 rounded-full" />
+              </Link>
             </div>
           </div>
 
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 md:gap-4 lg:gap-5 shrink-0">
             <Link
               href={user ? "/upload" : "/login"}
               onMouseEnter={() => setUploadHovered(true)}
               onMouseLeave={() => setUploadHovered(false)}
-              className={`group flex items-center h-10 bg-white rounded-full transition-all border border-gray-200 hover:border-gray-900 overflow-hidden px-2.5 shrink-0 ${uploadHovered ? 'w-32 bg-gray-900 shadow-xl' : 'w-11 shadow-sm'}`}
-              style={{ transitionDuration: '2500ms', transitionTimingFunction: 'cubic-bezier(0.65, 0, 0.35, 1)' }}
+              className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
+              style={{ 
+                width: uploadHovered ? '124px' : '44px',
+                backgroundColor: uploadHovered ? '#15306c' : '#ffffff',
+                borderColor: uploadHovered ? '#15306c' : '#e5e7eb',
+                transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
+              }}
             >
               <div className="flex items-center shrink-0">
                 <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <UploadCloud size={18} className={`transition-colors duration-500 ${uploadHovered ? 'text-white' : 'text-gray-400'}`} />
+                  <UploadCloud size={18} className={`transition-colors duration-400 ${uploadHovered ? 'text-white' : 'text-gray-400'}`} />
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-widest text-white ml-3 transition-opacity duration-[800ms] ${uploadHovered ? 'opacity-100' : 'opacity-0'} whitespace-nowrap`}>Upload</span>
+                <div 
+                  className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${uploadHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
+                  style={{ maxWidth: uploadHovered ? '80px' : '0px' }}
+                >
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Upload</span>
+                </div>
               </div>
             </Link>
 
@@ -195,14 +227,24 @@ export default function HomePage() {
               href={user ? "/cart" : "/login"}
               onMouseEnter={() => setCartHovered(true)}
               onMouseLeave={() => setCartHovered(false)}
-              className={`group flex items-center h-10 bg-white rounded-full transition-all border border-gray-200 hover:border-gray-900 overflow-hidden px-2.5 shrink-0 ${cartHovered ? 'w-28 bg-gray-900 shadow-xl' : 'w-11 shadow-sm'}`}
-              style={{ transitionDuration: '2500ms', transitionTimingFunction: 'cubic-bezier(0.65, 0, 0.35, 1)' }}
+              className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
+              style={{ 
+                width: cartHovered ? '108px' : '44px',
+                backgroundColor: cartHovered ? '#15306c' : '#ffffff',
+                borderColor: cartHovered ? '#15306c' : '#e5e7eb',
+                transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
+              }}
             >
               <div className="flex items-center shrink-0">
                 <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <ShoppingBag size={18} className={`transition-colors duration-500 ${cartHovered ? 'text-white' : 'text-gray-400'}`} />
+                  <ShoppingBag size={18} className={`transition-colors duration-400 ${cartHovered ? 'text-white' : 'text-gray-400'}`} />
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-widest text-white ml-3 transition-opacity duration-[800ms] ${cartHovered ? 'opacity-100' : 'opacity-0'} whitespace-nowrap`}>Cart</span>
+                <div 
+                  className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${cartHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
+                  style={{ maxWidth: cartHovered ? '80px' : '0px' }}
+                >
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Cart</span>
+                </div>
               </div>
             </Link>
 
@@ -229,12 +271,40 @@ export default function HomePage() {
             return (
               <div key={idx} className="absolute transition-all duration-700 ease-out" style={{ transform: `translate(${x}px, ${y}px)` }}>
                 <div className="group relative">
+                  {/* SYMMETRICAL ANIMATED BORDER (from bottom-center to top-center) */}
+                  {brick.status === 'active' && (
+                    <svg className="absolute -inset-[2px] w-[calc(100%+4px)] h-[calc(100%+4px)] pointer-events-none z-20 overflow-visible">
+                      {/* RIGHT HALF PATH */}
+                      <path 
+                        d="M 88 98 L 160 98 Q 176 98 176 82 L 176 16 Q 176 0 160 0 L 88 0"
+                        fill="none" 
+                        stroke="#2563eb" 
+                        strokeWidth="3" 
+                        strokeDasharray="300"
+                        strokeDashoffset="300"
+                        className="transition-all duration-700 ease-in-out opacity-0 group-hover:opacity-100 group-hover:[stroke-dashoffset:0]"
+                        style={{ filter: 'drop-shadow(0 0 6px rgba(37, 99, 235, 0.4))' }}
+                      />
+                      {/* LEFT HALF PATH */}
+                      <path 
+                        d="M 88 98 L 16 98 Q 0 98 0 82 L 0 16 Q 0 0 16 0 L 88 0"
+                        fill="none" 
+                        stroke="#2563eb" 
+                        strokeWidth="3" 
+                        strokeDasharray="300"
+                        strokeDashoffset="300"
+                        className="transition-all duration-700 ease-in-out opacity-0 group-hover:opacity-100 group-hover:[stroke-dashoffset:0]"
+                        style={{ filter: 'drop-shadow(0 0 6px rgba(37, 99, 235, 0.4))' }}
+                      />
+                    </svg>
+                  )}
+
                   <Link href={brick.link} className={brick.status === 'soon' ? 'pointer-events-none' : ''}>
-                    <div className={`w-44 h-24 flex flex-col items-center justify-center p-4 text-center rounded-2xl border-2 transition-all duration-500 shadow-xl backdrop-blur-xl ${brick.status === 'active' ? 'bg-white border-blue-100 hover:border-blue-600 hover:scale-110' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
+                    <div className={`w-44 h-24 flex flex-col items-center justify-center p-4 text-center rounded-2xl border-2 transition-all duration-500 shadow-xl backdrop-blur-xl ${brick.status === 'active' ? 'bg-white border-blue-100 group-hover:border-transparent group-hover:scale-110' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
                       {brick.status === 'active' ? (
                         <>
                           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-800 group-hover:text-blue-600 transition-colors uppercase">{brick.title}</span>
-                          <div className="mt-2 h-1 w-8 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 rounded-full" />
+                          {/* Underline removed as requested */}
                         </>
                       ) : (
                         <>
@@ -277,9 +347,9 @@ function StatCard({ icon, label, value, color }: any) {
 
   return (
     <div className={`p-6 md:p-10 rounded-[32px] border-2 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 flex flex-col items-center text-center ${colors[color] || colors.blue}`}>
-       <div className="p-4 bg-white rounded-2xl shadow-sm border border-white/50 mb-6">{icon}</div>
-       <span className="text-xl font-black uppercase tracking-[0.3em] opacity-60 mb-3">{label}</span>
-       <div className="text-6xl font-black tracking-tighter">{value.toLocaleString()}</div>
+      <div className="p-4 bg-white rounded-2xl shadow-sm border border-white/50 mb-6">{icon}</div>
+      <span className="text-xl font-black uppercase tracking-[0.3em] opacity-60 mb-3">{label}</span>
+      <div className="text-6xl font-black tracking-tighter">{value.toLocaleString()}</div>
     </div>
   );
 }

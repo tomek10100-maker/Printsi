@@ -102,7 +102,11 @@ export default function ProfilePage() {
 
     setMyOffers(offersData || []);
 
-    const inventoryVal = offersData?.reduce((acc, item) => acc + (item.price * item.stock), 0) || 0;
+    const inventoryVal = offersData?.reduce((acc, item) => {
+      // If it's a digital file or has 'infinite' stock (over 1000), we don't count it as a physical asset value.
+      if (item.stock > 1000) return acc;
+      return acc + (item.price * item.stock);
+    }, 0) || 0;
 
     const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id).like('stripe_payment_intent_id', 'balance_%');
     const totalSpent = orders?.reduce((acc, order) => acc + order.total_amount, 0) || 0;
@@ -199,7 +203,7 @@ export default function ProfilePage() {
       if (deletedItem) {
         setStats(prev => ({
           ...prev,
-          inventoryValue: prev.inventoryValue - (deletedItem.price * deletedItem.stock)
+          inventoryValue: prev.inventoryValue - (deletedItem.stock > 1000 ? 0 : (deletedItem.price * deletedItem.stock))
         }));
       }
       setModal({
@@ -368,9 +372,12 @@ export default function ProfilePage() {
                 <ShoppingBag className="text-blue-600" /> Shop Dashboard
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) && (
-                  <DashboardCard icon={<CreditCard size={24} />} title="Billing & Payouts" subtitle="Manage cards & earnings" href="/profile/billing" />
-                )}
+                <DashboardCard 
+                  icon={<CreditCard size={24} />} 
+                  title="Billing & Payouts" 
+                  subtitle={(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) ? "Manage cards & earnings" : "Wallet & Add Funds"} 
+                  href="/profile/billing" 
+                />
                 <DashboardCard icon={<MapPin size={24} />} title="Shipping Address" subtitle="Your delivery address" href="/profile/address" />
                 {profile?.roles?.includes('printer') && (
                   <DashboardCard icon={<Wallet size={24} />} title="Delivery Settings" subtitle="Your ship-from country" href="/profile/delivery" />

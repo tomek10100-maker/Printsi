@@ -16,59 +16,73 @@ export async function POST(req: Request) {
       shippingCostEur,
       shippingLabel,
       shipping,
+      isTopup,
+      topupAmount
     } = await req.json();
 
-    if (!items || items.length === 0) {
+    // 1. Validation for standard checkout
+    if (!isTopup && (!items || items.length === 0)) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
     }
 
     const currency = (selectedCurrency || 'eur').toLowerCase();
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
 
-    // 1. Map cart items to Stripe line items
-    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item: any) => {
-      const unitAmount = Math.round(item.price * exchangeRate * 100);
-      return {
-        price_data: {
-          currency,
-          product_data: {
-            name: item.title,
-            images: item.image_url ? [item.image_url] : [],
-            metadata: {
-              offer_id: item.id,
-              seller_id: item.seller_id, // FIX: use seller_id not user_id
-            },
-          },
-          unit_amount: unitAmount,
-        },
-        quantity: item.quantity,
-      };
-    });
-
-    // 2. Add DHL shipping as a separate line item
-    if (shippingCostEur && shippingCostEur > 0) {
-      const shippingAmount = Math.round(shippingCostEur * exchangeRate * 100);
+    if (isTopup) {
+      // 2. Handle Wallet Top-up
+      // The amount is already in the user-selected currency from the UI.
+      const amount = Math.round(Number(topupAmount) * 100);
       line_items.push({
         price_data: {
           currency,
           product_data: {
-            name: shippingLabel || 'DHL Shipping',
-            description: 'Door-to-door delivery via DHL Parcel Connect',
+            name: 'Printis Wallet Top-up',
+            description: `Refilling digital balance for faster 3D marketplace transactions.`,
+            images: ['https://raw.githubusercontent.com/lucide-react/lucide/main/icons/wallet.png'], 
           },
-          unit_amount: shippingAmount,
+          unit_amount: amount,
         },
         quantity: 1,
       });
+    } else {
+      // 3. Handle Standard Cart items
+      items.forEach((item: any) => {
+        const unitAmount = Math.round(item.price * exchangeRate * 100);
+        line_items.push({
+          price_data: {
+            currency,
+            product_data: {
+              name: item.name || item.title,
+              images: item.image_url ? [item.image_url] : [],
+              metadata: {
+                offer_id: item.id,
+                seller_id: item.seller_id,
+              },
+            },
+            unit_amount: unitAmount,
+          },
+          quantity: item.quantity,
+        });
+      });
+
+      // 4. Add DHL shipping
+      if (shippingCostEur && shippingCostEur > 0) {
+        const shippingAmount = Math.round(shippingCostEur * exchangeRate * 100);
+        line_items.push({
+          price_data: {
+            currency,
+            product_data: {
+              name: shippingLabel || 'DHL Shipping',
+              description: 'Door-to-door delivery via DHL Parcel Connect',
+            },
+            unit_amount: shippingAmount,
+          },
+          quantity: 1,
+        });
+      }
     }
 
-    // 3. Simplified items metadata (for webhook reference)
-    const simplifiedItems = items.map((i: any) => ({
-      id: i.id,
-      seller_id: i.seller_id,
-      quantity: i.quantity,
-      price: i.price,
-    }));
-
-    // 4. Create Stripe Checkout Session
+    // 5. Payment Methods
     const payment_method_types: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = ['card'];
     if (currency === 'pln') {
       payment_method_types.push('blik', 'p24');
@@ -81,10 +95,13 @@ export async function POST(req: Request) {
       line_items,
       metadata: {
         userId: userId,
-        items: JSON.stringify(simplifiedItems).substring(0, 500),
+        type: isTopup ? 'topup' : 'order',
+        topup_amount: isTopup ? topupAmount.toString() : '0',
+        topup_rate: isTopup ? exchangeRate.toString() : '1',
+        items: isTopup ? '[]' : JSON.stringify(items.map((i: any) => ({ id: i.id, q: i.quantity }))).substring(0, 500),
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/cart`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/success?session_id={CHECKOUT_SESSION_ID}&type=${isTopup ? 'topup' : 'order'}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/${isTopup ? 'profile/billing' : 'cart'}`,
     });
 
     return NextResponse.json({ url: session.url });

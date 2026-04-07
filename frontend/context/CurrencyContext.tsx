@@ -11,7 +11,7 @@ const supabase = createClient(
 
 interface CurrencyContextProps {
   rates: Record<string, number> | null;
-  formatPrice: (amount: number) => string;
+  formatPrice: (amount: number, skipConversion?: boolean) => string;
   currency: string;
   setCurrency: (currency: string) => void;
 }
@@ -87,15 +87,15 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     fetchRates();
   }, []);
 
-  const formatPrice = (amount: number) => {
+  const formatPrice = (amount: number, skipConversion: boolean = false) => {
     let convertedAmount = amount;
 
-    if (currency !== 'EUR' && rates && rates[currency]) {
+    if (!skipConversion && currency !== 'EUR' && rates && rates[currency]) {
       convertedAmount = amount * rates[currency];
     }
 
-    // Zaokrąglenie do 2 miejsc po przecinku (standardowe rounding zamiast ceil)
-    const roundedAmount = Math.round(convertedAmount * 100) / 100;
+    // Zaokrąglenie do 2 miejsc po przecinku (use epsilon only when converting from internal EUR)
+    const roundedAmount = Math.round((convertedAmount + (skipConversion ? 0 : 0.005)) * 100) / 100;
 
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

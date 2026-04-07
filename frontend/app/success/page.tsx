@@ -3,9 +3,10 @@
 import React, { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle, Loader2, ArrowRight, MessageCircle } from 'lucide-react';
+import { CheckCircle, Loader2, ArrowRight, MessageCircle, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { useCart } from '../../context/CartContext';
+import { useCurrency } from '../../context/CurrencyContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,141 +16,153 @@ const supabase = createClient(
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const type = searchParams.get('type'); 
   const router = useRouter();
 
   const { clearCart, items } = useCart();
+  const { formatPrice } = useCurrency();
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading');
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [paidDisplay, setPaidDisplay] = useState<{ amount: number, currency: string } | null>(null);
   const confirmed = useRef(false);
+
+  const isTopup = type === 'topup';
 
   useEffect(() => {
     if (!sessionId) {
-      router.push('/');
+      if (isTopup) {
+        setStatus('error');
+        setErrorMessage('Session ID is missing.');
+      } else {
+        setStatus('done');
+      }
       return;
     }
 
-    // Balance payments are already fully processed on the server.
-    // We just clear the cart and show success.
     if (sessionId === 'balance_pay') {
       clearCart();
       setStatus('done');
       return;
     }
 
-    // For Stripe payments – we need to create the order + chat on the client side
-    // because our local webhook cannot be reached by Stripe.
     if (confirmed.current) return;
     confirmed.current = true;
 
-    const processStripeOrder = async () => {
+    const finalizePayment = async () => {
       try {
-        // 1. Get logged-in user
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { router.push('/login'); return; }
 
-        // 2. Read cart from localStorage (it's still there before clearCart)
-        const raw = typeof window !== 'undefined' ? localStorage.getItem('printis_cart') : null;
-        const cartItems: any[] = raw ? JSON.parse(raw) : items;
-
-        if (!cartItems || cartItems.length === 0) {
-          // Cart already cleared – nothing to process (e.g. page refresh)
-          setStatus('done');
+        if (isTopup) {
+          const response = await fetch('/api/stripe/topup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, sessionId }),
+          });
+          const data = await response.json();
+          if (data.success) {
+            setStatus('done');
+            if (data.paidAmount) {
+              setPaidDisplay({ amount: data.paidAmount, currency: data.paidCurrency });
+            }
+          } else {
+            setErrorMessage(data.error);
+            setStatus('error');
+          }
           return;
         }
 
-        const cartTotalEur = cartItems.reduce(
-          (total: number, item: any) => total + (item.price * item.quantity), 0
-        );
+        // Standard Order
+        const raw = typeof window !== 'undefined' ? localStorage.getItem('printis_cart') : null;
+        const cartItems: any[] = raw ? JSON.parse(raw) : items;
 
-        const shippingRaw = typeof window !== 'undefined' ? localStorage.getItem('printis_checkout_shipping') : null;
-        const shippingCostEur = typeof window !== 'undefined'
-          ? parseFloat(localStorage.getItem('printis_checkout_shipping_eur') || '0')
-          : 0;
-        const orderTotalEur = cartTotalEur + (shippingCostEur || 0);
-
-        // 3. Create order record in database
-        const { createClient: createServiceClient } = await import('@supabase/supabase-js');
         const response = await fetch('/api/stripe/order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id,
-            items: cartItems,
-            sessionId,
-            totalEur: orderTotalEur,
-            shippingCostEur,
-          }),
+          body: JSON.stringify({ userId: user.id, items: cartItems, sessionId }),
         });
 
         const data = await response.json();
-        if (data.orderId) {
-          setOrderId(data.orderId);
+        if (data.success || data.orderId) {
+          clearCart();
+          setStatus('done');
+        } else {
+          setErrorMessage(data.error || 'Failed to verify order.');
+          setStatus('error');
         }
-
-        // 4. Clear cart
-        clearCart();
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('printis_checkout_shipping');
-          localStorage.removeItem('printis_checkout_shipping_eur');
-        }
-
-        setStatus('done');
       } catch (err) {
-        console.error('❌ Error confirming Stripe order:', err);
-        // Still clear cart and show success – payment went through
-        clearCart();
-        setStatus('done');
+        setStatus('error');
+        setErrorMessage('Check your connection.');
       }
     };
 
-    processStripeOrder();
-  }, [sessionId]);
+    finalizePayment();
+  }, [sessionId, isTopup, router, clearCart, items]);
 
   if (status === 'loading') {
     return (
-      <div className="max-w-md w-full bg-white rounded-3xl p-10 text-center shadow-2xl border border-gray-100">
-        <Loader2 className="animate-spin mx-auto mb-4 text-gray-400" size={40} />
-        <p className="text-gray-500 font-medium">Confirming your order…</p>
+      <div className="max-w-md w-full bg-[#111218] rounded-[40px] p-12 text-center shadow-2xl border border-white/5">
+        <Loader2 className="animate-spin mx-auto mb-6 text-blue-500" size={48} />
+        <p className="text-gray-400 font-black uppercase tracking-widest text-xs">Confirming Payment…</p>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className={`max-w-md w-full rounded-[40px] p-12 text-center shadow-2xl border ${isTopup ? 'bg-[#111218] border-red-500/20' : 'bg-white border-red-100'}`}>
+        <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
+          <AlertCircle size={40} />
+        </div>
+        <h1 className={`text-2xl font-black uppercase mb-2 ${isTopup ? 'text-white' : 'text-gray-900'}`}>Verification Failed</h1>
+        <p className="text-gray-500 text-sm mb-4 font-medium">We couldn't verify your payment. If funds were taken, please contact our support.</p>
+        {errorMessage && (
+          <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl mb-8">
+            <p className="text-red-500 text-xs font-bold font-mono break-all">{errorMessage}</p>
+          </div>
+        )}
+        <Link href={isTopup ? "/profile/billing" : "/cart"} className={`block w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all ${isTopup ? 'bg-white/5 border border-white/10 text-white hover:bg-white/10' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}>
+          Return to {isTopup ? "Billing" : "Cart"}
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-md w-full bg-white rounded-3xl p-10 text-center shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-500">
-
-      <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600 shadow-lg shadow-green-100 animate-bounce">
-        <CheckCircle size={48} strokeWidth={3} />
+    <div className={`max-w-md w-full rounded-[48px] p-12 text-center shadow-2xl border animate-in fade-in zoom-in duration-700 relative overflow-hidden ${isTopup ? 'bg-[#0a0a0c] border-white/10' : 'bg-white border-gray-100'}`}>
+      <div className={`w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl relative z-10 ${isTopup ? 'bg-blue-500/10 text-blue-400' : 'bg-green-100 text-green-600'}`}>
+        {isTopup ? <Wallet size={54} strokeWidth={1.5} /> : <CheckCircle2 size={54} strokeWidth={2.5} />}
       </div>
-
-      <h1 className="text-3xl font-black uppercase tracking-tight text-gray-900 mb-2">Order Confirmed!</h1>
-      <p className="text-gray-500 font-medium mb-8">
-        Your payment was successful. The seller has been notified and a chat has been opened for updates.
-      </p>
-
-      {sessionId && sessionId !== 'balance_pay' && (
-        <div className="bg-gray-50 p-4 rounded-xl mb-8 border border-gray-100">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Transaction Reference</p>
-          <p className="text-xs font-mono text-gray-600 break-all">{sessionId}</p>
-        </div>
+      <h1 className={`text-3xl font-black uppercase tracking-tight mb-3 relative z-10 ${isTopup ? 'text-white' : 'text-gray-900'}`}>
+        {isTopup ? 'Wallet Topped Up!' : 'Order Confirmed!'}
+      </h1>
+      
+      {paidDisplay && (
+        <p className="text-3xl font-black text-emerald-400 mb-6 drop-shadow-sm">
+          +{new Intl.NumberFormat('en-US', { style: 'currency', currency: paidDisplay.currency }).format(paidDisplay.amount)}
+        </p>
       )}
 
-      <div className="space-y-3">
-        <Link href="/profile/messages" className="flex items-center justify-center gap-2 w-full py-4 bg-gray-900 text-white rounded-xl font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg">
-          <MessageCircle size={18} /> View Order Chat
+      <p className="text-gray-500 font-bold mb-10 text-sm leading-relaxed relative z-10">
+        {isTopup ? 'Your payment was successful. Funds have been added. Let\'s get some prints!' : 'Your payment was successful. The seller has been notified and will process your order soon.'}
+      </p>
+
+      <div className="space-y-4 relative z-10">
+        <Link href={isTopup ? "/profile/billing" : "/profile/messages"} className={`flex items-center justify-center gap-2 w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95 ${isTopup ? 'bg-white text-gray-900 hover:bg-blue-600 hover:text-white' : 'bg-gray-900 text-white hover:bg-blue-600'}`}>
+          {isTopup ? <CheckCircle size={18} /> : <MessageCircle size={18} />} {isTopup ? 'Back to Billing' : 'View Order Chat'}
         </Link>
-        <Link href="/" className="flex items-center justify-center gap-2 w-full py-4 bg-white text-gray-900 border-2 border-gray-100 rounded-xl font-black uppercase tracking-widest hover:border-gray-300 transition-all">
-          Back to Home <ArrowRight size={18} />
+        <Link href={isTopup ? "/gallery" : "/"} className={`flex items-center justify-center gap-2 w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 ${isTopup ? 'bg-white/5 text-white border border-white/10 hover:bg-white/10' : 'bg-white text-gray-900 border-2 border-gray-100 hover:border-gray-300'}`}>
+           {isTopup ? 'Explore Marketplace' : 'Back to Home'} <ArrowRight size={18} />
         </Link>
       </div>
-
     </div>
   );
 }
 
 export default function SuccessPage() {
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
-      <Suspense fallback={<div className="flex items-center gap-2"><Loader2 className="animate-spin" /> Verifying payment…</div>}>
+    <main className="min-h-screen bg-[#F8FAFC] dark:bg-[#050507] flex items-center justify-center p-6 font-sans">
+      <Suspense fallback={<div className="flex items-center gap-3 text-gray-400 font-black uppercase tracking-widest text-xs"><Loader2 className="animate-spin text-blue-600" size={40} /> Verifying…</div>}>
         <SuccessContent />
       </Suspense>
     </main>
