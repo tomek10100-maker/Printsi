@@ -1,6 +1,7 @@
 --- SEARCHING FOR THE 367.23 PLN (~86.40 EUR) ---
-Total records in payouts: 14
+Total records in payouts: 15
 MATCH FOUND! ID: 64a1da17-6803-416c-ba3e-7c9fd4dab77e, Amt: -101 EUR, Status: completed, Label: undefined
 MATCH FOUND! ID: 64a1da17-6803-416c-ba3e-7c9fd4dab77e, Amt: -116.5 EUR, Status: completed, Label: undefined
 MATCH FOUND! ID: 64a1da17-6803-416c-ba3e-7c9fd4dab77e, Amt: -114.68 EUR, Status: completed, Label: undefined
 MATCH FOUND! ID: 07e095a0-12c1-4d9c-a991-9778747b9241, Amt: -86 EUR, Status: completed, Label: undefined
+MATCH FOUND! ID: 64a1da17-6803-416c-ba3e-7c9fd4dab77e, Amt: -11.47 EUR, Status: completed, Label: undefined
