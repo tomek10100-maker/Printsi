@@ -175,6 +175,10 @@ export default function ProfilePage() {
 
   const executeDelete = async (id: string) => {
     setIsDeleting(true);
+    
+    // First, clear favorites to avoid foreign key constraints (Like button data)
+    await supabase.from('favorites').delete().eq('offer_id', id);
+
     const { error } = await supabase.from('offers').delete().eq('id', id);
     
     if (error) {
@@ -487,7 +491,14 @@ export default function ProfilePage() {
                         <div className="p-6 flex flex-col flex-grow">
                           <h4 className="font-black text-gray-900 text-lg mb-1 leading-tight group-hover:text-blue-600 transition-colors">{offer.title}</h4>
                           <div className="flex items-center gap-2 mb-4">
-                            <span className="text-xl font-black text-gray-900">{formatPrice(offer.price)}</span>
+                            {offer.is_negotiable ? (
+                               <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100">
+                                 <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                                 <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest leading-none">Negotiable</span>
+                               </div>
+                            ) : (
+                               <span className="text-xl font-black text-gray-900">{formatPrice(offer.price)}</span>
+                            )}
                             {hasVariants && (
                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded-md">
                                 {variants.length} colors

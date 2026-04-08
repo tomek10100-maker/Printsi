@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import ThemeToggle from '../components/ThemeToggle';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,6 +48,7 @@ type Offer = {
   color_hex?: string;
   material?: string;
   weight?: string;
+  is_negotiable?: boolean;
 };
 
 function MarketplaceContent() {
@@ -57,7 +57,6 @@ function MarketplaceContent() {
   const initialCategory = searchParams.get('category') || 'physical';
   const { addItem, items } = useCart();
   const { formatPrice } = useCurrency();
-  const [isThemeHovered, setIsThemeHovered] = useState(false);
 
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -403,19 +402,9 @@ function MarketplaceContent() {
           <input type="text" placeholder="Search items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-gray-100 hover:bg-white focus:bg-white border-2 border-transparent focus:border-blue-600 rounded-full text-sm font-medium transition-all outline-none" />
         </div>
         <div className="flex items-center gap-3">
-          <div 
-            onMouseEnter={() => setIsThemeHovered(true)} 
-            onMouseLeave={() => setIsThemeHovered(false)}
-          >
-            <ThemeToggle isHoveredExternal={isThemeHovered} />
-          </div>
           <Link 
             href="/" 
             className="p-3 rounded-full bg-gray-900 text-white hover:bg-red-600 shadow-lg transition-all" 
-            style={{ 
-              transitionDuration: '1.5s',
-              transform: isThemeHovered ? 'translateX(-128px)' : 'translateX(0)'
-            }}
           >
             <X size={20} />
           </Link>
@@ -543,74 +532,81 @@ function MarketplaceContent() {
                   )}
 
                   {/* --- CARD FOOTER --- */}
-                  <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 gap-2">
-                    <div className="flex flex-col gap-0.5">
-                      {/* Fizyczne rzeczy z wariantami – pokaż ceny wariantów */}
-                      {(() => {
-                        const variants = offer.color_variants || [];
-                        if (offer.category === 'physical' && variants.length > 1) {
-                          // Pokaż do 2 wariantów z cenami, reszta jako "+N więcej"
-                          const shown = variants.slice(0, 2);
-                          return (
-                            <>
-                              {shown.map((v: any, vi: number) => (
-                                <div key={vi} className="flex items-center gap-1.5">
-                                  <div
-                                    className="w-3 h-3 rounded-full flex-shrink-0 border border-gray-200"
-                                    style={{ backgroundColor: getVariantColor(v) }}
-                                  />
-                                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-tight">
-                                    {v.color_name || v.label || `Variant ${vi + 1}`}:
-                                  </span>
-                                  <span className="text-xs font-black text-gray-900 leading-tight">
-                                    {formatPrice(v.priceEUR)}
-                                  </span>
-                                </div>
-                              ))}
-                              {variants.length > 2 && (
-                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                  +{variants.length - 2} more colors
-                                </span>
-                              )}
-                              <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
-                            </>
-                          );
-                        }
-                        // Dla reszty: jedna cena
-                        return (
-                          <>
-                            <span className="text-lg font-black text-gray-900 leading-none pb-1">{formatPrice(offer.price)}</span>
-                            {offer.category !== 'digital' && (
-                              <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    {offer.category === 'job' && !userRoles.includes('printer') ? (
-                      <button disabled className="flex items-center bg-gray-50 text-red-500 px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest cursor-not-allowed border border-red-100">
-                        Printer Role Required
+                  <div className="mt-auto border-t border-gray-100 pt-3">
+                    {offer.is_negotiable ? (
+                      <button
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          e.stopPropagation(); 
+                          router.push(`/offer/${offer.id}`);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] hover:shadow-xl hover:shadow-blue-500/20 active:scale-95 transition-all"
+                      >
+                        <Zap size={14} className="fill-white/20" />
+                        Offer The Price
                       </button>
-                    ) : offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) ? (() => {
-                      const isAlreadyInCart = offer.category === 'digital' && items.some(i => i.id === offer.id);
-                      return (
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); isAlreadyInCart ? router.push('/cart') : handleBuyNow(offer); }}
-                          className={`flex items-center gap-1 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${isAlreadyInCart ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-900 text-white hover:bg-blue-600'}`}
-                        >
-                          {isAlreadyInCart ? <><Check size={12} /> In Cart</> : offer.category === 'physical' && (offer.color_variants || []).length > 1
-                            ? <><Palette size={12} /> Pick Color</>
-                            : <><Zap size={12} className="fill-white" /> {offer.category === 'job' ? 'Fulfill' : 'Buy Now'}</>
-                          }
-                        </button>
-                      );
-                    })() : (
-                      offer.stock > 0 && <span className="text-gray-300 group-hover:text-blue-600 transition-colors"><ArrowRight size={20} /></span>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-col gap-0.5">
+                          {/* Fizyczne rzeczy z wariantami – pokaż ceny wariantów */}
+                          {(() => {
+                            const variants = offer.color_variants || [];
+                            if (offer.category === 'physical' && variants.length > 1) {
+                              const shown = variants.slice(0, 2);
+                              return (
+                                <>
+                                  {shown.map((v: any, vi: number) => (
+                                    <div key={vi} className="flex items-center gap-1.5">
+                                      <div className="w-3 h-3 rounded-full flex-shrink-0 border border-gray-200" style={{ backgroundColor: getVariantColor(v) }} />
+                                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-tight">{v.color_name || v.label || `Variant ${vi + 1}`}:</span>
+                                      <span className="text-xs font-black text-gray-900 leading-tight">{formatPrice(v.priceEUR)}</span>
+                                    </div>
+                                  ))}
+                                  {variants.length > 2 && <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">+{variants.length - 2} more colors</span>}
+                                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
+                                </>
+                              );
+                            }
+                            return (
+                              <>
+                                <span className="text-lg font-black text-gray-900 leading-none pb-1">{formatPrice(offer.price)}</span>
+                                {offer.category !== 'digital' && (
+                                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+
+                        {offer.category === 'job' && !userRoles.includes('printer') ? (
+                          <button disabled className="flex items-center bg-gray-50 text-red-500 px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest cursor-not-allowed border border-red-100">
+                            Printer Role Required
+                          </button>
+                        ) : offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) ? (() => {
+                          const isAlreadyInCart = offer.category === 'digital' && items.some(i => i.id === offer.id);
+                          return (
+                            <button
+                              onClick={(e) => { 
+                                e.preventDefault(); 
+                                e.stopPropagation(); 
+                                isAlreadyInCart ? router.push('/cart') : handleBuyNow(offer);
+                              }}
+                              className={`flex items-center gap-1 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${isAlreadyInCart ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-900 text-white hover:bg-blue-600'}`}
+                            >
+                              {isAlreadyInCart ? <><Check size={12} /> In Cart</> : offer.category === 'physical' && (offer.color_variants || []).length > 1
+                                ? <><Palette size={12} /> Pick Color</>
+                                : <><Zap size={12} className="fill-white" /> {offer.category === 'job' ? 'Fulfill' : 'Buy Now'}</>
+                              }
+                            </button>
+                          );
+                        })() : (
+                          offer.stock > 0 && <span className="text-gray-300 group-hover:text-blue-600 transition-colors"><ArrowRight size={20} /></span>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {offer.stock > 0 && offer.stock < 5 && <span className="text-[9px] font-bold text-orange-500 uppercase tracking-wider mt-2">Only {offer.stock} left!</span>}
+                  {offer.stock > 0 && offer.stock < 5 && !offer.is_negotiable && <span className="text-[9px] font-bold text-orange-500 uppercase tracking-wider mt-2">Only {offer.stock} left!</span>}
                 </div>
               </div>
             ))}

@@ -750,7 +750,10 @@ function MessagesInner() {
     };
 
     const handleAcceptProposal = async (msgId: string, parsedData: any) => {
-        if (!activeChatData || !activeChatData.offers || activeChatData.seller_id !== currentUser?.id) return;
+        if (!activeChatData || !activeChatData.offers || activeChatData.seller_id !== currentUser?.id) {
+            console.error("Accept failed: Missing chat data or unauthorized", { activeChatData, sellerId: activeChatData?.seller_id, userId: currentUser?.id });
+            return;
+        }
 
         if (!parsedData || !parsedData.price || isNaN(Number(parsedData.price))) {
             alert("Error: Proposal lacks a valid price!");
@@ -758,7 +761,7 @@ function MessagesInner() {
         }
 
         try {
-            const { data: newOffer, error: offerError } = await supabase.from('offers').insert({
+            const basePayload = {
                 user_id: currentUser.id,
                 category: activeChatData.offers?.category || 'physical',
                 title: `Custom Order: ${activeChatData.offers?.title || 'Item'}`.substring(0, 150),
@@ -771,26 +774,54 @@ function MessagesInner() {
                 parent_offer_id: activeChatData.offers?.id || null,
                 image_urls: activeChatData.offers?.image_urls || null,
                 dimensions: parsedData.dimensions || activeChatData.offers?.dimensions || null,
-                dimensionScale: parsedData.dimensionScale || 100,
-                color_variants: parsedData.swappedLayers ? [{
-                    manual: true,
-                    isMultiColor: true,
-                    layers: parsedData.swappedLayers.map((sl: any) => ({
-                        color_name: sl.to,
-                        color_hex: sl.to_hex,
-                        grams: sl.grams
-                    }))
-                }] : undefined
+                created_at: new Date()
+            };
+
+            const colorVariants = parsedData.swappedLayers ? [{
+                manual: true,
+                isMultiColor: true,
+                layers: parsedData.swappedLayers.map((sl: any) => ({
+                    color_name: sl.to,
+                    color_hex: sl.to_hex,
+                    grams: sl.grams
+                }))
+            }] : undefined;
+
+            let lastError: any = null;
+
+            // TRY 1: Full payload
+            const { data: newOffer, error: err1 } = await supabase.from('offers').insert({
+                ...basePayload,
+                ...(colorVariants ? { color_variants: colorVariants } : {})
             }).select().single();
 
-            if (offerError) throw offerError;
+            let offer = newOffer;
+            lastError = err1;
+
+            if (lastError && lastError.message?.includes('color_variants')) {
+                // TRY 2: Without color_variants
+                const { data: newOffer2, error: err2 } = await supabase.from('offers').insert(basePayload).select().single();
+                offer = newOffer2;
+                lastError = err2;
+            }
+
+            if (lastError) {
+                console.error("Offer Creation Error Details:", lastError);
+                throw lastError;
+            }
+
+            if (!offer) {
+                throw new Error("Offer successfully inserted but not returned.");
+            }
 
             parsedData.status = 'accepted';
-            parsedData.custom_offer_id = newOffer.id;
+            parsedData.custom_offer_id = offer.id;
 
-            await supabase.from('messages').update({
+            const { error: msgError } = await supabase.from('messages').update({
                 content: `[PROPOSAL]${JSON.stringify(parsedData)}`
             }).eq('id', msgId);
+
+            if (msgError) throw msgError;
 
             // Trigger Accepted Email
             fetch('/api/order/negotiation-email', {
@@ -806,8 +837,8 @@ function MessagesInner() {
 
             loadMessages(activeChatId as string);
         } catch (e: any) {
-            console.error("Failed to accept proposal", e);
-            alert(`Error accepting offer: ${e.message}`);
+            console.error("Comprehensive Accept Failure:", e);
+            alert(`Failed to accept: ${e.message || 'Unknown database error'}`);
         }
     };
 
@@ -852,6 +883,15 @@ function MessagesInner() {
                 productTitle: activeChatData?.offers?.title || 'Custom Item'
             }),
         }).catch(() => { });
+
+        loadMessages(activeChatId as string);
+    };
+
+    const handleWithdrawProposal = async (msgId: string, parsedData: any) => {
+        parsedData.status = 'cancelled';
+        await supabase.from('messages').update({
+            content: `[PROPOSAL]${JSON.stringify(parsedData)}`
+        }).eq('id', msgId);
 
         loadMessages(activeChatId as string);
     };
@@ -1549,17 +1589,20 @@ function MessagesInner() {
                                             const isBuyer = currentUser?.id === activeChatData?.buyer_id;
                                             return (
                                                 <div key={msg.id || idx} className="flex flex-col w-full my-8 px-2 items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                                    <div className={`w-[280px] sm:w-[320px] rounded-[24px] overflow-hidden border shadow-2xl transition-all hover:scale-[1.02] ${pData.status === 'accepted' ? 'border-emerald-500/30 bg-emerald-900/10' :
-                                                        pData.status === 'rejected' ? 'border-rose-500/30 bg-rose-900/10' :
-                                                            pData.status === 'counter_proposed' ? 'border-fuchsia-500/30 bg-fuchsia-900/10' :
-                                                                'border-white/10 bg-[#0f172a]/80 backdrop-blur-xl'
-                                                        }`}>
-                                                        {/* HEADER DECORATION */}
-                                                        <div className={`h-1.5 w-full ${pData.status === 'accepted' ? 'bg-emerald-500' :
-                                                            pData.status === 'rejected' ? 'bg-rose-500' :
-                                                                pData.status === 'counter_proposed' ? 'bg-gradient-to-r from-violet-500 to-purple-600' :
-                                                                    pData.status === 'seller_proposed' ? 'bg-gradient-to-r from-amber-400 to-yellow-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600'
-                                                            }`} />
+                                                                <div className={`w-[280px] sm:w-[320px] rounded-[24px] overflow-hidden border shadow-2xl transition-all hover:scale-[1.02] ${
+                                                                    pData.status === 'accepted' ? 'border-emerald-500/30 bg-emerald-900/10' :
+                                                                    (pData.status === 'rejected' || pData.status === 'cancelled') ? 'border-rose-500/30 bg-rose-900/10' :
+                                                                    pData.status === 'counter_proposed' ? 'border-fuchsia-500/30 bg-fuchsia-900/10' :
+                                                                    'border-white/10 bg-[#0f172a]/80 backdrop-blur-xl'
+                                                                }`}>
+                                                                    {/* HEADER DECORATION */}
+                                                                    <div className={`h-1.5 w-full ${
+                                                                        pData.status === 'accepted' ? 'bg-emerald-500' :
+                                                                        (pData.status === 'rejected' || pData.status === 'cancelled') ? 'bg-rose-500' :
+                                                                        pData.status === 'counter_proposed' ? 'bg-gradient-to-r from-violet-500 to-purple-600' :
+                                                                        pData.status === 'seller_proposed' ? 'bg-gradient-to-r from-amber-400 to-yellow-600' : 
+                                                                        'bg-gradient-to-r from-blue-500 to-indigo-600'
+                                                                    }`} />
 
                                                         <div className="p-5 space-y-5">
                                                             {/* TITLEBAR */}
@@ -1578,29 +1621,35 @@ function MessagesInner() {
                                                                             {msg.sender_id === currentUser?.id ? 'YOU' : (msg.sender_id === activeChatData?.seller_id ? activeChatData?.otherUser?.full_name : 'Customer')}
                                                                         </span>
                                                                     </div>
-                                                                    <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${pData.status === 'accepted' ? 'text-emerald-400' :
-                                                                        pData.status === 'rejected' ? 'text-rose-400' :
-                                                                            pData.status === 'counter_proposed' ? 'text-violet-400' :
-                                                                                pData.status === 'seller_proposed' ? 'text-amber-400' : 'text-blue-400'
-                                                                        }`}>
+                                                                    <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${
+                                                                        pData.status === 'accepted' ? 'text-emerald-400' :
+                                                                        (pData.status === 'rejected' || pData.status === 'cancelled') ? 'text-rose-400' :
+                                                                        pData.status === 'counter_proposed' ? 'text-violet-400' :
+                                                                        pData.status === 'seller_proposed' ? 'text-amber-400' : 'text-blue-400'
+                                                                    }`}>
                                                                         {pData.status === 'counter_proposed' ? 'Counter Offer' :
                                                                             pData.status === 'accepted' ? 'Deal Reached' :
-                                                                                pData.status === 'rejected' ? 'Offer Declined' :
-                                                                                    pData.status === 'seller_proposed' ? 'Seller Offer' : 'Customer Request'}
+                                                                            pData.status === 'rejected' ? 'Offer Declined' :
+                                                                            pData.status === 'cancelled' ? 'Offer Withdrawn' :
+                                                                            pData.status === 'seller_proposed' ? 'Seller Offer' : 'Customer Request'}
                                                                     </span>
                                                                     <h4 className="text-white text-xs font-bold mt-0.5">
                                                                         {pData.status === 'counter_proposed' ? 'Revised Offer' :
                                                                             pData.status === 'accepted' ? 'Final Agreement' :
-                                                                                pData.status === 'seller_proposed' ? 'Special Deal' : 'Custom Request'}
+                                                                            pData.status === 'cancelled' ? 'Cancelled Request' :
+                                                                            pData.status === 'seller_proposed' ? 'Special Deal' : 'Custom Request'}
                                                                     </h4>
                                                                 </div>
-                                                                <span className={`text-[8px] font-black uppercase px-2.5 py-1 rounded-full border ${pData.status === 'accepted' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' :
-                                                                    pData.status === 'rejected' ? 'border-rose-500 text-rose-400 bg-rose-900/20' :
-                                                                        pData.status === 'countered' ? 'border-slate-500 text-slate-400 bg-slate-500/10' :
-                                                                            pData.status === 'counter_proposed' ? 'border-violet-500 text-violet-400 bg-violet-500/10' :
-                                                                                'border-blue-500/50 text-blue-400 bg-blue-500/10'
-                                                                    }`}>
-                                                                    {pData.status === 'countered' ? 'Offer Replaced' : pData.status.replace('_', ' ')}
+                                                                <span className={`text-[8px] font-black uppercase px-2.5 py-1 rounded-full border ${
+                                                                    pData.status === 'accepted' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' :
+                                                                    (pData.status === 'rejected' || pData.status === 'cancelled') ? 'border-rose-500 text-rose-400 bg-rose-900/20' :
+                                                                    pData.status === 'countered' ? 'border-slate-500 text-slate-400 bg-slate-500/10' :
+                                                                    pData.status === 'counter_proposed' ? 'border-violet-500 text-violet-400 bg-violet-500/10' :
+                                                                    'border-blue-500/50 text-blue-400 bg-blue-500/10'
+                                                                }`}>
+                                                                    {pData.status === 'countered' ? 'Offer Replaced' : 
+                                                                     pData.status === 'cancelled' ? 'Cancelled' : 
+                                                                     pData.status.replace('_', ' ')}
                                                                 </span>
                                                             </div>
 
@@ -1701,6 +1750,21 @@ function MessagesInner() {
                                                                     );
                                                                 }
 
+                                                                const isOfferWithdrawable = isMe && (pData.status === 'pending' || pData.status === 'seller_proposed' || pData.status === 'counter_proposed');
+
+                                                                if (isOfferWithdrawable) {
+                                                                    return (
+                                                                        <div className="pt-2">
+                                                                            <button
+                                                                                onClick={() => handleWithdrawProposal(msg.id, pData)}
+                                                                                className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                                            >
+                                                                                <X size={12} /> Withdraw (Cancel Offer)
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                }
+
                                                                 const isOfferForBuyer = (pData.status === 'seller_proposed' || pData.status === 'counter_proposed' || pData.status === 'pending') && isBuyer && !isMe;
 
                                                                 if (isOfferForBuyer) {
@@ -1719,14 +1783,20 @@ function MessagesInner() {
                                                                                 <CreditCard size={14} className="inline mr-2 -mt-0.5" />
                                                                                 {pData.status === 'accepted' ? 'Add to Cart & Checkout' : 'Buy Now'}
                                                                             </button>
-                                                                            {isBuyer && (
+                                                                            <div className="grid grid-cols-2 gap-2">
                                                                                 <button
                                                                                     onClick={() => openProposalModal(pData, msg.id)}
-                                                                                    className="w-full py-2.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                                                    className="py-2.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                                                                 >
-                                                                                    <RefreshCcw size={12} /> Make Counter-Offer
+                                                                                    <RefreshCcw size={12} /> Counter
                                                                                 </button>
-                                                                            )}
+                                                                                <button
+                                                                                    onClick={() => handleRejectProposal(msg.id, pData)}
+                                                                                    className="py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                                                >
+                                                                                    <X size={12} /> Reject
+                                                                                </button>
+                                                                            </div>
                                                                         </div>
                                                                     );
                                                                 }
@@ -1736,16 +1806,24 @@ function MessagesInner() {
                                                                         <div className="space-y-2 pt-2">
                                                                             <button
                                                                                 onClick={() => handleAcceptProposal(msg.id, pData)}
-                                                                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all active:scale-95 shadow-lg shadow-emerald-900/20"
+                                                                                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-900/20"
                                                                             >
                                                                                 Accept Request
                                                                             </button>
-                                                                            <button
-                                                                                onClick={() => openProposalModal(pData, msg.id)}
-                                                                                className="w-full py-2.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
-                                                                            >
-                                                                                <RefreshCcw size={12} /> Make Counter-Offer
-                                                                            </button>
+                                                                            <div className="grid grid-cols-2 gap-2">
+                                                                                <button
+                                                                                    onClick={() => openProposalModal(pData, msg.id)}
+                                                                                    className="py-2.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                                                >
+                                                                                    <RefreshCcw size={12} /> Counter
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handleRejectProposal(msg.id, pData)}
+                                                                                    className="py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                                                >
+                                                                                    <X size={12} /> Reject
+                                                                                </button>
+                                                                            </div>
                                                                         </div>
                                                                     );
                                                                 }

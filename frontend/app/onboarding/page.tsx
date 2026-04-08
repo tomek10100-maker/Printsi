@@ -109,7 +109,7 @@ export default function OnboardingPage() {
             }
         } else if (group2.includes(role)) {
             if (newRoles.includes(role)) {
-                // Próba odznaczenia jedynego aktywnego typu konta
+                // Attempting to deselect the only active account type
                 setRoleError('At least one account type must be selected.');
                 return;
             } else {
@@ -126,18 +126,18 @@ export default function OnboardingPage() {
     const handleComplete = async () => {
         setSaving(true);
         try {
-            // Zapisz profil
+            // Save profile
             const { error } = await supabase.from('profiles').upsert({
                 id: user.id,
                 full_name: fullName || 'New User',
-                roles: roles.length > 0 ? roles : ['customer'], // Wyrównanie min. 1 roli
-                country: country, // Opcjonalnie do tabeli profiles jeśli takowa kolumna istnieje
+                roles: roles.length > 0 ? roles : ['customer'], // Ensure at least 1 role
+                country: country, // Optional: save to profiles if column exists
                 updated_at: new Date(),
             });
 
             if (error) throw error;
 
-            // Zapisz walutę w context
+            // Save currency in context
             setCurrency(localCurrency as any);
 
             // Send welcome email (fire & forget)

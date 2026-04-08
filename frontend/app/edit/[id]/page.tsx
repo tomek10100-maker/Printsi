@@ -6,12 +6,26 @@ import { useRouter, useParams } from 'next/navigation';
 import {
   Loader2, FileText, Image as ImageIcon, Box, Layers, Printer,
   X, Trash2, ChevronDown, EyeOff, Calculator, Zap, Settings2,
-  Wrench, Plus, Minus, Palette, ChevronUp, Ruler, Save, ArrowLeft, AlertTriangle
+  Wrench, Plus, Minus, Palette, ChevronUp, Ruler, Save, ArrowLeft, AlertTriangle,
+  MessageCircle, Tag, Handshake
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCurrency } from '../../../context/CurrencyContext';
 
 const BUCKET_NAME = 'printsi-files1';
+const POPULAR_MATERIALS = [
+  { name: 'PLA', icon: '🌱', desc: 'Easy to print, eco-friendly, great for decorative models and prototypes.', tags: ['Beginner Friendly', 'Bio-degradable'] },
+  { name: 'PLA+', icon: '💪', desc: 'Enhanced version of PLA with improved toughness and impact resistance.', tags: ['Durable', 'Strong'] },
+  { name: 'PETG', icon: '💧', desc: 'Functional parts, water-resistant, and more durable than PLA.', tags: ['Functional', 'Outdoor'] },
+  { name: 'ABS', icon: '🔥', desc: 'Strong, heat-resistant, and post-processable with acetone.', tags: ['Heat Resistant', 'Technical'] },
+  { name: 'TPU (Flexible)', icon: '🌓', desc: 'Rubber-like material, extremely flexible and durable.', tags: ['Flexible', 'Impact Absorbing'] },
+  { name: 'ASA', icon: '☀️', desc: 'UV resistant version of ABS, perfect for outdoor functional parts.', tags: ['UV Resistant', 'Weatherproof'] },
+  { name: 'Nylon', icon: '⚙️', desc: 'Extremely strong, durable, and low-friction material for gears.', tags: ['Industrial', 'Tough'] },
+  { name: 'Carbon Fiber', icon: '⚡', desc: 'Stiff, lightweight, and reinforced for high-performance applications.', tags: ['Lightweight', 'Stiff'] },
+  { name: 'Wood', icon: '🪵', desc: 'PLA blended with real wood fibers for a natural look and feel.', tags: ['Decorative', 'Textured'] },
+  { name: 'Custom / Other', icon: '❔', desc: 'Specify a custom filament type if it is not on the list.', tags: ['Specialized'] },
+];
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -164,6 +178,11 @@ export default function EditOfferPage() {
   const [myFilaments, setMyFilaments] = useState<Filament[]>([]);
   const [variants, setVariants] = useState<ColorVariant[]>([defaultVariant()]);
 
+  // Job specifics
+  const [customInstructions, setCustomInstructions] = useState('');
+  const [isNegotiable, setIsNegotiable] = useState(false);
+  const [customMaterialName, setCustomMaterialName] = useState('');
+
   useEffect(() => {
     const initData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -190,6 +209,8 @@ export default function EditOfferPage() {
       setTitle(offerData.title);
       setDescription(offerData.description || '');
       setExistingImages(offerData.image_urls || []);
+      setCustomInstructions(offerData.custom_instructions || '');
+      setIsNegotiable(offerData.is_negotiable || false);
       
       if (offerData.dimensions) {
         const parsed = offerData.dimensions.split(',').map((d: string) => {
@@ -280,7 +301,16 @@ export default function EditOfferPage() {
         const localPrice = (offerData.price * rate).toFixed(2);
         setManualPriceLocal(localPrice);
         setManualStock(offerData.stock?.toString() || '1');
-        setManualMaterial(offerData.material || '');
+        
+        // Handle materials for Job
+        const isPopular = POPULAR_MATERIALS.some(m => m.name === offerData.material);
+        if (offerData.material && !isPopular) {
+          setManualMaterial('Custom / Other');
+          setCustomMaterialName(offerData.material);
+        } else {
+          setManualMaterial(offerData.material || '');
+        }
+
         setManualColor(offerData.color_name || '');
         setManualColorHex(offerData.color || '#888888');
         setManualWeight(offerData.weight || '');
@@ -397,14 +427,24 @@ export default function EditOfferPage() {
           }));
         }
       } else {
-        dbPrice = (parseFloat(manualPriceLocal) || 0) / (rates?.[currency] || 1);
+        dbPrice = isNegotiable ? 0 : (parseFloat(manualPriceLocal) || 0) / (rates?.[currency] || 1);
+        dbMaterial = manualMaterial === 'Custom / Other' ? customMaterialName : (manualMaterial || null);
+        dbColor = manualColorHex || null;
+        dbColorName = manualColor || null;
+        dbWeight = manualWeight || null;
         dbStock = category === 'digital' ? 999999 : (parseInt(manualStock) || 1);
       }
+
+      const finalDimensions = (category === 'physical' || category === 'job') ? serializeDimensions() || null : null;
 
       const { error: dbErr } = await supabase.from('offers').update({
         title, description, price: dbPrice, stock: dbStock, category,
         image_urls: finalImages, image_url: finalImages[0] || null,
-        dimensions: serializeDimensions() || null,
+        dimensions: finalDimensions,
+        material: dbMaterial, color: dbColor, color_name: dbColorName,
+        weight: dbWeight,
+        custom_instructions: category === 'job' ? customInstructions : null,
+        is_negotiable: category === 'job' ? isNegotiable : false,
         color_variants: colorVariantsPayload || null
       }).eq('id', params.id);
       if (dbErr) throw dbErr;
@@ -440,6 +480,20 @@ export default function EditOfferPage() {
                  <div className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-opacity ${category === 'physical' ? 'border-orange-500 bg-orange-50 text-orange-600' : 'border-gray-100 text-gray-300 opacity-40'}`}><Box size={32}/><span className="font-black uppercase text-[10px]">Physical Item</span></div>
               </div>
             </section>
+
+            {category === 'job' && (
+              <section className="p-5 bg-red-50/50 border border-red-100 rounded-3xl flex items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-red-500">
+                  <AlertTriangle size={24} />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-[10px] font-black uppercase text-red-600 tracking-wider">Crucial Note for Custom Requests</h4>
+                  <p className="text-[11px] text-gray-600 font-bold mt-1 leading-relaxed">
+                    If you change model dimensions, ensure they match the original proportions. Otherwise, your print might become distorted.
+                  </p>
+                </div>
+              </section>
+            )}
             {category === 'physical' && userRoles.includes('printer') && (
               <section className="bg-blue-50/20 p-8 rounded-3xl border-2 border-blue-100/50 space-y-5">
                 <div className="flex items-center justify-between">
@@ -464,7 +518,26 @@ export default function EditOfferPage() {
               <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all shadow-sm" />
               <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all resize-none shadow-sm" />
               
-              {pricingMode === 'manual' && (
+              {category === 'job' && (
+                <div className="space-y-3 p-5 bg-indigo-50/30 rounded-3xl border border-indigo-100/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <MessageCircle size={14} className="text-indigo-500" />
+                    <SectionLabel label="Custom Model Adjustments" />
+                  </div>
+                  <textarea 
+                    placeholder="E.g. I need to change the diameter of the internal hole to 10mm, or increase the shell thickness for more durability..." 
+                    value={customInstructions} 
+                    onChange={e => setCustomInstructions(e.target.value)} 
+                    rows={3} 
+                    className="w-full p-4 bg-white border border-indigo-100 rounded-2xl font-medium text-xs outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 transition-all resize-none shadow-sm placeholder:italic" 
+                  />
+                  <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest leading-relaxed px-1">
+                    * The service provider will review these instructions and can adjust the final proposal based on complexity.
+                  </p>
+                </div>
+              )}
+
+              {pricingMode === 'manual' && category !== 'job' && (
                 <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-300">
                   <div className="space-y-1.5">
                     <SectionLabel label={`Price (${currency})`} />
@@ -541,26 +614,103 @@ export default function EditOfferPage() {
                     </div>
                     <button type="button" onClick={addDimension} className="flex items-center gap-1 text-[10px] font-black text-blue-600 hover:text-blue-700 px-2.5 py-1 rounded-lg hover:bg-blue-50 border border-blue-100 transition-all uppercase tracking-widest"><Plus size={11}/> Add dimension</button>
                  </div>
-                 <div className="space-y-2">
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                    {dimensionEntries.map((dim, idx) => (
-                     <div key={dim.id} className="flex items-center gap-2">
-                       <input type="text" value={dim.label} onChange={e => updateDimension(dim.id, { label: e.target.value })} placeholder="Label" className="w-24 p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-xs outline-none focus:border-blue-500 transition-all uppercase"/>
+                     <div key={dim.id} className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex flex-col gap-2">
+                       <input type="text" value={dim.label} onChange={e => updateDimension(dim.id, { label: e.target.value })} placeholder="Label" className="w-full bg-transparent border-none font-bold text-[10px] outline-none transition-all uppercase text-gray-400 tracking-widest"/>
                        <div className="relative flex-1">
-                         <input type="text" value={dim.value} onChange={e => updateDimension(dim.id, { value: e.target.value.replace(',', '.') })} placeholder="0" className="w-full p-3 pr-10 bg-white border-2 border-orange-200 rounded-xl font-black text-sm outline-none focus:border-orange-500 transition-all"/>
-                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-400 font-black text-[10px]">mm</span>
+                         <input type="text" value={dim.value} onChange={e => updateDimension(dim.id, { value: e.target.value.replace(',', '.') })} placeholder="0" className="w-full p-0 bg-transparent border-none font-black text-xl outline-none transition-all text-blue-600"/>
+                         <span className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 font-bold text-[10px]">mm</span>
                        </div>
                       </div>
                     ))}
                   </div>
-                  {category === 'digital' && (
-                   <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-2.5">
-                     <AlertTriangle size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                     <p className="text-[10px] font-medium text-blue-700 leading-relaxed uppercase">
-                       These are <span className="font-black">reference dimensions</span>. Buyers can change them proportionally during negotiation.
-                     </p>
-                   </div>
-                 )}
+                  {category === 'job' && (
+                    <div className="mt-4 p-4 border-2 border-dashed border-gray-100 rounded-2xl">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-loose">
+                        * These are the dimensions of your 3D model. If you need a specific overall size, enter it above as a reference for the printer.
+                      </p>
+                    </div>
+                  )}
               </section>
+            )}
+
+            {category === 'job' && (
+               <section className="space-y-6">
+                 <div className="flex items-center gap-2">
+                   <SectionLabel label="5. Material & Pricing" />
+                 </div>
+                 
+                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    {POPULAR_MATERIALS.map(m => {
+                      const isSelected = manualMaterial === m.name;
+                      return (
+                        <button key={m.name} type="button" onClick={() => setManualMaterial(m.name)} 
+                          className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all group ${isSelected ? 'border-blue-600 bg-blue-50 shadow-md' : 'border-gray-50 bg-white hover:border-gray-100'}`}>
+                          <span className="text-2xl group-hover:scale-110 transition-transform">{m.icon}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-tight text-center ${isSelected ? 'text-blue-700' : 'text-gray-400'}`}>{m.name}</span>
+                        </button>
+                      );
+                    })}
+                 </div>
+
+                 {manualMaterial === 'Custom / Other' && (
+                    <div className="p-6 bg-gray-50 border border-gray-100 rounded-3xl animate-in fade-in slide-in-from-top-2">
+                       <SectionLabel label="Specify Custom Material" />
+                       <input type="text" placeholder="e.g. Resin, Carbon Fiber PETG, Glow in the dark..." 
+                         value={customMaterialName} onChange={e => setCustomMaterialName(e.target.value)}
+                         className="w-full p-4 mt-3 bg-white border border-gray-200 rounded-2xl font-bold outline-none focus:border-blue-600 transition-all shadow-sm" />
+                    </div>
+                 )}
+
+                 {/* PRICING STRATEGY SECTION */}
+                 <div className="space-y-4">
+                   <div className="flex items-center gap-3">
+                     <SectionLabel label="Pricing Strategy" />
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-4">
+                     <button type="button" onClick={() => setIsNegotiable(false)}
+                       className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${!isNegotiable ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+                       <Tag size={20} className={!isNegotiable ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-400'} />
+                       <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${!isNegotiable ? 'text-blue-900' : 'text-gray-400 group-hover:text-blue-600'}`}>Fixed Price</span>
+                     </button>
+                     <button type="button" onClick={() => setIsNegotiable(true)}
+                       className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${isNegotiable ? 'border-indigo-600 bg-indigo-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+                       <MessageCircle size={20} className={isNegotiable ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-400'} />
+                       <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isNegotiable ? 'text-indigo-900' : 'text-gray-400 group-hover:text-indigo-600'}`}>Get Proposals</span>
+                     </button>
+                   </div>
+
+                   {(!isNegotiable) ? (
+                     <div className="rounded-2xl p-6 border-2 border-gray-200 bg-white transition-all">
+                       <div className="flex items-center gap-3">
+                         <span className="text-xl font-black text-gray-400">{currency}</span>
+                         <input type="text" inputMode="decimal" placeholder="0.00"
+                           value={manualPriceLocal}
+                           onChange={e => {
+                             const val = e.target.value.replace(',', '.');
+                             if (/^\d*\.?\d*$/.test(val)) setManualPriceLocal(val);
+                           }}
+                           className="flex-1 bg-transparent outline-none font-black text-5xl text-gray-900 placeholder-gray-200"
+                           required={!isNegotiable} title="Please fill out this field" />
+                       </div>
+                     </div>
+                   ) : (
+                    <div className="p-6 bg-indigo-600 rounded-[2rem] text-white shadow-xl shadow-indigo-500/20 flex flex-col gap-3 animate-in fade-in zoom-in-95">
+                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <Handshake size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-black uppercase tracking-widest text-sm">Negotiation Mode Active</h4>
+                        <p className="text-[11px] font-bold text-indigo-50 mt-1 opacity-90 leading-normal">
+                          Printers will see your project as "Open for Proposals". You will receive custom quotes and can discuss details in the chat before making a final decision.
+                        </p>
+                      </div>
+                    </div>
+                   )}
+                 </div>
+               </section>
             )}
 
             {isPhysicalAuto && (

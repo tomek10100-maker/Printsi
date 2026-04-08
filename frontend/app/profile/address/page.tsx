@@ -17,7 +17,7 @@ export default function AddressPage() {
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<any>(null);
 
-  // Stan Formularza
+  // Form State
   const [formData, setFormData] = useState({
     address: '',
     city: '',
@@ -26,7 +26,7 @@ export default function AddressPage() {
     phone_number: ''
   });
 
-  // 1. Pobierz dane
+  // 1. Fetch data
   useEffect(() => {
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -56,7 +56,7 @@ export default function AddressPage() {
     fetchData();
   }, [router]);
 
-  // 2. Zapisz dane
+  // 2. Save data
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -76,7 +76,7 @@ export default function AddressPage() {
 
       if (error) throw error;
       alert('Address saved successfully!');
-      router.push('/profile'); // Wróć do profilu po zapisaniu
+      router.push('/profile'); // Go back to profile after saving
     } catch (error: any) {
       alert('Error saving address: ' + error.message);
     } finally {
@@ -120,7 +120,7 @@ export default function AddressPage() {
           </div>
         </div>
 
-        {/* Formularz */}
+        {/* Form */}
         <form onSubmit={handleSave} className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
           
           <div>
@@ -131,7 +131,7 @@ export default function AddressPage() {
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
-                placeholder="e.g. Kwiatowa 12/5"
+                placeholder="e.g. Flower Street 12/5"
                 className="w-full p-4 pl-12 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900 outline-none focus:border-blue-500 transition-all"
               />
             </div>

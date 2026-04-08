@@ -23,9 +23,9 @@ export async function POST(req: Request) {
 
     const { itemId, chatId, buyerId, sellerId, problemType, description, contactEmail } = body;
 
-    // Walidacja danych wejściowych
+    // Input validation
     if (!itemId || !chatId || !buyerId || !problemType || !description || !contactEmail) {
-      return NextResponse.json({ success: false, error: 'Brakujące wymagane pola w puszce' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
     // 1. Próba utworzenia rekordu sporu
@@ -123,7 +123,7 @@ export async function POST(req: Request) {
     console.error('❌ Critical API Error:', error);
     return NextResponse.json({ 
       success: false, 
-      error: error.message || 'Wystąpił nieoczekiwany błąd serwera' 
+      error: error.message || 'An unexpected server error occurred' 
     }, { status: 500 });
   }
 }

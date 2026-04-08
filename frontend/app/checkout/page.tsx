@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { 
@@ -12,11 +12,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { DHL_COUNTRIES, calculateShippingPln, countryNameToCode, parseWeightToGrams } from '../lib/dhlRates';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 function CheckoutInner() {
   const router = useRouter();
@@ -261,15 +256,15 @@ function CheckoutInner() {
                   {shippingPln === 0 ? 'Order Details' : 'Shipping Details'}
                 </h2>
                 <form id="checkout-form" onSubmit={handlePayment} className="space-y-4">
-                  <input name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                  <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" type="email" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                  <input name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                  <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" type="email" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                   {shippingPln !== 0 && (
                     <>
-                      <input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Phone" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                      <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Address" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                      <input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Phone" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                      <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Address" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                       <div className="grid grid-cols-2 gap-4">
-                        <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" required className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold" />
-                        <input name="zip" value={formData.zip} onChange={handleInputChange} placeholder="ZIP" required className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold" />
+                        <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" required title="Please fill out this field" className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold" />
+                        <input name="zip" value={formData.zip} onChange={handleInputChange} placeholder="ZIP" required title="Please fill out this field" className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold" />
                       </div>
                       <select name="country" value={formData.country} onChange={handleInputChange} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold">
                         {DHL_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
@@ -315,7 +310,7 @@ function CheckoutInner() {
                           <Package className="text-gray-300" size={24} />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-gray-900 leading-tight mb-0.5 line-clamp-1">{item.name}</p>
+                          <p className="text-sm font-black text-gray-900 leading-tight mb-0.5 line-clamp-1">{item.title}</p>
                           <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{item.quantity} × {formatPrice(item.price)}</p>
                         </div>
                       </div>

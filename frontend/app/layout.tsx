@@ -26,6 +26,7 @@ export default function RootLayout({
         <ThemeProvider>
           <CartProvider>
             <CurrencyProvider>
+              <AuthGuard />
               {children}
               {/* Global real-time notification toasts */}
               <NotificationToast />

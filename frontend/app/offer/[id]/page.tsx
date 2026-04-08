@@ -2,20 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import {
   ArrowLeft, ShoppingBag, Truck, ShieldCheck, Box,
-  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle
+  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { parseWeightToGrams } from '../../lib/dhlRates';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '../../lib/supabase';
 
 export default function OfferDetailsPage() {
   const params = useParams();
@@ -242,30 +237,33 @@ export default function OfferDetailsPage() {
         {/* PRAWA STRONA (CONTENT) */}
         <div className="flex flex-col">
           <div className="mb-8">
-            <h1 className="text-5xl font-black uppercase tracking-tight text-gray-900 mb-4 leading-[1.1]">{offer.title}</h1>
+            <h1 className="text-5xl font-black uppercase tracking-tight text-white mb-4 leading-[1.1]">{offer.title}</h1>
             
             <div className="flex items-center gap-4">
-              <div className="text-3xl font-black text-blue-600">
-                {formatPrice(currentPrice)}
-              </div>
-              <div className="h-6 w-px bg-gray-200" />
-              <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isOutOfStock ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
-                {isOutOfStock ? 'Currently Unavailable' : (isDigital ? 'Ready to Download' : 'Ready to Ship')}
-              </div>
+              {offer.is_negotiable ? (
+                 <div className="flex items-center gap-3 bg-indigo-500/20 px-5 py-3 rounded-2xl border border-indigo-400/30 animate-in fade-in slide-in-from-left-2 duration-500 shadow-lg shadow-indigo-500/20">
+                   <div className="w-2.5 h-2.5 bg-indigo-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(129,140,248,0.8)]" />
+                   <span className="text-2xl font-black text-indigo-300 uppercase tracking-tight">Negotiable Price</span>
+                 </div>
+              ) : (
+                <div className="text-4xl font-black text-blue-600 leading-none">
+                   {formatPrice(currentPrice)}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-4 mb-8 p-5 bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
-            <div className="w-14 h-14 bg-gray-50 rounded-full overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
+          <div className="flex items-center gap-4 mb-8 p-5 bg-white/5 rounded-3xl border border-white/10 shadow-xl hover:shadow-2xl hover:bg-white/10 backdrop-blur-md transition-all">
+            <div className="w-14 h-14 bg-white/10 rounded-full overflow-hidden border-2 border-white/20 shadow-xl flex items-center justify-center">
               {seller?.avatar_url ? (
                 <img src={seller.avatar_url} alt={seller.full_name} className="w-full h-full object-cover" />
               ) : (
-                <UserIcon className="text-gray-300" size={28} />
+                <UserIcon className="text-white/40" size={28} />
               )}
             </div>
             <div>
-              <span className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-0.5">Crafted by</span>
-              <span className="font-black text-gray-900 text-lg">{seller?.full_name || 'Anonymous Maker'}</span>
+              <span className="block text-[10px] font-black uppercase text-white/30 tracking-widest mb-0.5">Crafted by</span>
+              <span className="font-black text-white text-lg">{seller?.full_name || 'Anonymous Maker'}</span>
             </div>
             <div className="ml-auto">
               <Link
@@ -277,37 +275,65 @@ export default function OfferDetailsPage() {
             </div>
           </div>
 
-          <div className="prose prose-lg text-gray-600 mb-10 max-w-none font-medium leading-relaxed">
+          <div className="prose prose-lg text-white/50 mb-10 max-w-none font-medium leading-relaxed">
             {offer.description}
           </div>
 
           {!isDigital && (
             <div className="space-y-6 mb-10">
               {/* Dimensions & Weight Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                {offer.dimensions && (
-                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {offer.material && (
+                  <div className="p-5 bg-white/5 rounded-[32px] border border-white/10 backdrop-blur-sm shadow-xl">
                     <div className="flex items-center gap-2 mb-3">
-                      <Ruler size={16} className="text-blue-500" />
+                      <Box size={16} className="text-blue-400" />
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Base Material</span>
+                    </div>
+                    <span className="text-2xl font-black text-white truncate block">{offer.material}</span>
+                  </div>
+                )}
+                {offer.dimensions && (
+                  <div className="p-5 bg-white/5 rounded-[32px] border border-white/10 backdrop-blur-sm shadow-xl">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Ruler size={16} className="text-blue-400" />
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Scale & Size</span>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       {offer.dimensions.split(',').map((dim: string, idx: number) => (
-                        <span key={idx} className="text-sm font-black text-gray-900 leading-tight">{dim.trim()}</span>
+                        <span key={idx} className="text-sm font-black text-white leading-tight">{dim.trim()}</span>
                       ))}
                     </div>
                   </div>
                 )}
                 {currentWeight && (
-                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100">
+                  <div className="p-5 bg-white/5 rounded-[32px] border border-white/10 backdrop-blur-sm shadow-xl">
                     <div className="flex items-center gap-2 mb-3">
-                      <Layers size={16} className="text-blue-500" />
+                      <Layers size={16} className="text-blue-400" />
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Weight</span>
                     </div>
-                    <span className="text-2xl font-black text-gray-900 truncate block">{currentWeight}</span>
+                    <span className="text-2xl font-black text-white truncate block">{currentWeight}</span>
                   </div>
                 )}
               </div>
+
+              {offer.custom_instructions && (
+                <div className="p-6 bg-indigo-500/10 rounded-[32px] border border-indigo-500/30 animate-in fade-in slide-in-from-bottom-2 duration-500 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <MessageSquare size={80} className="text-white" />
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <MessageSquare size={16} className="text-white" />
+                    </div>
+                    <span className="text-xs font-black uppercase text-white tracking-widest">Technical Notes / Adjustments</span>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
+                    <p className="text-sm font-bold text-indigo-50 leading-relaxed whitespace-pre-line italic">
+                      {offer.custom_instructions}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* COLOR VARIANTS SELECTION */}
               {hasVariants && (
@@ -361,7 +387,9 @@ export default function OfferDetailsPage() {
                           </div>
 
                           <div className="text-right">
-                             <div className={`text-sm font-black transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>{formatPrice(v.priceEUR)}</div>
+                             <div className={`text-sm font-black transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>
+                               {offer.is_negotiable ? 'Negotiable' : formatPrice(v.priceEUR)}
+                             </div>
                              <div className="text-[9px] font-bold text-gray-400 uppercase">{isSoldOut ? 'Sold out' : `${v.stock} pcs left`}</div>
                           </div>
                         </button>
@@ -399,18 +427,27 @@ export default function OfferDetailsPage() {
               {isOwner ? (
                 <Link
                   href={`/edit/${offer.id}`}
-                  className="flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest bg-gray-900 text-white hover:bg-blue-600 transition-all shadow-2xl flex items-center justify-center gap-3 group"
+                  className="flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 group border border-blue-400/30"
                 >
                   <Edit size={22} className="group-hover:rotate-12 transition-transform" /> Manage Listing
                 </Link>
               ) : (
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isOutOfStock || isAlreadyInCart}
-                  className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1'}`}
-                >
-                  {isOutOfStock ? 'Item Sold Out' : isAlreadyInCart ? <><Check size={22} /> Secured in Cart</> : <><ShoppingBag size={22} /> {offer.category === 'job' ? 'Bid for Print' : 'Get this Print'}</>}
-                </button>
+                <div className="flex flex-1 gap-4">
+                  <button
+                    onClick={handleContactMaker}
+                    className="flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest bg-white border-2 border-gray-100 text-gray-900 hover:bg-gray-50 hover:border-blue-200 transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95"
+                  >
+                    <Handshake size={22} className="text-blue-600" /> Negotiate
+                  </button>
+
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isOutOfStock || isAlreadyInCart}
+                    className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1 active:scale-95'}`}
+                  >
+                    {isOutOfStock ? 'Item Sold Out' : isAlreadyInCart ? <><Check size={22} /> Secured in Cart</> : <><ShoppingBag size={22} /> {offer.category === 'job' ? (offer.is_negotiable ? 'Send Proposal' : 'Bid for Print') : 'Get this Print'}</>}
+                  </button>
+                </div>
               )}
 
               <button

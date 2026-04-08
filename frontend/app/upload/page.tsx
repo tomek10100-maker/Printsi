@@ -7,7 +7,8 @@ import Link from 'next/link';
 import {
   Loader2, FileText, Image as ImageIcon, Box, Layers, Printer,
   X, Trash2, ChevronDown, EyeOff, Calculator, Zap, Settings2,
-  Wrench, Plus, Minus, Palette, ChevronUp, Ruler
+  Wrench, Plus, Minus, Palette, ChevronUp, Ruler, AlertTriangle,
+  Tag, MessageCircle, Handshake, CheckCircle
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 
@@ -54,6 +55,59 @@ const BASIC_COLORS: Record<string, string> = {
 };
 
 type DimensionEntry = { id: string; label: string; value: string };
+
+const POPULAR_MATERIALS = [
+  { 
+    name: 'PLA', 
+    fullName: 'Polylactic Acid',
+    desc: 'Great for decorative models and prototypes that don\'t need to withstand heat. It provides a smooth, colorful finish with sharp details, but may warp if left in a hot car. Safe for indoor use and eco-friendly.' 
+  },
+  { 
+    name: 'PLA+', 
+    fullName: 'Tough PLA / PLA+',
+    desc: 'A more durable version of PLA that is less likely to break if dropped. It maintains the beautiful surface finish of standard PLA while offering better impact resistance for functional parts that will be handled frequently.' 
+  },
+  { 
+    name: 'PETG', 
+    fullName: 'Polyethylene Terephthalate Glycol',
+    desc: 'Excellent for durable parts that might come into contact with water or mild chemicals. It is much more heat-resistant than PLA and won\'t become brittle over time, making it ideal for kitchen items or light outdoor use.' 
+  },
+  { 
+    name: 'ABS', 
+    fullName: 'Acrylonitrile Butadiene Styrene',
+    desc: 'A rugged, industrial plastic that can take a beating and survive high temperatures. It feels solid and high-quality, similar to LEGO bricks, and can be sanded or painted easily. Best for mechanical parts facing moderate heat.' 
+  },
+  { 
+    name: 'ASA', 
+    fullName: 'Acrylonitrile Styrene Acrylate',
+    desc: 'The best choice for anything that will live permanently outdoors. It offers the same strength as ABS but is exceptionally resistant to sunlight, ensuring your parts won\'t turn yellow or become brittle in the sun. Tough and weather-proof.' 
+  },
+  { 
+    name: 'TPU', 
+    fullName: 'Thermoplastic Polyurethane / Flexible',
+    desc: 'A unique rubber-like material that is virtually indestructible and highly flexible. Parts can be squeezed and stretched without breaking, offering excellent grip and shock absorption. Ideal for phone cases, gaskets, or wearable items.' 
+  },
+  { 
+    name: 'PA', 
+    fullName: 'Nylon / Polyamide',
+    desc: 'An ultra-tough engineering plastic exceptionally resistant to wear and friction. It feels slightly slippery and is very hard to break, making it the top choice for moving parts like gears or sliders. Built for intense, long-term use.' 
+  },
+  { 
+    name: 'PC', 
+    fullName: 'Polycarbonate',
+    desc: 'The ultimate material for impact resistance and extreme heat. It is nearly as strong as metal and can withstand very high temperatures without losing its shape. Perfect for safety equipment or high-performance structural parts.' 
+  },
+  { 
+    name: 'Resin (Std)', 
+    fullName: 'Standard Resin',
+    desc: 'Provides a level of detail and surface smoothness that is unmatched by other methods. It captures the finest textures and sharpest edges, making it the gold standard for miniatures and jewelry. Note that it can be brittle if dropped.' 
+  },
+  { 
+    name: 'Other', 
+    fullName: 'Custom / Other Material',
+    desc: 'Select this if your project requires a specialized material like wood-fill, glow-in-the-dark, or high-performance carbon-fiber. This allows for unique aesthetic effects or specific properties not covered by standard options.' 
+  }
+];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 type ManualLayer = {
@@ -154,6 +208,9 @@ export default function AddOfferPage() {
 
   // Manual mode
   const [manualMaterial, setManualMaterial] = useState('');
+  const [customMaterialName, setCustomMaterialName] = useState('');
+  const [customInstructions, setCustomInstructions] = useState('');
+  const [isNegotiable, setIsNegotiable] = useState(false);
   const [manualColor, setManualColor] = useState('');
   const [manualColorHex, setManualColorHex] = useState('#888888');
   const [manualWeight, setManualWeight] = useState('');
@@ -297,6 +354,9 @@ export default function AddOfferPage() {
     setProjectFile(null);
     setPreviewImages([]);
     setManualMaterial('');
+    setCustomMaterialName('');
+    setCustomInstructions('');
+    setIsNegotiable(false);
     setManualColor('');
     setManualColorHex('#888888');
     setManualWeight('');
@@ -317,7 +377,7 @@ export default function AddOfferPage() {
     e.preventDefault();
     setFormError('');
     if (!title) { setFormError('Title is required.'); return; }
-    if (category !== 'job' && previewImages.length === 0) { setFormError('Please upload at least 1 photo.'); return; }
+    if (previewImages.length === 0) { setFormError('Please upload at least 1 photo.'); return; }
     if ((category === 'digital' || category === 'job') && !projectFile) { setFormError('3D File is required.'); return; }
     if (!user?.id) return;
 
@@ -337,7 +397,7 @@ export default function AddOfferPage() {
           }
         }
       }
-    } else {
+    } else if (!isNegotiable) {
       if (!manualPriceLocal) { setFormError('Price is required.'); return; }
     }
 
@@ -451,8 +511,8 @@ export default function AddOfferPage() {
         }
       } else {
         // Digital or Job
-        dbPrice = manualPriceEUR!;
-        dbMaterial = manualMaterial || null;
+        dbPrice = isNegotiable ? 0 : manualPriceEUR!;
+        dbMaterial = manualMaterial === 'Other' ? customMaterialName : (manualMaterial || null);
         dbColor = manualColorHex || null;
         dbColorName = manualColor || null;
         dbWeight = manualWeight || null;
@@ -465,31 +525,47 @@ export default function AddOfferPage() {
         title, description, price: dbPrice, category,
         material: dbMaterial, color: dbColor, color_name: dbColorName,
         weight: dbWeight, dimensions: finalDimensions,
+        custom_instructions: category === 'job' ? customInstructions : null,
+        is_negotiable: category === 'job' ? isNegotiable : false,
         stock: dbStock, file_url: projUrl,
         image_url: imageUrls[0] || null, image_urls: imageUrls,
         user_id: user.id, filament_id: dbFilamentId, created_at: new Date(),
         is_custom: false, // Ensure it shows in standard gallery
       };
 
-      const { error: dbErr } = await supabase.from('offers')
-        .insert({
-          ...basePayload,
-          ...(colorVariantsPayload ? { color_variants: colorVariantsPayload } : {}),
-        });
+      // --- ROBUST INSERTION WITH FALLBACKS ---
+      // We try to insert with all new features. If columns are missing in Supabase, we fall back.
+      let payload: any = { ...basePayload };
+      if (colorVariantsPayload) payload.color_variants = colorVariantsPayload;
 
-      // If color_variants column missing, retry without it
-      if (dbErr && dbErr.message?.includes('color_variants')) {
-        const { error: retryErr } = await supabase.from('offers').insert(basePayload);
-        if (retryErr) throw retryErr;
-      } else if (dbErr) {
-        throw dbErr;
+      let { error: dbErr } = await supabase.from('offers').insert(payload);
+
+      if (dbErr) {
+        console.warn("Primary insert failed, attempting fallbacks:", dbErr.message);
+        
+        // Check if new negotiation/instruction columns are missing
+        if (dbErr.message?.includes('custom_instructions') || dbErr.message?.includes('is_negotiable')) {
+          const { custom_instructions, is_negotiable, ...retry1Payload }: any = { 
+            ...basePayload, 
+            ...(colorVariantsPayload ? { color_variants: colorVariantsPayload } : {}) 
+          };
+          
+          const { error: err1 } = await supabase.from('offers').insert(retry1Payload);
+          dbErr = err1;
+        }
+
+        // Check if color_variants column is missing (old fallback)
+        if (dbErr && dbErr.message?.includes('color_variants')) {
+          const { color_variants, custom_instructions, is_negotiable, ...retry2Payload }: any = basePayload;
+          
+          const { error: err2 } = await supabase.from('offers').insert(retry2Payload);
+          dbErr = err2;
+        }
+        
+        if (dbErr) throw dbErr;
       }
 
       setSubmitSuccess(true);
-      // Automatic redirect after a short delay for premium feel
-      setTimeout(() => {
-        router.push('/profile');
-      }, 1500);
     } catch (err: any) {
       setFormError(`Error: ${err.message}`);
     } finally {
@@ -538,11 +614,11 @@ export default function AddOfferPage() {
               <SectionLabel step="1" label="Listing Type" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {([
-                  { key: 'job', label: 'Print Request', Icon: Printer, c: 'blue', req: false },
-                  { key: 'digital', label: 'Digital File', Icon: Layers, c: 'orange', req: false },
-                  { key: 'physical', label: 'Physical Item', Icon: Box, c: 'emerald', req: true },
-                ] as const).map(({ key, label, Icon, c, req }) => {
-                  const disabled = !!req && !isPrinter;
+                  { key: 'job', label: 'Print Request', Icon: Printer, c: 'blue', requiredRole: null, roleLabel: '' },
+                  { key: 'digital', label: 'Digital File', Icon: Layers, c: 'orange', requiredRole: 'designer', roleLabel: 'CAD Designer' },
+                  { key: 'physical', label: 'Physical Item', Icon: Box, c: 'emerald', requiredRole: 'printer', roleLabel: 'Printer' },
+                ] as const).map(({ key, label, Icon, c, requiredRole, roleLabel }) => {
+                  const disabled = !!requiredRole && !userRoles.includes(requiredRole);
                   const active = category === key;
                   const ac: any = { 
                     blue: 'border-blue-500 bg-blue-50 text-blue-800', 
@@ -562,7 +638,14 @@ export default function AddOfferPage() {
                       className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all relative ${disabled ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed' : active ? ac[c] : `border-gray-200 text-gray-500 ${hc[c]}`}`}>
                       <Icon size={32} />
                       <span className={`font-black uppercase text-sm ${disabled ? 'mb-4' : ''}`}>{label}</span>
-                      {disabled && <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest absolute bottom-3 left-0 right-0 text-center">Printer role required</span>}
+                      {disabled && (
+                        <div className="absolute bottom-3 left-0 right-0 text-center flex flex-col items-center gap-0.5">
+                          <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">{roleLabel} role required</span>
+                          <Link href="/settings" className="text-[8px] font-black text-blue-500/80 hover:text-blue-600 underline transition-colors uppercase tracking-tight">
+                            Change in Profile Settings
+                          </Link>
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -590,7 +673,7 @@ export default function AddOfferPage() {
             {/* 2. DETAILS */}
             <section className="space-y-4">
               <SectionLabel step="2" label="Basic Details" />
-              <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required
+              <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required title="Please fill out this field"
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
               <textarea
                 placeholder={category === 'job' ? 'Describe your project in detail. Mention the purpose, strength requirements, and any specifics to help the printer achieve the best result for you...' : 'Description'}
@@ -598,6 +681,27 @@ export default function AddOfferPage() {
                 onChange={e => setDescription(e.target.value)}
                 rows={4}
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all resize-none" />
+              
+              {category === 'job' && (
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-2">
+                    <Settings2 size={16} className="text-gray-400" />
+                    <span className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Custom Adjustments</span>
+                  </div>
+                  <textarea
+                    value={customInstructions}
+                    onChange={e => setCustomInstructions(e.target.value)}
+                    placeholder="e.g. Please adjust the mounting holes to 5mm for a better fit, or change the shell thickness to ensure it fits perfectly inside my enclosure..."
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl font-medium text-sm outline-none focus:border-blue-600 focus:bg-white transition-all min-h-[100px] resize-none shadow-inner"
+                  />
+                  <div className="bg-blue-50/30 border border-blue-100/50 p-3 rounded-xl flex items-start gap-2.5 mt-1">
+                    <Zap size={14} className="text-blue-500 mt-0.5" />
+                    <p className="text-[10px] text-blue-600 font-bold leading-normal">
+                      The service provider will review these instructions and confirm their feasibility during the offer negotiation process.
+                    </p>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* 3. ATTACHMENTS */}
@@ -612,7 +716,7 @@ export default function AddOfferPage() {
               )}
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
                 <ImageIcon className="mb-3 text-gray-400 group-hover:text-blue-500" size={32} />
-                <span className="text-xs font-black uppercase text-gray-500">Upload Photos {category === 'job' ? '(Optional)' : '(Max 6)'}</span>
+                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Required, Max 6)</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
               </label>
               {previewImages.length > 0 && (
@@ -647,6 +751,39 @@ export default function AddOfferPage() {
                       <Plus size={11} /> Add dimension
                     </button>
                   </div>
+
+                  <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl flex items-start gap-3">
+                    <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                      <Ruler size={18} />
+                    </div>
+                    <p className="text-[11px] text-blue-800 font-medium leading-relaxed">
+                      {category === 'job' ? (
+                        <>
+                          <strong className="block uppercase tracking-wider text-[10px] mb-0.5">Specifications Matter</strong>
+                          Provide the exact dimensions of your model so printers can calculate material costs accurately and confirm it fits within their machine's build volume.
+                        </>
+                      ) : (
+                        <>
+                          <strong className="block uppercase tracking-wider text-[10px] mb-0.5">Scale Matters</strong>
+                          Provide dimensions that are important for the buyer or may be significant for the final product. Being precise helps buyers understand the scale and ensures a perfect fit.
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  {category === 'job' && (
+                    <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start gap-3">
+                      <div className="p-2 bg-red-100 text-red-600 rounded-xl">
+                        <AlertTriangle size={18} />
+                      </div>
+                      <div className="flex-1">
+                        <strong className="block uppercase tracking-wider text-[10px] text-red-800 mb-0.5 font-black">Proportions Warning</strong>
+                        <p className="text-[11px] text-red-700 font-bold leading-relaxed">
+                          Carefully check your values. If the dimensions you provide do not match the original aspect ratio of your 3D file, the final print will be stretched or distorted to fit those measurements.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {dimensionEntries.map((dim, idx) => (
                       <div key={dim.id} className="flex items-center gap-2">
@@ -683,6 +820,7 @@ export default function AddOfferPage() {
                       </div>
                     ))}
                   </div>
+
                   {serializeDimensions() && (
                     <p className="text-[10px] text-gray-400 font-bold bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-100">
                       📐 {serializeDimensions()}
@@ -699,16 +837,71 @@ export default function AddOfferPage() {
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {category !== 'digital' && (
+                      {category !== 'digital' && category !== 'job' && (
                         <div className="relative">
                           <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs pointer-events-none">QTY</span>
-                          <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} onWheel={(e) => e.currentTarget.blur()} required
+                          <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} onWheel={(e) => e.currentTarget.blur()} required title="Please fill out this field"
                             className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
                         </div>
                       )}
                       {category === 'job' && (
-                        <input type="text" placeholder="Material (optional)" value={manualMaterial} onChange={e => setManualMaterial(e.target.value)}
-                          className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all" />
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                             <div className="flex items-center gap-2">
+                               <Wrench size={14} className="text-gray-400" />
+                               <span className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Required Material</span>
+                             </div>
+                             <span className="text-[9px] font-bold text-blue-500 uppercase tracking-wider animate-pulse">Click to learn about materials</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                            {POPULAR_MATERIALS.map((m) => (
+                              <button
+                                key={m.name}
+                                type="button"
+                                onClick={() => {
+                                  setManualMaterial(m.name);
+                                  if (m.name !== 'Other') setCustomMaterialName('');
+                                }}
+                                className={`p-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2 ${
+                                  manualMaterial === m.name 
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 scale-[1.02]' 
+                                    : 'bg-white border-gray-100 text-gray-500 hover:border-blue-200 hover:text-blue-600'
+                                }`}
+                              >
+                                {m.name}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className={`grid transition-all duration-500 ease-in-out ${manualMaterial === 'Other' ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                               <input 
+                                 type="text" 
+                                 placeholder="Enter custom material name (e.g. PEEK, Wood PLA...)" 
+                                 value={customMaterialName}
+                                 onChange={e => setCustomMaterialName(e.target.value)}
+                                 className="w-full p-4 bg-white border-2 border-blue-100 rounded-2xl font-bold text-gray-900 outline-none focus:border-blue-600 transition-all shadow-sm"
+                               />
+                            </div>
+                          </div>
+
+                          <div className={`grid transition-all duration-500 ease-in-out ${manualMaterial ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden">
+                               <div className="bg-gray-900 rounded-2xl p-5 border border-white/10">
+                                 <div className="flex items-center justify-between mb-2">
+                                   <span className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em]">Material Properties</span>
+                                   <span className="text-white text-xs font-black uppercase tracking-tight">
+                                     {POPULAR_MATERIALS.find(m => m.name === manualMaterial)?.fullName}
+                                   </span>
+                                 </div>
+                                 <p className="text-gray-400 text-xs font-medium leading-relaxed italic">
+                                   "{POPULAR_MATERIALS.find(m => m.name === manualMaterial)?.desc}"
+                                 </p>
+                               </div>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1211,10 +1404,26 @@ export default function AddOfferPage() {
 
             {/* FINAL PRICE */}
             {category !== 'physical' && (
-              <section>
-                <SectionLabel step="5" label="Final Price" />
-                <div className="mt-3">
-                  <div className="rounded-2xl p-6 border-2 border-gray-200 bg-white">
+              <section className="space-y-4">
+                <SectionLabel step="5" label="Price & Strategy" />
+                
+                {category === 'job' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={() => setIsNegotiable(false)}
+                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${!isNegotiable ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+                      <Tag size={20} className={!isNegotiable ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-400'} />
+                      <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${!isNegotiable ? 'text-blue-900' : 'text-gray-400 group-hover:text-blue-600'}`}>Fixed Price</span>
+                    </button>
+                    <button type="button" onClick={() => setIsNegotiable(true)}
+                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${isNegotiable ? 'border-indigo-600 bg-indigo-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+                      <MessageCircle size={20} className={isNegotiable ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-400'} />
+                      <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isNegotiable ? 'text-indigo-900' : 'text-gray-400 group-hover:text-indigo-600'}`}>Get Proposals</span>
+                    </button>
+                  </div>
+                )}
+
+                {(!isNegotiable) ? (
+                  <div className="rounded-2xl p-6 border-2 border-gray-200 bg-white transition-all">
                     <div className="flex items-center gap-3">
                       <span className="text-xl font-black text-gray-400">{currency}</span>
                       <input type="text" inputMode="decimal" placeholder="0.00"
@@ -1224,10 +1433,22 @@ export default function AddOfferPage() {
                           if (/^\d*\.?\d*$/.test(val)) setManualPriceLocal(val);
                         }}
                         className="flex-1 bg-transparent outline-none font-black text-5xl text-gray-900 placeholder-gray-200"
-                        required />
+                        required={!isNegotiable} title="Please fill out this field" />
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-6 bg-indigo-600 rounded-[2rem] text-white shadow-xl shadow-indigo-500/20 flex flex-col gap-3 animate-in fade-in zoom-in-95">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                      <Handshake size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-black uppercase tracking-widest text-sm">Negotiation Mode Active</h4>
+                      <p className="text-[11px] font-bold text-indigo-50 mt-1 opacity-90 leading-normal">
+                        Printers will see your project as "Open for Proposals". You will receive custom quotes and can discuss details in the chat before making a final decision.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </section>
             )}
 
@@ -1243,24 +1464,28 @@ export default function AddOfferPage() {
             </button>
 
             {submitSuccess && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-md animate-in fade-in duration-500 p-6">
-                <div className="text-center p-12 bg-[#111111] rounded-[40px] shadow-2xl flex flex-col items-center gap-6 transform animate-in zoom-in-95 duration-500 max-w-sm w-full mx-auto border border-white/5">
-                  <div className="w-20 h-20 bg-[#00d46a] text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/20">
-                    <Box size={40} strokeWidth={3} />
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-xl animate-in fade-in duration-500 p-6">
+                <div className="text-center p-10 bg-white rounded-[3rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] flex flex-col items-center gap-6 transform animate-in zoom-in-95 duration-500 max-w-sm w-full mx-auto border border-gray-100">
+                  <div className="w-20 h-20 bg-green-500 text-white rounded-full flex items-center justify-center shadow-2xl shadow-green-200">
+                    <CheckCircle size={40} strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Published!</h2>
-                    <p className="text-gray-400 font-bold mt-3 text-xs italic">Your offer is now live in the gallery.</p>
+                    <h2 className="text-3xl font-black text-gray-900 tracking-tight uppercase leading-none">Success!</h2>
+                    <p className="text-gray-500 font-bold mt-2 text-xs">Your listing is now visible to the world.</p>
                   </div>
                   
                   <div className="flex flex-col gap-3 w-full mt-2">
                     <button type="button" onClick={() => router.push('/gallery')}
-                      className="w-full py-4 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all shadow-xl">
-                      Go to Gallery
+                      className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl active:scale-[0.98]">
+                      Explore Gallery
+                    </button>
+                    <button type="button" onClick={() => router.push('/profile')}
+                      className="w-full py-4 bg-gray-100 text-gray-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-[0.98]">
+                      Go to My Profile
                     </button>
                     <button type="button" onClick={resetForm}
-                      className="px-6 py-4 bg-white border-2 border-gray-100 text-gray-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm">
-                      Add Another
+                      className="w-full py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-gray-300 hover:text-gray-600 transition-all active:scale-[0.98]">
+                      Post Something Else
                     </button>
                   </div>
                 </div>

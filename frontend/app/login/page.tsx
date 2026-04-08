@@ -1,14 +1,9 @@
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/app/lib/supabase';
 import { useState } from 'react';
 import { Mail, Lock, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);

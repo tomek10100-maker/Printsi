@@ -1,13 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { useRouter, usePathname } from 'next/navigation';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const EXEMPT_PATHS = ['/onboarding', '/login', '/auth'];
 const SESSION_KEY = 'printis_onboarding_ok';

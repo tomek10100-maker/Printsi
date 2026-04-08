@@ -50,22 +50,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   const addItem = (newItem: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
-    setItems((prevItems) => {
-      const existingItem = prevItems.find((i) =>
+    const existingItem = items.find((i) =>
         i.id === newItem.id && i.variant_name === newItem.variant_name
-      );
+    );
 
-      const currentQty = existingItem ? existingItem.quantity : 0;
-      const availableStock = newItem.stock;
+    const currentQty = existingItem ? existingItem.quantity : 0;
+    const availableStock = newItem.stock;
 
-      if (currentQty + quantity > availableStock) {
+    if (currentQty + quantity > availableStock) {
         alert(`Sorry, only ${availableStock} items available in stock.`);
-        return prevItems;
-      }
+        return;
+    }
 
+    setItems((prevItems) => {
       if (existingItem) {
         return prevItems.map((i) =>
-          i.id === newItem.id ? { ...i, quantity: i.quantity + quantity } : i
+          (i.id === newItem.id && i.variant_name === newItem.variant_name) ? { ...i, quantity: i.quantity + quantity } : i
         );
       } else {
         return [...prevItems, { ...newItem, quantity }];
@@ -74,21 +74,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateQuantity = (id: string, amount: number, variant_name?: string) => {
+    const item = items.find(i => i.id === id && i.variant_name === variant_name);
+    if (!item) return;
+
+    if (item.is_custom) {
+        alert("Cannot modify quantity of an accepted custom proposal.");
+        return;
+    }
+
+    const newQuantity = item.quantity + amount;
+
+    if (newQuantity > item.stock) {
+        alert(`Cannot add more. Only ${item.stock} available.`);
+        return;
+    }
+    
+    if (newQuantity < 1) return;
+
     setItems((prev) => prev.map((item) => {
       if (item.id === id && item.variant_name === variant_name) {
-        if (item.is_custom) {
-          alert("Cannot modify quantity of an accepted custom proposal.");
-          return item;
-        }
-
-        const newQuantity = item.quantity + amount;
-
-        if (newQuantity > item.stock) {
-          alert(`Cannot add more. Only ${item.stock} available.`);
-          return item;
-        }
-        if (newQuantity < 1) return item;
-
         return { ...item, quantity: newQuantity };
       }
       return item;
