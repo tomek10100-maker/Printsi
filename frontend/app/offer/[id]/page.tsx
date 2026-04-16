@@ -237,7 +237,7 @@ export default function OfferDetailsPage() {
         {/* PRAWA STRONA (CONTENT) */}
         <div className="flex flex-col">
           <div className="mb-8">
-            <h1 className="text-5xl font-black uppercase tracking-tight text-white mb-4 leading-[1.1]">{offer.title}</h1>
+            <h1 className="text-5xl font-black uppercase tracking-tight text-gray-900 mb-4 leading-[1.1]">{offer.title}</h1>
             
             <div className="flex items-center gap-4">
               {offer.is_negotiable ? (
@@ -253,17 +253,17 @@ export default function OfferDetailsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 mb-8 p-5 bg-white/5 rounded-3xl border border-white/10 shadow-xl hover:shadow-2xl hover:bg-white/10 backdrop-blur-md transition-all">
-            <div className="w-14 h-14 bg-white/10 rounded-full overflow-hidden border-2 border-white/20 shadow-xl flex items-center justify-center">
+          <div className="flex items-center gap-4 mb-8 p-5 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+            <div className="w-14 h-14 bg-white rounded-full overflow-hidden border-2 border-gray-100 shadow-sm flex items-center justify-center">
               {seller?.avatar_url ? (
                 <img src={seller.avatar_url} alt={seller.full_name} className="w-full h-full object-cover" />
               ) : (
-                <UserIcon className="text-white/40" size={28} />
+                <UserIcon className="text-gray-300" size={28} />
               )}
             </div>
             <div>
-              <span className="block text-[10px] font-black uppercase text-white/30 tracking-widest mb-0.5">Crafted by</span>
-              <span className="font-black text-white text-lg">{seller?.full_name || 'Anonymous Maker'}</span>
+              <span className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-0.5">Crafted by</span>
+              <span className="font-black text-gray-900 text-lg">{seller?.full_name || 'Anonymous Maker'}</span>
             </div>
             <div className="ml-auto">
               <Link
@@ -275,7 +275,7 @@ export default function OfferDetailsPage() {
             </div>
           </div>
 
-          <div className="prose prose-lg text-white/50 mb-10 max-w-none font-medium leading-relaxed">
+          <div className="prose prose-lg text-gray-600 mb-10 max-w-none font-medium leading-relaxed">
             {offer.description}
           </div>
 
@@ -284,51 +284,72 @@ export default function OfferDetailsPage() {
               {/* Dimensions & Weight Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {offer.material && (
-                  <div className="p-5 bg-white/5 rounded-[32px] border border-white/10 backdrop-blur-sm shadow-xl">
+                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-2 mb-3">
                       <Box size={16} className="text-blue-400" />
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Base Material</span>
                     </div>
-                    <span className="text-2xl font-black text-white truncate block">{offer.material}</span>
+                    <span className="text-2xl font-black text-gray-900 truncate block">{offer.material}</span>
+                    
+                    {/* Material breakdown based on selected variant */}
+                    {currentVariant?.layers && currentVariant.layers.length > 0 ? (
+                      <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                        <span className="text-[8px] font-black uppercase text-gray-400 tracking-tighter block">Composition Breakdown</span>
+                        {currentVariant.layers.map((l: any, i: number) => (
+                          <div key={i} className="flex justify-between items-center bg-white/50 p-2 rounded-xl border border-white/50">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-full border border-gray-100" style={{ backgroundColor: l.color_hex || '#ccc' }} />
+                              <span className="text-[9px] font-black text-gray-900 uppercase tracking-tight truncate max-w-[80px]">{l.color_name}</span>
+                            </div>
+                            <span className="text-[11px] font-black text-blue-700">{l.grams}g</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center text-[11px] font-bold">
+                        <span className="text-gray-400 uppercase tracking-widest">Total Material:</span>
+                        <span className="text-blue-600 font-black">{currentWeight || 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {offer.dimensions && (
-                  <div className="p-5 bg-white/5 rounded-[32px] border border-white/10 backdrop-blur-sm shadow-xl">
+                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
                       <Ruler size={16} className="text-blue-400" />
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Scale & Size</span>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       {offer.dimensions.split(',').map((dim: string, idx: number) => (
-                        <span key={idx} className="text-sm font-black text-white leading-tight">{dim.trim()}</span>
+                        <span key={idx} className="text-sm font-black text-gray-900 leading-tight">{dim.trim()}</span>
                       ))}
                     </div>
                   </div>
                 )}
                 {currentWeight && (
-                  <div className="p-5 bg-white/5 rounded-[32px] border border-white/10 backdrop-blur-sm shadow-xl">
+                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
                       <Layers size={16} className="text-blue-400" />
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Weight</span>
                     </div>
-                    <span className="text-2xl font-black text-white truncate block">{currentWeight}</span>
+                    <span className="text-2xl font-black text-gray-900 truncate block">{currentWeight}</span>
                   </div>
                 )}
               </div>
 
               {offer.custom_instructions && (
-                <div className="p-6 bg-indigo-500/10 rounded-[32px] border border-indigo-500/30 animate-in fade-in slide-in-from-bottom-2 duration-500 relative overflow-hidden group">
+                <div className="p-6 bg-indigo-50 rounded-[32px] border border-indigo-100 animate-in fade-in slide-in-from-bottom-2 duration-500 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <MessageSquare size={80} className="text-white" />
+                    <MessageSquare size={80} className="text-indigo-400" />
                   </div>
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
                       <MessageSquare size={16} className="text-white" />
                     </div>
-                    <span className="text-xs font-black uppercase text-white tracking-widest">Technical Notes / Adjustments</span>
+                    <span className="text-xs font-black uppercase text-indigo-900 tracking-widest">Technical Notes / Adjustments</span>
                   </div>
-                  <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
-                    <p className="text-sm font-bold text-indigo-50 leading-relaxed whitespace-pre-line italic">
+                  <div className="bg-white border border-indigo-100 p-5 rounded-2xl shadow-sm">
+                    <p className="text-sm font-bold text-gray-700 leading-relaxed whitespace-pre-line italic">
                       {offer.custom_instructions}
                     </p>
                   </div>
@@ -390,7 +411,13 @@ export default function OfferDetailsPage() {
                              <div className={`text-sm font-black transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>
                                {offer.is_negotiable ? 'Negotiable' : formatPrice(v.priceEUR)}
                              </div>
-                             <div className="text-[9px] font-bold text-gray-400 uppercase">{isSoldOut ? 'Sold out' : `${v.stock} pcs left`}</div>
+                             <div className="text-[9px] font-bold text-gray-400 uppercase flex flex-col items-end">
+                               <span>{isSoldOut ? 'Sold out' : (offer.category === 'digital' ? <span className="text-lg leading-none">∞</span> : `${v.stock} pcs left`)}</span>
+                               {(() => {
+                                 const weight = v.layers?.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0);
+                                 return weight > 0 ? <span className="text-blue-600 font-black tracking-tighter mt-0.5">~{Math.round(weight)}g</span> : null;
+                               })()}
+                             </div>
                           </div>
                         </button>
                       );
@@ -407,7 +434,9 @@ export default function OfferDetailsPage() {
               <div className="flex items-center justify-between p-5 bg-gray-50 rounded-[32px] border border-gray-100">
                  <div className="flex flex-col">
                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity</span>
-                   <span className="text-[10px] font-bold text-blue-600">{currentStock} pieces available</span>
+                   <span className="text-[10px] font-bold text-blue-600">
+                     {offer.category === 'digital' ? <span className="text-xl leading-none">∞</span> : `${currentStock} pieces available`}
+                   </span>
                  </div>
                  <div className="flex items-center gap-6 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
                     <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90"><Minus size={16} /></button>

@@ -466,53 +466,82 @@ function MessagesInner() {
         setShowCustomFilamentInput(false);
         setCustomFilamentText('');
 
-        if (sourceData?.swappedLayers) {
-            setSwappedLayers(sourceData.swappedLayers.map((l: any) => ({
-                original_color_name: l.from,
-                original_color_hex: l.from_hex || l.to_hex || '#cccccc',
-                grams: l.grams,
-                swapped_filament_id: null,
-                custom_color_name: l.to !== l.from ? l.to : '',
-                custom_color_hex: l.to !== l.from ? l.to_hex : l.from_hex || '#cccccc',
-                showCustom: l.to !== l.from
-            })));
-        } else {
-            const multiVariant = baseOffer?.color_variants?.find((v: any) => v.isMultiColor && v.layers && v.layers.length > 0);
-            if (multiVariant) {
-                setSwappedLayers(multiVariant.layers.map((l: any) => ({
-                    original_color_name: l.color_name,
-                    original_color_hex: l.color_hex,
-                    grams: l.grams,
-                    swapped_filament_id: null,
-                    custom_color_name: '',
-                    custom_color_hex: l.color_hex || '#cccccc',
-                    showCustom: false
-                })));
-            } else {
-                setSwappedLayers([]);
-            }
-        }
-
         const dimStr = sourceData?.dimensions || baseOffer?.dimensions || '';
         setProposalDims(parseDimensionsAdvanced(dimStr));
         setProposalScale(sourceData?.dimensionScale || 100);
 
         setLoadingFilaments(true);
         setShowProposalModal(true);
-        try {
-            const res = await fetch(`/api/filaments?sellerId=${activeChatData.seller_id}`);
-            const data = await res.json();
-            if (data.filaments) {
-                setSellerFilaments(data.filaments);
+
+        // ── Fetch both filaments AND full offer (with color_variants layers) in parallel ──
+        const [filRes, fullOfferRes] = await Promise.allSettled([
+            fetch(`/api/filaments?sellerId=${activeChatData.seller_id}`),
+            supabase
+                .from('offers')
+                .select('id, color_variants')
+                .eq('id', baseOffer?.id)
+                .maybeSingle(),
+        ]);
+
+        // Set seller filaments
+        if (filRes.status === 'fulfilled') {
+            try { const d = await filRes.value.json(); setSellerFilaments(d.filaments || []); }
+            catch { setSellerFilaments([]); }
+        } else { setSellerFilaments([]); }
+
+        // Build swappedLayers from data
+        if (sourceData?.swappedLayers) {
+            setSwappedLayers(sourceData.swappedLayers.map((l: any) => ({
+                original_color_name: l.from,
+                original_color_hex:  l.from_hex || l.to_hex || '#cccccc',
+                grams: l.grams,
+                swapped_filament_id: null,
+                custom_color_name: l.to !== l.from ? l.to : '',
+                custom_color_hex:  l.to !== l.from ? l.to_hex : l.from_hex || '#cccccc',
+                showCustom: l.to !== l.from,
+            })));
+        } else {
+            // Use full offer color_variants (more complete than the join data)
+            const fullOffer = fullOfferRes.status === 'fulfilled' ? fullOfferRes.value?.data : null;
+            const cvs: any[] = fullOffer?.color_variants ?? baseOffer?.color_variants ?? [];
+
+            const toLayer = (l: any, fallbackHex = '#cccccc') => ({
+                original_color_name: l.color_name || l.name || l.label || '',
+                original_color_hex:  l.color_hex  || l.hex   || fallbackHex,
+                grams: l.grams ?? l.weight ?? null,
+                swapped_filament_id: null,
+                custom_color_name: '',
+                custom_color_hex: l.color_hex || l.hex || fallbackHex,
+                showCustom: false,
+            });
+
+            const varWithLayers = cvs.find((v: any) => Array.isArray(v.layers) && v.layers.length > 0);
+            const varWithColors = !varWithLayers && cvs.find((v: any) => Array.isArray(v.colors) && v.colors.length > 0);
+            const varWithLabel  = !varWithLayers && !varWithColors && cvs.find((v: any) => typeof v.label === 'string' && v.label.includes(' + '));
+
+            if (varWithLayers) {
+                setSwappedLayers(varWithLayers.layers.map((l: any) => toLayer(l)));
+            } else if (varWithColors) {
+                setSwappedLayers(varWithColors.colors.map((l: any) => toLayer(l)));
+            } else if (varWithLabel) {
+                const names: string[] = varWithLabel.label.split(' + ').map((s: string) => s.trim());
+                setSwappedLayers(names.map((name: string, i: number) => ({
+                    original_color_name: name,
+                    original_color_hex:  i === 0 ? (varWithLabel.color_hex || '#cccccc') : '#cccccc',
+                    grams: null,
+                    swapped_filament_id: null,
+                    custom_color_name: '',
+                    custom_color_hex: i === 0 ? (varWithLabel.color_hex || '#cccccc') : '#cccccc',
+                    showCustom: false,
+                })));
             } else {
-                setSellerFilaments([]);
+                setSwappedLayers([]);
             }
-        } catch (err) {
-            console.error(err);
-            setSellerFilaments([]);
         }
+
         setLoadingFilaments(false);
     };
+
 
     const handleDimChange = (idx: number, newValStr: string) => {
         const dim = proposalDims[idx];
@@ -1337,172 +1366,208 @@ function MessagesInner() {
                                                     <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Material & Color</span>
 
                                                     {swappedLayers.length > 0 ? (
-                                                        /* MULTI-COLOR SWAP VIEW */
-                                                        <div className="space-y-6">
-                                                            {swappedLayers.map((layer, lIdx) => (
-                                                                <div key={lIdx} className="bg-gray-50 border border-gray-100 rounded-3xl p-5 flex flex-col sm:flex-row items-center gap-6 animate-in fade-in slide-in-from-left-2 transition-all">
-                                                                    {/* ORIGINAL COLOR SQUADRON */}
-                                                                    <div className="flex flex-col items-center gap-2 min-w-[80px]">
-                                                                        <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest leading-none">Original</div>
-                                                                        <div className="w-10 h-10 rounded-full border-2 border-white shadow-md ring-2 ring-gray-100" style={{ backgroundColor: layer.original_color_hex }} />
-                                                                        <div className="text-center">
-                                                                            <div className="text-[10px] font-black text-gray-800 leading-tight truncate">{layer.original_color_name}</div>
-                                                                            <div className="text-[9px] font-bold text-blue-500 uppercase">{layer.grams}g</div>
-                                                                        </div>
-                                                                    </div>
+                                                        /* MULTI-COLOR LAYER EDITOR */
+                                                        <div className="space-y-4">
+                                                            {swappedLayers.map((layer, lIdx) => {
+                                                                // determine which filament is currently active for this layer
+                                                                const activeFilament = layer.swapped_filament_id 
+                                                                    ? sellerFilaments.find(f => f.id === layer.swapped_filament_id)
+                                                                    : null;
+                                                                const activeName = layer.showCustom 
+                                                                    ? (layer.custom_color_name || 'Custom') 
+                                                                    : (activeFilament?.color_name || layer.original_color_name);
+                                                                const activeHex = layer.showCustom 
+                                                                    ? layer.custom_color_hex 
+                                                                    : (activeFilament?.color_hex || layer.original_color_hex);
+                                                                const activeMaterial = activeFilament?.plastic_type || '';
 
-                                                                    {/* BIG SWAP ARROW */}
-                                                                    <div className="flex flex-col items-center gap-1">
-                                                                        <div className="w-10 h-1 bg-gradient-to-r from-gray-200 to-blue-400 rounded-full" />
-                                                                        <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest">SWAP</div>
-                                                                        <ArrowLeft className="rotate-180 text-blue-500" size={16} />
-                                                                    </div>
-
-                                                                    {/* REPLACEMENT CHOICE */}
-                                                                    <div className="flex-1 space-y-3">
-                                                                        <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest leading-none text-center sm:text-left">Replace with</div>
-                                                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                                                            {loadingFilaments ? (
-                                                                                <div className="col-span-full py-4 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>
-                                                                            ) : (
-                                                                                <>
-                                                                                    {sellerFilaments.map(fil => {
-                                                                                        const isSelected = layer.swapped_filament_id === fil.id || (!layer.swapped_filament_id && !layer.showCustom && fil.color_name === layer.original_color_name);
-                                                                                        return (
-                                                                                            <button
-                                                                                                key={fil.id}
-                                                                                                onClick={() => {
-                                                                                                    const updated = [...swappedLayers];
-                                                                                                    updated[lIdx].swapped_filament_id = fil.id;
-                                                                                                    updated[lIdx].showCustom = false;
-                                                                                                    updated[lIdx].custom_color_name = '';
-                                                                                                    setSwappedLayers(updated);
-                                                                                                }}
-                                                                                                title={fil.color_name}
-                                                                                                className={`p-2.5 rounded-2xl border-2 transition-all flex flex-col items-center gap-1.5 group ${isSelected ? 'border-blue-600 bg-blue-50/50 shadow-[0_0_15px_rgba(37,99,235,0.1)]' : 'border-gray-100 bg-white hover:border-blue-200 hover:bg-gray-50/50'}`}
-                                                                                            >
-                                                                                                <div className={`w-8 h-8 rounded-full border-2 shadow-sm transition-transform group-hover:scale-110 ${isSelected ? 'border-blue-400' : 'border-white'}`} style={{ backgroundColor: fil.color_hex }} />
-                                                                                                <div className={`text-[9px] font-black leading-tight truncate w-full text-center ${isSelected ? 'text-blue-700' : 'text-gray-500'}`}>{fil.color_name}</div>
-                                                                                            </button>
-                                                                                        );
-                                                                                    })}
-                                                                                    <button
-                                                                                        onClick={() => {
-                                                                                            const updated = [...swappedLayers];
-                                                                                            updated[lIdx].swapped_filament_id = null;
-                                                                                            updated[lIdx].showCustom = true;
-                                                                                            setSwappedLayers(updated);
-                                                                                        }}
-                                                                                        className={`p-2 rounded-xl border-2 border-dashed transition-all flex flex-col items-center gap-1 ${layer.showCustom ? 'border-blue-600 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
-                                                                                    >
-                                                                                        <Palette size={16} className="text-gray-400" />
-                                                                                        <div className="text-[8px] font-black text-gray-600 uppercase">Custom</div>
-                                                                                    </button>
-                                                                                </>
-                                                                            )}
+                                                                return (
+                                                                    <div key={lIdx} className="bg-gray-50 border border-gray-100 rounded-3xl overflow-hidden animate-in fade-in slide-in-from-bottom-1 transition-all">
+                                                                        {/* Layer header with current selection + grams */}
+                                                                        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+                                                                            <div className="w-8 h-8 rounded-full border-2 border-white shadow-md ring-2 ring-gray-200" style={{ backgroundColor: activeHex }} />
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Layer {lIdx + 1}</div>
+                                                                                <div className="text-sm font-black text-gray-900 truncate">{activeName}</div>
+                                                                                {activeMaterial && <div className="text-[9px] font-bold text-gray-400 uppercase">{activeMaterial}</div>}
+                                                                            </div>
+                                                                            <div className="text-right flex-shrink-0">
+                                                                                <div className="text-lg font-black text-blue-600 leading-none">{layer.grams}g</div>
+                                                                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">weight</div>
+                                                                            </div>
                                                                         </div>
 
-                                                                        {layer.showCustom && (
-                                                                            <div className="flex gap-2 animate-in fade-in">
-                                                                                <div className="relative shrink-0">
-                                                                                    <div className="w-9 h-9 rounded-xl border border-gray-200 shadow-sm flex items-center justify-center transition-transform hover:scale-105 overflow-hidden" style={{ backgroundColor: layer.custom_color_hex }}>
-                                                                                        <input
-                                                                                            type="color"
-                                                                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                                                                            value={layer.custom_color_hex}
-                                                                                            onChange={e => {
+                                                                        {/* Filament choice grid */}
+                                                                        <div className="px-5 py-4">
+                                                                            <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest mb-3">Choose color</div>
+                                                                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                                                                {loadingFilaments ? (
+                                                                                    <div className="col-span-full py-4 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        {sellerFilaments.map(fil => {
+                                                                                            const nameMatch = fil.color_name?.toLowerCase() === layer.original_color_name?.toLowerCase();
+                                                                                            const hexMatch = fil.color_hex?.toLowerCase() === layer.original_color_hex?.toLowerCase();
+                                                                                            const isSelected = layer.swapped_filament_id === fil.id || (!layer.swapped_filament_id && !layer.showCustom && (nameMatch || hexMatch));
+                                                                                            return (
+                                                                                                <button
+                                                                                                    key={fil.id}
+                                                                                                    onClick={() => {
+                                                                                                        const updated = [...swappedLayers];
+                                                                                                        updated[lIdx].swapped_filament_id = fil.id;
+                                                                                                        updated[lIdx].showCustom = false;
+                                                                                                        updated[lIdx].custom_color_name = '';
+                                                                                                        setSwappedLayers(updated);
+                                                                                                    }}
+                                                                                                    title={`${fil.color_name} (${fil.plastic_type})`}
+                                                                                                    className={`p-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 group relative ${isSelected ? 'border-blue-600 bg-blue-50/80 shadow-lg shadow-blue-100' : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-sm'}`}
+                                                                                                >
+                                                                                                    {isSelected && (
+                                                                                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center z-10">
+                                                                                                            <Check size={8} className="text-white" />
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                    <div className={`w-7 h-7 rounded-full border-2 shadow-sm transition-transform group-hover:scale-110 ${isSelected ? 'border-blue-400 scale-110' : 'border-white'}`} style={{ backgroundColor: fil.color_hex }} />
+                                                                                                    <div className={`text-[8px] font-black leading-tight truncate w-full text-center ${isSelected ? 'text-blue-700' : 'text-gray-500'}`}>{fil.color_name}</div>
+                                                                                                    <div className="text-[7px] font-bold text-gray-400 uppercase">{fil.plastic_type}</div>
+                                                                                                </button>
+                                                                                            );
+                                                                                        })}
+                                                                                        <button
+                                                                                            onClick={() => {
                                                                                                 const updated = [...swappedLayers];
-                                                                                                updated[lIdx].custom_color_hex = e.target.value;
+                                                                                                updated[lIdx].swapped_filament_id = null;
+                                                                                                updated[lIdx].showCustom = true;
                                                                                                 setSwappedLayers(updated);
                                                                                             }}
-                                                                                        />
-                                                                                        {layer.custom_color_hex === '#cccccc' && <Palette size={14} className="text-gray-400 pointer-events-none" />}
+                                                                                            className={`p-2 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center gap-1 ${layer.showCustom ? 'border-blue-600 bg-blue-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+                                                                                        >
+                                                                                            <Palette size={14} className="text-gray-400" />
+                                                                                            <div className="text-[8px] font-black text-gray-500 uppercase">Custom</div>
+                                                                                        </button>
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {layer.showCustom && (
+                                                                                <div className="flex gap-2 mt-3 animate-in fade-in">
+                                                                                    <div className="relative shrink-0">
+                                                                                        <div className="w-9 h-9 rounded-xl border border-gray-200 shadow-sm flex items-center justify-center transition-transform hover:scale-105 overflow-hidden" style={{ backgroundColor: layer.custom_color_hex }}>
+                                                                                            <input
+                                                                                                type="color"
+                                                                                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                                                                                value={layer.custom_color_hex}
+                                                                                                onChange={e => {
+                                                                                                    const updated = [...swappedLayers];
+                                                                                                    updated[lIdx].custom_color_hex = e.target.value;
+                                                                                                    setSwappedLayers(updated);
+                                                                                                }}
+                                                                                            />
+                                                                                            {layer.custom_color_hex === '#cccccc' && <Palette size={14} className="text-gray-400 pointer-events-none" />}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        placeholder="Color name or HEX..."
+                                                                                        value={layer.custom_color_name}
+                                                                                        onChange={e => {
+                                                                                            const updated = [...swappedLayers];
+                                                                                            updated[lIdx].custom_color_name = e.target.value;
+                                                                                            setSwappedLayers(updated);
+                                                                                        }}
+                                                                                        className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold outline-none focus:border-blue-400 transition-colors"
+                                                                                    />
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        /* STANDARD VIEW — seller filament picker */
+                                                        <div className="space-y-3">
+                                                            <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest">
+                                                                Choose filament <span className="text-blue-400 normal-case">· Original: {activeChatData.offers?.color} ({activeChatData.offers?.material})</span>
+                                                            </div>
+
+                                                            {loadingFilaments ? (
+                                                                <div className="flex justify-center py-6"><Loader2 className="animate-spin text-blue-600" size={20} /></div>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                                        {sellerFilaments.map(fil => {
+                                                                            const isSelected = selectedFilamentId === fil.id ||
+                                                                                (!selectedFilamentId && !showCustomFilamentInput && (
+                                                                                    fil.color_name?.toLowerCase() === (activeChatData.offers?.color || '').toLowerCase() ||
+                                                                                    fil.color_hex?.toLowerCase() === (activeChatData.offers?.color || '').toLowerCase()
+                                                                                ));
+                                                                            return (
+                                                                                <button
+                                                                                    key={fil.id}
+                                                                                    onClick={() => {
+                                                                                        setSelectedFilamentId(fil.id);
+                                                                                        setProposalColor(fil.color_name);
+                                                                                        setProposalColorHex(fil.color_hex || '#cccccc');
+                                                                                        setProposalMaterial(fil.plastic_type || '');
+                                                                                        setShowCustomFilamentInput(false);
+                                                                                    }}
+                                                                                    title={`${fil.color_name} · ${fil.plastic_type}`}
+                                                                                    className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-2xl border-2 transition-all text-left group ${isSelected ? 'border-blue-600 bg-blue-50/80 shadow-md shadow-blue-100' : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-sm'}`}
+                                                                                >
+                                                                                    {isSelected && (
+                                                                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center z-10">
+                                                                                            <Check size={8} className="text-white" />
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <div className={`w-8 h-8 rounded-full border-2 flex-shrink-0 shadow-sm transition-transform ${isSelected ? 'border-blue-400 scale-110' : 'border-white group-hover:scale-105'}`} style={{ backgroundColor: fil.color_hex }} />
+                                                                                    <div className="flex-1 min-w-0">
+                                                                                        <div className={`text-[10px] font-black leading-tight truncate ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>{fil.color_name}</div>
+                                                                                        <div className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{fil.plastic_type}</div>
+                                                                                    </div>
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                        {/* Custom filament button */}
+                                                                        <button
+                                                                            onClick={() => { setSelectedFilamentId(null); setShowCustomFilamentInput(v => !v); }}
+                                                                            className={`flex flex-col items-center justify-center gap-1 p-3 rounded-2xl border-2 border-dashed transition-all ${showCustomFilamentInput ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-400'}`}
+                                                                        >
+                                                                            <Palette size={16} className={showCustomFilamentInput ? 'text-blue-600' : 'text-gray-400'} />
+                                                                            <div className={`text-[9px] font-black uppercase ${showCustomFilamentInput ? 'text-blue-600' : 'text-gray-500'}`}>Custom</div>
+                                                                        </button>
+                                                                    </div>
+
+                                                                    {/* Custom filament input */}
+                                                                    {showCustomFilamentInput && (
+                                                                        <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1">
+                                                                            <div className="flex gap-2">
+                                                                                <div className="relative shrink-0">
+                                                                                    <div className="w-10 h-10 rounded-xl border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center" style={{ backgroundColor: proposalColorHex }}>
+                                                                                        <input type="color" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" value={proposalColorHex} onChange={e => setProposalColorHex(e.target.value)} />
+                                                                                        {proposalColorHex === '#cccccc' && <Palette size={14} className="text-gray-400 pointer-events-none" />}
                                                                                     </div>
                                                                                 </div>
                                                                                 <input
                                                                                     type="text"
-                                                                                    placeholder="Color name or HEX..."
-                                                                                    value={layer.custom_color_name}
-                                                                                    onChange={e => {
-                                                                                        const updated = [...swappedLayers];
-                                                                                        updated[lIdx].custom_color_name = e.target.value;
-                                                                                        setSwappedLayers(updated);
-                                                                                    }}
-                                                                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold outline-none"
+                                                                                    placeholder="Color name (e.g. Ocean Blue)..."
+                                                                                    value={proposalColor}
+                                                                                    onChange={e => setProposalColor(e.target.value)}
+                                                                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-blue-400 text-gray-900 transition-all"
                                                                                 />
                                                                             </div>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        /* STANDARD VIEW (Existing code) */
-                                                        <>
-                                                            {loadingFilaments ? (
-                                                                <div className="flex justify-center p-4"><Loader2 className="animate-spin text-blue-600" /></div>
-                                                            ) : (
-                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                                    {sellerFilaments.map(fil => (
-                                                                        <button
-                                                                            key={fil.id}
-                                                                            onClick={() => { setSelectedFilamentId(fil.id); setShowCustomFilamentInput(false); }}
-                                                                            className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${selectedFilamentId === fil.id ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}
-                                                                        >
-                                                                            <div className="w-8 h-8 rounded-full border border-gray-100 shadow-sm" style={{ backgroundColor: fil.color_hex }} />
-                                                                            <div className="text-center w-full">
-                                                                                <div className="text-[10px] font-black text-gray-900 leading-tight truncate">{fil.color_name}</div>
-                                                                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{fil.plastic_type}</div>
-                                                                            </div>
-                                                                        </button>
-                                                                    ))}
-                                                                    <button
-                                                                        onClick={() => { setSelectedFilamentId(null); setShowCustomFilamentInput(true); }}
-                                                                        className={`p-3 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center gap-2 ${showCustomFilamentInput ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
-                                                                    >
-                                                                        <Palette size={20} className="text-gray-400" />
-                                                                        <div className="text-[10px] font-black text-gray-600 uppercase">Custom</div>
-                                                                    </button>
-                                                                </div>
-                                                            )}                                                                <div className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-blue-100/50 space-y-3 animate-in fade-in slide-in-from-top-2 shadow-sm">
-                                                                {(() => {
-                                                                    const sd = editingProposalData || activeChatData.offers;
-                                                                    const matDiff = proposalMaterial !== (sd?.material || '');
-                                                                    const colDiff = proposalColor !== (sd?.color || '');
-                                                                    return (
-                                                                        <div className="grid grid-cols-2 gap-3">
-                                                                            <div>
-                                                                                <div className="flex justify-between items-center mb-1">
-                                                                                    <label className={`text-[9px] font-black uppercase ${matDiff ? 'text-blue-600' : 'text-gray-400'}`}>Plastic</label>
-                                                                                    <span className="text-[8px] font-bold text-blue-500/60 truncate max-w-[60px]">Orig: {activeChatData.offers?.material}</span>
-                                                                                </div>
-                                                                                <input type="text" placeholder="PLA, PETG..." value={proposalMaterial} onChange={e => setProposalMaterial(e.target.value)} className={`w-full px-4 py-3 bg-white border ${matDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-xs font-bold outline-none text-gray-900 transition-all`} />
-                                                                            </div>
-                                                                            <div>
-                                                                                <div className="flex justify-between items-center mb-1">
-                                                                                    <label className={`text-[9px] font-black uppercase ${colDiff ? 'text-blue-600' : 'text-gray-400'}`}>Color</label>
-                                                                                    <span className="text-[8px] font-bold text-blue-500/60 truncate max-w-[60px]">Orig: {activeChatData.offers?.color}</span>
-                                                                                </div>
-                                                                                <div className="flex gap-2">
-                                                                                    <div className="relative shrink-0">
-                                                                                        <div className="w-[42px] h-[42px] rounded-xl border border-gray-200 shadow-sm flex items-center justify-center transition-transform hover:scale-105 overflow-hidden" style={{ backgroundColor: proposalColorHex }}>
-                                                                                            <input
-                                                                                                type="color"
-                                                                                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                                                                                value={proposalColorHex}
-                                                                                                onChange={e => setProposalColorHex(e.target.value)}
-                                                                                            />
-                                                                                            {proposalColorHex === '#cccccc' && <Palette size={16} className="text-gray-400 pointer-events-none" />}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <input type="text" placeholder="Name or HEX..." value={proposalColor} onChange={e => setProposalColor(e.target.value)} className={`flex-1 px-4 py-3 bg-white border ${colDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-xs font-bold outline-none text-gray-900 transition-all`} />
-                                                                                </div>
-                                                                            </div>
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Material type (PLA, PETG, ABS, Resin...)"
+                                                                                value={proposalMaterial}
+                                                                                onChange={e => setProposalMaterial(e.target.value)}
+                                                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-blue-400 text-gray-900 transition-all"
+                                                                            />
                                                                         </div>
-                                                                    );
-                                                                })()}
-                                                            </div>
-                                                        </>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}

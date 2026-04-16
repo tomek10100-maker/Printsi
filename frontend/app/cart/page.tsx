@@ -122,11 +122,23 @@ export default function CartPage() {
                         <span className="text-[11px] font-black text-gray-900 truncate uppercase tracking-widest">{item.variant_name}</span>
                       </div>
                     )}
-                    {item.stock !== undefined && item.category !== 'digital' && (
-                      <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-wider">
-                        Stock: {item.stock}
-                      </p>
-                    )}
+                     {item.stock !== undefined && item.category !== 'digital' && (
+                       <div className="space-y-1 mt-2">
+                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                           Stock: {item.stock === 0 ? <span className="text-red-500">Sold</span> : item.stock}
+                         </p>
+                         {item.material && (
+                           <p className="text-[10px] text-purple-600 font-black uppercase tracking-widest">
+                             Material: {item.material}
+                           </p>
+                         )}
+                         {item.weight && (
+                           <p className="text-[10px] text-amber-600 font-black uppercase tracking-widest">
+                             Net Weight: {item.weight}
+                           </p>
+                         )}
+                       </div>
+                     )}
                   </div>
 
                   {(item.is_custom || item.category === 'digital') ? (

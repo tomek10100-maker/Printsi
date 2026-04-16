@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, Zap, Shield, Users, ChevronRight, User, UploadCloud, ShoppingBag } from 'lucide-react';
+import { Globe, Zap, Shield, Users, ChevronRight, User, UploadCloud, ShoppingBag, MessageSquare } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './components/ThemeToggle';
 
@@ -17,6 +17,7 @@ export default function HomePage() {
   const [themeHovered, setThemeHovered] = useState(false);
   const [uploadHovered, setUploadHovered] = useState(false);
   const [cartHovered, setCartHovered] = useState(false);
+  const [chatHovered, setChatHovered] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState({
     printers: 0,
@@ -194,55 +195,89 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-3 md:gap-4 lg:gap-5 shrink-0">
-            <Link
-              href={user ? "/upload" : "/login"}
-              onMouseEnter={() => setUploadHovered(true)}
-              onMouseLeave={() => setUploadHovered(false)}
-              className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
-              style={{ 
-                width: uploadHovered ? '124px' : '44px',
-                backgroundColor: uploadHovered ? '#15306c' : '#ffffff',
-                borderColor: uploadHovered ? '#15306c' : '#e5e7eb',
-                transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
-              }}
-            >
-              <div className="flex items-center shrink-0">
-                <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <UploadCloud size={18} className={`transition-colors duration-400 ${uploadHovered ? 'text-white' : 'text-gray-400'}`} />
-                </div>
-                <div 
-                  className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${uploadHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
-                  style={{ maxWidth: uploadHovered ? '80px' : '0px' }}
+            {user && (
+              <>
+                <Link
+                  href="/upload"
+                  onMouseEnter={() => setUploadHovered(true)}
+                  onMouseLeave={() => setUploadHovered(false)}
+                  className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
+                  style={{ 
+                    width: uploadHovered ? '124px' : '44px',
+                    backgroundColor: uploadHovered ? '#15306c' : '#ffffff',
+                    borderColor: uploadHovered ? '#15306c' : '#e5e7eb',
+                    transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
+                  }}
                 >
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Upload</span>
-                </div>
-              </div>
-            </Link>
+                  <div className="flex items-center shrink-0">
+                    <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                      <UploadCloud size={18} className={`transition-colors duration-400 ${uploadHovered ? 'text-white' : 'text-gray-400'}`} />
+                    </div>
+                    <div 
+                      className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${uploadHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
+                      style={{ maxWidth: uploadHovered ? '80px' : '0px' }}
+                    >
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Upload</span>
+                    </div>
+                  </div>
+                </Link>
 
-            <Link
-              href={user ? "/cart" : "/login"}
-              onMouseEnter={() => setCartHovered(true)}
-              onMouseLeave={() => setCartHovered(false)}
-              className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
-              style={{ 
-                width: cartHovered ? '108px' : '44px',
-                backgroundColor: cartHovered ? '#15306c' : '#ffffff',
-                borderColor: cartHovered ? '#15306c' : '#e5e7eb',
-                transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
-              }}
-            >
-              <div className="flex items-center shrink-0">
-                <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <ShoppingBag size={18} className={`transition-colors duration-400 ${cartHovered ? 'text-white' : 'text-gray-400'}`} />
-                </div>
-                <div 
-                  className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${cartHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
-                  style={{ maxWidth: cartHovered ? '80px' : '0px' }}
+                <Link
+                  href="/cart"
+                  onMouseEnter={() => setCartHovered(true)}
+                  onMouseLeave={() => setCartHovered(false)}
+                  className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
+                  style={{ 
+                    width: cartHovered ? '108px' : '44px',
+                    backgroundColor: cartHovered ? '#15306c' : '#ffffff',
+                    borderColor: cartHovered ? '#15306c' : '#e5e7eb',
+                    transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
+                  }}
                 >
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Cart</span>
-                </div>
-              </div>
-            </Link>
+                  <div className="flex items-center shrink-0">
+                    <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                      <ShoppingBag size={18} className={`transition-colors duration-400 ${cartHovered ? 'text-white' : 'text-gray-400'}`} />
+                    </div>
+                    <div 
+                      className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${cartHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
+                      style={{ maxWidth: cartHovered ? '80px' : '0px' }}
+                    >
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Cart</span>
+                    </div>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/profile/messages"
+                  onMouseEnter={() => setChatHovered(true)}
+                  onMouseLeave={() => setChatHovered(false)}
+                  className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
+                  style={{ 
+                    width: chatHovered ? '108px' : '44px',
+                    backgroundColor: chatHovered ? '#15306c' : '#ffffff',
+                    borderColor: chatHovered ? '#15306c' : '#e5e7eb',
+                    transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
+                  }}
+                >
+                  <div className="flex items-center shrink-0">
+                    <div className="w-6 h-6 flex items-center justify-center shrink-0 relative">
+                      <MessageSquare size={18} className={`transition-colors duration-400 ${chatHovered ? 'text-white' : 'text-gray-400'}`} />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border border-white rounded-full flex items-center justify-center text-[7px] font-bold text-white animate-pulse">
+                          {unreadCount > 9 ? '!' : unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    <div 
+                      className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${chatHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
+                      style={{ maxWidth: chatHovered ? '80px' : '0px' }}
+                    >
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Chat</span>
+                    </div>
+                  </div>
+                </Link>
+              </>
+            )}
 
             <div onMouseEnter={() => setThemeHovered(true)} onMouseLeave={() => setThemeHovered(false)}><ThemeToggle isHoveredExternal={themeHovered} /></div>
             {user ? (

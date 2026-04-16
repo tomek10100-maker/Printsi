@@ -310,9 +310,15 @@ function CheckoutInner() {
                           <Package className="text-gray-300" size={24} />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-gray-900 leading-tight mb-0.5 line-clamp-1">{item.title}</p>
-                          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{item.quantity} × {formatPrice(item.price)}</p>
-                        </div>
+                           <p className="text-sm font-black text-gray-900 leading-tight mb-0.5 line-clamp-1">{item.title}</p>
+                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{item.quantity} × {formatPrice(item.price)}</p>
+                           {item.category !== 'digital' && (
+                             <div className="flex items-center gap-2 mt-1 whitespace-nowrap overflow-hidden">
+                               {item.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1 rounded-sm">{item.material}</span>}
+                               {item.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1 rounded-sm">{item.weight}</span>}
+                             </div>
+                           )}
+                         </div>
                       </div>
                       <p className="text-sm font-black text-gray-900">{formatPrice(item.price * item.quantity)}</p>
                     </div>

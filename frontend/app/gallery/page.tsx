@@ -342,7 +342,7 @@ function MarketplaceContent() {
                         {v.label || v.color_name || 'Variant'}
                       </span>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        {v.plastic_type || 'PLA'} · {v.stock} in stock
+                        {v.plastic_type || 'PLA'} · {colorPickerOffer.category === 'digital' ? <span className="text-lg leading-none">∞</span> : `${v.stock} in stock`}
                       </span>
                     </div>
 
@@ -493,6 +493,12 @@ function MarketplaceContent() {
 
                 <div className="p-5 flex flex-col flex-grow">
                   <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">{offer.title}</h3>
+                  {offer.category !== 'digital' && (
+                    <div className="flex items-center gap-2 mb-2">
+                      {offer.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1.5 rounded-sm">{offer.material}</span>}
+                      {offer.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1.5 rounded-sm">{offer.weight}</span>}
+                    </div>
+                  )}
 
                   {/* Color variant swatches preview */}
                   {offer.category === 'physical' && offer.stock > 0 && (() => {

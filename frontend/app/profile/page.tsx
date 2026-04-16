@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   Settings, MapPin, Link as LinkIcon, Calendar, Loader2, Home, LogOut,
   CreditCard, Bell, Package, ChevronRight, ShoppingBag, Plus, Trash2, Eye, Edit,
-  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers, CheckCircle
+  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers, CheckCircle, User, Lock
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -100,7 +100,38 @@ export default function ProfilePage() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    setMyOffers(offersData || []);
+    // Efficiently enrich custom orders with buyer info
+    const customOrderList = (offersData || []).filter(o => o.is_custom && o.parent_offer_id);
+    const parentOfferIds = [...new Set(customOrderList.map(o => o.parent_offer_id))];
+    
+    let enrichedOffers = offersData || [];
+
+    if (parentOfferIds.length > 0) {
+      // Find chats associated with these parent offers where this user is the seller
+      const { data: chatsData } = await supabase
+        .from('chats')
+        .select('offer_id, buyer_id, profiles!chats_buyer_id_fkey(full_name, avatar_url)')
+        .in('offer_id', parentOfferIds)
+        .eq('seller_id', user.id);
+
+      if (chatsData) {
+        enrichedOffers = (offersData || []).map(offer => {
+          if (offer.is_custom && offer.parent_offer_id) {
+            const chatMatch = chatsData.find(c => c.offer_id === offer.parent_offer_id);
+            if (chatMatch) {
+              return { 
+                ...offer, 
+                _buyer: (chatMatch as any).profiles,
+                _chat_offer_id: offer.parent_offer_id 
+              };
+            }
+          }
+          return offer;
+        });
+      }
+    }
+
+    setMyOffers(enrichedOffers);
 
     const inventoryVal = offersData?.reduce((acc, item) => {
       // If it's a digital file or has 'infinite' stock (over 1000), we don't count it as a physical asset value.
@@ -175,14 +206,52 @@ export default function ProfilePage() {
 
   const executeDelete = async (id: string) => {
     setIsDeleting(true);
+    const deletedItem = myOffers.find(o => o.id === id);
     
     // First, clear favorites to avoid foreign key constraints (Like button data)
     await supabase.from('favorites').delete().eq('offer_id', id);
 
+    // If it's a custom order, mark related proposal messages as rejected
+    if (deletedItem?.is_custom && deletedItem?.parent_offer_id) {
+      try {
+        const { data: chats } = await supabase
+          .from('chats')
+          .select('id')
+          .eq('offer_id', deletedItem.parent_offer_id);
+        if (chats && chats.length > 0) {
+          for (const chat of chats) {
+            const { data: msgs } = await supabase
+              .from('messages')
+              .select('id, content')
+              .eq('chat_id', chat.id);
+            if (msgs) {
+              for (const msg of msgs) {
+                if (msg.content?.startsWith('[PROPOSAL]')) {
+                  try {
+                    const parsed = JSON.parse(msg.content.substring(10));
+                    if (parsed.custom_offer_id === id && parsed.status !== 'rejected') {
+                      parsed.status = 'rejected';
+                      await supabase.from('messages').update({
+                        content: `[PROPOSAL]${JSON.stringify(parsed)}`
+                      }).eq('id', msg.id);
+                    }
+                  } catch { }
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to reject related proposals:', e);
+      }
+    }
+
     const { error } = await supabase.from('offers').delete().eq('id', id);
     
     if (error) {
-      console.error("Deletion Failed:", (error as any).message || error);
+      if (error.code !== '23503') {
+        console.error("Deletion Failed:", (error as any).message || error);
+      }
       
       if (error.code === '23503') {
         const listing = myOffers.find(o => o.id === id);
@@ -203,7 +272,6 @@ export default function ProfilePage() {
       }
     } else {
       setMyOffers(prev => prev.filter(offer => offer.id !== id));
-      const deletedItem = myOffers.find(o => o.id === id);
       if (deletedItem) {
         setStats(prev => ({
           ...prev,
@@ -213,8 +281,10 @@ export default function ProfilePage() {
       setModal({
         show: true,
         type: 'success',
-        title: 'Listing Removed',
-        message: 'Your offer has been successfully deleted.'
+        title: deletedItem?.is_custom ? 'Custom Order Cancelled' : 'Listing Removed',
+        message: deletedItem?.is_custom
+          ? 'The custom order has been removed and the buyer has been notified (proposal marked as rejected).'
+          : 'Your offer has been successfully deleted.'
       });
     }
     setIsDeleting(false);
@@ -464,90 +534,267 @@ export default function ProfilePage() {
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {myOffers.map((offer) => {
-                    const variants = offer.color_variants || [];
-                    const hasVariants = variants.length > 1;
-                    return (
-                      <div key={offer.id} className="group bg-white rounded-[32px] overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col relative">
-                        {/* Thumbnail */}
-                        <div className="aspect-square bg-gray-50 overflow-hidden relative">
-                           {offer.image_urls?.[0] ? (
-                             <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                           ) : (
-                             <div className="w-full h-full flex items-center justify-center text-gray-200 bg-gray-50"><Package size={48} /></div>
-                           )}
-                           <div className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[9px] font-black uppercase text-gray-900 shadow-sm z-20">
-                             {offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}
-                           </div>
-                           {offer.stock === 0 && (
-                             <div className="absolute inset-0 bg-red-500/10 backdrop-blur-[2px] flex items-center justify-center z-30">
-                               <div className="bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] py-2 px-8 -rotate-12 border-2 border-white shadow-xl">Sold Out</div>
-                             </div>
-                           )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="p-6 flex flex-col flex-grow">
-                          <h4 className="font-black text-gray-900 text-lg mb-1 leading-tight group-hover:text-blue-600 transition-colors">{offer.title}</h4>
-                          <div className="flex items-center gap-2 mb-4">
-                            {offer.is_negotiable ? (
-                               <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100">
-                                 <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-                                 <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest leading-none">Negotiable</span>
+                <div className="space-y-12">
+                  {/* Grid of parent listings with their custom sub-orders */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-10">
+                    {myOffers.filter((o: any) => !o.is_custom).map((offer: any) => {
+                      const variants = offer.color_variants || [];
+                      const hasVariants = variants.length > 1;
+                      const linkedCustomOrders = myOffers.filter(
+                        (o: any) => o.is_custom && o.parent_offer_id === offer.id
+                      );
+                      return (
+                        <div key={offer.id} className="flex flex-col">
+                          {/* ── Main listing card ── */}
+                          <div className="group bg-white rounded-[32px] overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col relative z-10">
+                            {/* Thumbnail */}
+                            <div className="aspect-square bg-gray-50 overflow-hidden relative">
+                               {offer.image_urls?.[0] ? (
+                                 <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                               ) : (
+                                 <div className="w-full h-full flex items-center justify-center text-gray-200 bg-gray-50"><Package size={48} /></div>
+                               )}
+                               <div className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[9px] font-black uppercase text-gray-900 shadow-sm z-20">
+                                 {offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}
                                </div>
-                            ) : (
-                               <span className="text-xl font-black text-gray-900">{formatPrice(offer.price)}</span>
-                            )}
-                            {hasVariants && (
-                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded-md">
-                                {variants.length} colors
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Quick Stats */}
-                          <div className="grid grid-cols-2 gap-2 mb-6">
-                            <div className="bg-blue-50/50 p-2.5 rounded-2xl border border-blue-50">
-                               <span className="block text-[8px] font-black uppercase text-blue-400 tracking-widest mb-0.5">Total Stock</span>
-                               <span className="block font-black text-blue-900 text-xs">{offer.stock} pcs</span>
+                               {offer.stock === 0 && (
+                                 <div className="absolute inset-0 bg-red-500/10 backdrop-blur-[2px] flex items-center justify-center z-30">
+                                   <div className="bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] py-2 px-8 -rotate-12 border-2 border-white shadow-xl">Sold Out</div>
+                                 </div>
+                               )}
                             </div>
-                            <div className={`p-2.5 rounded-2xl border ${
-                               offer.category === 'digital' ? 'bg-orange-50/50 border-orange-50' :
-                               offer.category === 'physical' ? 'bg-emerald-50/50 border-emerald-50' :
-                               'bg-blue-50/50 border-blue-50'
-                             }`}>
-                               <span className={`block text-[8px] font-black uppercase tracking-widest mb-0.5 ${
-                                 offer.category === 'digital' ? 'text-orange-400' :
-                                 offer.category === 'physical' ? 'text-emerald-400' :
-                                 'text-blue-400'
-                               }`}>Category</span>
-                               <span className={`block font-black text-xs capitalize ${
-                                 offer.category === 'digital' ? 'text-orange-900' :
-                                 offer.category === 'physical' ? 'text-emerald-900' :
-                                 'text-blue-900'
-                               }`}>{offer.category}</span>
-                            </div>
-                          </div>
 
-                          {/* Action Buttons */}
-                          <div className="mt-auto flex items-center gap-2 pt-4 border-t border-gray-50">
-                            <Link href={`/offer/${offer.id}`} className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest text-[10px] text-center hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
-                              <Eye size={14} /> Preview
-                            </Link>
-                            <Link href={`/edit/${offer.id}`} className="flex-1 py-3.5 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-[10px] text-center hover:bg-blue-600 transition-all shadow-lg shadow-blue-600/10 flex items-center justify-center gap-2">
-                              <Edit size={14} /> Edit
-                            </Link>
-                            <button onClick={() => confirmDelete(offer.id)} className="p-3.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
+                            {/* Info */}
+                            <div className="p-6 flex flex-col flex-grow">
+                              <h4 className="font-black text-gray-900 text-lg mb-1 leading-tight group-hover:text-blue-600 transition-colors">{offer.title}</h4>
+                              <div className="flex items-center gap-2 mb-4">
+                                {offer.is_negotiable ? (
+                                   <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100">
+                                     <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+                                     <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest leading-none">Negotiable</span>
+                                   </div>
+                                ) : (
+                                   <span className="text-xl font-black text-gray-900">{formatPrice(offer.price)}</span>
+                                )}
+                                {hasVariants && (
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded-md">
+                                    {variants.length} colors
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Quick Stats */}
+                              <div className="grid grid-cols-2 gap-2 mb-6">
+                                <div className="bg-blue-50/50 p-2.5 rounded-2xl border border-blue-50 flex flex-col justify-center">
+                                   <span className="block text-[8px] font-black uppercase text-blue-400 tracking-widest mb-0.5">Total Stock</span>
+                                   <span className="block font-black text-blue-900 text-xs">
+                                     {offer.category === 'digital' ? <span className="text-xl leading-none">∞</span> : (offer.stock === 0 ? <span className="text-red-500">Sold</span> : `${offer.stock} pcs`)}
+                                   </span>
+                                </div>
+                                <div className={`p-2.5 rounded-2xl border ${
+                                   offer.category === 'digital' ? 'bg-orange-50/50 border-orange-50' :
+                                   offer.category === 'physical' ? 'bg-emerald-50/50 border-emerald-50' :
+                                   'bg-blue-50/50 border-blue-50'
+                                 }`}>
+                                   <span className={`block text-[8px] font-black uppercase tracking-widest mb-0.5 ${
+                                     offer.category === 'digital' ? 'text-orange-400' :
+                                     offer.category === 'physical' ? 'text-emerald-400' :
+                                     'text-blue-400'
+                                   }`}>Category</span>
+                                   <span className={`block font-black text-xs capitalize ${
+                                     offer.category === 'digital' ? 'text-orange-900' :
+                                     offer.category === 'physical' ? 'text-emerald-900' :
+                                     'text-blue-900'
+                                   }`}>{offer.category}</span>
+                                 </div>
+
+                                 {/* More Stats Row */}
+                                 {offer.category !== 'digital' && (
+                                   <>
+                                     <div className="bg-purple-50/50 p-2.5 rounded-2xl border border-purple-50 flex flex-col justify-center">
+                                       <span className="block text-[8px] font-black uppercase text-purple-400 tracking-widest mb-0.5">Material</span>
+                                       <span className="block font-black text-purple-900 text-xs truncate capitalize">{offer.material || 'Mixed'}</span>
+                                     </div>
+                                     <div className="bg-amber-50/50 p-2.5 rounded-2xl border border-amber-50 flex flex-col justify-center">
+                                       <span className="block text-[8px] font-black uppercase text-amber-400 tracking-widest mb-0.5">Net Weight</span>
+                                       <span className="block font-black text-amber-900 text-xs">{offer.weight || 'N/A'}</span>
+                                     </div>
+                                   </>
+                                 )}
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="mt-auto flex items-center gap-2 pt-4 border-t border-gray-50">
+                                <Link href={`/offer/${offer.id}`} className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest text-[10px] text-center hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                                  <Eye size={14} /> Preview
+                                </Link>
+                                <Link href={`/edit/${offer.id}`} className="flex-1 py-3.5 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-[10px] text-center hover:bg-blue-600 transition-all shadow-lg shadow-blue-600/10 flex items-center justify-center gap-2">
+                                  <Edit size={14} /> Edit
+                                </Link>
+                                <button onClick={() => confirmDelete(offer.id)} className="p-3.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            </div>
+
+                          {/* ── Attached custom orders ── */}
+                          {linkedCustomOrders.length > 0 && (
+                            <div className="ml-4 -mt-2 relative">
+                              {/* Vertical connector line */}
+                              <div className="absolute left-0 top-0 bottom-6 w-px bg-purple-100" />
+                              <div className="space-y-0 pt-2">
+                                {linkedCustomOrders.map((co: any, ci: number) => {
+                                  const buyerName = co._buyer?.full_name || 'Unknown buyer';
+                                  const buyerAvatar = co._buyer?.avatar_url;
+                                  const isLast = ci === linkedCustomOrders.length - 1;
+                                  return (
+                                    <div key={co.id} className="relative pl-5">
+                                      {/* Horizontal connector nub */}
+                                      <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-5 h-px bg-purple-100`} />
+                                      <div className={`flex items-center gap-3 bg-white border border-dashed border-purple-100 px-4 py-2.5 hover:border-purple-200 hover:bg-purple-50/30 transition-all group/co ${
+                                        ci === 0 ? 'rounded-t-xl' : ''
+                                      } ${isLast ? 'rounded-b-3xl' : 'border-b-0'}`}>
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-1.5 mb-0.5">
+                                            <span className="text-[7px] font-black uppercase tracking-widest text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100 flex-shrink-0">Custom</span>
+                                            <span className="font-black text-gray-900 text-[11px] flex-shrink-0">{formatPrice(co.price)}</span>
+                                            <span className="text-gray-300 mx-0.5">·</span>
+                                            <span className="text-[10px] font-bold text-gray-400 flex-shrink-0">{co.stock === 0 ? <span className="text-emerald-500">Sold</span> : `${co.stock} pcs`}</span>
+                                            {co.material && (
+                                              <>
+                                                <span className="text-gray-300 mx-0.5">·</span>
+                                                <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">{co.material}</span>
+                                              </>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-2 mb-1.5 line-clamp-1">
+                                             <span className="text-[10px] font-bold text-gray-500 flex items-center gap-1">
+                                               {co.color || 'Custom Color'}
+                                               {(() => {
+                                                 try {
+                                                   const weight = co.color_variants?.[0]?.layers?.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0);
+                                                   return weight > 0 ? <span className="text-gray-400 font-medium whitespace-nowrap">({Math.round(weight)}g)</span> : null;
+                                                 } catch { return null; }
+                                               })()}
+                                             </span>
+                                          </div>
+                                          <div className="flex items-center gap-1.5">
+                                            {buyerAvatar
+                                              ? <img src={buyerAvatar} className="w-3.5 h-3.5 rounded-full border border-gray-200 flex-shrink-0" alt="" />
+                                              : <div className="w-3.5 h-3.5 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0"><User size={7} className="text-gray-400" /></div>
+                                            }
+                                            <span className="text-[10px] font-bold text-gray-400 truncate">for <span className="text-gray-600">{buyerName}</span></span>
+                                          </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                          <div className="p-1.5 text-gray-200 cursor-not-allowed rounded-lg" title="Editing custom orders is disabled">
+                                            <Lock size={12} />
+                                          </div>
+                                          <button
+                                            onClick={() => {
+                                              setModal({
+                                                show: true,
+                                                type: 'confirm',
+                                                title: 'Cancel Custom Order?',
+                                                message: `This will permanently remove the custom order for "${buyerName}". The proposal in the chat will be marked as rejected. This cannot be undone.`,
+                                                action: () => executeDelete(co.id)
+                                              });
+                                            }}
+                                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Cancel custom order"
+                                          >
+                                            <Trash2 size={12} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ── Stand-alone Custom Orders (e.g. from Jobs or deleted parents) ── */}
+                  {myOffers.some((o: any) => o.is_custom && !myOffers.some(parent => parent.id === o.parent_offer_id)) && (
+                    <div className="mt-8">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="h-px bg-purple-100 flex-1" />
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400">Negotiations & Special Offers</h4>
+                        <div className="h-px bg-purple-100 flex-1" />
                       </div>
-                    );
-                  })}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {myOffers
+                          .filter((o: any) => o.is_custom && !myOffers.some(parent => parent.id === o.parent_offer_id))
+                          .map((co: any) => {
+                            const buyerName = co._buyer?.full_name || 'Unknown buyer';
+                            const buyerAvatar = co._buyer?.avatar_url;
+                            return (
+                              <div key={co.id} className="flex items-center gap-4 bg-white border-2 border-dashed border-purple-50 rounded-[32px] p-6 shadow-sm hover:shadow-md transition-all">
+                                <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center shrink-0 border border-purple-100">
+                                   <Handshake className="text-purple-400" size={24} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-purple-500 bg-purple-100/50 px-2 py-0.5 rounded-full">Custom Offer</span>
+                                    <span className="text-xs font-black text-gray-900 truncate">{co.title}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-lg font-black text-gray-900">{formatPrice(co.price)}</span>
+                                    <span className="text-gray-300 mx-0.5">·</span>
+                                    <span className="text-[10px] font-bold text-gray-400">
+                                      {co.stock === 0 ? <span className="text-emerald-500">Sold</span> : `${co.stock} pcs`}
+                                    </span>
+                                    {co.material && (
+                                      <>
+                                        <span className="text-gray-300 mx-0.5">·</span>
+                                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">{co.material}</span>
+                                      </>
+                                    )}
+                                    <div className="flex items-center gap-1.5 ml-2">
+                                       {buyerAvatar
+                                         ? <img src={buyerAvatar} className="w-4 h-4 rounded-full border border-gray-200" alt="" />
+                                         : <div className="w-4 h-4 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center"><User size={9} className="text-gray-400" /></div>
+                                       }
+                                       <span className="text-xs font-bold text-gray-500">for <span className="text-gray-900">{buyerName}</span></span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Link href={`/offer/${co.id}`} className="p-3 bg-gray-50 text-gray-400 hover:text-gray-700 rounded-2xl transition-all">
+                                    <Eye size={18} />
+                                  </Link>
+                                  <button
+                                     onClick={() => {
+                                       setModal({
+                                         show: true,
+                                         type: 'confirm',
+                                         title: 'Cancel Custom Order?',
+                                         message: `This will remove the custom order for "${buyerName}".`,
+                                         action: () => executeDelete(co.id)
+                                       });
+                                     }}
+                                     className="p-3 bg-gray-50 text-gray-300 hover:text-red-500 rounded-2xl transition-all"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+
             </div>
 
           </div>

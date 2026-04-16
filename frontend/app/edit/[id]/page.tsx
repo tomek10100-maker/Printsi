@@ -683,32 +683,54 @@ export default function EditOfferPage() {
                    </div>
 
                    {(!isNegotiable) ? (
-                     <div className="rounded-2xl p-6 border-2 border-gray-200 bg-white transition-all">
-                       <div className="flex items-center gap-3">
-                         <span className="text-xl font-black text-gray-400">{currency}</span>
-                         <input type="text" inputMode="decimal" placeholder="0.00"
-                           value={manualPriceLocal}
-                           onChange={e => {
-                             const val = e.target.value.replace(',', '.');
-                             if (/^\d*\.?\d*$/.test(val)) setManualPriceLocal(val);
-                           }}
-                           className="flex-1 bg-transparent outline-none font-black text-5xl text-gray-900 placeholder-gray-200"
-                           required={!isNegotiable} title="Please fill out this field" />
-                       </div>
-                     </div>
-                   ) : (
-                    <div className="p-6 bg-indigo-600 rounded-[2rem] text-white shadow-xl shadow-indigo-500/20 flex flex-col gap-3 animate-in fade-in zoom-in-95">
-                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                        <Handshake size={20} className="text-white" />
+                      <div className="rounded-2xl p-6 border-2 border-gray-200 bg-white transition-all flex flex-col md:flex-row items-center gap-6 overflow-hidden">
+                        <div className="flex-1 w-full">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl font-black text-gray-400">{currency}</span>
+                            <input type="text" inputMode="decimal" placeholder="0.00"
+                              value={manualPriceLocal}
+                              onChange={e => {
+                                const val = e.target.value.replace(',', '.');
+                                if (/^\d*\.?\d*$/.test(val)) setManualPriceLocal(val);
+                              }}
+                              className="flex-1 bg-transparent outline-none font-black text-4xl text-gray-900 placeholder-gray-200 w-full"
+                              required={!isNegotiable} title="Please fill out this field" />
+                          </div>
+                        </div>
+
+                        <div className="w-full md:w-44 md:border-l border-gray-100 md:pl-6 pt-4 md:pt-0 flex flex-col items-center">
+                           <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1.5">Pieces</span>
+                           <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 w-full justify-between">
+                              <button type="button" onClick={() => setManualStock(s => Math.max(1, (parseInt(s) || 1) - 1).toString())} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-sm font-black"><Minus size={14} /></button>
+                              <input type="text" value={manualStock} onChange={e => { if (/^\d*$/.test(e.target.value)) setManualStock(e.target.value) }} className="w-8 bg-transparent text-center font-black text-base outline-none text-gray-900" />
+                              <button type="button" onClick={() => setManualStock(s => ((parseInt(s) || 1) + 1).toString())} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-sm font-black"><Plus size={14} /></button>
+                           </div>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-black uppercase tracking-widest text-sm">Negotiation Mode Active</h4>
-                        <p className="text-[11px] font-bold text-indigo-50 mt-1 opacity-90 leading-normal">
-                          Printers will see your project as "Open for Proposals". You will receive custom quotes and can discuss details in the chat before making a final decision.
-                        </p>
+                    ) : (
+                      <div className="flex flex-col md:flex-row gap-4 w-full">
+                        <div className="flex-1 p-6 bg-indigo-600 rounded-[2rem] text-white shadow-xl shadow-indigo-500/20 flex flex-col gap-3 animate-in fade-in zoom-in-95">
+                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <Handshake size={20} className="text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-black uppercase tracking-widest text-sm text-white">Negotiation Mode Active</h4>
+                            <p className="text-[11px] font-bold text-indigo-50 mt-1 opacity-90 leading-normal">
+                              Printers will see your project as "Open for Proposals". discuss details in the chat.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="w-full md:w-36 bg-white border-2 border-gray-100 p-5 rounded-[2rem] shadow-sm flex flex-col justify-center items-center gap-2 flex-shrink-0">
+                           <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Pieces</span>
+                           <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                              <button type="button" onClick={() => setManualStock(s => Math.max(1, (parseInt(s) || 1) - 1).toString())} className="w-7 h-7 flex items-center justify-center bg-white rounded-lg border border-gray-200"><Minus size={12} /></button>
+                              <span className="w-6 text-center font-black text-sm text-gray-900">{manualStock}</span>
+                              <button type="button" onClick={() => setManualStock(s => ((parseInt(s) || 1) + 1).toString())} className="w-7 h-7 flex items-center justify-center bg-white rounded-lg border border-gray-200"><Plus size={12} /></button>
+                           </div>
+                        </div>
                       </div>
-                    </div>
-                   )}
+                    )}
                  </div>
                </section>
             )}
