@@ -88,7 +88,15 @@ function CheckoutInner() {
     return shippingPln / rates['PLN'];
   }, [shippingPln, rates, isTopup]);
 
-  const grandTotalEur = cartTotalEur + (shippingEur ?? 0);
+  // --- Fee calculations ---
+  const feeBase = cartTotalEur + (shippingEur ?? 0); // base for fees
+  const printsiTaxEur = isTopup ? 0 : feeBase * 0.01;          // 1% Printsi Tax
+  const buyerProtectionEur = isTopup ? 0 : feeBase * 0.025;    // 2.5% Buyer Protection
+  const isForeignCurrency = currency !== 'EUR';
+  const currencyConversionEur = (isTopup || !isForeignCurrency) ? 0 : feeBase * 0.015; // 1.5% only for non-EUR
+  const totalFeesEur = printsiTaxEur + buyerProtectionEur + currencyConversionEur;
+
+  const grandTotalEur = feeBase + totalFeesEur;
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -139,18 +147,53 @@ function CheckoutInner() {
     const currentRate = rates?.[currency] || 1;
 
     try {
-      const body = isTopup 
-        ? { userId: user.id, isTopup: true, topupAmount: numericTopup, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate }
-        : { userId: user.id, items, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate, shippingCostEur: shippingEur || 0, shipping: (shippingEur ?? 0) > 0 ? { name: formData.fullName, address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country } } : undefined };
+      if (paymentMethod === 'balance') {
+        const shippingDetails = (shippingEur ?? 0) > 0 ? { 
+          fullName: formData.fullName, 
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address, 
+          city: formData.city, 
+          zip: formData.zip, 
+          country: formData.country 
+        } : undefined;
 
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await response.json();
-      if (data.url) window.location.href = data.url;
-      else { alert('Error: ' + data.error); setLoading(false); }
+        const response = await fetch('/api/balance/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            items,
+            shipping: shippingDetails,
+            shippingCostEur: shippingEur || 0
+          }),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          // Czyszczenie koszyka z localStorage / Contextu
+          cart.clearCart();
+          
+          // Sukces płatności balansem - przekierowanie do wiadomości lub zamówień
+          window.location.href = `/profile/messages`;
+        } else {
+          alert('Error: ' + data.error);
+          setLoading(false);
+        }
+      } else {
+        const body = isTopup 
+          ? { userId: user.id, isTopup: true, topupAmount: numericTopup, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate }
+          : { userId: user.id, items, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate, shippingCostEur: shippingEur || 0, shipping: (shippingEur ?? 0) > 0 ? { name: formData.fullName, address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country } } : undefined };
+
+        const response = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await response.json();
+        if (data.url) window.location.href = data.url;
+        else { alert('Error: ' + data.error); setLoading(false); }
+      }
     } catch (err) { alert('Request error'); setLoading(false); }
   };
 
@@ -312,12 +355,24 @@ function CheckoutInner() {
                         <div>
                            <p className="text-sm font-black text-gray-900 leading-tight mb-0.5 line-clamp-1">{item.title}</p>
                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{item.quantity} × {formatPrice(item.price)}</p>
-                           {item.category !== 'digital' && (
-                             <div className="flex items-center gap-2 mt-1 whitespace-nowrap overflow-hidden">
-                               {item.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1 rounded-sm">{item.material}</span>}
-                               {item.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1 rounded-sm">{item.weight}</span>}
-                             </div>
-                           )}
+                           {item.category !== 'digital' && (() => {
+                             const hasLayers = item.variant_layers && item.variant_layers.length > 1;
+                             return (
+                               <div className="flex flex-wrap items-center gap-1 mt-1">
+                                 {hasLayers ? (
+                                   item.variant_layers!.map((layer, li) => (
+                                     <span key={li} className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tight bg-purple-50 text-purple-700 px-1 py-0.5 rounded-sm">
+                                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: layer.color_hex || '#ccc' }} />
+                                       {layer.color_name}
+                                     </span>
+                                   ))
+                                 ) : (
+                                   item.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1 rounded-sm">{item.material}</span>
+                                 )}
+                                 {item.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1 rounded-sm">{item.weight}</span>}
+                               </div>
+                             );
+                           })()}
                          </div>
                       </div>
                       <p className="text-sm font-black text-gray-900">{formatPrice(item.price * item.quantity)}</p>
@@ -337,13 +392,50 @@ function CheckoutInner() {
                     <span className="font-black text-emerald-600">{shippingEur === null ? 'Select delivery' : (shippingEur === 0 ? 'FREE' : formatPrice(shippingEur))}</span>
                   </div>
                 )}
+
+                {/* ---- FEES ---- */}
+                {!isTopup && (
+                  <div className="bg-gray-50 rounded-2xl p-4 space-y-2.5 border border-gray-100">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 mb-3">Platform Fees</p>
+
+                    {/* 1% Printsi Tax */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">1%</span>
+                        <span className="text-xs font-bold text-gray-600">Printsi Tax</span>
+                      </div>
+                      <span className="text-xs font-black text-gray-800">{formatPrice(printsiTaxEur)}</span>
+                    </div>
+
+                    {/* 2.5% Buyer Protection */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">2.5%</span>
+                        <span className="text-xs font-bold text-gray-600">Buyer Protection</span>
+                      </div>
+                      <span className="text-xs font-black text-gray-800">{formatPrice(buyerProtectionEur)}</span>
+                    </div>
+
+                    {/* 1.5% Currency Conversion — only for non-EUR */}
+                    {isForeignCurrency && (
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">1.5%</span>
+                          <span className="text-xs font-bold text-gray-600">Currency Conversion</span>
+                        </div>
+                        <span className="text-xs font-black text-gray-800">{formatPrice(currencyConversionEur)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex justify-between items-end pt-4">
                   <span className="text-sm font-black uppercase text-gray-900 tracking-tighter">Total</span>
                   <div className="text-right">
                     <p className="text-3xl font-black text-gray-900 tracking-tight leading-none mb-1">
                       {isTopup ? formatPrice(numericTopup, true) : formatPrice(grandTotalEur ?? 0)}
                     </p>
-                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Including VAT</p>
+                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Including all fees</p>
                   </div>
                 </div>
               </div>

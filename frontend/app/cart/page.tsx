@@ -118,7 +118,20 @@ export default function CartPage() {
                     </p>
                     {item.variant_name && (
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="w-3 h-3 rounded-full border border-gray-200 shadow-sm" style={{ backgroundColor: item.variant_color || '#ccc' }} />
+                        {item.variant_layers && item.variant_layers.length > 1 ? (
+                          <div className="flex -space-x-1">
+                            {item.variant_layers.map((layer, li) => (
+                              <div
+                                key={li}
+                                className="w-3 h-3 rounded-full border border-white shadow-sm"
+                                style={{ backgroundColor: layer.color_hex || '#ccc' }}
+                                title={layer.color_name}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="w-3 h-3 rounded-full border border-gray-200 shadow-sm" style={{ backgroundColor: item.variant_color || '#ccc' }} />
+                        )}
                         <span className="text-[11px] font-black text-gray-900 truncate uppercase tracking-widest">{item.variant_name}</span>
                       </div>
                     )}
@@ -127,11 +140,35 @@ export default function CartPage() {
                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
                            Stock: {item.stock === 0 ? <span className="text-red-500">Sold</span> : item.stock}
                          </p>
-                         {item.material && (
-                           <p className="text-[10px] text-purple-600 font-black uppercase tracking-widest">
-                             Material: {item.material}
-                           </p>
+
+                         {/* Wielokolorowe: pokaż każdy filament osobno */}
+                         {item.variant_layers && item.variant_layers.length > 1 ? (
+                           <div className="flex flex-wrap gap-1 mt-1">
+                             {item.variant_layers.map((layer, li) => (
+                               <span
+                                 key={li}
+                                 className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tight bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-sm"
+                               >
+                                 <span
+                                   className="w-2 h-2 rounded-full flex-shrink-0"
+                                   style={{ backgroundColor: layer.color_hex || '#ccc' }}
+                                 />
+                                 {layer.color_name || `Layer ${li + 1}`}
+                                 {layer.grams && <span className="text-purple-400 ml-0.5">· {layer.grams}g</span>}
+                               </span>
+                             ))}
+                             {item.material && (
+                               <span className="text-[9px] font-black uppercase text-gray-400 self-center">({item.material})</span>
+                             )}
+                           </div>
+                         ) : (
+                           item.material && (
+                             <p className="text-[10px] text-purple-600 font-black uppercase tracking-widest">
+                               Material: {item.material}
+                             </p>
+                           )
                          )}
+
                          {item.weight && (
                            <p className="text-[10px] text-amber-600 font-black uppercase tracking-widest">
                              Net Weight: {item.weight}
@@ -210,26 +247,40 @@ export default function CartPage() {
                   )}
                 </div>
 
-                {/* SMART PAYMENT BUTTON */}
-                {balanceLoading ? (
-                  <div className="w-full py-4 bg-gray-100 rounded-xl flex items-center justify-center gap-2 text-gray-400 font-black uppercase tracking-widest">
-                    <Loader2 size={18} className="animate-spin" /> Loading...
-                  </div>
-                ) : canPayWithBalance ? (
-                  <Link
-                    href="/checkout?method=balance"
-                    className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
-                  >
-                    <Wallet size={18} /> Pay with Balance
-                  </Link>
-                ) : (
-                  <Link
-                    href="/checkout?method=stripe"
-                    className="w-full py-4 bg-gray-900 hover:bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
-                  >
-                    <CreditCard size={18} /> Pay with Card <ArrowRight size={18} />
-                  </Link>
-                )}
+                {/* PAYMENT OPTIONS */}
+                <div className="mt-6 flex flex-col gap-3">
+                  {balanceLoading ? (
+                    <div className="w-full py-4 bg-gray-100 rounded-xl flex items-center justify-center gap-2 text-gray-400 font-black uppercase tracking-widest">
+                      <Loader2 size={18} className="animate-spin" /> Loading...
+                    </div>
+                  ) : (
+                    <>
+                      {/* Zawsze pokazuj guzik płatności kartą jako główny, albo na równi */}
+                      <Link
+                        href="/checkout?method=stripe"
+                        className="w-full py-4 bg-gray-900 hover:bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <CreditCard size={18} /> Pay with Card <ArrowRight size={18} />
+                      </Link>
+
+                      {/* Guzik płatności balansem (tylko zalogowani) */}
+                      {userBalance !== null && (
+                        canPayWithBalance ? (
+                          <Link
+                            href="/checkout?method=balance"
+                            className="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
+                          >
+                            <Wallet size={18} /> Pay with Balance
+                          </Link>
+                        ) : (
+                          <div className="w-full py-4 bg-gray-100 text-gray-400 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 border border-gray-200 cursor-not-allowed hidden">
+                            <Wallet size={18} /> Not enough balance
+                          </div>
+                        )
+                      )}
+                    </>
+                  )}
+                </div>
 
 
               </div>

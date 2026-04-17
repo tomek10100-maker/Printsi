@@ -15,9 +15,11 @@ export type CartItem = {
   variant_name?: string;
   variant_color?: string;
   // Warstwy filamentu dla wybranego wariantu – używane do zmniejszania stock_grams po sprzedaży
-  // Format: [{filament_id: string, grams: string|number}]
-  variant_layers?: { filament_id: string; grams: string | number }[];
+  // Format: [{filament_id: string, grams: string|number, color_hex?: string, color_name?: string}]
+  variant_layers?: { filament_id: string; grams: string | number; color_hex?: string; color_name?: string }[];
   category: string;
+  material?: string;  // Typ materiału (ABS, PLA itp.)
+  weight?: string;    // Waga netto (np. "109g"), dla multi-color suma z layers
 };
 
 type CartContextType = {

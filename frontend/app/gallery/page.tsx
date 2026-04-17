@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Loader2, Search, ShoppingBag, X,
-  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare, Palette, Check
+  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare, Palette, Check, Layers
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -152,6 +152,10 @@ function MarketplaceContent() {
       return;
     }
     const firstVariant = variants[0];
+    const fvLayers = firstVariant?.layers;
+    const fvWeight = fvLayers && fvLayers.length > 0
+      ? fvLayers.reduce((sum: number, l: any) => sum + (parseFloat(l.grams) || 0), 0) + 'g'
+      : offer.weight;
     addItem({
       id: offer.id,
       title: offer.title,
@@ -161,8 +165,10 @@ function MarketplaceContent() {
       stock: firstVariant ? firstVariant.stock : offer.stock,
       variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
       variant_color: firstVariant ? getVariantColor(firstVariant) : offer.color_hex,
-      variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
+      variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams, color_hex: l.color_hex, color_name: l.color_name })) || undefined,
       category: offer.category,
+      material: firstVariant ? firstVariant.plastic_type : offer.material,
+      weight: fvWeight,
     }, offer.category === 'digital' ? 1 : 1);
     setLastAddedItem(offer);
     setShowModal(true);
@@ -178,6 +184,10 @@ function MarketplaceContent() {
       return;
     }
     const firstVariant = variants[0];
+    const fvLayers2 = firstVariant?.layers;
+    const fvWeight2 = fvLayers2 && fvLayers2.length > 0
+      ? fvLayers2.reduce((sum: number, l: any) => sum + (parseFloat(l.grams) || 0), 0) + 'g'
+      : offer.weight;
     addItem({
       id: offer.id,
       title: offer.title,
@@ -187,8 +197,10 @@ function MarketplaceContent() {
       stock: firstVariant ? firstVariant.stock : offer.stock,
       variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
       variant_color: firstVariant ? getVariantColor(firstVariant) : offer.color_hex,
-      variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
+      variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams, color_hex: l.color_hex, color_name: l.color_name })) || undefined,
       category: offer.category,
+      material: firstVariant ? firstVariant.plastic_type : offer.material,
+      weight: fvWeight2,
     }, offer.category === 'digital' ? 1 : 1);
     router.push('/cart');
   };
@@ -197,6 +209,10 @@ function MarketplaceContent() {
     if (!colorPickerOffer) return;
     const variants = colorPickerOffer.color_variants || [];
     const v = variants[selectedVariantIdx];
+    const vLayers = v?.layers;
+    const vWeight = vLayers && vLayers.length > 0
+      ? vLayers.reduce((sum: number, l: any) => sum + (parseFloat(l.grams) || 0), 0) + 'g'
+      : colorPickerOffer.weight;
     addItem({
       id: colorPickerOffer.id,
       title: colorPickerOffer.title,
@@ -206,8 +222,10 @@ function MarketplaceContent() {
       stock: v ? v.stock : colorPickerOffer.stock,
       variant_name: v ? v.color_name : colorPickerOffer.color_name,
       variant_color: v ? getVariantColor(v) : colorPickerOffer.color_hex,
-      variant_layers: v?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams })) || undefined,
+      variant_layers: v?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams, color_hex: l.color_hex, color_name: l.color_name })) || undefined,
       category: colorPickerOffer.category,
+      material: v ? v.plastic_type : colorPickerOffer.material,
+      weight: vWeight,
     }, colorPickerOffer.category === 'digital' ? 1 : 1);
     if (colorPickerMode === 'buy') {
       setColorPickerOffer(null);
@@ -493,12 +511,23 @@ function MarketplaceContent() {
 
                 <div className="p-5 flex flex-col flex-grow">
                   <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">{offer.title}</h3>
-                  {offer.category !== 'digital' && (
-                    <div className="flex items-center gap-2 mb-2">
-                      {offer.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1.5 rounded-sm">{offer.material}</span>}
-                      {offer.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1.5 rounded-sm">{offer.weight}</span>}
-                    </div>
-                  )}
+                  {offer.category !== 'digital' && (() => {
+                    const firstVariant = (offer.color_variants || [])[0];
+                    const layers = firstVariant?.layers;
+                    const isMultiLayer = layers && layers.length > 1;
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                        {isMultiLayer ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tight bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-sm">
+                            <Layers size={10} /> {layers.length}-Color Print
+                          </span>
+                        ) : (
+                          offer.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1.5 py-0.5 rounded-sm">{offer.material}</span>
+                        )}
+                        {offer.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1.5 py-0.5 rounded-sm">{offer.weight}</span>}
+                      </div>
+                    );
+                  })()}
 
                   {/* Color variant swatches preview */}
                   {offer.category === 'physical' && offer.stock > 0 && (() => {
@@ -521,7 +550,7 @@ function MarketplaceContent() {
                           <div className="flex items-center gap-1 bg-purple-50 px-2 py-0.5 rounded-full">
                             <Palette size={8} className="text-purple-500" />
                             <span className="text-[8px] font-black uppercase tracking-widest text-purple-600">
-                              {variants.length} colors{extra > 0 ? ` (+${extra})` : ''}
+                              {variants.length} variants{extra > 0 ? ` (+${extra})` : ''}
                             </span>
                           </div>
                         </div>
@@ -554,21 +583,19 @@ function MarketplaceContent() {
                     ) : (
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex flex-col gap-0.5">
-                          {/* Fizyczne rzeczy z wariantami – pokaż ceny wariantów */}
+                          {/* Dla fizycznych z wariantami — po prostu pokaż 'From X' zamiast wylistowywać wszystko */}
                           {(() => {
                             const variants = offer.color_variants || [];
                             if (offer.category === 'physical' && variants.length > 1) {
-                              const shown = variants.slice(0, 2);
+                              const prices = variants.map((v: any) => v.priceEUR || 0);
+                              const minPrice = Math.min(...prices);
+                              const maxPrice = Math.max(...prices);
                               return (
                                 <>
-                                  {shown.map((v: any, vi: number) => (
-                                    <div key={vi} className="flex items-center gap-1.5">
-                                      <div className="w-3 h-3 rounded-full flex-shrink-0 border border-gray-200" style={{ backgroundColor: getVariantColor(v) }} />
-                                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-tight">{v.color_name || v.label || `Variant ${vi + 1}`}:</span>
-                                      <span className="text-xs font-black text-gray-900 leading-tight">{formatPrice(v.priceEUR)}</span>
-                                    </div>
-                                  ))}
-                                  {variants.length > 2 && <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">+{variants.length - 2} more colors</span>}
+                                  <div className="flex items-baseline gap-1 pb-1">
+                                    {minPrice !== maxPrice && <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">From</span>}
+                                    <span className="text-lg font-black text-gray-900 leading-none">{formatPrice(minPrice)}</span>
+                                  </div>
                                   <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">+ shipping</span>
                                 </>
                               );

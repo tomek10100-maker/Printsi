@@ -621,11 +621,24 @@ function MessagesInner() {
                 .single();
 
             if (chatErr || !newChat) {
-                console.error("Error creating chat for proposal:", chatErr);
-                alert("Failed to create chat session.");
-                return;
+                // Fallback: Może czat już istnieje (np. konflikt constraintu) więc próbujemy go pobrać
+                const { data: existingChat } = await supabase.from('chats')
+                    .select('id')
+                    .eq('buyer_id', currentUser.id)
+                    .eq('seller_id', activeChatData.seller_id)
+                    .eq('offer_id', activeChatData.offer_id)
+                    .single();
+
+                if (existingChat) {
+                    currentActiveId = existingChat.id;
+                } else {
+                    console.error("Error creating chat for proposal:", chatErr);
+                    alert(`Failed to create chat session: ${chatErr?.message || JSON.stringify(chatErr)}`);
+                    return;
+                }
+            } else {
+                currentActiveId = newChat.id;
             }
-            currentActiveId = newChat.id;
             setActiveChatId(currentActiveId);
             router.replace(`/profile/messages?chat=${currentActiveId}`);
         }
@@ -1387,7 +1400,7 @@ function MessagesInner() {
                                                                         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
                                                                             <div className="w-8 h-8 rounded-full border-2 border-white shadow-md ring-2 ring-gray-200" style={{ backgroundColor: activeHex }} />
                                                                             <div className="flex-1 min-w-0">
-                                                                                <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Layer {lIdx + 1}</div>
+                                                                                <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Color {lIdx + 1}</div>
                                                                                 <div className="text-sm font-black text-gray-900 truncate">{activeName}</div>
                                                                                 {activeMaterial && <div className="text-[9px] font-bold text-gray-400 uppercase">{activeMaterial}</div>}
                                                                             </div>

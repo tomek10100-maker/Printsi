@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, ShoppingBag, Truck, ShieldCheck, Box,
-  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake
+  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -30,6 +30,8 @@ export default function OfferDetailsPage() {
   const [sellerOffers, setSellerOffers] = useState<any[]>([]);
   const [creatingChat, setCreatingChat] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  // Materiały per warstwa: filament_id -> plastic_type
+  const [layerMaterials, setLayerMaterials] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,6 +89,27 @@ export default function OfferDetailsPage() {
       }
 
       setLoading(false);
+
+      // Pobierz plastic_type dla każdej warstwy każdego wariantu
+      if (data?.color_variants) {
+        const filamentIds = new Set<string>();
+        data.color_variants.forEach((v: any) => {
+          (v.layers || []).forEach((l: any) => {
+            if (l.filament_id) filamentIds.add(l.filament_id);
+          });
+        });
+        if (filamentIds.size > 0) {
+          const { data: filaments } = await supabase
+            .from('filaments')
+            .select('id, plastic_type')
+            .in('id', Array.from(filamentIds));
+          if (filaments) {
+            const map: Record<string, string> = {};
+            filaments.forEach((f: any) => { map[f.id] = f.plastic_type; });
+            setLayerMaterials(map);
+          }
+        }
+      }
     };
     fetchData();
   }, [params.id, router]);
@@ -106,7 +129,9 @@ export default function OfferDetailsPage() {
       variant_layers: currentVariant?.layers
         ? currentVariant.layers.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams }))
         : undefined,
-      category: offer.category
+      category: offer.category,
+      material: currentMaterial,
+      weight: currentWeight,
     }, isDigital ? 1 : quantity);
     setShowModal(true);
   };
@@ -283,27 +308,35 @@ export default function OfferDetailsPage() {
             <div className="space-y-6 mb-10">
               {/* Dimensions & Weight Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {offer.material && (
+                {(offer.material || (currentVariant?.layers && currentVariant.layers.length > 0)) && (
                   <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-2 mb-3">
                       <Box size={16} className="text-blue-400" />
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Base Material</span>
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Material</span>
                     </div>
-                    <span className="text-2xl font-black text-gray-900 truncate block">{offer.material}</span>
+                    {/* Jeśli jest jeden wariant bez warstw — pokaż offer.material */}
+                    {(!currentVariant?.layers || currentVariant.layers.length === 0) && (
+                      <span className="text-2xl font-black text-gray-900 truncate block">{offer.material}</span>
+                    )}
                     
-                    {/* Material breakdown based on selected variant */}
+                    {/* Composition Breakdown per warstwa */}
                     {currentVariant?.layers && currentVariant.layers.length > 0 ? (
-                      <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                        <span className="text-[8px] font-black uppercase text-gray-400 tracking-tighter block">Composition Breakdown</span>
-                        {currentVariant.layers.map((l: any, i: number) => (
-                          <div key={i} className="flex justify-between items-center bg-white/50 p-2 rounded-xl border border-white/50">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2.5 h-2.5 rounded-full border border-gray-100" style={{ backgroundColor: l.color_hex || '#ccc' }} />
-                              <span className="text-[9px] font-black text-gray-900 uppercase tracking-tight truncate max-w-[80px]">{l.color_name}</span>
+                      <div className="space-y-3">
+                        {currentVariant.layers.map((l: any, i: number) => {
+                          const mat = l.filament_id ? layerMaterials[l.filament_id] : (currentVariant.plastic_type || offer.material);
+                          return (
+                            <div key={i} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <div className="w-5 h-5 rounded-full border-2 border-gray-200 shadow-md flex-shrink-0" style={{ backgroundColor: l.color_hex || '#ccc' }} />
+                                <div>
+                                  <span className="text-[11px] font-black text-gray-900 uppercase tracking-tight block leading-tight">{l.color_name}</span>
+                                  {mat && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{mat}</span>}
+                                </div>
+                              </div>
+                              <span className="text-sm font-black text-blue-600">{l.grams}g</span>
                             </div>
-                            <span className="text-[11px] font-black text-blue-700">{l.grams}g</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center text-[11px] font-bold">
@@ -358,7 +391,12 @@ export default function OfferDetailsPage() {
 
               {/* COLOR VARIANTS SELECTION */}
               {hasVariants && (
-                <div className="p-2 bg-gray-100 rounded-[32px] border border-gray-200">
+                <div>
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <Palette size={15} className="text-blue-400" />
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Color Variant</span>
+                  </div>
+                  <div className="p-2 bg-gray-100 rounded-[32px] border border-gray-200">
                   <div className="flex flex-col gap-2">
                     {variants.map((v: any, idx: number) => {
                       const isSelected = selectedVariantIndex === idx;
@@ -404,7 +442,6 @@ export default function OfferDetailsPage() {
                                 v.label || v.color_name || 'Individual Choice'
                               )}
                             </span>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{v.plastic_type || 'Premium Filament'}</span>
                           </div>
 
                           <div className="text-right">
@@ -422,6 +459,7 @@ export default function OfferDetailsPage() {
                         </button>
                       );
                     })}
+                  </div>
                   </div>
                 </div>
               )}

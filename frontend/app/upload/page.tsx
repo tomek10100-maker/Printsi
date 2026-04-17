@@ -1497,18 +1497,19 @@ export default function AddOfferPage() {
                     <p className="text-gray-500 font-bold mt-2 text-xs">Your listing is now visible to the world.</p>
                   </div>
                   
-                  <div className="flex flex-col gap-3 w-full mt-2">
+                  <div className="flex flex-col gap-3 w-full mt-4">
+                    <button type="button" onClick={resetForm}
+                      className="relative w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:from-blue-500 hover:to-indigo-500 hover:shadow-2xl hover:shadow-blue-500/40 transition-all duration-300 active:scale-[0.98] overflow-hidden group">
+                      <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      Post Something Else
+                    </button>
                     <button type="button" onClick={() => router.push('/gallery')}
-                      className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl active:scale-[0.98]">
+                      className="w-full py-4 bg-blue-50 text-blue-700 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-blue-100 transition-all duration-300 active:scale-[0.98]">
                       Explore Gallery
                     </button>
                     <button type="button" onClick={() => router.push('/profile')}
-                      className="w-full py-4 bg-gray-100 text-gray-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-[0.98]">
+                      className="w-full py-4 bg-transparent border-2 border-dashed border-gray-200 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:border-blue-200 hover:text-blue-500 hover:bg-blue-50/50 transition-all duration-300 active:scale-[0.98]">
                       Go to My Profile
-                    </button>
-                    <button type="button" onClick={resetForm}
-                      className="w-full py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-gray-300 hover:text-gray-600 transition-all active:scale-[0.98]">
-                      Post Something Else
                     </button>
                   </div>
                 </div>
