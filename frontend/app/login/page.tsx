@@ -1,9 +1,14 @@
 'use client';
 
-import { supabase } from '@/app/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { useState } from 'react';
 import { Mail, Lock, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -43,13 +48,13 @@ export default function LoginPage() {
         setStatus({ type: 'error', message: error.message });
       } else if (data.user) {
         setStatus({ type: 'success', message: 'Account created! A verification link has been sent. Check your inbox to activate your account.' });
-        
+
         await fetch('/api/auth/send-verification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: data.user.id, email }),
-        }).catch(() => {});
-        
+        }).catch(() => { });
+
         // Sign out immediately to force email click
         await supabase.auth.signOut();
       }
@@ -103,9 +108,8 @@ export default function LoginPage() {
 
         {/* Error/Success Brick */}
         {status && (
-          <div className={`mb-6 p-4 rounded-xl border text-sm font-bold ${
-            status.type === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-green-50 border-green-200 text-green-600'
-          }`}>
+          <div className={`mb-6 p-4 rounded-xl border text-sm font-bold ${status.type === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-green-50 border-green-200 text-green-600'
+            }`}>
             {status.type === 'error' ? '❌ ' : '✅ '}{status.message}
           </div>
         )}

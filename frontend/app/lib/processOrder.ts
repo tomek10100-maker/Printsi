@@ -196,7 +196,7 @@ export async function processOrder(orderId: string, userId: string) {
   if (neededParentIds.length > 0) {
     const { data: parents } = await supabase
       .from('offers')
-      .select('id, color_variants')
+      .select('id, color_variants, file_url, category')
       .in('id', neededParentIds);
     (parents || []).forEach(p => { offerMap[p.id] = p; });
   }
@@ -272,7 +272,9 @@ export async function processOrder(orderId: string, userId: string) {
     const msgOrder = await supabase.from('messages').insert({
       chat_id: chatId,
       sender_id: userId,
-      content: `New order: ${item.quantity}x "${title}" has been purchased successfully.`,
+      content: offer.category === 'job'
+        ? `🖨️ Print job confirmed! Payment for ${item.quantity}x "${title}" has been received. The 3D file will be sent to the printer's email shortly.`
+        : `New order: ${item.quantity}x "${title}" has been purchased successfully.`,
       message_type: 'system',
     });
     if (msgOrder.error) console.error('❌ Order message failed:', msgOrder.error);
@@ -285,6 +287,47 @@ export async function processOrder(orderId: string, userId: string) {
         sender_id: userId,
         content: `Digital file delivered automatically to your email. Please check it and confirm everything is correct!`,
         message_type: 'status_shipped',
+      });
+    } else if (offer.category === 'job') {
+      // ── PRINT ON DEMAND FLOW ──
+      // 1. Send the 3D file to the PRINTER (seller in order_items)
+      const parentOffer = offer.parent_offer_id ? offerMap[offer.parent_offer_id] : null;
+      const fileUrl = parentOffer?.file_url || offer.file_url;
+
+      if (fileUrl) {
+        try {
+          // Get the printer's (seller's) email
+          const { data: printerAuth } = await supabase.auth.admin.getUserById(sellerId);
+          const printerEmail = printerAuth?.user?.email;
+          const { data: printerProfile } = await supabase.from('profiles').select('full_name').eq('id', sellerId).single();
+          const printerName = printerProfile?.full_name || 'Printer';
+
+          if (printerEmail) {
+            await sendDigitalFileEmail({
+              buyerEmail: printerEmail,
+              buyerName: printerName,
+              productTitle: `Print Job: ${title}`,
+              fileUrl,
+              orderId,
+            });
+            console.log(`✅ 3D file sent to printer ${printerEmail} for job: ${title}`);
+          }
+        } catch (emailErr) {
+          console.error(`❌ Could not send 3D file to printer:`, emailErr);
+        }
+      }
+
+      // 2. Mark the original job listing as fulfilled (stock → 0)
+      const jobListingId = offer.parent_offer_id || item.offer_id;
+      await supabase.from('offers').update({ stock: 0 }).eq('id', jobListingId);
+      console.log(`📦 Job listing ${jobListingId} marked as fulfilled (stock → 0)`);
+
+      // 3. System messages explaining next steps
+      await supabase.from('messages').insert({
+        chat_id: chatId,
+        sender_id: userId,
+        content: `📧 The 3D file has been sent to the printer's email. The printer now has 4 days to print and ship the item. Track the progress below.`,
+        message_type: 'system',
       });
     } else {
       await supabase.from('messages').insert({

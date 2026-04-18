@@ -26,6 +26,14 @@ const POPULAR_MATERIALS = [
   { name: 'Custom / Other', icon: '❔', desc: 'Specify a custom filament type if it is not on the list.', tags: ['Specialized'] },
 ];
 
+const BASIC_COLORS: Record<string, string> = {
+  black: '#000000', white: '#ffffff', red: '#ff0000', green: '#008000', blue: '#0000ff',
+  yellow: '#ffff00', cyan: '#00ffff', magenta: '#ff00ff', gray: '#808080', grey: '#808080',
+  orange: '#ffa500', brown: '#a52a2a', pink: '#ffc0cb', purple: '#800080',
+  navy: '#000080', lime: '#00ff00', maroon: '#800000', olive: '#808000', teal: '#008080',
+  silver: '#c0c0c0', gold: '#ffd700'
+};
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -663,6 +671,46 @@ export default function EditOfferPage() {
                     </div>
                  )}
 
+                 {/* REQUIRED COLOR */}
+                 <div className="pt-6 mt-4 border-t border-gray-100">
+                   <div className="flex items-center justify-between gap-2 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Palette size={14} className="text-gray-400" />
+                        <span className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Required Color</span>
+                      </div>
+                   </div>
+                   
+                   <div className="flex flex-wrap gap-2 mb-4">
+                     <button
+                       type="button"
+                       onClick={() => { setManualColor('Any'); setManualColorHex('#cccccc'); }}
+                       className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border-2 ${manualColor === 'Any' || !manualColor ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105' : 'bg-gray-50 border-gray-100 text-gray-500 hover:border-gray-200'}`}
+                     >
+                       Any Color
+                     </button>
+                     {Object.entries(BASIC_COLORS).map(([name, hex]) => (
+                        <button
+                          key={name}
+                          type="button"
+                          title={name}
+                          onClick={() => { setManualColor(name); setManualColorHex(hex); }}
+                          className={`w-7 h-7 rounded-full transition-transform shadow-sm ${manualColor === name ? 'scale-125 border-[3px] border-blue-600 shadow-md z-10 relative' : 'border-2 border-black/5 hover:scale-110'}`}
+                          style={{ backgroundColor: hex }}
+                        />
+                     ))}
+                   </div>
+                   
+                   <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <div className="flex-1 w-full relative">
+                        <input type="text" placeholder="Custom color name (e.g. Neon Yellow)" value={manualColor === 'Any' ? '' : manualColor} onChange={e => setManualColor(e.target.value)} className="w-full p-4 bg-white border-2 border-gray-100 rounded-2xl font-bold text-gray-900 outline-none focus:border-blue-600 transition-all shadow-sm" />
+                      </div>
+                      <div className="shrink-0 relative overflow-hidden rounded-2xl w-full sm:w-20 h-14 border-2 border-gray-100 p-1 flex items-center justify-center bg-white shadow-sm">
+                         <input type="color" value={manualColorHex} onChange={e => setManualColorHex(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Pick precise color" />
+                         <div className="w-full h-full rounded-xl pointer-events-none border border-black/10" style={{ backgroundColor: manualColorHex }} />
+                      </div>
+                   </div>
+                 </div>
+
                  {/* PRICING STRATEGY SECTION */}
                  <div className="space-y-4">
                    <div className="flex items-center gap-3">
@@ -673,7 +721,7 @@ export default function EditOfferPage() {
                      <button type="button" onClick={() => setIsNegotiable(false)}
                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${!isNegotiable ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
                        <Tag size={20} className={!isNegotiable ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-400'} />
-                       <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${!isNegotiable ? 'text-blue-900' : 'text-gray-400 group-hover:text-blue-600'}`}>Fixed Price</span>
+                       <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${!isNegotiable ? 'text-blue-900' : 'text-gray-400 group-hover:text-blue-600'}`}>Price</span>
                      </button>
                      <button type="button" onClick={() => setIsNegotiable(true)}
                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${isNegotiable ? 'border-indigo-600 bg-indigo-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
@@ -684,21 +732,21 @@ export default function EditOfferPage() {
 
                    {(!isNegotiable) ? (
                       <div className="rounded-2xl p-6 border-2 border-gray-200 bg-white transition-all flex flex-col md:flex-row items-center gap-6 overflow-hidden">
-                        <div className="flex-1 w-full">
+                        <div className="flex-1 w-full min-w-0">
                           <div className="flex items-center gap-3">
-                            <span className="text-xl font-black text-gray-400">{currency}</span>
+                            <span className="text-xl font-black text-gray-400 shrink-0">{currency}</span>
                             <input type="text" inputMode="decimal" placeholder="0.00"
                               value={manualPriceLocal}
                               onChange={e => {
                                 const val = e.target.value.replace(',', '.');
                                 if (/^\d*\.?\d*$/.test(val)) setManualPriceLocal(val);
                               }}
-                              className="flex-1 bg-transparent outline-none font-black text-4xl text-gray-900 placeholder-gray-200 w-full"
+                              className="w-full min-w-0 bg-transparent outline-none font-black text-4xl text-gray-900 placeholder-gray-200"
                               required={!isNegotiable} title="Please fill out this field" />
                           </div>
                         </div>
 
-                        <div className="w-full md:w-44 md:border-l border-gray-100 md:pl-6 pt-4 md:pt-0 flex flex-col items-center">
+                        <div className="w-full md:w-44 shrink-0 md:border-l border-gray-100 md:pl-6 pt-4 md:pt-0 flex flex-col items-center">
                            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1.5">Pieces</span>
                            <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 w-full justify-between">
                               <button type="button" onClick={() => setManualStock(s => Math.max(1, (parseInt(s) || 1) - 1).toString())} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-sm font-black"><Minus size={14} /></button>

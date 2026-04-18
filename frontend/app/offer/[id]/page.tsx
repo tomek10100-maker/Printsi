@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, ShoppingBag, Truck, ShieldCheck, Box,
-  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette
+  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette, Download, Printer, XCircle
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -32,6 +32,8 @@ export default function OfferDetailsPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   // Materiały per warstwa: filament_id -> plastic_type
   const [layerMaterials, setLayerMaterials] = useState<Record<string, string>>({});
+  const [downloadingFile, setDownloadingFile] = useState(false);
+  const [fileDownloaded, setFileDownloaded] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -117,6 +119,14 @@ export default function OfferDetailsPage() {
   const handleAddToCart = () => {
     // ... item logic ...
     if (!offer) return;
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+    // Job offers → handled by the dedicated fulfillment panel below
+    if (offer.category === 'job') {
+      return;
+    }
     addItem({
       id: offer.id,
       title: offer.title,
@@ -193,12 +203,70 @@ export default function OfferDetailsPage() {
     router.push(`/profile/messages?seller_id=${offer.user_id}&offer_id=${offer.id}`);
   };
 
+  const handleFulfillJob = async () => {
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+    if (!offer?.file_url) return;
+
+    setDownloadingFile(true);
+
+    // 1. Open file download in new tab
+    window.open(offer.file_url, '_blank');
+    setFileDownloaded(true);
+
+    // 2. Send notification to job poster
+    try {
+      await supabase.from('notifications').insert({
+        user_id: offer.user_id,
+        title: '🖨️ A printer is reviewing your job!',
+        message: `A printer has downloaded the 3D file for "${offer.title}" and is evaluating it. You'll be notified when they submit a price proposal.`,
+        type: 'job',
+        sender_id: currentUser.id,
+        offer_id: offer.id,
+        is_read: false,
+      });
+    } catch (e) {
+      console.error('Notification failed:', e);
+    }
+
+    // 3. Brief delay then redirect to chat
+    setTimeout(() => {
+      router.push(`/profile/messages?seller_id=${offer.user_id}&offer_id=${offer.id}&job_fulfill=true`);
+    }, 1500);
+  };
+
+  const handleDeclineJob = async () => {
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+    // Notify job poster that a printer declined
+    try {
+      await supabase.from('notifications').insert({
+        user_id: offer.user_id,
+        title: '❌ A printer passed on your job',
+        message: `A printer reviewed "${offer.title}" but decided they cannot fulfill it. Don't worry — other printers can still pick it up!`,
+        type: 'job',
+        sender_id: currentUser.id,
+        offer_id: offer.id,
+        is_read: false,
+      });
+    } catch (e) {
+      console.error('Decline notification failed:', e);
+    }
+    router.push('/gallery');
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-gray-900" size={40} /></div>;
   if (!offer) return <div className="min-h-screen flex items-center justify-center">Product not found.</div>;
 
   const seller = offer.profiles;
   const isOwner = currentUser && currentUser.id === offer.user_id;
   const isDigital = offer.category === 'digital';
+  const isJob = offer.category === 'job';
+  const isPrinter = userRoles.includes('printer');
 
   const variants = offer.color_variants || [];
   const hasVariants = variants.length > 0;
@@ -316,7 +384,15 @@ export default function OfferDetailsPage() {
                     </div>
                     {/* Jeśli jest jeden wariant bez warstw — pokaż offer.material */}
                     {(!currentVariant?.layers || currentVariant.layers.length === 0) && (
-                      <span className="text-2xl font-black text-gray-900 truncate block">{offer.material}</span>
+                      <div className="flex items-center justify-between">
+                         <span className="text-2xl font-black text-gray-900 truncate block">{offer.material}</span>
+                         {currentColor && (
+                           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm">
+                             <div className="w-4 h-4 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: currentColorHex || '#ccc' }} />
+                             <span className="text-xs font-black uppercase text-gray-700">{currentColor}</span>
+                           </div>
+                         )}
+                      </div>
                     )}
                     
                     {/* Composition Breakdown per warstwa */}
@@ -338,12 +414,12 @@ export default function OfferDetailsPage() {
                           );
                         })}
                       </div>
-                    ) : (
+                    ) : (currentWeight ? (
                       <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center text-[11px] font-bold">
                         <span className="text-gray-400 uppercase tracking-widest">Total Material:</span>
-                        <span className="text-blue-600 font-black">{currentWeight || 'N/A'}</span>
+                        <span className="text-blue-600 font-black">{currentWeight}</span>
                       </div>
-                    )}
+                    ) : null)}
                   </div>
                 )}
                 {offer.dimensions && (
@@ -498,6 +574,52 @@ export default function OfferDetailsPage() {
                 >
                   <Edit size={22} className="group-hover:rotate-12 transition-transform" /> Manage Listing
                 </Link>
+              ) : isJob ? (
+                /* ── JOB FULFILLMENT PANEL ── */
+                <div className="flex-1 space-y-4">
+                  {!isPrinter ? (
+                    <div className="py-5 rounded-[24px] bg-gray-100 border-2 border-dashed border-gray-200 text-center">
+                      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Printer Role Required</p>
+                      <p className="text-xs text-gray-400 mt-1">Only verified printers can fulfill print jobs.</p>
+                    </div>
+                  ) : isOutOfStock ? (
+                    <div className="py-5 rounded-[24px] bg-emerald-50 border border-emerald-200 text-center">
+                      <p className="text-sm font-black text-emerald-600 uppercase tracking-widest">✅ Job Already Fulfilled</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Download & Fulfill Button */}
+                      <button
+                        onClick={handleFulfillJob}
+                        disabled={downloadingFile}
+                        className={`w-full py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 group relative overflow-hidden ${
+                          fileDownloaded
+                            ? 'bg-emerald-600 text-white shadow-emerald-500/30'
+                            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:-translate-y-1 active:scale-95 shadow-blue-500/30'
+                        }`}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                        {downloadingFile ? (
+                          <><Loader2 size={22} className="animate-spin" /> Preparing...</>
+                        ) : fileDownloaded ? (
+                          <><Check size={22} /> File Downloaded — Opening Chat...</>
+                        ) : (
+                          <><Download size={22} className="group-hover:animate-bounce" /> Download 3D File & Fulfill</>  
+                        )}
+                      </button>
+
+
+
+                      {/* Info hint */}
+                      <div className="flex items-start gap-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                        <Printer size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-[11px] text-blue-600/80 font-medium leading-relaxed">
+                          Download the 3D file to evaluate printability. Once downloaded, you'll open a chat to propose your price and terms to the customer.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
               ) : (
                 <div className="flex flex-1 gap-4">
                   <button
@@ -512,7 +634,7 @@ export default function OfferDetailsPage() {
                     disabled={isOutOfStock || isAlreadyInCart}
                     className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1 active:scale-95'}`}
                   >
-                    {isOutOfStock ? 'Item Sold Out' : isAlreadyInCart ? <><Check size={22} /> Secured in Cart</> : <><ShoppingBag size={22} /> {offer.category === 'job' ? (offer.is_negotiable ? 'Send Proposal' : 'Bid for Print') : 'Get this Print'}</>}
+                    {isOutOfStock ? 'Item Sold Out' : isAlreadyInCart ? <><Check size={22} /> Secured in Cart</> : <><ShoppingBag size={22} /> Get this Print</>}
                   </button>
                 </div>
               )}
@@ -544,6 +666,10 @@ export default function OfferDetailsPage() {
               {isDigital ? (
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-600 tracking-wider">
                    <div className="w-2 h-2 rounded-full bg-green-500" /> Instant Download
+                </div>
+              ) : isJob ? (
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 tracking-wider">
+                   <Printer size={14} className="text-indigo-400" /> Print on Demand
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">

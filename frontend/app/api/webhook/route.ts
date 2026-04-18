@@ -353,11 +353,56 @@ export async function POST(req: Request) {
         await supabase.from('messages').insert({
           chat_id: chatId,
           sender_id: userId,
-          content: `New order: ${quantityBought}x ${product.name} has been purchased successfully.`,
+          content: offerDetails?.category === 'job'
+            ? `🖨️ Print job confirmed! Payment for ${quantityBought}x ${product.name} has been received. The 3D file will be sent to the printer's email shortly.`
+            : `New order: ${quantityBought}x ${product.name} has been purchased successfully.`,
           message_type: 'system',
         });
-        // If physical, add shipping reminder
-        if (offerDetails?.category !== 'digital') {
+
+        if (offerDetails?.category === 'job') {
+          // Job flow: send file to printer, mark listing as fulfilled
+          const fileUrl = offerDetails?.file_url;
+          // Also check parent offer for file_url
+          let parentFileUrl = null;
+          if (!fileUrl && parentOfferId) {
+            const { data: parentOffer } = await supabase.from('offers').select('file_url').eq('id', parentOfferId).single();
+            parentFileUrl = parentOffer?.file_url;
+          }
+          const finalFileUrl = fileUrl || parentFileUrl;
+
+          if (finalFileUrl && sellerId) {
+            try {
+              const { data: printerAuth } = await supabase.auth.admin.getUserById(sellerId);
+              const printerEmail = printerAuth?.user?.email;
+              const { data: printerProfile } = await supabase.from('profiles').select('full_name').eq('id', sellerId).single();
+
+              if (printerEmail) {
+                await sendDigitalFileEmail({
+                  buyerEmail: printerEmail,
+                  buyerName: printerProfile?.full_name || 'Printer',
+                  productTitle: `Print Job: ${product.name}`,
+                  fileUrl: finalFileUrl,
+                  orderId: newOrder.id,
+                });
+                console.log(`✅ 3D file sent to printer ${printerEmail} for job: ${product.name}`);
+              }
+            } catch (emailErr) {
+              console.error(`❌ Could not send 3D file to printer for job:`, emailErr);
+            }
+          }
+
+          // Mark original job listing as fulfilled (stock → 0)
+          const jobListingId = parentOfferId || offerId;
+          await supabase.from('offers').update({ stock: 0 }).eq('id', jobListingId);
+          console.log(`📦 Job listing ${jobListingId} marked as fulfilled`);
+
+          await supabase.from('messages').insert({
+            chat_id: chatId,
+            sender_id: userId,
+            content: `📧 The 3D file has been sent to the printer's email. The printer now has 4 days to print and ship the item. Track the progress below.`,
+            message_type: 'system',
+          });
+        } else if (offerDetails?.category !== 'digital') {
           await supabase.from('messages').insert({
             chat_id: chatId,
             sender_id: userId,

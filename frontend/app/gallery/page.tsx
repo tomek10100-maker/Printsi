@@ -1,20 +1,16 @@
 'use client';
 
 import { useEffect, useState, Suspense, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  Loader2, Search, ShoppingBag, X,
+  Loader2, Search, ShoppingBag, X, SlidersHorizontal,
   ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare, Palette, Check, Layers
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import ThemeToggle from '../components/ThemeToggle';
+import { supabase } from '../lib/supabase';
 
 type ColorVariant = {
   label: string;
@@ -27,6 +23,32 @@ type ColorVariant = {
   isMultiColor?: boolean;
   layers?: { color_hex: string; color_name: string; grams: string; filament_id?: string }[];
 };
+
+const CORE_MATS = ['PLA', 'PLA+', 'PETG', 'ABS', 'TPU (Flexible)', 'ASA', 'Nylon', 'Carbon Fiber', 'Wood'];
+
+const BASE_COLORS = [
+  { id: 'white', name: 'White', hex: '#ffffff', keywords: ['white', 'snow', 'clear', 'transparent', 'ivory', 'bone'] },
+  { id: 'light_gray', name: 'Light Gray', hex: '#d1d5db', keywords: ['light gray', 'silver', 'platinum'] },
+  { id: 'gray', name: 'Gray', hex: '#6b7280', keywords: ['gray', 'grey', 'ash', 'slate'] },
+  { id: 'dark_gray', name: 'Dark Gray', hex: '#374151', keywords: ['dark gray', 'charcoal', 'graphite'] },
+  { id: 'black', name: 'Black', hex: '#000000', keywords: ['black', 'onyx', 'coal', 'obsidian', 'dark', 'midnight'] },
+  { id: 'brown', name: 'Brown', hex: '#78350f', keywords: ['brown', 'chocolate', 'wood', 'copper', 'bronze', 'coffee', 'mocha'] },
+  { id: 'red', name: 'Red', hex: '#ef4444', keywords: ['red', 'crimson', 'ruby', 'scarlet', 'cherry', 'blood'] },
+  { id: 'dark_red', name: 'Dark Red', hex: '#7f1d1d', keywords: ['dark red', 'maroon', 'burgundy', 'wine'] },
+  { id: 'orange', name: 'Orange', hex: '#f97316', keywords: ['orange', 'tangerine', 'peach', 'carrot', 'apricot'] },
+  { id: 'yellow', name: 'Yellow', hex: '#eab308', keywords: ['yellow', 'lemon', 'sun', 'blonde'] },
+  { id: 'gold', name: 'Gold', hex: '#ca8a04', keywords: ['gold', 'brass', 'mustard'] },
+  { id: 'lime', name: 'Lime', hex: '#84cc16', keywords: ['lime', 'chartreuse', 'neon green'] },
+  { id: 'green', name: 'Green', hex: '#22c55e', keywords: ['green', 'emerald', 'olive', 'forest', 'mint'] },
+  { id: 'dark_green', name: 'Dark Green', hex: '#14532d', keywords: ['dark green', 'pine', 'jade'] },
+  { id: 'cyan', name: 'Cyan', hex: '#06b6d4', keywords: ['cyan', 'teal', 'aqua', 'turquoise', 'sky'] },
+  { id: 'light_blue', name: 'Light Blue', hex: '#3b82f6', keywords: ['light blue', 'cornflower', 'baby blue'] },
+  { id: 'blue', name: 'Blue', hex: '#1d4ed8', keywords: ['blue', 'cobalt', 'azure', 'sapphire'] },
+  { id: 'navy', name: 'Navy', hex: '#1e3a8a', keywords: ['navy', 'dark blue'] },
+  { id: 'indigo', name: 'Indigo', hex: '#4f46e5', keywords: ['indigo'] },
+  { id: 'purple', name: 'Purple', hex: '#9333ea', keywords: ['purple', 'violet', 'amethyst', 'lavender', 'plum'] },
+  { id: 'pink', name: 'Pink', hex: '#ec4899', keywords: ['pink', 'rose', 'blush', 'magenta', 'fuchsia', 'coral'] }
+];
 
 /** Safely extract the display color from a variant (handles both DB raw form and computed form) */
 function getVariantColor(v: ColorVariant): string {
@@ -74,6 +96,11 @@ function MarketplaceContent() {
   const [colorPickerOffer, setColorPickerOffer] = useState<Offer | null>(null);
   const [colorPickerMode, setColorPickerMode] = useState<'add' | 'buy'>('add');
   const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
+
+  // Filter Panel State
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterMaterial, setFilterMaterial] = useState<string>('');
+  const [filterColorId, setFilterColorId] = useState<string>('');
 
   const fetchOffers = useCallback(async () => {
     const { data, error } = await supabase
@@ -142,7 +169,16 @@ function MarketplaceContent() {
   }, [fetchOffers]);
 
   const handleAddToCart = (offer: Offer) => {
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
     if (offer.stock <= 0) return;
+    // Job offers → redirect to offer detail page for download & fulfill flow
+    if (offer.category === 'job') {
+      router.push(`/offer/${offer.id}`);
+      return;
+    }
     const variants = offer.color_variants || [];
     if (offer.category === 'physical' && variants.length > 1) {
       // open color picker
@@ -175,7 +211,16 @@ function MarketplaceContent() {
   };
 
   const handleBuyNow = (offer: Offer) => {
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
     if (offer.stock <= 0) return;
+    // Job offers → redirect to offer detail page for download & fulfill flow
+    if (offer.category === 'job') {
+      router.push(`/offer/${offer.id}`);
+      return;
+    }
     const variants = offer.color_variants || [];
     if (offer.category === 'physical' && variants.length > 1) {
       setColorPickerOffer(offer);
@@ -295,12 +340,68 @@ function MarketplaceContent() {
     }
   };
 
+  // Extract unique materials for filters and append them clearly
+  const availableMaterials = Array.from(new Set(offers.flatMap(o => {
+    const mats = [];
+    if (o.material) mats.push(o.material);
+    if (o.color_variants) {
+      o.color_variants.forEach(v => {
+        if (v.plastic_type) mats.push(v.plastic_type);
+        if (v.layers) v.layers.forEach((l: any) => { if (l.plastic_type) mats.push(l.plastic_type); });
+      });
+    }
+    return mats;
+  }))).filter(Boolean);
+
+  // Combine core materials with dynamically added ones, ensuring cores are first
+  const displayMaterials = Array.from(new Set([...CORE_MATS, ...availableMaterials])).sort((a, b) => {
+    const aIdx = CORE_MATS.indexOf(a);
+    const bIdx = CORE_MATS.indexOf(b);
+    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    if (aIdx !== -1) return -1;
+    if (bIdx !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
   const filteredOffers = offers
     .filter(offer => {
       if (categoryFilter !== 'all' && offer.category !== categoryFilter) return false;
+      
+      // Filter Material
+      if (filterMaterial) {
+        const hasMaterial = offer.material === filterMaterial || 
+          (offer.color_variants || []).some(v => v.plastic_type === filterMaterial || v.layers?.some((l: any) => l.plastic_type === filterMaterial));
+        if (!hasMaterial) return false;
+      }
+      
+      // Filter Color by keyword matching
+      if (filterColorId) {
+        const baseColor = BASE_COLORS.find(c => c.id === filterColorId);
+        if (baseColor) {
+           const checkStr = (str?: string) => {
+             if (!str) return false;
+             const lb = str.toLowerCase();
+             return baseColor.keywords.some(kw => lb.includes(kw));
+           };
+           const hasColor = checkStr(offer.color_name) || 
+             (offer.color_variants || []).some(v => checkStr(v.color_name) || v.layers?.some(l => checkStr(l.color_name)));
+           if (!hasColor) return false;
+        }
+      }
+
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        return offer.title.toLowerCase().includes(query) || offer.description?.toLowerCase().includes(query);
+        const searchableText = [
+          offer.title,
+          offer.description,
+          offer.material,
+          offer.color_name,
+          offer.dimensions,
+          offer.weight,
+          ...(offer.color_variants || []).map(v => `${v.label} ${v.plastic_type} ${v.color_name} ${(v.layers || []).map(l => `${l.color_name} ${(l as any).plastic_type || ''}`).join(' ')}`),
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        return searchableText.includes(query);
       }
       return true;
     })
@@ -415,9 +516,18 @@ function MarketplaceContent() {
 
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4">
         <Link href="/" className="flex-shrink-0"><img src="/logo.jpg" alt="Printis" className="h-8 w-auto rounded-xl object-cover hover:opacity-80 transition" /></Link>
-        <div className="flex-1 max-w-2xl relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input type="text" placeholder="Search items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-gray-100 hover:bg-white focus:bg-white border-2 border-transparent focus:border-blue-600 rounded-full text-sm font-medium transition-all outline-none" />
+        <div className="flex-1 max-w-2xl relative flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input type="text" placeholder="Magic Search: name, material, color, dimensions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-gray-100 hover:bg-white focus:bg-white border-2 border-transparent focus:border-blue-600 rounded-full text-sm font-medium transition-all outline-none" />
+          </div>
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-3 rounded-full transition-all flex-shrink-0 border-2 ${showFilters || filterMaterial || filterColorId ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 hover:text-blue-500'}`}
+            title="Advanced Filters"
+          >
+            <SlidersHorizontal size={20} />
+          </button>
         </div>
         <div className="flex items-center gap-3">
           <Link 
@@ -429,41 +539,89 @@ function MarketplaceContent() {
         </div>
       </nav>
 
-      <div className="px-6 py-8 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex p-1 bg-black/5 rounded-full shadow-inner border border-black/5 backdrop-blur-sm">
-          {['job', 'physical', 'digital'].map((cat) => {
-            const isActive = categoryFilter === cat;
-            const colors: any = {
-              digital: 'text-orange-600 digital-color',
-              job: 'text-blue-600 job-color',
-              physical: 'text-emerald-600 physical-color'
-            };
-            return (
-              <button 
-                key={cat} 
-                onClick={() => setCategoryFilter(cat)} 
-                className={`px-7 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
-                  isActive 
-                    ? `bg-active-light ${colors[cat]} shadow-xl scale-105 z-10 category-btn-active` 
-                    : 'text-gray-400 hover:text-gray-600'
-                } text-center`}
-                style={{ transitionDuration: '1.5s' }}
-              >
-                {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : 'Physical Items'}
-              </button>
-            )
-          })}
-        </div>
-        <div className="relative group">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase hover:border-blue-500 transition">
-            <ArrowUpDown size={14} />
-            {sortBy === 'newest' ? 'Newest' : sortBy === 'price_asc' ? 'Price: Low to High' : 'Price: High to Low'}
-          </button>
-          <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
-            <button onClick={() => setSortBy('newest')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Newest</button>
-            <button onClick={() => setSortBy('price_asc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Price: Low to High</button>
-            <button onClick={() => setSortBy('price_desc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase">Price: High to Low</button>
+      <div className="px-6 py-8 max-w-7xl mx-auto flex flex-col gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex p-1 bg-black/5 rounded-full shadow-inner border border-black/5 backdrop-blur-sm">
+            {['job', 'physical', 'digital'].map((cat) => {
+              const isActive = categoryFilter === cat;
+              const colors: any = {
+                digital: 'text-orange-600 digital-color',
+                job: 'text-blue-600 job-color',
+                physical: 'text-emerald-600 physical-color'
+              };
+              return (
+                <button 
+                  key={cat} 
+                  onClick={() => setCategoryFilter(cat)} 
+                  className={`px-7 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
+                    isActive 
+                      ? `bg-active-light ${colors[cat]} shadow-xl scale-105 z-10 category-btn-active` 
+                      : 'text-gray-400 hover:text-gray-600'
+                  } text-center`}
+                  style={{ transitionDuration: '1.5s' }}
+                >
+                  {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : 'Physical Items'}
+                </button>
+              )
+            })}
           </div>
+          <div className="relative group">
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase hover:border-blue-500 transition shadow-sm">
+              <ArrowUpDown size={14} />
+              {sortBy === 'newest' ? 'Newest' : sortBy === 'price_asc' ? 'Price: Low to High' : 'Price: High to Low'}
+            </button>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
+              <button onClick={() => setSortBy('newest')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase cursor-pointer z-50 relative">Newest</button>
+              <button onClick={() => setSortBy('price_asc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase cursor-pointer z-50 relative">Price: Low to High</button>
+              <button onClick={() => setSortBy('price_desc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase cursor-pointer z-50 relative">Price: High to Low</button>
+            </div>
+          </div>
+        </div>
+        
+        {/* FILTERS PANEL */}
+        <div className={`transition-all duration-500 origin-top overflow-hidden ${showFilters ? 'max-h-[800px] opacity-100 mb-2' : 'max-h-0 opacity-0 mb-0'}`}>
+           <div className="p-6 bg-white border border-gray-100 rounded-3xl shadow-lg flex flex-col md:flex-row gap-8">
+              {/* Material Filter */}
+              <div className="flex-1 space-y-3">
+                 <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
+                   <Layers size={14} /> Filter by Material
+                 </h4>
+                 <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setFilterMaterial('')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterMaterial === '' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>All Materials</button>
+                    {displayMaterials.map(mat => (
+                      <button key={mat} onClick={() => setFilterMaterial(mat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterMaterial === mat ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-transparent hover:border-gray-200'}`}>{mat}</button>
+                    ))}
+                 </div>
+              </div>
+              
+              <div className="w-px bg-gray-100 hidden md:block"></div>
+
+              {/* Color Filter */}
+              <div className="flex-1 space-y-3">
+                 <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
+                   <Palette size={14} /> Filter by Color
+                 </h4>
+                 <div className="flex items-center gap-3">
+                    <button onClick={() => setFilterColorId('')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterColorId === '' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>Any Color</button>
+                    
+                    {/* Rainbow Circles grid */}
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      {BASE_COLORS.map(col => {
+                        const isSelected = filterColorId === col.id;
+                        return (
+                          <button 
+                            key={col.id} 
+                            onClick={() => setFilterColorId(col.id)} 
+                            title={col.name}
+                            className={`w-6 h-6 rounded-full transition-all border-2 ${isSelected ? 'scale-125 border-blue-600 shadow-lg z-10' : 'border-black/5 shadow-sm hover:scale-110 hover:border-gray-300'}`}
+                            style={{ backgroundColor: col.hex }}
+                          />
+                        );
+                      })}
+                    </div>
+                 </div>
+              </div>
+           </div>
         </div>
       </div>
 
@@ -638,8 +796,6 @@ function MarketplaceContent() {
                       </div>
                     )}
                   </div>
-
-                  {offer.stock > 0 && offer.stock < 5 && !offer.is_negotiable && <span className="text-[9px] font-bold text-orange-500 uppercase tracking-wider mt-2">Only {offer.stock} left!</span>}
                 </div>
               </div>
             ))}

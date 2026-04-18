@@ -318,6 +318,34 @@ function CheckoutInner() {
               </div>
             )}
 
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+              <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
+                <Wallet className="text-blue-600" /> Payment Method
+              </h2>
+              <div className="space-y-3">
+                <PaymentRadio 
+                  label="Credit / Debit Card" 
+                  value="stripe" 
+                  current={paymentMethod} 
+                  set={setPaymentMethod} 
+                  badge="Stripe Secure" 
+                />
+                <PaymentRadio 
+                  label="Wallet Balance" 
+                  value="balance" 
+                  current={paymentMethod} 
+                  set={setPaymentMethod} 
+                  disabled={balance === null || balance < grandTotalEur} 
+                  badge={balance !== null ? formatPrice(balance) : 'Loading...'} 
+                />
+                {!isTopup && balance !== null && balance < grandTotalEur && (
+                  <p className="text-[10px] text-amber-600 font-black uppercase tracking-[0.15em] mt-3 flex items-center gap-1.5 px-2 animate-in fade-in slide-in-from-top-1">
+                    <AlertCircle size={14} /> Insufficient funds. <Link href="/checkout?type=topup" className="underline hover:text-amber-800 transition-colors">Top-up here</Link>
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div className="bg-blue-50/50 border border-blue-100 p-6 rounded-3xl flex gap-4 items-center">
               <ShieldCheck className="text-blue-600" size={28} />
               <div>

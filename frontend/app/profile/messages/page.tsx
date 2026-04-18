@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -35,6 +35,7 @@ function MessagesInner() {
     const paramSellerId = searchParams?.get('seller_id');
     const paramBuyerId = searchParams?.get('buyer_id');
     const paramOfferId = searchParams?.get('offer_id');
+    const paramJobFulfill = searchParams?.get('job_fulfill');
 
     const { addItem, items: cartItems } = useCart();
     const { formatPrice, currency, rates } = useCurrency();
@@ -76,10 +77,21 @@ function MessagesInner() {
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
     const [swappedLayers, setSwappedLayers] = useState<any[]>([]);
 
+    // Job fulfillment banner state
+    const [showJobProposalBanner, setShowJobProposalBanner] = useState(false);
+    const [jobProposalPrice, setJobProposalPrice] = useState('');
+    const [sendingJobProposal, setSendingJobProposal] = useState(false);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setShowProposalModal(false);
+        // Auto-show job proposal banner when printer enters a job chat from the offer page
+        if (paramJobFulfill === 'true') {
+            setShowJobProposalBanner(true);
+        } else {
+            setShowJobProposalBanner(false);
+        }
     }, [activeChatId]);
 
     useEffect(() => {
@@ -99,7 +111,7 @@ function MessagesInner() {
         id, created_at, updated_at, order_id,
         buyer_id, seller_id,
         offer_id,
-        offers ( id, title, image_urls, category, price, material, color, dimensions, color_variants )
+        offers ( id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants )
       `)
             .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
             .order('updated_at', { ascending: false });
@@ -185,7 +197,7 @@ function MessagesInner() {
                 setActiveChatId(existing.id);
             } else {
                 const { data: otherProf } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', otherUserId).single();
-                const { data: offerData } = await supabase.from('offers').select('id, title, image_urls, category, price, material, color, dimensions').eq('id', paramOfferId).single();
+                const { data: offerData } = await supabase.from('offers').select('id, title, image_urls, category, price, material, color, color_name, dimensions, weight, custom_instructions, color_variants').eq('id', paramOfferId).single();
 
                 if (otherProf && offerData) {
                     const draftChat = {
@@ -462,7 +474,7 @@ function MessagesInner() {
         setProposalQty(sourceData?.quantity?.toString() || '1');
         setProposalMaterial(sourceData?.material || '');
         setProposalColor(sourceData?.color || '');
-        setProposalColorHex(sourceData?.colorHex || '#cccccc');
+        setProposalColorHex(sourceData?.colorHex || sourceData?.color || '#cccccc');
         setShowCustomFilamentInput(false);
         setCustomFilamentText('');
 
@@ -791,6 +803,116 @@ function MessagesInner() {
         loadChats(currentUser.id);
     };
 
+    // ── JOB FULFILLMENT: Quick Price Proposal ──
+    const handleSendJobProposal = async () => {
+        if (!currentUser || !activeChatData || !jobProposalPrice) return;
+        setSendingJobProposal(true);
+
+        let finalPrice = parseFloat(jobProposalPrice);
+        if (currency !== 'EUR' && rates && rates[currency]) {
+            finalPrice = finalPrice / rates[currency];
+        }
+
+        const payload: any = {
+            price: finalPrice,
+            quantity: 1,
+            material: activeChatData.offers?.material || 'Per agreement',
+            color: activeChatData.offers?.color || 'Per agreement',
+            status: 'pending',
+        };
+
+        const content = `[PROPOSAL]${JSON.stringify(payload)}`;
+
+        const tempMsg = {
+            id: 'temp-' + Date.now(),
+            chat_id: activeChatId,
+            sender_id: currentUser.id,
+            content: content,
+            message_type: 'user',
+            created_at: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, tempMsg]);
+        scrollToBottom();
+
+        await supabase.from('messages').insert({
+            chat_id: activeChatId,
+            sender_id: currentUser.id,
+            content: content,
+        });
+
+        // System message explaining the proposal
+        await supabase.from('messages').insert({
+            chat_id: activeChatId,
+            sender_id: currentUser.id,
+            content: `🖨️ The printer has reviewed your 3D file and submitted a price proposal of ${formatPrice(finalPrice)}. Accept the proposal above to proceed with payment and printing.`,
+            message_type: 'system',
+        });
+
+        // Notify the job poster
+        try {
+            await supabase.from('notifications').insert({
+                user_id: activeChatData.seller_id,
+                title: '💰 New price proposal for your print job!',
+                message: `A printer has proposed ${formatPrice(finalPrice)} to print "${activeChatData.offers?.title}". Open chat to review and accept.`,
+                type: 'job',
+                sender_id: currentUser.id,
+                offer_id: activeChatData.offer_id,
+                is_read: false,
+            });
+        } catch (e) {
+            console.error('Notification failed:', e);
+        }
+
+        // Trigger email
+        fetch('/api/order/negotiation-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chatId: activeChatId,
+                senderId: currentUser.id,
+                type: 'new_offer',
+                price: formatPrice(finalPrice),
+                productTitle: activeChatData.offers?.title || 'Print Job'
+            }),
+        }).catch(err => console.error('Negotiation email error:', err));
+
+        setShowJobProposalBanner(false);
+        setJobProposalPrice('');
+        setSendingJobProposal(false);
+        loadMessages(activeChatId!);
+        loadChats(currentUser.id);
+    };
+
+    const handleDeclineJobChat = async () => {
+        if (!currentUser || !activeChatData) return;
+
+        // Send a system message in the chat
+        await supabase.from('messages').insert({
+            chat_id: activeChatId,
+            sender_id: currentUser.id,
+            content: `❌ The printer reviewed the 3D file but cannot fulfill this print job. The job remains open for other printers.`,
+            message_type: 'system',
+        });
+
+        // Notify the job poster
+        try {
+            await supabase.from('notifications').insert({
+                user_id: activeChatData.seller_id,
+                title: '❌ A printer passed on your job',
+                message: `A printer reviewed "${activeChatData.offers?.title}" but cannot fulfill it. Don't worry — other printers can still pick it up!`,
+                type: 'job',
+                sender_id: currentUser.id,
+                offer_id: activeChatData.offer_id,
+                is_read: false,
+            });
+        } catch (e) {
+            console.error('Decline notification failed:', e);
+        }
+
+        setShowJobProposalBanner(false);
+        router.push('/gallery');
+    };
+
     const handleAcceptProposal = async (msgId: string, parsedData: any) => {
         if (!activeChatData || !activeChatData.offers || activeChatData.seller_id !== currentUser?.id) {
             console.error("Accept failed: Missing chat data or unauthorized", { activeChatData, sellerId: activeChatData?.seller_id, userId: currentUser?.id });
@@ -802,12 +924,14 @@ function MessagesInner() {
             return;
         }
 
+        const isJobOffer = activeChatData.offers?.category === 'job';
+
         try {
             const basePayload = {
-                user_id: currentUser.id,
-                category: activeChatData.offers?.category || 'physical',
+                user_id: isJobOffer ? activeChatData.buyer_id : currentUser.id,
+                category: isJobOffer ? 'physical' : (activeChatData.offers?.category || 'physical'),
                 title: `Custom Order: ${activeChatData.offers?.title || 'Item'}`.substring(0, 150),
-                description: 'Custom order negotiated via chat.',
+                description: isJobOffer ? 'Print on Demand job accepted via chat.' : 'Custom order negotiated via chat.',
                 price: Number(parsedData.price),
                 material: parsedData.material || 'N/A',
                 color: parsedData.color || 'N/A',
@@ -877,7 +1001,21 @@ function MessagesInner() {
                 }),
             }).catch(() => { });
 
-            loadMessages(activeChatId as string);
+            // For job offers: the job poster (seller in chat) pays, so redirect them to cart
+            if (isJobOffer) {
+                // Post a system message explaining the job flow
+                await supabase.from('messages').insert({
+                    chat_id: activeChatId,
+                    sender_id: currentUser.id,
+                    content: `✅ Print job accepted! The printer has agreed to fulfill this request for ${formatPrice(parsedData.price)}. Please complete payment to proceed — your 3D file will be sent to the printer once confirmed.`,
+                    message_type: 'system',
+                });
+
+                loadMessages(activeChatId as string);
+                handleBuyCustomOffer(parsedData);
+            } else {
+                loadMessages(activeChatId as string);
+            }
         } catch (e: any) {
             console.error("Comprehensive Accept Failure:", e);
             alert(`Failed to accept: ${e.message || 'Unknown database error'}`);
@@ -941,16 +1079,18 @@ function MessagesInner() {
     const handleBuyCustomOffer = (parsedData: any) => {
         if (!activeChatData || !parsedData.custom_offer_id) return;
 
+        const isJobOffer = activeChatData.offers?.category === 'job';
+
         addItem({
             id: parsedData.custom_offer_id,
-            title: `Custom: ${activeChatData.offers?.title}`,
+            title: isJobOffer ? `Print Job: ${activeChatData.offers?.title}` : `Custom: ${activeChatData.offers?.title}`,
             price: parsedData.price,
             image_url: activeChatData.offers?.image_urls?.[0] || null,
-            seller_id: activeChatData.seller_id,
+            seller_id: isJobOffer ? activeChatData.buyer_id : activeChatData.seller_id,
             stock: parsedData.quantity,
             is_custom: true,
-            category: activeChatData.offers?.category || 'physical'
-        }, (activeChatData.offers?.category === 'digital') ? 1 : parsedData.quantity);
+            category: isJobOffer ? 'job' : (activeChatData.offers?.category || 'physical')
+        }, parsedData.quantity || 1);
 
         router.push('/cart');
     };
@@ -1048,8 +1188,14 @@ function MessagesInner() {
         const isSeller = String(currentUser.id) === String(chatData?.seller_id);
         const isBuyer = String(currentUser.id) === String(chatData?.buyer_id);
         const isDigital = chatData?.offers?.category === 'digital';
+        const isJob = chatData?.offers?.category === 'job';
 
-        if (status === 'pending' && isSeller) {
+        // For job offers: printer = buyer_id, job poster = seller_id
+        // So for jobs, the BUYER (printer) ships, and the SELLER (job poster) waits
+        const showShipCard = isJob ? (status === 'pending' && isBuyer) : (status === 'pending' && isSeller);
+        const showWaitCard = isJob ? (status === 'pending' && isSeller) : (status === 'pending' && isBuyer);
+
+        if (showShipCard) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
@@ -1057,11 +1203,15 @@ function MessagesInner() {
                             <div className="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
                                 {isDigital ? <Mail size={18} className="text-blue-600" /> : <Truck size={18} className="text-blue-600" />}
                             </div>
-                            <p className="text-sm font-bold text-gray-800 mb-1">{isDigital ? 'Ready to deliver?' : 'Ready to ship?'}</p>
+                            <p className="text-sm font-bold text-gray-800 mb-1">
+                                {isJob ? 'Ready to ship the printed item?' : isDigital ? 'Ready to deliver?' : 'Ready to ship?'}
+                            </p>
                             <p className="text-xs text-gray-500 font-medium mb-3">
-                                {isDigital
-                                    ? "Once you've sent the files to the buyer's email, mark it as delivered below."
-                                    : "Pack the order securely and hand it over to the courier."}
+                                {isJob
+                                    ? "You've received the 3D file via email. Print the item, pack it securely, and ship it to the customer."
+                                    : isDigital
+                                        ? "Once you've sent the files to the buyer's email, mark it as delivered below."
+                                        : "Pack the order securely and hand it over to the courier."}
                             </p>
                             {!isDigital && (
                                 <div className="bg-[#FFCC00]/10 border border-[#FFCC00]/30 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-left text-[11px] font-bold text-gray-700">
@@ -1087,19 +1237,24 @@ function MessagesInner() {
             );
         }
 
-        if (status === 'pending' && isBuyer) {
+        if (showWaitCard) {
             return (
                 <div className="flex justify-center my-4 px-4 w-full">
                     <div className="w-full max-w-md bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-center">
                         <p className="text-xs font-bold text-amber-700">
-                            {isDigital ? '⏳ Waiting for the seller to send files to your email...' : '⏳ Waiting for the seller to ship the package...'}
+                            {isJob ? '🖨️ The printer has received your 3D file and is working on it. Waiting for shipment...'
+                                : isDigital ? '⏳ Waiting for the seller to send files to your email...' : '⏳ Waiting for the seller to ship the package...'}
                         </p>
                     </div>
                 </div>
             );
         }
 
-        if (status === 'shipped' && isBuyer) {
+        // For shipped status with jobs: buyer (printer) waits, seller (job poster) confirms
+        const showConfirmDelivery = isJob ? (status === 'shipped' && isSeller) : (status === 'shipped' && isBuyer);
+        const showShippedWait = isJob ? (status === 'shipped' && isBuyer) : (status === 'shipped' && isSeller);
+
+        if (showConfirmDelivery) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
@@ -1107,11 +1262,15 @@ function MessagesInner() {
                             <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
                                 {isDigital ? <Mail size={18} className="text-emerald-600" /> : <PackageCheck size={18} className="text-emerald-600" />}
                             </div>
-                            <p className="text-sm font-bold text-gray-800 mb-1">{isDigital ? 'Files delivered!' : 'Package on its way!'}</p>
+                            <p className="text-sm font-bold text-gray-800 mb-1">
+                                {isJob ? 'Your printed item is on its way!' : isDigital ? 'Files delivered!' : 'Package on its way!'}
+                            </p>
                             <p className="text-xs text-gray-500 font-medium mb-4">
-                                {isDigital
-                                    ? "The seller reported that files were sent to your email. Do you accept the delivery?"
-                                    : "The seller has shipped your order via DHL. Have you received the package? Confirm delivery below."}
+                                {isJob
+                                    ? "The printer has shipped your item via DHL. Have you received it? Confirm delivery below."
+                                    : isDigital
+                                        ? "The seller reported that files were sent to your email. Do you accept the delivery?"
+                                        : "The seller has shipped your order via DHL. Have you received the package? Confirm delivery below."}
                             </p>
                             <div className="flex gap-3 justify-center">
                                 <button
@@ -1133,13 +1292,14 @@ function MessagesInner() {
             );
         }
 
-        if (status === 'shipped' && isSeller) {
+        if (showShippedWait) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
                             <p className="text-xs font-bold text-blue-700">
-                                {isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
+                                {isJob ? '📦 Item shipped! Waiting for the customer to confirm delivery...'
+                                    : isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
                             </p>
                         </div>
                     </div>
@@ -1257,6 +1417,100 @@ function MessagesInner() {
                                                 </div>
                                             )}
                                         </div>
+                                    </div>
+                                </div>
+                            )}
+                            {(showJobProposalBanner || (activeChatData?.offers?.category === 'job' && !activeChatData.order_id)) && activeChatData && (
+                                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5 flex flex-col gap-4 animate-in slide-in-from-top duration-500 shadow-lg relative z-20">
+                                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3 w-full md:w-auto">
+                                            <div className="bg-white/20 p-2 rounded-xl">
+                                                <Printer className="text-white" size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">
+                                                    {currentUser?.id === activeChatData.buyer_id ? 'Job Fulfillment' : 'Your Job Details'}
+                                                </p>
+                                                <p className="text-sm font-bold text-white">
+                                                    {currentUser?.id === activeChatData.buyer_id 
+                                                        ? 'Propose your price to print this item.' 
+                                                        : 'The printer is reviewing your requirements.'}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {currentUser?.id === activeChatData.buyer_id ? (
+                                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                                <div className="relative flex-1 md:w-40">
+                                                    <input 
+                                                        type="number" 
+                                                        placeholder="Price" 
+                                                        value={jobProposalPrice} 
+                                                        onChange={e => setJobProposalPrice(e.target.value)} 
+                                                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm font-black text-white placeholder:text-blue-200/50 focus:outline-none focus:bg-white/20 shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-blue-300 uppercase tracking-widest pointer-events-none">{currency}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={handleSendJobProposal}
+                                                    disabled={!jobProposalPrice || sendingJobProposal}
+                                                    className="bg-white text-blue-600 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center gap-2 shadow-xl hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
+                                                >
+                                                    {sendingJobProposal ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Send Proposal
+                                                </button>
+                                                <div className="w-px h-8 bg-white/20 mx-2 hidden md:block" />
+                                                <button 
+                                                    onClick={handleDeclineJobChat}
+                                                    className="px-4 py-2 bg-red-500/20 text-red-100 hover:bg-red-500/40 rounded-xl transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2 group whitespace-nowrap"
+                                                    title="Pass on this job"
+                                                >
+                                                    <XCircle size={14} className="group-hover:rotate-90 transition-transform" /> I Can't Print This
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-white/10 border border-white/10 rounded-2xl px-5 py-2.5 flex items-center gap-3 animate-pulse">
+                                                <div className="w-2 h-2 bg-blue-400 rounded-full" />
+                                                <span className="text-[10px] font-black uppercase text-blue-100 tracking-wider">Awaiting printer response</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="bg-black/20 rounded-2xl p-4 border border-white/10 flex flex-wrap gap-x-6 gap-y-4">
+                                        {activeChatData.offers?.material && (
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><Palette size={10} /> Material</span>
+                                                <span className="text-sm font-bold text-white">{activeChatData.offers.material}</span>
+                                            </div>
+                                        )}
+                                        {activeChatData.offers?.color && (
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><Palette size={10} /> Color</span>
+                                                <span className="text-sm font-bold text-white flex items-center gap-2">
+                                                    {activeChatData.offers.color && (
+                                                        <span className="w-3 h-3 rounded-full border border-white/30" style={{backgroundColor: activeChatData.offers.color}} />
+                                                    )}
+                                                    {activeChatData.offers.color}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {activeChatData.offers?.dimensions && (
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><Ruler size={10} /> Dimensions</span>
+                                                <span className="text-sm font-bold text-white max-w-[200px] truncate">{activeChatData.offers.dimensions}</span>
+                                            </div>
+                                        )}
+                                        {activeChatData.offers?.weight && (
+                                             <div className="flex flex-col">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><Package size={10} /> Est. Weight</span>
+                                                <span className="text-sm font-bold text-white">{activeChatData.offers.weight}</span>
+                                            </div>
+                                        )}
+                                         {activeChatData.offers?.custom_instructions && (
+                                             <div className="flex flex-col w-full md:flex-1 md:min-w-[250px] md:border-l md:border-white/10 md:pl-6 pt-3 md:pt-0 border-t border-white/10 md:border-t-0">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><MessageSquare size={10} /> Technical Notes</span>
+                                                <p className="text-sm font-medium text-white/90 italic leading-snug line-clamp-3">{activeChatData.offers.custom_instructions}</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -1693,10 +1947,15 @@ function MessagesInner() {
                                                                                 ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
                                                                                 : 'bg-blue-500/10 border-blue-500/30 text-blue-500'
                                                                             }`}>
-                                                                            {pData.status === 'counter_proposed' ? 'Counter Offer' : (pData.status === 'seller_proposed' ? 'Seller Offer' : "Customer Request")}
+                                                                            {(() => {
+                                                                                const isJobChat = activeChatData?.offers?.category === 'job';
+                                                                                if (pData.status === 'counter_proposed') return 'Counter Offer';
+                                                                                if (pData.status === 'seller_proposed') return isJobChat ? 'Your Terms' : 'Seller Offer';
+                                                                                return isJobChat ? 'Printer Bid' : 'Customer Request';
+                                                                            })()}
                                                                         </span>
                                                                         <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[100px]">
-                                                                            {msg.sender_id === currentUser?.id ? 'YOU' : (msg.sender_id === activeChatData?.seller_id ? activeChatData?.otherUser?.full_name : 'Customer')}
+                                                                            {msg.sender_id === currentUser?.id ? 'YOU' : (msg.sender_id === activeChatData?.seller_id ? activeChatData?.otherUser?.full_name : (activeChatData?.offers?.category === 'job' ? 'Printer' : 'Customer'))}
                                                                         </span>
                                                                     </div>
                                                                     <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${
@@ -1804,7 +2063,7 @@ function MessagesInner() {
                                                                                         <Palette size={10} /> {pData.swappedLayers ? 'Multi-Layer' : 'Material Choice'}
                                                                                     </span>
                                                                                     <div className="flex items-center gap-2">
-                                                                                        <div className={`w-3.5 h-3.5 rounded-full border shadow-inner shrink-0 ${isMatChanged ? 'border-amber-400' : 'border-white/20'}`} style={{ backgroundColor: pData.colorHex || activeChatData?.offers?.colorHex || '#ccc' }} />
+                                                                                        <div className={`w-3.5 h-3.5 rounded-full border shadow-inner shrink-0 ${isMatChanged ? 'border-amber-400' : 'border-white/20'}`} style={{ backgroundColor: pData.colorHex || activeChatData?.offers?.color || '#ccc' }} />
                                                                                         <span className={`text-[10px] font-black ${isMatChanged ? 'text-amber-100' : 'text-slate-200'}`}>
                                                                                             {pData.material || activeChatData?.offers?.material || 'Resin'} • {pData.color || activeChatData?.offers?.color || 'Original'}
                                                                                         </span>
@@ -1880,13 +2139,14 @@ function MessagesInner() {
                                                                 }
 
                                                                 if (pData.status === 'pending' && isSeller && !isMe) {
+                                                                    const isJob = activeChatData?.offers?.category === 'job';
                                                                     return (
                                                                         <div className="space-y-2 pt-2">
                                                                             <button
                                                                                 onClick={() => handleAcceptProposal(msg.id, pData)}
-                                                                                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-900/20"
+                                                                                className={`w-full py-3.5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg ${isJob ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-emerald-900/40' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'}`}
                                                                             >
-                                                                                Accept Request
+                                                                                {isJob ? <><CreditCard size={14} className="inline mr-2 -mt-0.5" /> Accept & Pay</> : 'Accept Request'}
                                                                             </button>
                                                                             <div className="grid grid-cols-2 gap-2">
                                                                                 <button
