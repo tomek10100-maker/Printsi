@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import {
-  User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins
+  User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins, AlertCircle, Loader2
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 
@@ -40,7 +40,8 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { currency, setCurrency } = useCurrency();
+  const { currency, setCurrency, formatPrice } = useCurrency();
+  const [exchangeModal, setExchangeModal] = useState<{ show: boolean; newCode: string; fee: number } | null>(null);
 
   const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
@@ -152,7 +153,57 @@ export default function SettingsPage() {
   };
 
   const handleCurrencyChange = async (newCode: string) => {
-    setCurrency(newCode as any);
+    if (newCode === currency) return;
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      const [salesRes, ordersRes, payoutsRes] = await Promise.all([
+        supabase.from('order_items').select('price_at_purchase, quantity, status').eq('seller_id', user.id),
+        supabase.from('orders').select('total_amount').eq('buyer_id', user.id).like('stripe_payment_intent_id', 'balance_%'),
+        supabase.from('payouts').select('amount, status').eq('user_id', user.id)
+      ]);
+
+      const totalEarned = salesRes.data?.reduce((acc, s) => s.status === 'completed' ? acc + (s.price_at_purchase * (s.quantity || 1)) : acc, 0) || 0;
+      const totalSpent = ordersRes.data?.reduce((acc, o) => acc + Number(o.total_amount), 0) || 0;
+      const totalPayouts = payoutsRes.data?.reduce((acc, p) => (p.status === 'completed' || p.status === 'pending') ? acc + Number(p.amount) : acc, 0) || 0;
+
+      const balance = totalEarned - totalSpent - totalPayouts;
+
+      if (balance > 0) {
+        setExchangeModal({ show: true, newCode, fee: balance * 0.03 });
+      } else {
+        await setCurrency(newCode as any);
+      }
+    } catch (err: any) {
+      setRoleError('Failed to check balance: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmExchange = async () => {
+    if (!exchangeModal) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/billing/exchange-fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      await setCurrency(exchangeModal.newCode as any);
+      setExchangeModal(null);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err: any) {
+      setRoleError('Exchange failed: ' + err.message);
+      setExchangeModal(null);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-800">Loading settings...</div>;
@@ -320,9 +371,10 @@ export default function SettingsPage() {
                     <Coins size={20} />
                   </div>
                   <select
-                    value={currency}
+                    value={exchangeModal?.newCode || currency}
                     onChange={(e) => handleCurrencyChange(e.target.value)}
-                    className="w-full p-4 pl-12 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all appearance-none cursor-pointer text-gray-900"
+                    disabled={saving}
+                    className="w-full p-4 pl-12 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all appearance-none cursor-pointer text-gray-900 disabled:opacity-50"
                   >
                     {CURRENCIES.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -332,6 +384,49 @@ export default function SettingsPage() {
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 font-bold text-xs">▼</div>
                 </div>
+
+                {/* EXCHANGE WARNING MODAL */}
+                {exchangeModal && (
+                  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-6 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[40px] shadow-2xl p-10 max-w-md w-full border border-gray-100 animate-in zoom-in-95 duration-300">
+                      <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-3xl flex items-center justify-center mb-6 shadow-orange-500/10">
+                        <AlertCircle size={32} />
+                      </div>
+                      <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-4">Currency Conversion Fee</h3>
+                      <p className="text-gray-500 font-bold italic text-sm mb-8 leading-relaxed">
+                        Converting your current balance to <span className="text-gray-900">{CURRENCIES.find(c => c.code === exchangeModal.newCode)?.label}</span> will incur a <span className="text-orange-600">3% transaction fee</span>.
+                      </p>
+                      
+                      <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 mb-8 space-y-4">
+                        <div className="flex justify-between items-center text-xs font-black uppercase text-gray-400 tracking-widest">
+                          <span>Service Fee (3%)</span>
+                          <span className="text-orange-600">-{formatPrice(exchangeModal.fee)}</span>
+                        </div>
+                        <div className="h-px bg-gray-200" />
+                        <p className="text-[10px] text-gray-400 font-bold uppercase leading-relaxed text-center">
+                          This fee applies only to your currently available funds. Future earnings will not be affected.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <button 
+                          onClick={confirmExchange}
+                          disabled={saving}
+                          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-500/10"
+                        >
+                          {saving ? <Loader2 className="animate-spin" size={18} /> : 'Accept & Convert'}
+                        </button>
+                        <button 
+                          onClick={() => setExchangeModal(null)}
+                          disabled={saving}
+                          className="w-full py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-gray-50 hover:text-gray-900 transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

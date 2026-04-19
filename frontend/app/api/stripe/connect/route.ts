@@ -34,51 +34,48 @@ export async function POST(req: Request) {
       domain = 'http://' + domain;
     }
 
-    // Stripe business_profile.url requires a valid URL, and sometimes rejects localhost in certain contexts.
-    // We'll use a real domain as a fallback for the business profile if we are on localhost.
-    const businessProfileUrl = domain.includes('localhost') ? 'https://printis.com' : `${domain}/user/${userId}`;
-    
-    const businessProfile = {
-      product_description: `Sales of 3D prints and maker services on Printis platform by user ${profile?.full_name || userId}.`,
-      url: businessProfileUrl,
-    };
-
     if (!accountId) {
-      // 2. Create a new Express account optimized for individuals/makers
+      // 2. Create a new Express account with pre-filled business details to skip questions
       const account = await stripe.accounts.create({
         type: 'express',
-        email: profile?.email || undefined,
-        business_type: 'individual',
-        business_profile: businessProfile,
+        capabilities: {
+          transfers: { requested: true },
+        },
+        business_profile: {
+          mcc: '7399',
+          url: 'https://printis.com',
+          product_description: 'Sprzedaż usług druku 3D oraz modeli cyfrowych przez platformę Printis.',
+        },
         settings: {
           payouts: {
             schedule: {
               interval: 'manual',
             }
           }
-        },
-        capabilities: {
-          transfers: { requested: true },
-        },
+        }
       });
 
       accountId = account.id;
 
       // 3. Save it to their profile in Supabase
-      const { error } = await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from('profiles')
         .update({ stripe_account_id: accountId })
         .eq('id', userId);
 
-      if (error) {
-        console.error("Failed to save stripe_account_id:", error);
+      if (updateError) {
+        console.error("Failed to save stripe_account_id:", updateError);
         return NextResponse.json({ error: 'Failed to save account ID' }, { status: 500 });
       }
     } else {
-      // 2. Update existing account to ensure business_profile is set (this skips the "Professional details" section)
+      // Ensure existing accounts also have the business profile set to skip sections
       try {
         await stripe.accounts.update(accountId, {
-          business_profile: businessProfile,
+          business_profile: {
+            mcc: '7399',
+            url: 'https://printis.com',
+            product_description: 'Sprzedaż usług druku 3D oraz modeli cyfrowych przez platformę Printis.',
+          },
         });
       } catch (err) {
         console.error("Failed to update Stripe account business profile:", err);

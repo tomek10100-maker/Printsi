@@ -31,6 +31,8 @@ function BillingContent() {
   const [stats, setStats] = useState({ spent: 0, earned: 0, pendingEarned: 0, withdrawn: 0 });
   const [payoutAmount, setPayoutAmount] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [stripeConnected, setStripeConnected] = useState(false);
+  const [checkingStripe, setCheckingStripe] = useState(true);
 
   useEffect(() => {
     fetchData();
@@ -52,7 +54,7 @@ function BillingContent() {
     let totalEarned = 0, pendingEarned = 0;
     
     // sum ALL payouts (positive withdrawals and negative topups)
-    let totalPayoutsAmt = payouts?.filter(p => p.status === 'completed').reduce((acc, p) => acc + Number(p.amount), 0) || 0;
+    let totalPayoutsAmt = payouts?.filter(p => p.status === 'completed' || p.status === 'pending').reduce((acc, p) => acc + Number(p.amount), 0) || 0;
 
     sales?.forEach(sale => {
       const amt = (sale.price_at_purchase * (sale.quantity || 1));
@@ -72,6 +74,45 @@ function BillingContent() {
     payouts?.forEach(p => unified.push({ id: p.id, type: 'payout', amount: p.amount, date: p.created_at, label: 'Payout', status: p.status }));
     setTransactions(unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setLoading(false);
+    
+    // Check Stripe Status
+    if (isSeller) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch('/api/stripe/status', {
+          headers: { 'Authorization': `Bearer ${session?.access_token}` }
+        });
+        const data = await res.json();
+        setStripeConnected(data.isConnected);
+      } catch (err) {
+        console.error('Failed to check Stripe status:', err);
+      } finally {
+        setCheckingStripe(false);
+      }
+    } else {
+      setCheckingStripe(false);
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    setIsProcessing(true);
+    try {
+      const res = await fetch('/api/stripe/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: profile.id })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to get onboarding link');
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handlePayoutRequest = async () => {
@@ -170,17 +211,17 @@ function BillingContent() {
             {/* STATS SECTION */}
             <div className={`grid gap-4 ${isSeller ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1'}`}>
               {/* PRIMARY BALANCE CARD */}
-              <div className={`relative overflow-hidden p-8 rounded-[40px] border ${styles.cardBorder} shadow-2xl flex flex-col justify-between h-64 transition-all duration-500 bg-gradient-to-br ${styles.walletGradient} group`}>
+              <div className={`relative overflow-hidden p-6 sm:p-8 rounded-[40px] border ${styles.cardBorder} shadow-2xl flex flex-col justify-between h-64 transition-all duration-500 bg-gradient-to-br ${styles.walletGradient} group`}>
                  <div className="absolute top-0 right-0 p-8 opacity-20 text-white">
                     <Wallet size={120} strokeWidth={1} />
                  </div>
-                 <div className="relative z-10">
+                  <div className="relative z-10 flex flex-col items-center text-center">
                     <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-6 border border-white/10 group-hover:scale-110 transition-transform">
                       <Sparkles size={24} />
                     </div>
                     <p className="text-[11px] uppercase font-black tracking-[0.2em] mb-2 text-white/70">Available Balance</p>
-                    <p className="text-5xl font-black tracking-tighter text-white">{formatPrice(Math.max(0, netBalance))}</p>
-                 </div>
+                    <p className="text-xl sm:text-3xl md:text-lg lg:text-2xl xl:text-4xl font-black tracking-tighter text-white text-center break-words w-full leading-tight">{formatPrice(Math.max(0, netBalance))}</p>
+                  </div>
                  <div className="relative z-10 flex items-center gap-4">
                     <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
                        <div className="h-full bg-white/40 w-2/3" />
@@ -249,20 +290,52 @@ function BillingContent() {
                 <h3 className={`text-lg font-black mb-8 flex items-center gap-2 uppercase tracking-tight ${styles.textTitle}`}>
                   <ArrowUpRight className="text-blue-500" /> Payout
                 </h3>
-                <div className="space-y-6">
-                  <div>
-                    <label className={`text-[11px] uppercase font-black tracking-[0.2em] mb-2 block ${styles.textMuted}`}>Amount</label>
-                    <input type="number" value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} className={`w-full border-2 rounded-2xl py-5 px-6 font-black focus:border-blue-500 focus:outline-none transition-all ${theme !== 'white' ? 'bg-white/5 border-white/5 text-white placeholder-gray-800' : 'bg-gray-50 border-gray-100 text-gray-900'}`} placeholder="0.00" />
-                  </div>
-                  {message && (
-                    <div className={`p-5 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                      <AlertCircle size={18} /><p className="text-xs font-bold leading-tight">{message.text}</p>
+                
+                {!stripeConnected ? (
+                  <div className="space-y-6">
+                    <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl space-y-4">
+                      <div className="flex items-center gap-3 text-orange-400">
+                        <AlertCircle size={20} />
+                        <span className="text-xs font-black uppercase tracking-widest">Action Required</span>
+                      </div>
+                      <p className={`text-[10px] font-bold leading-relaxed uppercase tracking-wider ${styles.textMuted}`}>
+                        To receive payouts, you must first connect your account with <span className="text-blue-500">Stripe Connect</span>. This is a one-time setup.
+                      </p>
+                      <button 
+                        onClick={handleConnectStripe} 
+                        disabled={isProcessing}
+                        className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-blue-600 hover:text-white transition-all shadow-xl flex items-center justify-center gap-2"
+                      >
+                        {isProcessing ? <Loader2 className="animate-spin" size={18} /> : (
+                          <>Connect Stripe <ExternalLink size={14} /></>
+                        )}
+                      </button>
                     </div>
-                  )}
-                  <button onClick={handlePayoutRequest} disabled={isProcessing || !payoutAmount} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-blue-900/10">
-                    {isProcessing ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Process Payout'}
-                  </button>
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl mb-4">
+                       <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center">
+                            <CheckCircle2 size={16} />
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Stripe Active</span>
+                       </div>
+                    </div>
+                    <div>
+                      <label className={`text-[11px] uppercase font-black tracking-[0.2em] mb-2 block ${styles.textMuted}`}>Amount</label>
+                      <input type="number" value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} className={`w-full border-2 rounded-2xl py-5 px-6 font-black focus:border-blue-500 focus:outline-none transition-all ${theme !== 'white' ? 'bg-white/5 border-white/5 text-white placeholder-gray-800' : 'bg-gray-50 border-gray-100 text-gray-900'}`} placeholder="0.00" />
+                    </div>
+                    {message && (
+                      <div className={`p-5 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                        <AlertCircle size={18} /><p className="text-xs font-bold leading-tight">{message.text}</p>
+                      </div>
+                    )}
+                    <button onClick={handlePayoutRequest} disabled={isProcessing || !payoutAmount} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-blue-900/10">
+                      {isProcessing ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Process Payout'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className={`${styles.cardBg} rounded-[40px] p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
@@ -297,7 +370,7 @@ function StatCard({ styles, icon, label, value, color, subtitle }: any) {
       <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mb-10 shadow-lg ${colorStyles[color]}`}>{icon}</div>
       <div>
         <p className={`text-[11px] uppercase font-black tracking-[0.2em] mb-2 ${styles.textMuted}`}>{label}</p>
-        <p className={`text-3xl font-black tracking-tighter ${styles.textTitle}`}>{value}</p>
+        <p className={`text-2xl sm:text-3xl font-black tracking-tighter ${styles.textTitle}`}>{value}</p>
         {subtitle && <p className={`text-[10px] font-bold mt-2 uppercase tracking-wide ${styles.textMuted}`}>{subtitle}</p>}
       </div>
     </div>
