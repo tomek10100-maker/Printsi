@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import { 
-  CreditCard, ArrowLeft, Loader2, MapPin, 
-  ShieldCheck, Wallet, Package, Truck, 
-  AlertCircle, DollarSign, Zap, TrendingUp, Plus 
+import {
+  CreditCard, ArrowLeft, Loader2, MapPin,
+  ShieldCheck, Wallet, Package, Truck,
+  AlertCircle, DollarSign, Zap, TrendingUp, Plus
 } from 'lucide-react';
 import Link from 'next/link';
 import { DHL_COUNTRIES, calculateShippingPln, countryNameToCode, parseWeightToGrams } from '../lib/dhlRates';
@@ -28,16 +28,16 @@ function CheckoutInner() {
   const [topupAmount, setTopupAmount] = useState<string>('10');
 
   const numericTopup = parseFloat(topupAmount) || 0;
-  const cartTotalEur = isTopup 
-    ? (numericTopup / (rates?.[currency] || 1)) 
+  const cartTotalEur = isTopup
+    ? (numericTopup / (rates?.[currency] || 1))
     : items.reduce((total, item) => total + (item.price * item.quantity), 0);
 
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [fetchingProfile, setFetchingProfile] = useState(true);
-  const [offerWeights, setOfferWeights] = useState<Record<string, number>>({}); 
-  const [offerCategories, setOfferCategories] = useState<Record<string, string>>({}); 
-  const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({}); 
+  const [offerWeights, setOfferWeights] = useState<Record<string, number>>({});
+  const [offerCategories, setOfferCategories] = useState<Record<string, string>>({});
+  const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -60,8 +60,8 @@ function CheckoutInner() {
     const breakdown: { sellerId: string; fromCode: string; toCode: string; weightGrams: number; costPln: number | null }[] = [];
     Object.entries(sellerGroups).forEach(([sellerId, sellerItems]) => {
       const shippableItems = sellerItems.filter(item => (offerCategories as any)[item.id] !== 'digital');
-      if (shippableItems.length === 0) return; 
-      const fromCode = (sellerCountries as any)[sellerId] || 'PL'; 
+      if (shippableItems.length === 0) return;
+      const fromCode = (sellerCountries as any)[sellerId] || 'PL';
       const toCode = formData.country;
       const weightGrams = shippableItems.reduce((total, item) => {
         return total + (((offerWeights as any)[item.id] ?? 500) * item.quantity);
@@ -142,20 +142,20 @@ function CheckoutInner() {
     if (!user) return;
     if (!isTopup && items.length === 0) return;
     if (shippingEur === null) { alert('Please select a valid shipping country.'); return; }
-    
+
     setLoading(true);
     const currentRate = rates?.[currency] || 1;
 
     try {
       if (paymentMethod === 'balance') {
-        const shippingDetails = (shippingEur ?? 0) > 0 ? { 
-          fullName: formData.fullName, 
+        const shippingDetails = (shippingEur ?? 0) > 0 ? {
+          fullName: formData.fullName,
           email: formData.email,
           phone: formData.phone,
-          address: formData.address, 
-          city: formData.city, 
-          zip: formData.zip, 
-          country: formData.country 
+          address: formData.address,
+          city: formData.city,
+          zip: formData.zip,
+          country: formData.country
         } : undefined;
 
         const response = await fetch('/api/balance/checkout', {
@@ -169,11 +169,11 @@ function CheckoutInner() {
           }),
         });
         const data = await response.json();
-        
+
         if (data.success) {
           // Czyszczenie koszyka z localStorage / Contextu
           cart.clearCart();
-          
+
           // Sukces płatności balansem - przekierowanie do wiadomości lub zamówień
           window.location.href = `/profile/messages`;
         } else {
@@ -181,7 +181,7 @@ function CheckoutInner() {
           setLoading(false);
         }
       } else {
-        const body = isTopup 
+        const body = isTopup
           ? { userId: user.id, isTopup: true, topupAmount: numericTopup, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate }
           : { userId: user.id, items, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate, shippingCostEur: shippingEur || 0, shipping: (shippingEur ?? 0) > 0 ? { name: formData.fullName, address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country } } : undefined };
 
@@ -214,7 +214,7 @@ function CheckoutInner() {
         </Link>
 
         <div className="flex flex-col lg:flex-row gap-12">
-          
+
           <div className="flex-1 space-y-8">
             {isTopup ? (
               <>
@@ -222,7 +222,7 @@ function CheckoutInner() {
                 <div className="bg-[#0f1115] p-10 rounded-[40px] shadow-2xl border border-white/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full -mr-48 -mt-48 blur-[100px] opacity-50" />
                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600/10 rounded-full -ml-32 -mb-32 blur-[80px] opacity-30" />
-                  
+
                   <h2 className="text-4xl font-black mb-2 relative z-10 text-white tracking-tight text-center">Add Funds</h2>
                   <p className="text-gray-400 font-bold mb-12 relative z-10 text-center text-sm">Empower your wallet for frictionless 3D shopping.</p>
 
@@ -257,7 +257,7 @@ function CheckoutInner() {
                       <div className="pl-6 pr-4"><Wallet className="text-gray-500" size={36} /></div>
                       <div className="flex-1">
                         <label className="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] mb-1 block">Top-up amount</label>
-                        <input 
+                        <input
                           type="text"
                           value={topupAmount}
                           onChange={(e) => {
@@ -323,20 +323,20 @@ function CheckoutInner() {
                 <Wallet className="text-blue-600" /> Payment Method
               </h2>
               <div className="space-y-3">
-                <PaymentRadio 
-                  label="Credit / Debit Card" 
-                  value="stripe" 
-                  current={paymentMethod} 
-                  set={setPaymentMethod} 
-                  badge="Stripe Secure" 
+                <PaymentRadio
+                  label="Credit / Debit Card"
+                  value="stripe"
+                  current={paymentMethod}
+                  set={setPaymentMethod}
+                  badge="Stripe Secure"
                 />
-                <PaymentRadio 
-                  label="Wallet Balance" 
-                  value="balance" 
-                  current={paymentMethod} 
-                  set={setPaymentMethod} 
-                  disabled={balance === null || balance < grandTotalEur} 
-                  badge={balance !== null ? formatPrice(balance) : 'Loading...'} 
+                <PaymentRadio
+                  label="Wallet Balance"
+                  value="balance"
+                  current={paymentMethod}
+                  set={setPaymentMethod}
+                  disabled={balance === null || balance < grandTotalEur}
+                  badge={balance !== null ? formatPrice(balance) : 'Loading...'}
                 />
                 {!isTopup && balance !== null && balance < grandTotalEur && (
                   <p className="text-[10px] text-amber-600 font-black uppercase tracking-[0.15em] mt-3 flex items-center gap-1.5 px-2 animate-in fade-in slide-in-from-top-1">
@@ -358,7 +358,7 @@ function CheckoutInner() {
           <div className="w-full lg:w-96">
             <div className="bg-white p-8 rounded-[40px] shadow-2xl border border-gray-100 sticky top-8">
               <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-2">
-                {isTopup ? <Wallet className="text-blue-600" /> : <Package className="text-blue-600" />} 
+                {isTopup ? <Wallet className="text-blue-600" /> : <Package className="text-blue-600" />}
                 {isTopup ? 'Wallet Summary' : 'Order Summary'}
               </h3>
               <div className="space-y-4 mb-10">
@@ -381,27 +381,27 @@ function CheckoutInner() {
                           <Package className="text-gray-300" size={24} />
                         </div>
                         <div>
-                           <p className="text-sm font-black text-gray-900 leading-tight mb-0.5 line-clamp-1">{item.title}</p>
-                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{item.quantity} × {formatPrice(item.price)}</p>
-                           {item.category !== 'digital' && (() => {
-                             const hasLayers = item.variant_layers && item.variant_layers.length > 1;
-                             return (
-                               <div className="flex flex-wrap items-center gap-1 mt-1">
-                                 {hasLayers ? (
-                                   item.variant_layers!.map((layer, li) => (
-                                     <span key={li} className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tight bg-purple-50 text-purple-700 px-1 py-0.5 rounded-sm">
-                                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: layer.color_hex || '#ccc' }} />
-                                       {layer.color_name}
-                                     </span>
-                                   ))
-                                 ) : (
-                                   item.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1 rounded-sm">{item.material}</span>
-                                 )}
-                                 {item.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1 rounded-sm">{item.weight}</span>}
-                               </div>
-                             );
-                           })()}
-                         </div>
+                          <p className="text-sm font-black text-gray-900 leading-tight mb-0.5 line-clamp-1">{item.title}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{item.quantity} × {formatPrice(item.price)}</p>
+                          {item.category !== 'digital' && (() => {
+                            const hasLayers = item.variant_layers && item.variant_layers.length > 1;
+                            return (
+                              <div className="flex flex-wrap items-center gap-1 mt-1">
+                                {hasLayers ? (
+                                  item.variant_layers!.map((layer, li) => (
+                                    <span key={li} className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tight bg-purple-50 text-purple-700 px-1 py-0.5 rounded-sm">
+                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: layer.color_hex || '#ccc' }} />
+                                      {layer.color_name}
+                                    </span>
+                                  ))
+                                ) : (
+                                  item.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1 rounded-sm">{item.material}</span>
+                                )}
+                                {item.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1 rounded-sm">{item.weight}</span>}
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </div>
                       <p className="text-sm font-black text-gray-900">{formatPrice(item.price * item.quantity)}</p>
                     </div>
@@ -468,7 +468,7 @@ function CheckoutInner() {
                 </div>
               </div>
 
-              <button 
+              <button
                 type="submit"
                 form="checkout-form"
                 onClick={(e) => { if (isTopup) handlePayment(e); }}

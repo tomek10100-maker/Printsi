@@ -148,7 +148,7 @@ export default function OnboardingPage() {
                     email: user.email,
                     name: fullName || 'New User',
                 }),
-            }).catch(() => {});
+            }).catch(() => { });
 
             router.push('/');
         } catch (err: any) {
@@ -361,7 +361,7 @@ function RoleCard({ title, desc, active, onClick }: any) {
             className={`p-5 rounded-2xl border-2 cursor-pointer transition-all hover:-translate-y-1 ${active
                 ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600'
                 : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-md'
-                }`}
+            }`}
         >
             <h3 className={`font-black text-sm md:text-base ${active ? 'text-blue-900' : 'text-gray-900'}`}>{title}</h3>
             <p className="text-[11px] md:text-xs text-gray-500 mt-2 leading-relaxed font-bold">{desc}</p>

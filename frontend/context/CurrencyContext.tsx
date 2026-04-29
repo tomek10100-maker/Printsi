@@ -78,8 +78,8 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       if (data && data.rates) {
         setRates(data.rates);
       }
-    } catch (error) {
-      console.error("Failed to fetch currency rates:", error);
+    } catch (error: any) {
+      console.warn("Failed to fetch currency rates:", error?.message || error);
     }
   };
 

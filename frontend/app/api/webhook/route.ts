@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       .insert({
         buyer_id: userId,
         total_amount: session.amount_total ? session.amount_total / 100 : 0,
-        status: 'paid',
+        status: 'paid_awaiting_transfer',
         shipping_address: (session as any).shipping_details || session.customer_details || null,
         stripe_payment_intent_id: (session.payment_intent as string) || session.id,
       })
@@ -445,6 +445,47 @@ export async function POST(req: Request) {
     }
 
     console.log('🎉 Webhook complete!');
+  }
+
+  if (event.type === 'charge.refunded') {
+    const charge = event.data.object as Stripe.Charge;
+    const paymentIntentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+    
+    if (paymentIntentId) {
+      console.log(`💸 Processing refund for PaymentIntent: ${paymentIntentId}`);
+      
+      // Update the main order status
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .update({ status: 'refunded' })
+        .eq('stripe_payment_intent_id', paymentIntentId)
+        .select('id, buyer_id')
+        .single();
+        
+      if (orderError) {
+         console.error('❌ Failed to update order status for refund:', orderError.message);
+      } else if (order) {
+         // Update all items in this order
+         const { error: itemsError } = await supabase
+           .from('order_items')
+           .update({ status: 'refunded' })
+           .eq('order_id', order.id);
+           
+         if (itemsError) console.error('❌ Failed to update order items for refund:', itemsError.message);
+         else console.log(`✅ Order ${order.id} and its items marked as refunded.`);
+
+         // Notify buyer
+         if (order.buyer_id) {
+           await supabase.from('notifications').insert({
+             user_id: order.buyer_id,
+             title: '💸 Refund Processed',
+             message: `Your payment has been successfully refunded by the seller or platform.`,
+             type: 'order',
+             is_read: false,
+           });
+         }
+      }
+    }
   }
 
   return new NextResponse('OK', { status: 200 });

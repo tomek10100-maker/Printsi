@@ -1,14 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // This page handles the redirect after Google OAuth.
 // Supabase sends the user here, we check if they need onboarding, then route them.

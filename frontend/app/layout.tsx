@@ -7,6 +7,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import NotificationToast from './components/NotificationToast';
 import GlobalToast from './components/GlobalToast';
 import { AuthGuard } from './components/AuthGuard';
+import { ErrorSuppressor } from './components/ErrorSuppressor';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -23,6 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <ErrorSuppressor />
         <ThemeProvider>
           <CartProvider>
             <CurrencyProvider>

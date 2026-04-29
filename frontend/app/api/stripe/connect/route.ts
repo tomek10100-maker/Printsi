@@ -36,14 +36,26 @@ export async function POST(req: Request) {
 
     if (!accountId) {
       // 2. Create a new Express account with pre-filled business details to skip questions
+      const [firstName, ...lastNameParts] = (profile?.full_name || 'User').split(' ');
+      const lastName = lastNameParts.join(' ') || 'User';
+
       const account = await stripe.accounts.create({
         type: 'express',
+        country: 'PL',
+        email: profile?.email || undefined,
+        business_type: 'individual',
+        individual: {
+           email: profile?.email || undefined,
+           first_name: firstName,
+           last_name: lastName,
+        },
         capabilities: {
           transfers: { requested: true },
+          card_payments: { requested: false },
         },
         business_profile: {
-          mcc: '7399',
-          url: 'https://printis.com',
+          mcc: '7399', // Miscellaneous and Specialty Retail Stores
+          url: 'https://printis.store',
           product_description: 'Sprzedaż usług druku 3D oraz modeli cyfrowych przez platformę Printis.',
         },
         settings: {
@@ -71,9 +83,14 @@ export async function POST(req: Request) {
       // Ensure existing accounts also have the business profile set to skip sections
       try {
         await stripe.accounts.update(accountId, {
+          business_type: 'individual',
+          capabilities: {
+            transfers: { requested: true },
+            card_payments: { requested: false },
+          },
           business_profile: {
             mcc: '7399',
-            url: 'https://printis.com',
+            url: 'https://printis.store',
             product_description: 'Sprzedaż usług druku 3D oraz modeli cyfrowych przez platformę Printis.',
           },
         });

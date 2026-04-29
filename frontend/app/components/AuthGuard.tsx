@@ -32,8 +32,11 @@ export function AuthGuard() {
                 .eq('id', session.user.id)
                 .single();
 
-            // Jeśli profil nie jest zweryfikowany, uniemożliwiamy mu bycie po zalogowanej stronie
-            if (profile && profile.is_verified === false) {
+            // Skip verification check for social logins (Google, etc.)
+            const isSocialLogin = session.user.app_metadata.provider !== 'email';
+
+            // Jeśli profil nie jest zweryfikowany I nie jest to logowanie społecznościowe
+            if (profile && profile.is_verified === false && !isSocialLogin) {
                 await supabase.auth.signOut();
                 router.push('/login');
                 return;

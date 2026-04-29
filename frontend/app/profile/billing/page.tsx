@@ -4,8 +4,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  CreditCard, Wallet, TrendingUp, DollarSign, ArrowLeft, 
+import {
+  CreditCard, Wallet, TrendingUp, DollarSign, ArrowLeft,
   Plus, History, Shield, Info, ArrowUpRight, ArrowDownLeft,
   Loader2, ExternalLink, CheckCircle2, AlertCircle, Sparkles
 } from 'lucide-react';
@@ -21,13 +21,13 @@ function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { formatPrice } = useCurrency();
-  const { theme } = useTheme(); 
-  
+  const { theme } = useTheme();
+
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
-  
+
   const [stats, setStats] = useState({ spent: 0, earned: 0, pendingEarned: 0, withdrawn: 0 });
   const [payoutAmount, setPayoutAmount] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -36,7 +36,14 @@ function BillingContent() {
 
   useEffect(() => {
     fetchData();
-  }, [router]);
+
+    // Handle return_url from Stripe Connect onboarding
+    if (searchParams?.get('connected') === 'true') {
+      setMessage({ type: 'success', text: 'Stripe account connected successfully!' });
+      // Clean up the URL quietly
+      router.replace('/profile/billing', { scroll: false });
+    }
+  }, []);
 
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -50,9 +57,9 @@ function BillingContent() {
     ]);
     // Only subtract orders from the wallet balance if they were paid using the balance
     let totalSpentFromBalance = spentOrders?.filter(o => o.stripe_payment_intent_id?.startsWith('balance_')).reduce((acc, o) => acc + o.total_amount, 0) || 0;
-    
+
     let totalEarned = 0, pendingEarned = 0;
-    
+
     // sum ALL payouts (positive withdrawals and negative topups)
     let totalPayoutsAmt = payouts?.filter(p => p.status === 'completed' || p.status === 'pending').reduce((acc, p) => acc + Number(p.amount), 0) || 0;
 
@@ -62,10 +69,10 @@ function BillingContent() {
       else if (sale.status !== 'cancelled') pendingEarned += amt;
     });
 
-    setStats({ 
-      spent: totalSpentFromBalance, 
-      earned: totalEarned, 
-      pendingEarned, 
+    setStats({
+      spent: totalSpentFromBalance,
+      earned: totalEarned,
+      pendingEarned,
       withdrawn: totalPayoutsAmt
     });
     const unified: any[] = [];
@@ -74,9 +81,12 @@ function BillingContent() {
     payouts?.forEach(p => unified.push({ id: p.id, type: 'payout', amount: p.amount, date: p.created_at, label: 'Payout', status: p.status }));
     setTransactions(unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setLoading(false);
-    
+
+    // Determine if seller using fresh data instead of stale state
+    const isUserSeller = profileData?.roles?.includes('cad') || profileData?.roles?.includes('printer') || profileData?.roles?.includes('designer');
+
     // Check Stripe Status
-    if (isSeller) {
+    if (isUserSeller) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const res = await fetch('/api/stripe/status', {
@@ -131,7 +141,7 @@ function BillingContent() {
   const isSeller = profile?.roles?.includes('cad') || profile?.roles?.includes('printer');
 
   const getThemeStyles = () => {
-    switch(theme) {
+    switch (theme) {
       case 'midnight': return {
         pageBg: 'bg-[#020617]',
         cardBg: 'bg-[#0f172a]',
@@ -184,7 +194,7 @@ function BillingContent() {
   return (
     <div className={`min-h-screen transition-all duration-700 ${styles.pageBg}`}>
       <div className="max-w-6xl mx-auto px-6 py-12">
-        
+
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
           <div className="flex items-center gap-6">
@@ -201,35 +211,35 @@ function BillingContent() {
             </div>
           </div>
           <Link href="/checkout?type=topup" className={`${theme !== 'white' ? 'bg-white text-black' : 'bg-black text-white'} px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-blue-600 hover:text-white transition-all shadow-2xl flex items-center justify-center gap-2 group`}>
-             <Plus size={18} className="group-hover:rotate-90 transition-transform" /> Add Funds
+            <Plus size={18} className="group-hover:rotate-90 transition-transform" /> Add Funds
           </Link>
         </div>
 
         <div className={`grid gap-8 ${isSeller ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1 max-w-4xl mx-auto'}`}>
           <div className={isSeller ? "lg:col-span-2 space-y-8" : "space-y-8"}>
-            
+
             {/* STATS SECTION */}
             <div className={`grid gap-4 ${isSeller ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1'}`}>
               {/* PRIMARY BALANCE CARD */}
               <div className={`relative overflow-hidden p-6 sm:p-8 rounded-[40px] border ${styles.cardBorder} shadow-2xl flex flex-col justify-between h-64 transition-all duration-500 bg-gradient-to-br ${styles.walletGradient} group`}>
-                 <div className="absolute top-0 right-0 p-8 opacity-20 text-white">
-                    <Wallet size={120} strokeWidth={1} />
-                 </div>
-                  <div className="relative z-10 flex flex-col items-center text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-6 border border-white/10 group-hover:scale-110 transition-transform">
-                      <Sparkles size={24} />
-                    </div>
-                    <p className="text-[11px] uppercase font-black tracking-[0.2em] mb-2 text-white/70">Available Balance</p>
-                    <p className="text-xl sm:text-3xl md:text-lg lg:text-2xl xl:text-4xl font-black tracking-tighter text-white text-center break-words w-full leading-tight">{formatPrice(Math.max(0, netBalance))}</p>
+                <div className="absolute top-0 right-0 p-8 opacity-20 text-white">
+                  <Wallet size={120} strokeWidth={1} />
+                </div>
+                <div className="relative z-10 flex flex-col items-center text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-6 border border-white/10 group-hover:scale-110 transition-transform">
+                    <Sparkles size={24} />
                   </div>
-                 <div className="relative z-10 flex items-center gap-4">
-                    <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
-                       <div className="h-full bg-white/40 w-2/3" />
-                    </div>
-                    <p className="text-[10px] font-black uppercase text-white/50 tracking-widest">Printis Digital Wallet</p>
-                 </div>
+                  <p className="text-[11px] uppercase font-black tracking-[0.2em] mb-2 text-white/70">Available Balance</p>
+                  <p className="text-xl sm:text-3xl md:text-lg lg:text-2xl xl:text-4xl font-black tracking-tighter text-white text-center break-words w-full leading-tight">{formatPrice(Math.max(0, netBalance))}</p>
+                </div>
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-white/40 w-2/3" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase text-white/50 tracking-widest">Printis Digital Wallet</p>
+                </div>
               </div>
-              
+
               {isSeller && (
                 <>
                   <StatCard styles={styles} icon={<TrendingUp size={24} />} label="Earned" value={formatPrice(stats.earned)} color="emerald" />
@@ -251,15 +261,14 @@ function BillingContent() {
                 ) : transactions.map(tx => (
                   <div key={tx.id} className={`flex items-center justify-between p-6 border rounded-[28px] transition-all group ${styles.itemBg} ${styles.itemHover} ${styles.cardBorder}`}>
                     <div className="flex items-center gap-6">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                        tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? 'bg-emerald-500/10 text-emerald-400' : 
-                        tx.type === 'payout' ? 'bg-orange-500/10 text-orange-400' : 
-                        'bg-blue-500/10 text-blue-400'
-                      }`}>
-                        {tx.type === 'earned' ? <ArrowUpRight size={26} /> : 
-                         (tx.type === 'payout' && tx.amount < 0) ? <Wallet size={26} /> :
-                         tx.type === 'payout' ? <ArrowDownLeft size={26} /> : 
-                         <CreditCard size={26} />}
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? 'bg-emerald-500/10 text-emerald-400' :
+                          tx.type === 'payout' ? 'bg-orange-500/10 text-orange-400' :
+                            'bg-blue-500/10 text-blue-400'
+                        }`}>
+                        {tx.type === 'earned' ? <ArrowUpRight size={26} /> :
+                          (tx.type === 'payout' && tx.amount < 0) ? <Wallet size={26} /> :
+                            tx.type === 'payout' ? <ArrowDownLeft size={26} /> :
+                              <CreditCard size={26} />}
                       </div>
                       <div>
                         <p className={`font-black text-base tracking-tight ${styles.textTitle}`}>
@@ -269,11 +278,10 @@ function BillingContent() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`font-black text-xl ${
-                        tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? 'text-emerald-400' : 
-                        tx.type === 'payout' ? 'text-orange-400' : 
-                        'text-blue-400'
-                      }`}>
+                      <p className={`font-black text-xl ${tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? 'text-emerald-400' :
+                          tx.type === 'payout' ? 'text-orange-400' :
+                            'text-blue-400'
+                        }`}>
                         {tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? '+' : '-'}{formatPrice(Math.abs(tx.amount))}
                       </p>
                     </div>
@@ -290,7 +298,7 @@ function BillingContent() {
                 <h3 className={`text-lg font-black mb-8 flex items-center gap-2 uppercase tracking-tight ${styles.textTitle}`}>
                   <ArrowUpRight className="text-blue-500" /> Payout
                 </h3>
-                
+
                 {!stripeConnected ? (
                   <div className="space-y-6">
                     <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl space-y-4">
@@ -301,8 +309,8 @@ function BillingContent() {
                       <p className={`text-[10px] font-bold leading-relaxed uppercase tracking-wider ${styles.textMuted}`}>
                         To receive payouts, you must first connect your account with <span className="text-blue-500">Stripe Connect</span>. This is a one-time setup.
                       </p>
-                      <button 
-                        onClick={handleConnectStripe} 
+                      <button
+                        onClick={handleConnectStripe}
                         disabled={isProcessing}
                         className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-blue-600 hover:text-white transition-all shadow-xl flex items-center justify-center gap-2"
                       >
@@ -315,12 +323,12 @@ function BillingContent() {
                 ) : (
                   <div className="space-y-6">
                     <div className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl mb-4">
-                       <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center">
-                            <CheckCircle2 size={16} />
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Stripe Active</span>
-                       </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center">
+                          <CheckCircle2 size={16} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Stripe Active</span>
+                      </div>
                     </div>
                     <div>
                       <label className={`text-[11px] uppercase font-black tracking-[0.2em] mb-2 block ${styles.textMuted}`}>Amount</label>
