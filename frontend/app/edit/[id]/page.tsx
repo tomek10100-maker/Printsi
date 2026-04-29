@@ -67,13 +67,6 @@ type ColorVariant = {
   openDropdownLayerId: string | null;
 };
 
-const BASIC_COLORS: Record<string, string> = {
-  black: '#000000', white: '#ffffff', red: '#ff0000', green: '#008000', blue: '#0000ff',
-  yellow: '#ffff00', cyan: '#00ffff', magenta: '#ff00ff', gray: '#808080', grey: '#808080',
-  orange: '#ffa500', brown: '#a52a2a', pink: '#ffc0cb', purple: '#800080',
-  navy: '#000080', lime: '#00ff00', maroon: '#800000', olive: '#808000', teal: '#008080',
-  silver: '#c0c0c0', gold: '#ffd700'
-};
 
 type DimensionEntry = { id: string; label: string; value: string };
 
