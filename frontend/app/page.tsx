@@ -157,11 +157,11 @@ export default function HomePage() {
       )}
 
       {/* NAVBAR */}
-      <div className="relative z-50 px-6 py-6 md:px-12">
-        <nav className="mx-auto w-full max-w-7xl flex items-center justify-between bg-white/80 backdrop-blur-xl px-8 py-4 rounded-3xl shadow-lg border border-gray-100">
-          <div className="flex items-center gap-8 lg:gap-12 shrink-0">
+      <div className="relative z-50 px-4 md:px-6 py-4 md:py-6 lg:px-12">
+        <nav className="mx-auto w-full max-w-7xl flex items-center justify-between bg-white/80 backdrop-blur-xl px-4 md:px-8 py-3 md:py-4 rounded-[24px] md:rounded-3xl shadow-lg border border-gray-100">
+          <div className="flex items-center gap-4 md:gap-8 lg:gap-12 shrink-0">
             <Link href="/" className="shrink-0">
-              <img src="/logo.jpg" alt="Printis Logo" className="h-10 w-auto rounded-xl object-cover" />
+              <img src="/logo.jpg" alt="Printis Logo" className="h-8 md:h-10 w-auto rounded-xl object-cover" />
             </Link>
 
             <div className="hidden lg:flex items-center gap-6 xl:gap-8 text-[11px] uppercase tracking-[0.2em] font-black text-gray-800">
@@ -248,21 +248,42 @@ export default function HomePage() {
               </div>
             </Link>
 
-            <div onMouseEnter={() => setThemeHovered(true)} onMouseLeave={() => setThemeHovered(false)}><ThemeToggle isHoveredExternal={themeHovered} /></div>
+            <div className="hidden sm:block" onMouseEnter={() => setThemeHovered(true)} onMouseLeave={() => setThemeHovered(false)}><ThemeToggle isHoveredExternal={themeHovered} /></div>
             {user ? (
-              <Link href="/profile" className="relative bg-blue-600 text-white px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2">
-                <User size={16} /> Account
+              <Link href="/profile" className="relative bg-blue-600 text-white px-4 md:px-8 py-2 md:py-3 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2">
+                <User size={14} className="md:w-4 md:h-4" /> <span className="hidden md:inline">Account</span>
                 {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[9px] font-bold animate-pulse">{unreadCount > 9 ? '!' : unreadCount}</span>}
               </Link>
             ) : (
-              <Link href="/login" className="bg-gray-900 text-white px-10 py-3 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg border border-gray-800">Sign In</Link>
+              <Link href="/login" className="bg-gray-900 text-white px-5 md:px-10 py-2.5 md:py-3 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg border border-gray-800">Sign In</Link>
             )}
           </div>
         </nav>
       </div>
 
-      {/* PENTAGON MENU */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-[80vh]">
+      {/* MOBILE MENU (Flex Column) */}
+      <div className="relative z-10 flex flex-col md:hidden items-center justify-center min-h-[60vh] gap-3 w-full px-6 py-6 mt-4">
+        {bricks.map((brick, idx) => (
+          <div key={`mob-${idx}`} className="w-full max-w-[280px]">
+            <Link href={brick.link} className={brick.status === 'soon' ? 'pointer-events-none' : ''}>
+              <div className={`w-full h-16 flex items-center justify-between px-6 rounded-2xl border-2 transition-all shadow-lg backdrop-blur-xl ${brick.status === 'active' ? 'bg-white/90 border-blue-100 active:scale-95' : 'bg-gray-50/90 border-gray-100 opacity-70'}`}>
+                <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] ${brick.status === 'active' ? 'text-gray-800' : 'text-gray-500'}`}>{brick.title}</span>
+                {brick.status === 'soon' ? (
+                  <span className="text-[8px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full uppercase tracking-tighter">Soon</span>
+                ) : (
+                  <ChevronRight size={16} className="text-blue-500 opacity-50" />
+                )}
+              </div>
+            </Link>
+          </div>
+        ))}
+        <div className={`mt-6 w-full max-w-[280px] text-center backdrop-blur-md px-6 py-4 rounded-[24px] border shadow-lg transition-colors duration-300 ${theme === 'white' ? 'bg-white/60 border-gray-100' : 'bg-gray-900/60 border-gray-800'}`}>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tighter text-gray-900 uppercase">Future of <span className="text-blue-600">Creation.</span></h1>
+        </div>
+      </div>
+
+      {/* DESKTOP PENTAGON MENU */}
+      <div className="relative z-10 hidden md:flex flex-col items-center justify-center min-h-[80vh]">
         <div className="relative w-[550px] h-[550px] flex items-center justify-center">
           {bricks.map((brick, idx) => {
             const radius = 230;
