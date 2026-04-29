@@ -70,6 +70,7 @@ type Offer = {
   color_hex?: string;
   material?: string;
   weight?: string;
+  dimensions?: string;
   is_negotiable?: boolean;
 };
 
