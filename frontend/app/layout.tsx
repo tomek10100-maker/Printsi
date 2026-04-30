@@ -29,6 +29,9 @@ export default function RootLayout({
           <CartProvider>
             <CurrencyProvider>
               <AuthGuard />
+              <div className="bg-red-600 text-white text-center py-2 px-4 text-xs sm:text-sm font-black uppercase tracking-widest sticky top-0 z-[100] shadow-md">
+                🚧 We are currently in beta testing. Please do not make any real purchases! 🚧
+              </div>
               {children}
               {/* Global real-time notification toasts */}
               <NotificationToast />
