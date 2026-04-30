@@ -8,8 +8,9 @@ export default function ThemeToggle({ isHoveredExternal = false }: { isHoveredEx
     const { theme, setTheme } = useTheme();
     const [isSpinning, setIsSpinning] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
 
-    const effectiveHover = isHovered || isHoveredExternal;
+    const effectiveHover = isHovered || isHoveredExternal || isExpanded;
 
     const handleSelect = (newTheme: Theme) => {
         if (newTheme === theme) return;
@@ -63,7 +64,6 @@ export default function ThemeToggle({ isHoveredExternal = false }: { isHoveredEx
                 })}
             </div>
 
-            {/* MAIN CENTRAL ICON (FADES MORE SUBTLY) */}
             <div
                 className={`
                     relative flex-shrink-0 w-12 h-12 flex items-center justify-center 
@@ -73,6 +73,7 @@ export default function ThemeToggle({ isHoveredExternal = false }: { isHoveredEx
                     ${isSpinning ? 'animate-theme-spin' : ''}
                 `}
                 style={{ transitionDuration: '1.5s', opacity: effectiveHover ? 0.2 : 1 }}
+                onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="absolute flex items-center justify-center">
                     {theme === 'white' && <Sun size={28} strokeWidth={2.8} className="drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />}

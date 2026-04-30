@@ -280,6 +280,9 @@ export default function HomePage() {
         <div className={`mt-6 w-full max-w-[280px] text-center backdrop-blur-md px-6 py-4 rounded-[24px] border shadow-lg transition-colors duration-300 ${theme === 'white' ? 'bg-white/60 border-gray-100' : 'bg-gray-900/60 border-gray-800'}`}>
           <h1 className="text-xl sm:text-2xl font-black tracking-tighter text-gray-900 uppercase">Future of <span className="text-blue-600">Creation.</span></h1>
         </div>
+        <div className="mt-4 flex items-center justify-center">
+          <ThemeToggle />
+        </div>
       </div>
 
       {/* DESKTOP PENTAGON MENU */}
