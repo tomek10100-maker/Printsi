@@ -8,12 +8,14 @@ const supabase = createClient(
 
 const FURGONETKA_SECRET = process.env.FURGONETKA_WEBHOOK_SECRET || 'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
-  return handleTrackingUpdate(req, params.id);
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  return handleTrackingUpdate(req, resolvedParams.id);
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  return handleTrackingUpdate(req, params.id);
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  return handleTrackingUpdate(req, resolvedParams.id);
 }
 
 async function handleTrackingUpdate(req: Request, orderId: string) {
