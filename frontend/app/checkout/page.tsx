@@ -8,10 +8,16 @@ import { useCurrency } from '../../context/CurrencyContext';
 import {
   CreditCard, ArrowLeft, Loader2, MapPin,
   ShieldCheck, Wallet, Package, Truck,
-  AlertCircle, DollarSign, Zap, TrendingUp, Plus
+  AlertCircle, Zap, TrendingUp, Plus, CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
-import { DHL_COUNTRIES, calculateShippingPln, countryNameToCode, parseWeightToGrams } from '../lib/dhlRates';
+import { DHL_COUNTRIES, countryNameToCode, parseWeightToGrams } from '../lib/dhlRates';
+import {
+  getShippingOptions,
+  calculateParcel,
+  parseDimensionString,
+  ShippingOption
+} from '../lib/shippingRates';
 
 function CheckoutInner() {
   const router = useRouter();
@@ -37,7 +43,9 @@ function CheckoutInner() {
   const [fetchingProfile, setFetchingProfile] = useState(true);
   const [offerWeights, setOfferWeights] = useState<Record<string, number>>({});
   const [offerCategories, setOfferCategories] = useState<Record<string, string>>({});
+  const [offerDimensions, setOfferDimensions] = useState<Record<string, string>>({});
   const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({});
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -49,44 +57,68 @@ function CheckoutInner() {
     country: 'PL'
   });
 
-  const shippingBreakdown = useMemo(() => {
-    if (isTopup) return [];
-    const sellerGroups: Record<string, typeof items> = {};
-    items.forEach(item => {
-      if (!sellerGroups[item.seller_id]) sellerGroups[item.seller_id] = [];
-      sellerGroups[item.seller_id].push(item);
-    });
+  // Determine if cart has any shippable (physical) items
+  const hasShippable = useMemo(() =>
+    !isTopup && items.some(item => (offerCategories as any)[item.id] !== 'digital')
+  , [items, offerCategories, isTopup]);
 
-    const breakdown: { sellerId: string; fromCode: string; toCode: string; weightGrams: number; costPln: number | null }[] = [];
-    Object.entries(sellerGroups).forEach(([sellerId, sellerItems]) => {
-      const shippableItems = sellerItems.filter(item => (offerCategories as any)[item.id] !== 'digital');
-      if (shippableItems.length === 0) return;
-      const fromCode = (sellerCountries as any)[sellerId] || 'PL';
-      const toCode = formData.country;
-      const weightGrams = shippableItems.reduce((total, item) => {
-        return total + (((offerWeights as any)[item.id] ?? 500) * item.quantity);
-      }, 0);
-      const costPln = calculateShippingPln(fromCode, toCode, weightGrams);
-      breakdown.push({ sellerId, fromCode, toCode, weightGrams, costPln });
-    });
-    return breakdown;
-  }, [items, isTopup, formData.country, offerCategories, sellerCountries, offerWeights]);
+  // Compute available shipping options based on items dimensions + weight
+  const availableShippingOptions = useMemo((): ShippingOption[] => {
+    if (!hasShippable) return [];
+    const plnRate = rates?.['PLN'] || 4.25;
 
-  const shippingPln = useMemo(() => {
-    if (isTopup) return 0;
-    const hasShippable = items.some(item => (offerCategories as any)[item.id] !== 'digital');
-    if (!hasShippable) return 0;
-    const allValid = shippingBreakdown.every(s => s.costPln !== null);
-    if (!allValid || shippingBreakdown.length === 0) return null;
-    return shippingBreakdown.reduce((sum, s) => sum + (s.costPln ?? 0), 0);
-  }, [shippingBreakdown, items, offerCategories, isTopup]);
+    // Group by seller, find worst-case (largest) dimensions
+    let totalWeightGrams = 0;
+    let maxDimsMm: [number, number, number] | null = null;
 
+    const shippableItems = items.filter(item => (offerCategories as any)[item.id] !== 'digital');
+    for (const item of shippableItems) {
+      totalWeightGrams += (offerWeights[item.id] ?? 500) * item.quantity;
+      const dimStr = offerDimensions[item.id];
+      const dims = parseDimensionString(dimStr);
+      if (dims) {
+        if (!maxDimsMm) {
+          maxDimsMm = dims;
+        } else {
+          // Combine: assume items stack, so add longest side
+          maxDimsMm = [
+            Math.max(maxDimsMm[0], dims[0]),
+            Math.max(maxDimsMm[1], dims[1]),
+            maxDimsMm[2] + dims[2],
+          ];
+        }
+      }
+    }
+
+    // Get seller's country (first shippable seller)
+    const firstSellerId = shippableItems[0]?.seller_id;
+    const fromCode = (sellerCountries as any)[firstSellerId] || 'PL';
+    const toCode = formData.country;
+
+    const parcel = calculateParcel(maxDimsMm, totalWeightGrams);
+    return getShippingOptions(fromCode, toCode, parcel, plnRate);
+  }, [hasShippable, items, offerCategories, offerWeights, offerDimensions, sellerCountries, formData.country, rates]);
+
+  // Reset selected shipping when options change
+  useEffect(() => {
+    if (availableShippingOptions.length > 0 && !selectedShipping) {
+      setSelectedShipping(availableShippingOptions[0]);
+    } else if (availableShippingOptions.length > 0 && selectedShipping) {
+      // Re-select same carrier if still available, otherwise pick first
+      const still = availableShippingOptions.find(o => o.id === selectedShipping.id);
+      setSelectedShipping(still || availableShippingOptions[0]);
+    } else if (availableShippingOptions.length === 0) {
+      setSelectedShipping(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableShippingOptions]);
+
+  const shippingPln = selectedShipping?.pricePln ?? 0;
   const shippingEur = useMemo(() => {
-    if (isTopup) return 0;
-    if (shippingPln === null) return null;
-    if (!rates || !rates['PLN']) return shippingPln / 4.25;
-    return shippingPln / rates['PLN'];
-  }, [shippingPln, rates, isTopup]);
+    if (isTopup || !hasShippable) return 0;
+    if (!selectedShipping) return null;
+    return selectedShipping.priceEur;
+  }, [isTopup, hasShippable, selectedShipping]);
 
   // --- Fee calculations ---
   const feeBase = cartTotalEur + (shippingEur ?? 0); // base for fees
@@ -119,6 +151,50 @@ function CheckoutInner() {
         });
       }
 
+      // Fetch offer details (weight, category, dimensions) for cart items
+      if (items.length > 0) {
+        const offerIds = items.map(i => i.id);
+        const { data: offerData } = await supabase
+          .from('offers')
+          .select('id, weight, category, dimensions, user_id')
+          .in('id', offerIds);
+
+        if (offerData) {
+          const weights: Record<string, number> = {};
+          const categories: Record<string, string> = {};
+          const dimensions: Record<string, string> = {};
+          const sellerIds: string[] = [];
+
+          offerData.forEach(o => {
+            weights[o.id] = parseWeightToGrams(o.weight);
+            categories[o.id] = o.category || 'physical';
+            if (o.dimensions) dimensions[o.id] = o.dimensions;
+            if (o.user_id) sellerIds.push(o.user_id);
+          });
+
+          setOfferWeights(weights);
+          setOfferCategories(categories);
+          setOfferDimensions(dimensions);
+
+          // Fetch seller countries
+          if (sellerIds.length > 0) {
+            const { data: sellerProfiles } = await supabase
+              .from('profiles')
+              .select('id, country')
+              .in('id', [...new Set(sellerIds)]);
+
+            const countries: Record<string, string> = {};
+            sellerProfiles?.forEach(p => {
+              const code = (p.country || 'PL').length === 2
+                ? p.country.toUpperCase()
+                : (countryNameToCode(p.country) || 'PL');
+              countries[p.id] = code;
+            });
+            setSellerCountries(countries);
+          }
+        }
+      }
+
       const { data: sales } = await supabase.from('order_items').select('price_at_purchase, quantity, status').eq('seller_id', user.id);
       const totalEarned = sales?.reduce((acc, s) => s.status === 'completed' ? acc + (s.price_at_purchase * (s.quantity || 1)) : acc, 0) || 0;
       const { data: orders } = await supabase.from('orders').select('total_amount').eq('buyer_id', user.id).like('stripe_payment_intent_id', 'balance_%');
@@ -141,7 +217,8 @@ function CheckoutInner() {
     e.preventDefault();
     if (!user) return;
     if (!isTopup && items.length === 0) return;
-    if (shippingEur === null) { alert('Please select a valid shipping country.'); return; }
+    if (hasShippable && !selectedShipping) { alert('Please select a shipping method.'); return; }
+    if (shippingEur === null) { alert('Please select a valid shipping option.'); return; }
 
     setLoading(true);
     const currentRate = rates?.[currency] || 1;
@@ -183,7 +260,16 @@ function CheckoutInner() {
       } else {
         const body = isTopup
           ? { userId: user.id, isTopup: true, topupAmount: numericTopup, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate }
-          : { userId: user.id, items, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate, shippingCostEur: shippingEur || 0, shipping: (shippingEur ?? 0) > 0 ? { name: formData.fullName, address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country } } : undefined };
+          : {
+              userId: user.id, items, email: formData.email,
+              selectedCurrency: currency, exchangeRate: currentRate,
+              shippingCostEur: shippingEur || 0,
+              shippingLabel: selectedShipping ? `${selectedShipping.carrier} ${selectedShipping.service}` : 'Shipping',
+              shipping: (shippingEur ?? 0) > 0 ? {
+                name: formData.fullName,
+                address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country }
+              } : undefined
+            };
 
         const response = await fetch('/api/stripe/checkout', {
           method: 'POST',
@@ -293,15 +379,16 @@ function CheckoutInner() {
                 </div>
               </>
             ) : (
+              <>
               <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
                 <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
-                  {shippingPln === 0 ? <ShieldCheck className="text-green-600" /> : <MapPin className="text-blue-600" />}
-                  {shippingPln === 0 ? 'Order Details' : 'Shipping Details'}
+                  {!hasShippable ? <ShieldCheck className="text-green-600" /> : <MapPin className="text-blue-600" />}
+                  {!hasShippable ? 'Order Details' : 'Shipping Details'}
                 </h2>
                 <form id="checkout-form" onSubmit={handlePayment} className="space-y-4">
                   <input name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                   <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" type="email" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                  {shippingPln !== 0 && (
+                  {hasShippable && (
                     <>
                       <input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Phone" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
                       <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Address" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
@@ -316,6 +403,58 @@ function CheckoutInner() {
                   )}
                 </form>
               </div>
+
+              {/* SHIPPING METHOD SELECTION */}
+              {hasShippable && availableShippingOptions.length > 0 && (
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                  <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
+                    <Truck className="text-blue-600" /> Delivery Method
+                  </h2>
+                  <div className="space-y-3">
+                    {availableShippingOptions.map(option => (
+                      <label
+                        key={option.id}
+                        className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                          selectedShipping?.id === option.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-100 bg-gray-50 hover:border-blue-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="radio"
+                            name="shipping_method"
+                            checked={selectedShipping?.id === option.id}
+                            onChange={() => setSelectedShipping(option)}
+                            className="w-4 h-4 text-blue-600"
+                          />
+                          <div>
+                            <p className="font-black text-sm text-gray-900">
+                              {option.icon} {option.carrier} &mdash; {option.service}
+                            </p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                              {option.description} &middot; {option.deliveryDays} business days
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-black text-blue-600">{formatPrice(option.priceEur)}</p>
+                          <p className="text-[10px] text-gray-400 font-bold">{option.pricePln.toFixed(2)} PLN</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedShipping && (
+                    <div className="mt-4 p-3 bg-green-50 rounded-xl flex items-center gap-2 border border-green-100">
+                      <CheckCircle2 className="text-green-600" size={16} />
+                      <p className="text-xs font-black text-green-700">
+                        Parcel size estimated from product dimensions + 5 cm safety margin
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              </>
             )}
 
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
@@ -414,10 +553,17 @@ function CheckoutInner() {
                   <span className="text-xs font-black uppercase text-gray-400 tracking-widest">Subtotal</span>
                   <span className="font-black text-gray-900">{isTopup ? formatPrice(numericTopup, true) : formatPrice(cartTotalEur)}</span>
                 </div>
-                {!isTopup && (
+                {!isTopup && hasShippable && (
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-black uppercase text-gray-400 tracking-widest">Shipping</span>
-                    <span className="font-black text-emerald-600">{shippingEur === null ? 'Select delivery' : (shippingEur === 0 ? 'FREE' : formatPrice(shippingEur))}</span>
+                    <div className="text-right">
+                      <span className="font-black text-emerald-600">
+                        {!selectedShipping ? 'Select method' : shippingEur === 0 ? 'FREE' : formatPrice(shippingEur ?? 0)}
+                      </span>
+                      {selectedShipping && (
+                        <p className="text-[9px] text-gray-400 font-bold">{selectedShipping.carrier} {selectedShipping.service}</p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -472,7 +618,7 @@ function CheckoutInner() {
                 type="submit"
                 form="checkout-form"
                 onClick={(e) => { if (isTopup) handlePayment(e); }}
-                disabled={loading || (!isTopup && shippingEur === null)}
+                disabled={loading || (!isTopup && hasShippable && !selectedShipping)}
                 className="w-full mt-10 py-5 bg-gray-900 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-600 transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:grayscale"
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : (
