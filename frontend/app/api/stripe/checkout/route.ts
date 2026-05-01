@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { stripe } from '../../../lib/stripe';
 import type Stripe from 'stripe';
-
-
+import { getSiteUrl } from '@/app/lib/getSiteUrl';
 
 export async function POST(req: Request) {
   try {
@@ -99,8 +98,8 @@ export async function POST(req: Request) {
         topup_rate: isTopup ? exchangeRate.toString() : '1',
         items: isTopup ? '[]' : JSON.stringify(items.map((i: any) => ({ id: i.id, q: i.quantity }))).substring(0, 500),
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/success?session_id={CHECKOUT_SESSION_ID}&type=${isTopup ? 'topup' : 'order'}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/${isTopup ? 'profile/billing' : 'cart'}`,
+      success_url: `${getSiteUrl()}/success?session_id={CHECKOUT_SESSION_ID}&type=${isTopup ? 'topup' : 'order'}`,
+      cancel_url: `${getSiteUrl()}/${isTopup ? 'profile/billing' : 'cart'}`,
     });
 
     return NextResponse.json({ url: session.url });

@@ -1,8 +1,9 @@
 import { Resend } from 'resend';
+import { getSiteUrl } from './getSiteUrl';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 const FROM_EMAIL = 'Printis <noreply@printis.store>';
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const SITE_URL = getSiteUrl();
 
 export interface EmailOptions {
   to: string | string[];

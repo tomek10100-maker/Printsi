@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { stripe } from '../../../lib/stripe';
 import { createClient } from '@supabase/supabase-js';
-
-
+import { getSiteUrl } from '@/app/lib/getSiteUrl';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,11 +25,7 @@ export async function POST(req: Request) {
 
     let accountId = profile?.stripe_account_id;
 
-    let domain = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    // Ensure domain has protocol
-    if (!domain.startsWith('http')) {
-      domain = 'http://' + domain;
-    }
+    let domain = getSiteUrl();
 
     if (!accountId) {
       // 2. Create a new Express account with pre-filled business details to skip questions
