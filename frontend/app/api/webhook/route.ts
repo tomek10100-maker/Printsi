@@ -1,13 +1,12 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
+import { stripe } from '../../lib/stripe';
+import type Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { sendDigitalFileEmail } from '../../lib/sendDigitalFileEmail';
 import { sendOutOfStockEmail } from '../../lib/sendNotificationEmail';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16' as any,
-});
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
