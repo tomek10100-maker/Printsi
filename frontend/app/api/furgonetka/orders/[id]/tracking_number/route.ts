@@ -72,8 +72,8 @@ async function handleTrackingUpdate(req: Request, orderId: string) {
       if (!fetchError && order) {
         const shipping = order.order_shipping_details?.[0];
         const firstItem = order.order_items?.[0];
-        const sellerProfile = firstItem?.profiles;
-        const productTitle = firstItem?.offers?.title || 'Your 3D Print';
+        const sellerProfile = (firstItem?.profiles as any)?.[0] || (firstItem?.profiles as any);
+        const productTitle = (firstItem?.offers as any)?.[0]?.title || (firstItem?.offers as any)?.title || 'Your 3D Print';
 
         // 3. Send Email to Buyer
         if (shipping?.email) {
