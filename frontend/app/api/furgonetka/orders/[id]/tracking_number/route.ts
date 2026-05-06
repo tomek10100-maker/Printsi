@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendEmail, EmailTemplates } from '../../../../../lib/emailService';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,26 +33,78 @@ async function handleTrackingUpdate(req: Request, orderId: string) {
     const payload = await req.json();
     console.log(`📦 Furgonetka Tracking Update for order ${orderId}:`, payload);
 
-    // Extract tracking number (Furgonetka usually sends it as tracking_number, number, or waybill)
-    const trackingCode = payload.tracking_number || payload.number || payload.waybill || '';
-    const courier = payload.courier || payload.service || '';
+    const trackingCode = (payload.tracking_number || payload.number || payload.waybill || '').toString();
+    const courier = (payload.courier || payload.service || 'DHL').toString();
 
     if (trackingCode) {
-      // Find order items and update their status/tracking
-      // We assume the whole order is shipped together for now
+      // 1. Update status and tracking code in database
       const { error: updateError } = await supabase
         .from('order_items')
-        .update({ status: 'shipped' }) // Możesz dodać kolumnę tracking_code w DB, jeśli jej nie ma
+        .update({ 
+          status: 'shipped',
+          tracking_code: trackingCode 
+        })
         .eq('order_id', orderId);
 
       if (updateError) {
         console.error('Error updating order status:', updateError);
-      } else {
-        console.log(`✅ Order ${orderId} marked as shipped with tracking ${trackingCode}`);
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
       }
 
-      // Tutaj w przyszłości można dodać zapis do nowej kolumny "tracking_code" 
-      // oraz wysłanie e-maila do klienta przez emailService.trackingAddedBuyer(...)
+      console.log(`✅ Order ${orderId} marked as shipped with tracking ${trackingCode}`);
+
+      // 2. Fetch order info for emails (buyer email and seller email)
+      const { data: order, error: fetchError } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          order_shipping_details (full_name, email),
+          order_items (
+            id,
+            offers (title),
+            seller_id,
+            profiles:seller_id (full_name, email)
+          )
+        `)
+        .eq('id', orderId)
+        .single();
+
+      if (!fetchError && order) {
+        const shipping = order.order_shipping_details?.[0];
+        const firstItem = order.order_items?.[0];
+        const sellerProfile = firstItem?.profiles;
+        const productTitle = firstItem?.offers?.title || 'Your 3D Print';
+
+        // 3. Send Email to Buyer
+        if (shipping?.email) {
+          try {
+            await sendEmail({
+              to: shipping.email,
+              subject: `📦 Your package is on the way! (${productTitle})`,
+              html: EmailTemplates.trackingAddedBuyer(
+                shipping.full_name || 'Customer',
+                productTitle,
+                trackingCode
+              )
+            });
+          } catch (e) { console.error('Buyer email error:', e); }
+        }
+
+        // 4. Send Email to Seller
+        if (sellerProfile?.email) {
+          try {
+            await sendEmail({
+              to: sellerProfile.email,
+              subject: `🚚 Tracking added to your sale: ${productTitle}`,
+              html: EmailTemplates.trackingAddedSeller(
+                sellerProfile.full_name || 'Seller',
+                productTitle,
+                trackingCode
+              )
+            });
+          } catch (e) { console.error('Seller email error:', e); }
+        }
+      }
     }
 
     return NextResponse.json({ success: true });
