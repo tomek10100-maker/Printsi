@@ -306,67 +306,12 @@ function BillingContent() {
                   <ArrowUpRight className="text-blue-500" /> Payout
                 </h3>
 
-                {!stripeConnected ? (
-                  <div className="space-y-5">
-                    <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl space-y-4">
-                      <div className="flex items-center gap-3 text-orange-400">
-                        <AlertCircle size={20} />
-                        <span className="text-xs font-black uppercase tracking-widest">Action Required</span>
-                      </div>
-                      <p className={`text-[10px] font-bold leading-relaxed uppercase tracking-wider ${styles.textMuted}`}>
-                        To receive payouts, you must first connect your account with <span className="text-blue-500">Stripe Connect</span>. This is a one-time setup.
-                      </p>
-                      <button
-                        onClick={handleConnectStripe}
-                        disabled={isProcessing}
-                        className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-blue-600 hover:text-white transition-all shadow-xl flex items-center justify-center gap-2"
-                      >
-                        {isProcessing ? <Loader2 className="animate-spin" size={18} /> : (
-                          <>Connect Stripe <ExternalLink size={14} /></>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Bank account accordion */}
-                    <BankConnect
-                      profile={profile}
-                      sessionToken={sessionToken}
-                      theme={theme}
-                      onSaved={fetchData}
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center">
-                          <CheckCircle2 size={16} />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Stripe Active</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className={`text-[11px] uppercase font-black tracking-[0.2em] mb-2 block ${styles.textMuted}`}>Amount</label>
-                      <input type="number" value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} className={`w-full border-2 rounded-2xl py-5 px-6 font-black focus:border-blue-500 focus:outline-none transition-all ${theme !== 'white' ? 'bg-white/5 border-white/5 text-white placeholder-gray-800' : 'bg-gray-50 border-gray-100 text-gray-900'}`} placeholder="0.00" />
-                    </div>
-                    {message && (
-                      <div className={`p-5 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                        <AlertCircle size={18} /><p className="text-xs font-bold leading-tight">{message.text}</p>
-                      </div>
-                    )}
-                    <button onClick={handlePayoutRequest} disabled={isProcessing || !payoutAmount} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-blue-900/10">
-                      {isProcessing ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Process Payout'}
-                    </button>
-
-                    {/* Bank account accordion */}
-                    <BankConnect
-                      profile={profile}
-                      sessionToken={sessionToken}
-                      theme={theme}
-                      onSaved={fetchData}
-                    />
-                  </div>
-                )}
+                <BankConnect
+                  profile={profile}
+                  sessionToken={sessionToken}
+                  theme={theme}
+                  onSaved={fetchData}
+                />
               </div>
 
               <div className={`${styles.cardBg} rounded-[40px] p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
