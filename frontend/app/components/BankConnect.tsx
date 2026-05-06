@@ -144,28 +144,55 @@ export default function BankConnect({ profile, onSaved, sessionToken, theme = 'w
       {/* ── TRIGGER BUTTON ── */}
       <button
         onClick={() => { setOpen(o => !o); setEditMode(false); }}
-        className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all duration-300 active:scale-[0.98] ${
+        className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all duration-300 active:scale-[0.98] border ${
           hasBank
             ? isDark
-              ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/15'
-              : 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+              ? 'bg-emerald-500/[0.08] border-emerald-500/20 hover:bg-emerald-500/[0.13]'
+              : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
             : isDark
-              ? 'bg-white/[0.06] border border-white/[0.08] text-white hover:bg-white/[0.1]'
-              : 'bg-gray-900 border border-transparent text-white hover:bg-gray-700'
+              ? 'bg-orange-500/[0.08] border-orange-500/20 hover:bg-orange-500/[0.13]'
+              : 'bg-orange-50 border-orange-200 hover:bg-orange-100'
         }`}
       >
-        <span className="flex items-center gap-2.5">
-          {hasBank
-            ? <CheckCircle2 size={14} />
-            : <Landmark size={14} />
-          }
-          {hasBank ? `Connected  ···· ${profile.payout_iban?.slice(-4)}` : 'Connect your bank'}
+        <span className="flex items-center gap-3">
+          {hasBank ? (
+            <>
+              {/* green pulse dot */}
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+              </span>
+              <span className={isDark ? 'text-emerald-400' : 'text-emerald-700'}>
+                Connected&nbsp;&nbsp;···· {profile.payout_iban?.slice(-4)}
+              </span>
+            </>
+          ) : (
+            <>
+              {/* orange pulse dot */}
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-400" />
+              </span>
+              <span className={isDark ? 'text-orange-400' : 'text-orange-600'}>
+                Setup Required
+              </span>
+            </>
+          )}
         </span>
-        <ChevronDown
-          size={14}
-          className="transition-transform duration-300"
-          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
-        />
+        <span className="flex items-center gap-2">
+          {hasBank && (
+            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
+              isDark ? 'bg-white/[0.06] text-gray-400' : 'bg-gray-100 text-gray-500'
+            }`}>
+              Change
+            </span>
+          )}
+          <ChevronDown
+            size={13}
+            className={`transition-transform duration-300 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
+            style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
+        </span>
       </button>
 
       {/* ── ACCORDION BODY ── */}
