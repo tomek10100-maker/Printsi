@@ -144,7 +144,7 @@ export default function BankConnect({ profile, onSaved, sessionToken, theme = 'w
       {/* ── TRIGGER BUTTON ── */}
       <button
         onClick={() => { setOpen(o => !o); setEditMode(false); }}
-        className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all duration-300 active:scale-[0.98] border ${
+        className={`w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] transition-all duration-300 active:scale-[0.98] border ${
           hasBank
             ? isDark
               ? 'bg-emerald-500/[0.08] border-emerald-500/20 hover:bg-emerald-500/[0.13]'
@@ -154,42 +154,26 @@ export default function BankConnect({ profile, onSaved, sessionToken, theme = 'w
               : 'bg-orange-50 border-orange-200 hover:bg-orange-100'
         }`}
       >
-        <span className="flex items-center gap-3">
-          {hasBank ? (
-            <>
-              {/* green pulse dot */}
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-              </span>
-              <span className={isDark ? 'text-emerald-400' : 'text-emerald-700'}>
-                Connected&nbsp;&nbsp;···· {profile.payout_iban?.slice(-4)}
-              </span>
-            </>
-          ) : (
-            <>
-              {/* orange pulse dot */}
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-400" />
-              </span>
-              <span className={isDark ? 'text-orange-400' : 'text-orange-600'}>
-                Setup Required
-              </span>
-            </>
-          )}
+        <span className="flex items-center gap-2.5 min-w-0">
+          <span className="relative flex-shrink-0 flex h-2 w-2">
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${hasBank ? 'bg-emerald-400' : 'bg-orange-400'}`} />
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${hasBank ? 'bg-emerald-400' : 'bg-orange-400'}`} />
+          </span>
+          <span className={`whitespace-nowrap ${hasBank ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-orange-400' : 'text-orange-600')}`}>
+            {hasBank ? `Connected · ${profile.payout_iban?.slice(-4)}` : 'Setup Required'}
+          </span>
         </span>
-        <span className="flex items-center gap-2">
+        <span className="flex-shrink-0 flex items-center gap-2">
           {hasBank && (
-            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
-              isDark ? 'bg-white/[0.06] text-gray-400' : 'bg-gray-100 text-gray-500'
+            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg whitespace-nowrap ${
+              isDark ? 'bg-white/[0.07] text-gray-400' : 'bg-gray-100 text-gray-500'
             }`}>
               Change
             </span>
           )}
           <ChevronDown
             size={13}
-            className={`transition-transform duration-300 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
+            className={`transition-transform duration-300 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
             style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
           />
         </span>
