@@ -111,14 +111,20 @@ export default function HomePage() {
 
       {/* STATS OVERLAY */}
       {showStats && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-500">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-500"
+          onClick={() => setShowStats(false)}
+        >
           <style jsx global>{`
             .custom-scroll::-webkit-scrollbar { width: 6px; }
             .custom-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); border-radius: 10px; }
             .custom-scroll::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, #2563eb, #4f46e5); border-radius: 10px; }
             .custom-scroll::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
           `}</style>
-          <div className="bg-white rounded-[32px] p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-[0_40px_100px_rgba(0,0,0,0.6)] border border-gray-100 animate-in zoom-in-95 duration-500 relative custom-scroll pb-16">
+          <div
+            className="bg-white rounded-[32px] p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-[0_40px_100px_rgba(0,0,0,0.6)] border border-gray-100 animate-in zoom-in-95 duration-500 relative custom-scroll pb-16"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button onClick={() => setShowStats(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-900 rounded-full hover:bg-gray-900 hover:text-white transition-all font-bold text-xl z-20">×</button>
             <div className="text-center mb-8">
               <h2 className="text-4xl font-black uppercase tracking-tighter text-gray-900 leading-tight mb-1">Live <span className="text-blue-600">Growth.</span></h2>
