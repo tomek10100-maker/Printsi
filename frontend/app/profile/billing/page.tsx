@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { useTheme } from '../../../context/ThemeContext';
+import BankConnect from '../../components/BankConnect';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,6 +34,7 @@ function BillingContent() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [stripeConnected, setStripeConnected] = useState(false);
   const [checkingStripe, setCheckingStripe] = useState(true);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -48,6 +50,11 @@ function BillingContent() {
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/login'); return; }
+
+    // Grab session token for bank-details API
+    const { data: { session } } = await supabase.auth.getSession();
+    setSessionToken(session?.access_token ?? null);
+
     const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     setProfile(profileData);
     const [{ data: spentOrders }, { data: sales }, { data: payouts }] = await Promise.all([
@@ -345,6 +352,14 @@ function BillingContent() {
                   </div>
                 )}
               </div>
+
+              {/* ── BANK CONNECT ── */}
+              <BankConnect
+                profile={profile}
+                sessionToken={sessionToken}
+                theme={theme}
+                onSaved={fetchData}
+              />
 
               <div className={`${styles.cardBg} rounded-[40px] p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
                 <h3 className={`text-lg font-black mb-8 flex items-center gap-2 uppercase tracking-tight ${styles.textTitle}`}>
