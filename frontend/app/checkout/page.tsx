@@ -42,10 +42,11 @@ function CheckoutInner() {
   const [user, setUser] = useState<any>(null);
   const [fetchingProfile, setFetchingProfile] = useState(true);
   const [offerWeights, setOfferWeights] = useState<Record<string, number>>({});
-  const [offerCategories, setOfferCategories] = useState<Record<string, string>>({});
   const [offerDimensions, setOfferDimensions] = useState<Record<string, string>>({});
   const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({});
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
+  // Stable options — never clears once set, prevents spinner flash between re-renders
+  const [stableShippingOptions, setStableShippingOptions] = useState<ShippingOption[]>([]);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -58,9 +59,11 @@ function CheckoutInner() {
   });
 
   // Determine if cart has any shippable (physical) items
-  const hasShippable = useMemo(() =>
-    !isTopup && items.some(item => (offerCategories as any)[item.id] !== 'digital')
-  , [items, offerCategories, isTopup]);
+  // Use item.category from CartItem directly — no async DB fetch needed, avoids race condition
+  const hasShippable = useMemo(() => {
+    if (isTopup) return false;
+    return items.some(item => item.category !== 'digital');
+  }, [items, isTopup]);
 
   // Compute available shipping options based on items dimensions + weight
   const availableShippingOptions = useMemo((): ShippingOption[] => {
@@ -71,7 +74,8 @@ function CheckoutInner() {
     let totalWeightGrams = 0;
     let maxDimsMm: [number, number, number] | null = null;
 
-    const shippableItems = items.filter(item => (offerCategories as any)[item.id] !== 'digital');
+    // Use item.category from cart (no async fetch needed)
+    const shippableItems = items.filter(item => item.category !== 'digital');
     for (const item of shippableItems) {
       totalWeightGrams += (offerWeights[item.id] ?? 500) * item.quantity;
       const dimStr = offerDimensions[item.id];
@@ -97,18 +101,18 @@ function CheckoutInner() {
 
     const parcel = calculateParcel(maxDimsMm, totalWeightGrams);
     return getShippingOptions(fromCode, toCode, parcel, plnRate);
-  }, [hasShippable, items, offerCategories, offerWeights, offerDimensions, sellerCountries, formData.country, rates]);
+  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, formData.country, rates]);
 
-  // Reset selected shipping when options change
+  // Keep stable options — only update when we have real results (never flash to empty)
   useEffect(() => {
-    if (availableShippingOptions.length > 0 && !selectedShipping) {
-      setSelectedShipping(availableShippingOptions[0]);
-    } else if (availableShippingOptions.length > 0 && selectedShipping) {
+    if (availableShippingOptions.length > 0) {
+      setStableShippingOptions(availableShippingOptions);
       // Re-select same carrier if still available, otherwise pick first
-      const still = availableShippingOptions.find(o => o.id === selectedShipping.id);
-      setSelectedShipping(still || availableShippingOptions[0]);
-    } else if (availableShippingOptions.length === 0) {
-      setSelectedShipping(null);
+      setSelectedShipping(prev => {
+        if (!prev) return availableShippingOptions[0];
+        const still = availableShippingOptions.find(o => o.id === prev.id);
+        return still || availableShippingOptions[0];
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableShippingOptions]);
@@ -161,19 +165,16 @@ function CheckoutInner() {
 
         if (offerData) {
           const weights: Record<string, number> = {};
-          const categories: Record<string, string> = {};
           const dimensions: Record<string, string> = {};
           const sellerIds: string[] = [];
 
           offerData.forEach(o => {
             weights[o.id] = parseWeightToGrams(o.weight);
-            categories[o.id] = o.category || 'physical';
             if (o.dimensions) dimensions[o.id] = o.dimensions;
             if (o.user_id) sellerIds.push(o.user_id);
           });
 
           setOfferWeights(weights);
-          setOfferCategories(categories);
           setOfferDimensions(dimensions);
 
           // Fetch seller countries
@@ -218,7 +219,6 @@ function CheckoutInner() {
     if (!user) return;
     if (!isTopup && items.length === 0) return;
     if (hasShippable && !selectedShipping) { alert('Please select a shipping method.'); return; }
-    if (shippingEur === null) { alert('Please select a valid shipping option.'); return; }
 
     setLoading(true);
     const currentRate = rates?.[currency] || 1;
@@ -405,57 +405,62 @@ function CheckoutInner() {
               </div>
 
               {/* SHIPPING METHOD SELECTION */}
-              {hasShippable && availableShippingOptions.length > 0 && (
+              {hasShippable && (
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
                   <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
                     <Truck className="text-blue-600" /> Delivery Method
                   </h2>
-                  <div className="space-y-3">
-                    {availableShippingOptions.map(option => (
-                      <label
-                        key={option.id}
-                        className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                          selectedShipping?.id === option.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-100 bg-gray-50 hover:border-blue-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <input
-                            type="radio"
-                            name="shipping_method"
-                            checked={selectedShipping?.id === option.id}
-                            onChange={() => setSelectedShipping(option)}
-                            className="w-4 h-4 text-blue-600"
-                          />
-                          <div>
-                            <p className="font-black text-sm text-gray-900">
-                              {option.icon} {option.carrier} &mdash; {option.service}
-                            </p>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              {option.description} &middot; {option.deliveryDays} business days
-                            </p>
+                  {stableShippingOptions.length === 0 ? (
+                    <div className="flex items-center gap-3 text-gray-400">
+                      <Loader2 className="animate-spin" size={18} />
+                      <p className="text-sm font-bold">Calculating shipping options...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {stableShippingOptions.map(option => (
+                        <label
+                          key={option.id}
+                          className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                            selectedShipping?.id === option.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-100 bg-gray-50 hover:border-blue-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <input
+                              type="radio"
+                              name="shipping_method"
+                              checked={selectedShipping?.id === option.id}
+                              onChange={() => setSelectedShipping(option)}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <div>
+                              <p className="font-black text-sm text-gray-900">
+                                {option.icon} {option.carrier} &mdash; {option.service}
+                              </p>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                {option.description} &middot; {option.deliveryDays} business days
+                              </p>
+                            </div>
                           </div>
+                          <div className="text-right">
+                            <p className="font-black text-blue-600">{formatPrice(option.priceEur)}</p>
+                            <p className="text-[10px] text-gray-400 font-bold">{option.pricePln.toFixed(2)} PLN</p>
+                          </div>
+                        </label>
+                      ))}
+                      {selectedShipping && (
+                        <div className="mt-4 p-3 bg-green-50 rounded-xl flex items-center gap-2 border border-green-100">
+                          <CheckCircle2 className="text-green-600" size={16} />
+                          <p className="text-xs font-black text-green-700">
+                            Parcel size estimated from product dimensions + 5 cm safety margin
+                          </p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-black text-blue-600">{formatPrice(option.priceEur)}</p>
-                          <p className="text-[10px] text-gray-400 font-bold">{option.pricePln.toFixed(2)} PLN</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                  {selectedShipping && (
-                    <div className="mt-4 p-3 bg-green-50 rounded-xl flex items-center gap-2 border border-green-100">
-                      <CheckCircle2 className="text-green-600" size={16} />
-                      <p className="text-xs font-black text-green-700">
-                        Parcel size estimated from product dimensions + 5 cm safety margin
-                      </p>
+                      )}
                     </div>
                   )}
                 </div>
               )}
-              </>
-            )}
 
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
               <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
@@ -492,6 +497,8 @@ function CheckoutInner() {
                 <p className="text-xs text-blue-700 font-medium">Your payment is encrypted and processed by Stripe.</p>
               </div>
             </div>
+            </>
+            )}
           </div>
 
           <div className="w-full lg:w-96">
@@ -618,7 +625,7 @@ function CheckoutInner() {
                 type="submit"
                 form="checkout-form"
                 onClick={(e) => { if (isTopup) handlePayment(e); }}
-                disabled={loading || (!isTopup && hasShippable && !selectedShipping)}
+                disabled={loading || (!isTopup && hasShippable && stableShippingOptions.length > 0 && !selectedShipping)}
                 className="w-full mt-10 py-5 bg-gray-900 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-600 transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:grayscale"
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : (
