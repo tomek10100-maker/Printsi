@@ -307,7 +307,7 @@ function BillingContent() {
                 </h3>
 
                 {!stripeConnected ? (
-                  <div className="space-y-6">
+                  <div className="space-y-5">
                     <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl space-y-4">
                       <div className="flex items-center gap-3 text-orange-400">
                         <AlertCircle size={20} />
@@ -326,10 +326,18 @@ function BillingContent() {
                         )}
                       </button>
                     </div>
+
+                    {/* Bank account accordion */}
+                    <BankConnect
+                      profile={profile}
+                      sessionToken={sessionToken}
+                      theme={theme}
+                      onSaved={fetchData}
+                    />
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl mb-4">
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center">
                           <CheckCircle2 size={16} />
@@ -349,17 +357,17 @@ function BillingContent() {
                     <button onClick={handlePayoutRequest} disabled={isProcessing || !payoutAmount} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-blue-900/10">
                       {isProcessing ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Process Payout'}
                     </button>
+
+                    {/* Bank account accordion */}
+                    <BankConnect
+                      profile={profile}
+                      sessionToken={sessionToken}
+                      theme={theme}
+                      onSaved={fetchData}
+                    />
                   </div>
                 )}
               </div>
-
-              {/* ── BANK CONNECT ── */}
-              <BankConnect
-                profile={profile}
-                sessionToken={sessionToken}
-                theme={theme}
-                onSaved={fetchData}
-              />
 
               <div className={`${styles.cardBg} rounded-[40px] p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
                 <h3 className={`text-lg font-black mb-8 flex items-center gap-2 uppercase tracking-tight ${styles.textTitle}`}>
