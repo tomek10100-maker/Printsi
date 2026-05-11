@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { Globe, Zap, Shield, Users, ChevronRight, User, UploadCloud, ShoppingBag } from 'lucide-react';
+import { Globe, Zap, Shield, Users, ChevronRight, User, UploadCloud, ShoppingBag, MessageSquare } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './components/ThemeToggle';
 
@@ -21,6 +21,8 @@ export default function HomePage() {
   const [themeHovered, setThemeHovered] = useState(false);
   const [uploadHovered, setUploadHovered] = useState(false);
   const [cartHovered, setCartHovered] = useState(false);
+  const [chatHovered, setChatHovered] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState({
     printers: 0,
@@ -40,6 +42,9 @@ export default function HomePage() {
           const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', session.user.id).eq('is_read', false);
           setUnreadCount(count || 0);
 
+          const { count: unreadMsgsCount } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('is_read', false).neq('sender_id', session.user.id);
+          setUnreadMessages(unreadMsgsCount || 0);
+
           const { data: profile } = await supabase.from('profiles').select('roles').eq('id', session.user.id).single();
           if (profile?.roles) {
             setUserRoles(profile.roles);
@@ -56,6 +61,7 @@ export default function HomePage() {
       setUser(session?.user ?? null);
       if (!session) {
         setUnreadCount(0);
+        setUnreadMessages(0);
         setUserRoles([]);
       } else {
         checkUser();
@@ -227,6 +233,36 @@ export default function HomePage() {
                   <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Upload</span>
                 </div>
               </div>
+            </Link>
+
+            <Link
+              href={user ? "/profile/messages" : "/login"}
+              onMouseEnter={() => setChatHovered(true)}
+              onMouseLeave={() => setChatHovered(false)}
+              className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200 relative`}
+              style={{
+                width: chatHovered ? '112px' : '44px',
+                backgroundColor: chatHovered ? '#15306c' : '#ffffff',
+                borderColor: chatHovered ? '#15306c' : '#e5e7eb',
+                transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
+              }}
+            >
+              <div className="flex items-center shrink-0">
+                <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                  <MessageSquare size={18} className={`transition-colors duration-400 ${chatHovered ? 'text-white' : 'text-gray-400'}`} />
+                </div>
+                <div
+                  className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${chatHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
+                  style={{ maxWidth: chatHovered ? '80px' : '0px' }}
+                >
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white whitespace-nowrap">Chats</span>
+                </div>
+              </div>
+              {unreadMessages > 0 && (
+                <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[7px] font-black text-white animate-pulse">
+                  {unreadMessages > 9 ? '!' : unreadMessages}
+                </span>
+              )}
             </Link>
 
             <Link
