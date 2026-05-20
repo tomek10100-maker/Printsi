@@ -557,8 +557,8 @@ function CheckoutInner() {
                           key={option.id}
                           className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                             selectedShipping?.id === option.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-100 bg-gray-50 hover:border-blue-200'
+                              ? 'border-blue-500 bg-blue-500/10'
+                              : 'border-gray-100 dark:border-gray-800/60 bg-gray-50 dark:bg-gray-900/20 hover:border-blue-500/30'
                           }`}
                         >
                           <div className="flex items-center gap-4">
@@ -570,17 +570,17 @@ function CheckoutInner() {
                               className="w-4 h-4 text-blue-600"
                             />
                             <div>
-                              <p className="font-black text-sm text-gray-900">
+                              <p className="font-black text-sm text-gray-900 dark:text-white">
                                 {option.icon} {option.carrier} &mdash; {option.service}
                               </p>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-widest">
                                 {option.description} &middot; {option.deliveryDays} business days
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-black text-blue-600">{formatPrice(option.priceEur)}</p>
-                            <p className="text-[10px] text-gray-400 font-bold">{option.pricePln.toFixed(2)} PLN</p>
+                            <p className="font-black text-blue-600 dark:text-blue-400">{formatPrice(option.priceEur)}</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold">{option.pricePln.toFixed(2)} PLN</p>
                           </div>
                         </label>
                       ))}
