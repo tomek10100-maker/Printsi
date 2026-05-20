@@ -151,6 +151,17 @@ export function getShippingOptions(
         deliveryDays: '1-2',
         description: 'Door-to-door delivery',
       });
+      // DHL POP / Box (Pickup Point)
+      options.push({
+        id: 'dhl_pop',
+        carrier: 'DHL',
+        service: 'DHL POP / Box',
+        icon: '🟡',
+        pricePln: Math.max(10, dhlPrice - 1),
+        priceEur: Math.round((Math.max(10, dhlPrice - 1) / plnToEurRate) * 100) / 100,
+        deliveryDays: '1-2',
+        description: 'Parcel locker / Pickup point',
+      });
     }
 
     const dpdPrice = getWeightPrice(DPD_DOMESTIC_PL, chargeableGrams);
@@ -164,6 +175,17 @@ export function getShippingOptions(
         priceEur: Math.round((dpdPrice / plnToEurRate) * 100) / 100,
         deliveryDays: '1-2',
         description: 'Door-to-door delivery',
+      });
+      // DPD Pickup (Pickup Point)
+      options.push({
+        id: 'dpd_pickup',
+        carrier: 'DPD',
+        service: 'DPD Pickup Station',
+        icon: '🔴',
+        pricePln: Math.max(10, dpdPrice - 1),
+        priceEur: Math.round((Math.max(10, dpdPrice - 1) / plnToEurRate) * 100) / 100,
+        deliveryDays: '1-2',
+        description: 'Parcel locker / Pickup point',
       });
     }
 

@@ -58,11 +58,11 @@ function CheckoutInner() {
   } | null>(null);
   const [showMapError, setShowMapError] = useState(false);
 
+  const isPickupOption = selectedShipping?.id === 'inpost_paczkomat' || selectedShipping?.id === 'dpd_pickup' || selectedShipping?.id === 'dhl_pop';
+
   useEffect(() => {
-    if (selectedShipping?.id !== 'inpost_paczkomat') {
-      setSelectedPoint(null);
-      setShowMapError(false);
-    }
+    setSelectedPoint(null);
+    setShowMapError(false);
   }, [selectedShipping]);
 
   const openFurgonetkaMap = () => {
@@ -73,9 +73,17 @@ function CheckoutInner() {
 
     const apiKey = process.env.NEXT_PUBLIC_FURGONETKA_MAP_API_KEY || '';
 
+    // Determine target couriers for the widget based on selected shipping method
+    let mapCouriers = ['inpost'];
+    if (selectedShipping?.id === 'dpd_pickup') {
+      mapCouriers = ['dpd'];
+    } else if (selectedShipping?.id === 'dhl_pop') {
+      mapCouriers = ['dhl'];
+    }
+
     const map = new (window as any).Furgonetka.Map({
       apiKey: apiKey,
-      courierServices: ['inpost'],
+      courierServices: mapCouriers,
       callback: (params: any) => {
         if (params && params.point) {
           const p = params.point;
@@ -85,7 +93,7 @@ function CheckoutInner() {
             street: p.street || '',
             city: p.city || '',
             zip: p.zip || p.postcode || '',
-            courier: p.courier || p.service || 'inpost',
+            courier: p.courier || p.service || (selectedShipping?.id === 'dpd_pickup' ? 'dpd' : selectedShipping?.id === 'dhl_pop' ? 'dhl' : 'inpost'),
           };
           setSelectedPoint(pointDetails);
           setShowMapError(false);
@@ -103,6 +111,33 @@ function CheckoutInner() {
 
     map.show();
   };
+
+  const getPickupLabels = () => {
+    if (selectedShipping?.id === 'dpd_pickup') {
+      return {
+        title: 'Selected DPD Pickup Point',
+        placeholder: 'No pickup point selected. Use the map to select the nearest DPD point.',
+        error: 'Please select a DPD pickup point on the map before proceeding.',
+        button: selectedPoint ? 'Change DPD Point' : 'Select on map'
+      };
+    }
+    if (selectedShipping?.id === 'dhl_pop') {
+      return {
+        title: 'Selected DHL Pickup Point',
+        placeholder: 'No pickup point selected. Use the map to select the nearest DHL point.',
+        error: 'Please select a DHL pickup point on the map before proceeding.',
+        button: selectedPoint ? 'Change DHL Point' : 'Select on map'
+      };
+    }
+    return {
+      title: 'Selected InPost Paczkomat',
+      placeholder: 'No pickup point selected. Use the map to select the nearest Paczkomat.',
+      error: 'Please select a Paczkomat on the map before proceeding.',
+      button: selectedPoint ? 'Change Paczkomat' : 'Select on map'
+    };
+  };
+
+  const pickupLabels = getPickupLabels();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -280,7 +315,7 @@ function CheckoutInner() {
     if (!user) return;
     if (!isTopup && items.length === 0) return;
     if (hasShippable && !selectedShipping) { alert('Please select a shipping method.'); return; }
-    if (selectedShipping?.id === 'inpost_paczkomat' && !selectedPoint) {
+    if (isPickupOption && !selectedPoint) {
       setShowMapError(true);
       return;
     }
@@ -584,13 +619,13 @@ function CheckoutInner() {
                           </div>
                         </label>
                       ))}
-                      {selectedShipping?.id === 'inpost_paczkomat' && (
+                      {isPickupOption && (
                         <div className="mt-4 p-5 bg-[#121826] border border-blue-500/30 rounded-2xl shadow-inner text-left">
                           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div className="flex-1">
                               <h3 className="font-black text-sm text-blue-400 flex items-center gap-1.5 uppercase tracking-wider">
                                 <MapPin size={16} className="text-blue-500 animate-pulse" />
-                                Selected InPost Paczkomat
+                                {pickupLabels.title}
                               </h3>
                               {selectedPoint ? (
                                 <div className="mt-3 text-xs text-gray-200 font-bold space-y-1 bg-[#1a2336] p-3 rounded-xl border border-blue-500/20 shadow-sm">
@@ -600,13 +635,13 @@ function CheckoutInner() {
                                 </div>
                               ) : (
                                 <p className="mt-2 text-xs font-bold text-gray-300">
-                                  No pickup point selected. Use the map to select the nearest Paczkomat.
+                                  {pickupLabels.placeholder}
                                 </p>
                               )}
                               {showMapError && (
                                 <p className="mt-2.5 text-xs font-black text-red-500 flex items-center gap-1.5">
                                   <AlertCircle size={14} className="animate-bounce" />
-                                  Please select a Paczkomat on the map before proceeding.
+                                  {pickupLabels.error}
                                 </p>
                               )}
                             </div>
@@ -615,7 +650,7 @@ function CheckoutInner() {
                               onClick={openFurgonetkaMap}
                               className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-black uppercase rounded-xl transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap self-stretch sm:self-center justify-center border border-blue-500/30"
                             >
-                              <Zap size={14} /> {selectedPoint ? 'Change Paczkomat' : 'Select on map'}
+                              <Zap size={14} /> {pickupLabels.button}
                             </button>
                           </div>
                         </div>
