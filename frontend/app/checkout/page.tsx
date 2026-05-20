@@ -601,7 +601,7 @@ function CheckoutInner() {
                       <p style={{ fontSize: '13px', fontWeight: 700 }}>Calculating shipping options…</p>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {(() => {
                         const PICKUP_IDS = ['inpost_paczkomat', 'dpd_pickup', 'dhl_pop', 'orlen_paczka'];
                         const doorOptions   = stableShippingOptions.filter(o => !PICKUP_IDS.includes(o.id));
@@ -625,9 +625,9 @@ function CheckoutInner() {
                               style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 padding: '16px 18px',
-                                borderRadius: '16px',
-                                border: isSelected ? `2px solid ${accentColor}` : '2px solid rgba(255,255,255,0.06)',
-                                background: isSelected ? accentBg : 'rgba(255,255,255,0.03)',
+                                borderRadius: '14px',
+                                border: isSelected ? `2px solid ${accentColor}` : '2px solid rgba(255,255,255,0.05)',
+                                background: isSelected ? accentBg : 'rgba(255,255,255,0.02)',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s ease',
                                 boxShadow: isSelected ? `0 0 20px ${accentColor}22` : 'none',
@@ -638,8 +638,8 @@ function CheckoutInner() {
                               <span style={{
                                 position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px',
                                 background: accentColor,
-                                opacity: isSelected ? 1 : 0.25,
-                                borderRadius: '16px 0 0 16px',
+                                opacity: isSelected ? 1 : 0.22,
+                                borderRadius: '14px 0 0 14px',
                                 transition: 'opacity 0.2s'
                               }} />
                               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginLeft: 8 }}>
@@ -670,49 +670,78 @@ function CheckoutInner() {
 
                         return (
                           <>
-                            {/* ── DOOR-TO-DOOR SECTION ── */}
+                            {/* ══ DOOR-TO-DOOR SECTION ══ */}
                             {doorOptions.length > 0 && (
-                              <>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, marginTop: 4 }}>
-                                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                              <div style={{
+                                borderRadius: '18px',
+                                border: '1px solid rgba(255,255,255,0.06)',
+                                overflow: 'hidden',
+                              }}>
+                                {/* Section header */}
+                                <div style={{
+                                  display: 'flex', alignItems: 'center', gap: 12,
+                                  padding: '14px 18px',
+                                  background: 'rgba(255,255,255,0.03)',
+                                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                }}>
                                   <span style={{
-                                    display: 'flex', alignItems: 'center', gap: 6,
-                                    fontSize: '10px', fontWeight: 800, letterSpacing: '0.16em',
-                                    textTransform: 'uppercase', color: '#6b7280',
-                                    background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.07)',
-                                    padding: '4px 12px', borderRadius: 99
+                                    width: 30, height: 30, borderRadius: '9px', flexShrink: 0,
+                                    background: 'rgba(255,255,255,0.06)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
                                   }}>
-                                    <Truck size={11} style={{ color: '#6b7280' }} /> Door-to-door
+                                    <Truck size={14} style={{ color: '#9ca3af' }} />
                                   </span>
-                                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                                  <div>
+                                    <p style={{ color: '#e5e7eb', fontWeight: 900, fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>
+                                      Door-to-Door Delivery
+                                    </p>
+                                    <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 600, margin: '2px 0 0' }}>
+                                      Delivered straight to your address by a courier
+                                    </p>
+                                  </div>
                                 </div>
-                                {doorOptions.map(renderCard)}
-                              </>
+                                {/* Cards */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px' }}>
+                                  {doorOptions.map(renderCard)}
+                                </div>
+                              </div>
                             )}
 
-                            {/* ── PICKUP POINT SECTION ── */}
+                            {/* ══ PICKUP POINTS SECTION ══ */}
                             {pickupOptions.length > 0 && (
-                              <>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, marginTop: doorOptions.length > 0 ? 14 : 4 }}>
-                                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                              <div style={{
+                                borderRadius: '18px',
+                                border: '1px solid rgba(99,102,241,0.2)',
+                                overflow: 'hidden',
+                              }}>
+                                {/* Section header */}
+                                <div style={{
+                                  display: 'flex', alignItems: 'center', gap: 12,
+                                  padding: '14px 18px',
+                                  background: 'rgba(99,102,241,0.07)',
+                                  borderBottom: '1px solid rgba(99,102,241,0.15)',
+                                }}>
                                   <span style={{
-                                    display: 'flex', alignItems: 'center', gap: 6,
-                                    fontSize: '10px', fontWeight: 800, letterSpacing: '0.16em',
-                                    textTransform: 'uppercase', color: '#818cf8',
-                                    background: 'rgba(99,102,241,0.08)',
-                                    border: '1px solid rgba(99,102,241,0.2)',
-                                    padding: '4px 12px', borderRadius: 99
+                                    width: 30, height: 30, borderRadius: '9px', flexShrink: 0,
+                                    background: 'rgba(99,102,241,0.15)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
                                   }}>
-                                    <MapPin size={11} style={{ color: '#818cf8' }} /> Pickup Points
+                                    <MapPin size={14} style={{ color: '#818cf8' }} />
                                   </span>
-                                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                                  <div>
+                                    <p style={{ color: '#a5b4fc', fontWeight: 900, fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>
+                                      Pickup Points
+                                    </p>
+                                    <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 600, margin: '2px 0 0' }}>
+                                      Pick up your parcel at a locker or service point near you
+                                    </p>
+                                  </div>
                                 </div>
-                                <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 600, margin: '0 0 8px 2px' }}>
-                                  Choose a carrier and then select a specific point on the interactive map.
-                                </p>
-                                {pickupOptions.map(renderCard)}
-                              </>
+                                {/* Cards */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px' }}>
+                                  {pickupOptions.map(renderCard)}
+                                </div>
+                              </div>
                             )}
                           </>
                         );
