@@ -453,15 +453,83 @@ function CheckoutInner() {
                   {!hasShippable ? 'Order Details' : 'Shipping Details'}
                 </h2>
                 <form id="checkout-form" onSubmit={handlePayment} className="space-y-4">
-                  <input name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                  <input name="email" value={formData.email} onChange={handleInputChange} placeholder="Email" type="email" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                  <input
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleInputChange}
+                    placeholder="Full Name"
+                    required
+                    title="Please fill out this field"
+                    onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                    onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
+                  />
+                  <input
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="Email"
+                    type="email"
+                    required
+                    title="Please fill out this field"
+                    onInvalid={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      if (target.validity.valueMissing) {
+                        target.setCustomValidity('Please fill out this field.');
+                      } else if (target.validity.typeMismatch) {
+                        target.setCustomValidity('Please enter a valid email address.');
+                      }
+                    }}
+                    onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
+                  />
                   {hasShippable && (
                     <>
-                      <input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Phone" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
-                      <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Address" required title="Please fill out this field" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900" />
+                      <input
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        placeholder="Phone"
+                        required
+                        title="Please fill out this field"
+                        onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                        onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
+                      />
+                      <input
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        placeholder="Address"
+                        required
+                        title="Please fill out this field"
+                        onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                        onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
+                      />
                       <div className="grid grid-cols-2 gap-4">
-                        <input name="city" value={formData.city} onChange={handleInputChange} placeholder="City" required title="Please fill out this field" className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold" />
-                        <input name="zip" value={formData.zip} onChange={handleInputChange} placeholder="ZIP" required title="Please fill out this field" className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold" />
+                        <input
+                          name="city"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                          placeholder="City"
+                          required
+                          title="Please fill out this field"
+                          onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                          onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                          className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold"
+                        />
+                        <input
+                          name="zip"
+                          value={formData.zip}
+                          onChange={handleInputChange}
+                          placeholder="ZIP"
+                          required
+                          title="Please fill out this field"
+                          onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                          onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                          className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold"
+                        />
                       </div>
                       <select name="country" value={formData.country} onChange={handleInputChange} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold">
                         {DHL_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
