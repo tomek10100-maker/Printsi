@@ -56,16 +56,18 @@ function CheckoutInner() {
     zip: string;
     courier: string;
   } | null>(null);
+  const [showMapError, setShowMapError] = useState(false);
 
   useEffect(() => {
     if (selectedShipping?.id !== 'inpost_paczkomat') {
       setSelectedPoint(null);
+      setShowMapError(false);
     }
   }, [selectedShipping]);
 
   const openFurgonetkaMap = () => {
     if (typeof window === 'undefined' || !(window as any).Furgonetka || !(window as any).Furgonetka.Map) {
-      alert('Mapa Furgonetki się ładuje, proszę spróbować za chwilę...');
+      alert('Furgonetka map is loading, please try again in a moment...');
       return;
     }
 
@@ -86,6 +88,7 @@ function CheckoutInner() {
             courier: p.courier || p.service || 'inpost',
           };
           setSelectedPoint(pointDetails);
+          setShowMapError(false);
 
           // Auto-fill standard form fields so that user gets feedback in the form
           setFormData(prev => ({
@@ -278,7 +281,7 @@ function CheckoutInner() {
     if (!isTopup && items.length === 0) return;
     if (hasShippable && !selectedShipping) { alert('Please select a shipping method.'); return; }
     if (selectedShipping?.id === 'inpost_paczkomat' && !selectedPoint) {
-      alert('Proszę wybrać Paczkomat na mapie.');
+      setShowMapError(true);
       return;
     }
 
@@ -514,31 +517,37 @@ function CheckoutInner() {
                         </label>
                       ))}
                       {selectedShipping?.id === 'inpost_paczkomat' && (
-                        <div className="mt-4 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl">
+                        <div className="mt-4 p-5 bg-[#121826] border border-blue-500/30 rounded-2xl shadow-inner text-left">
                           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div className="flex-1">
-                              <h3 className="font-black text-sm text-gray-900 flex items-center gap-1.5">
-                                <MapPin size={16} className="text-blue-600 animate-pulse" />
-                                Wybrany Paczkomat InPost
+                              <h3 className="font-black text-sm text-blue-400 flex items-center gap-1.5 uppercase tracking-wider">
+                                <MapPin size={16} className="text-blue-500 animate-pulse" />
+                                Selected InPost Paczkomat
                               </h3>
                               {selectedPoint ? (
-                                <div className="mt-2 text-xs text-gray-700 font-bold space-y-1 bg-white p-3 rounded-xl border border-blue-200/60 shadow-sm">
-                                  <p className="text-blue-700 font-black text-sm">{selectedPoint.code}</p>
-                                  <p>{selectedPoint.name}</p>
+                                <div className="mt-3 text-xs text-gray-200 font-bold space-y-1 bg-[#1a2336] p-3 rounded-xl border border-blue-500/20 shadow-sm">
+                                  <p className="text-blue-400 font-black text-sm">{selectedPoint.code}</p>
+                                  <p className="text-white">{selectedPoint.name}</p>
                                   <p className="text-gray-400 font-medium">{selectedPoint.street}, {selectedPoint.zip} {selectedPoint.city}</p>
                                 </div>
                               ) : (
-                                <p className="mt-1 text-xs font-bold text-gray-500">
-                                  Nie wybrano jeszcze punktu odbioru. Użyj mapy, aby wybrać najbliższy Paczkomat.
+                                <p className="mt-2 text-xs font-bold text-gray-300">
+                                  No pickup point selected. Use the map to select the nearest Paczkomat.
+                                </p>
+                              )}
+                              {showMapError && (
+                                <p className="mt-2.5 text-xs font-black text-red-500 flex items-center gap-1.5">
+                                  <AlertCircle size={14} className="animate-bounce" />
+                                  Please select a Paczkomat on the map before proceeding.
                                 </p>
                               )}
                             </div>
                             <button
                               type="button"
                               onClick={openFurgonetkaMap}
-                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-black uppercase rounded-xl transition-all shadow-sm flex items-center gap-1.5 whitespace-nowrap self-stretch sm:self-center justify-center"
+                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-black uppercase rounded-xl transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap self-stretch sm:self-center justify-center border border-blue-500/30"
                             >
-                              <Zap size={14} /> {selectedPoint ? 'Zmień Paczkomat' : 'Wybierz na mapie'}
+                              <Zap size={14} /> {selectedPoint ? 'Change Paczkomat' : 'Select on map'}
                             </button>
                           </div>
                         </div>
