@@ -9,7 +9,7 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { userId, items, shipping, shippingCostEur } = await req.json();
+    const { userId, items, shipping, shippingCostEur, selectedPoint } = await req.json();
 
     if (!items || items.length === 0 || !userId) {
       return NextResponse.json({ success: false, error: 'Invalid checkout data' }, { status: 400 });
@@ -71,7 +71,10 @@ export async function POST(req: Request) {
         buyer_id: userId,
         total_amount: orderTotalEur,
         status: 'paid',
-        shipping_address: shipping || null,
+        shipping_address: {
+          ...(shipping || {}),
+          selected_point: selectedPoint || null
+        },
         stripe_payment_intent_id: `balance_${Date.now()}`,
       })
       .select()
@@ -92,7 +95,9 @@ export async function POST(req: Request) {
           full_name: shipping.fullName || '',
           email: shipping.email || '',
           phone: shipping.phone || '',
-          address: shipping.address || '',
+          address: selectedPoint
+            ? `${selectedPoint.name || selectedPoint.code}, ${selectedPoint.street || shipping.address || ''}`
+            : shipping.address || '',
           city: shipping.city || '',
           zip_code: shipping.zip || '',
           country: shipping.country || '',

@@ -27,6 +27,7 @@ export async function GET(req: Request) {
         created_at,
         total_amount,
         status,
+        shipping_address,
         order_shipping_details (
           full_name,
           email,
@@ -59,6 +60,9 @@ export async function GET(req: Request) {
       const [firstName, ...lastNameParts] = (shipping.full_name || 'Customer').split(' ');
       const lastName = lastNameParts.join(' ') || '';
 
+      const shippingAddrJson = order.shipping_address as any;
+      const selectedPoint = shippingAddrJson?.selected_point;
+
       return {
         order_id: order.id,
         status: order.status,
@@ -79,6 +83,12 @@ export async function GET(req: Request) {
           postcode: shipping.zip_code || '',
           country_code: shipping.country || 'PL'
         },
+        // If there's a selected point (like Paczkomat), add it here for Furgonetka order import mapping
+        ...(selectedPoint ? {
+          pickup_point: selectedPoint.code,
+          pickup_point_name: selectedPoint.name,
+          service: selectedPoint.courier || 'inpost'
+        } : {}),
         products: order.order_items?.map((item: any) => ({
           product_id: item.id,
           name: item.offers?.title || 'Produkt',

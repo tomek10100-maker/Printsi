@@ -75,6 +75,17 @@ export async function POST(req: Request) {
 
     console.log(`👤 buyer: ${userId} | total: ${currencySymbol}${(session.amount_total || 0) / 100}`);
 
+    // Read selected_point from metadata
+    const selectedPointStr = session.metadata?.selected_point;
+    let selectedPoint = null;
+    if (selectedPointStr) {
+      try {
+        selectedPoint = JSON.parse(selectedPointStr);
+      } catch (e) {
+        console.error('Error parsing selected_point metadata:', e);
+      }
+    }
+
     // --- 1. Create the order ---
     const { data: newOrder, error: orderError } = await supabase
       .from('orders')
@@ -82,7 +93,10 @@ export async function POST(req: Request) {
         buyer_id: userId,
         total_amount: session.amount_total ? session.amount_total / 100 : 0,
         status: 'paid_awaiting_transfer',
-        shipping_address: (session as any).shipping_details || session.customer_details || null,
+        shipping_address: {
+          ...((session as any).shipping_details || session.customer_details || {}),
+          selected_point: selectedPoint || null
+        },
         stripe_payment_intent_id: (session.payment_intent as string) || session.id,
       })
       .select()
@@ -106,7 +120,9 @@ export async function POST(req: Request) {
           full_name: shippingDetails.name || '',
           email: session.customer_details?.email || '',
           phone: shippingDetails.phone || '',
-          address: addressObj.line1 || '',
+          address: selectedPoint
+            ? `${selectedPoint.name || selectedPoint.code}, ${selectedPoint.street || addressObj.line1 || ''}`
+            : addressObj.line1 || '',
           city: addressObj.city || '',
           zip_code: addressObj.postal_code || '',
           country: addressObj.country || '',

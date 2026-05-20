@@ -15,7 +15,8 @@ export async function POST(req: Request) {
       shippingLabel,
       shipping,
       isTopup,
-      topupAmount
+      topupAmount,
+      selectedPoint
     } = await req.json();
 
     // 1. Validation for standard checkout
@@ -97,6 +98,7 @@ export async function POST(req: Request) {
         topup_amount: isTopup ? topupAmount.toString() : '0',
         topup_rate: isTopup ? exchangeRate.toString() : '1',
         items: isTopup ? '[]' : JSON.stringify(items.map((i: any) => ({ id: i.id, q: i.quantity }))).substring(0, 500),
+        selected_point: selectedPoint ? JSON.stringify(selectedPoint) : '',
       },
       success_url: `${getSiteUrl()}/success?session_id={CHECKOUT_SESSION_ID}&type=${isTopup ? 'topup' : 'order'}`,
       cancel_url: `${getSiteUrl()}/${isTopup ? 'profile/billing' : 'cart'}`,

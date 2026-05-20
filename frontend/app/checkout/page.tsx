@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Script from 'next/script';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -47,6 +48,58 @@ function CheckoutInner() {
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   // Stable options — never clears once set, prevents spinner flash between re-renders
   const [stableShippingOptions, setStableShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedPoint, setSelectedPoint] = useState<{
+    code: string;
+    name: string;
+    street: string;
+    city: string;
+    zip: string;
+    courier: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (selectedShipping?.id !== 'inpost_paczkomat') {
+      setSelectedPoint(null);
+    }
+  }, [selectedShipping]);
+
+  const openFurgonetkaMap = () => {
+    if (typeof window === 'undefined' || !(window as any).Furgonetka || !(window as any).Furgonetka.Map) {
+      alert('Mapa Furgonetki się ładuje, proszę spróbować za chwilę...');
+      return;
+    }
+
+    const apiKey = process.env.NEXT_PUBLIC_FURGONETKA_MAP_API_KEY || '';
+
+    const map = new (window as any).Furgonetka.Map({
+      apiKey: apiKey,
+      courierServices: ['inpost'],
+      callback: (params: any) => {
+        if (params && params.point) {
+          const p = params.point;
+          const pointDetails = {
+            code: p.code,
+            name: p.name || `${p.code} - ${p.street}`,
+            street: p.street || '',
+            city: p.city || '',
+            zip: p.zip || p.postcode || '',
+            courier: p.courier || p.service || 'inpost',
+          };
+          setSelectedPoint(pointDetails);
+
+          // Auto-fill standard form fields so that user gets feedback in the form
+          setFormData(prev => ({
+            ...prev,
+            address: `${pointDetails.name}, ${pointDetails.street}`,
+            city: pointDetails.city || prev.city,
+            zip: pointDetails.zip || prev.zip,
+          }));
+        }
+      }
+    });
+
+    map.show();
+  };
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -118,6 +171,11 @@ function CheckoutInner() {
   }, [availableShippingOptions]);
 
   const shippingPln = selectedShipping?.pricePln ?? 0;
+  console.log('DEBUG checkout state:', {
+    selectedShippingId: selectedShipping?.id,
+    selectedShipping: selectedShipping,
+    stableShippingOptions: stableShippingOptions.map(o => o.id),
+  });
   const shippingEur = useMemo(() => {
     if (isTopup || !hasShippable) return 0;
     if (!selectedShipping) return null;
@@ -219,6 +277,10 @@ function CheckoutInner() {
     if (!user) return;
     if (!isTopup && items.length === 0) return;
     if (hasShippable && !selectedShipping) { alert('Please select a shipping method.'); return; }
+    if (selectedShipping?.id === 'inpost_paczkomat' && !selectedPoint) {
+      alert('Proszę wybrać Paczkomat na mapie.');
+      return;
+    }
 
     setLoading(true);
     const currentRate = rates?.[currency] || 1;
@@ -242,7 +304,8 @@ function CheckoutInner() {
             userId: user.id,
             items,
             shipping: shippingDetails,
-            shippingCostEur: shippingEur || 0
+            shippingCostEur: shippingEur || 0,
+            selectedPoint: selectedPoint || undefined
           }),
         });
         const data = await response.json();
@@ -268,7 +331,8 @@ function CheckoutInner() {
               shipping: (shippingEur ?? 0) > 0 ? {
                 name: formData.fullName,
                 address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country }
-              } : undefined
+              } : undefined,
+              selectedPoint: selectedPoint || undefined
             };
 
         const response = await fetch('/api/stripe/checkout', {
@@ -449,6 +513,36 @@ function CheckoutInner() {
                           </div>
                         </label>
                       ))}
+                      {selectedShipping?.id === 'inpost_paczkomat' && (
+                        <div className="mt-4 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <h3 className="font-black text-sm text-gray-900 flex items-center gap-1.5">
+                                <MapPin size={16} className="text-blue-600 animate-pulse" />
+                                Wybrany Paczkomat InPost
+                              </h3>
+                              {selectedPoint ? (
+                                <div className="mt-2 text-xs text-gray-700 font-bold space-y-1 bg-white p-3 rounded-xl border border-blue-200/60 shadow-sm">
+                                  <p className="text-blue-700 font-black text-sm">{selectedPoint.code}</p>
+                                  <p>{selectedPoint.name}</p>
+                                  <p className="text-gray-400 font-medium">{selectedPoint.street}, {selectedPoint.zip} {selectedPoint.city}</p>
+                                </div>
+                              ) : (
+                                <p className="mt-1 text-xs font-bold text-gray-500">
+                                  Nie wybrano jeszcze punktu odbioru. Użyj mapy, aby wybrać najbliższy Paczkomat.
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={openFurgonetkaMap}
+                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-black uppercase rounded-xl transition-all shadow-sm flex items-center gap-1.5 whitespace-nowrap self-stretch sm:self-center justify-center"
+                            >
+                              <Zap size={14} /> {selectedPoint ? 'Zmień Paczkomat' : 'Wybierz na mapie'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       {selectedShipping && (
                         <div className="mt-4 p-3 bg-green-50 rounded-xl flex items-center gap-2 border border-green-100">
                           <CheckCircle2 className="text-green-600" size={16} />
@@ -663,6 +757,7 @@ export default function CheckoutPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="animate-spin text-blue-600" size={40} /></div>}>
       <CheckoutInner />
+      <Script src="https://furgonetka.pl/js/dist/map/map.js" strategy="lazyOnload" />
     </Suspense>
   );
 }
