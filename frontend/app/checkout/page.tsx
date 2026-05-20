@@ -58,7 +58,7 @@ function CheckoutInner() {
   } | null>(null);
   const [showMapError, setShowMapError] = useState(false);
 
-  const isPickupOption = selectedShipping?.id === 'inpost_paczkomat' || selectedShipping?.id === 'dpd_pickup' || selectedShipping?.id === 'dhl_pop';
+  const isPickupOption = selectedShipping?.id === 'inpost_paczkomat' || selectedShipping?.id === 'dpd_pickup' || selectedShipping?.id === 'dhl_pop' || selectedShipping?.id === 'orlen_paczka';
 
   useEffect(() => {
     setSelectedPoint(null);
@@ -127,6 +127,14 @@ function CheckoutInner() {
         placeholder: 'No pickup point selected. Use the map to select the nearest DHL point.',
         error: 'Please select a DHL pickup point on the map before proceeding.',
         button: selectedPoint ? 'Change DHL Point' : 'Select on map'
+      };
+    }
+    if (selectedShipping?.id === 'orlen_paczka') {
+      return {
+        title: 'Selected Orlen Paczka Point',
+        placeholder: 'No pickup point selected. Use the map to select the nearest Orlen point.',
+        error: 'Please select an Orlen Paczka point on the map before proceeding.',
+        button: selectedPoint ? 'Change Orlen Point' : 'Select on map'
       };
     }
     return {
@@ -209,11 +217,7 @@ function CheckoutInner() {
   }, [availableShippingOptions]);
 
   const shippingPln = selectedShipping?.pricePln ?? 0;
-  console.log('DEBUG checkout state:', {
-    selectedShippingId: selectedShipping?.id,
-    selectedShipping: selectedShipping,
-    stableShippingOptions: stableShippingOptions.map(o => o.id),
-  });
+
   const shippingEur = useMemo(() => {
     if (isTopup || !hasShippable) return 0;
     if (!selectedShipping) return null;
@@ -576,89 +580,233 @@ function CheckoutInner() {
 
               {/* SHIPPING METHOD SELECTION */}
               {hasShippable && (
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                  <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
-                    <Truck className="text-blue-600" /> Delivery Method
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, #0d1117 0%, #161b27 100%)',
+                    border: '1px solid rgba(99,102,241,0.15)',
+                    borderRadius: '28px',
+                    padding: '32px',
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)'
+                  }}
+                >
+                  <h2 style={{ color: '#fff', fontWeight: 900, fontSize: '14px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Truck size={16} style={{ color: '#fff' }} />
+                    </span>
+                    Delivery Method
                   </h2>
                   {stableShippingOptions.length === 0 ? (
-                    <div className="flex items-center gap-3 text-gray-400">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#6b7280' }}>
                       <Loader2 className="animate-spin" size={18} />
-                      <p className="text-sm font-bold">Calculating shipping options...</p>
+                      <p style={{ fontSize: '13px', fontWeight: 700 }}>Calculating shipping options…</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {stableShippingOptions.map(option => (
-                        <label
-                          key={option.id}
-                          className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                            selectedShipping?.id === option.id
-                              ? 'border-blue-500 bg-blue-500/10'
-                              : 'border-gray-100 dark:border-gray-800/60 bg-gray-50 dark:bg-gray-900/20 hover:border-blue-500/30'
-                          }`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <input
-                              type="radio"
-                              name="shipping_method"
-                              checked={selectedShipping?.id === option.id}
-                              onChange={() => setSelectedShipping(option)}
-                              className="w-4 h-4 text-blue-600"
-                            />
-                            <div>
-                              <p className="font-black text-sm text-gray-900 dark:text-white">
-                                {option.icon} {option.carrier} &mdash; {option.service}
-                              </p>
-                              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-widest">
-                                {option.description} &middot; {option.deliveryDays} business days
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-black text-blue-600 dark:text-blue-400">{formatPrice(option.priceEur)}</p>
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold">{option.pricePln.toFixed(2)} PLN</p>
-                          </div>
-                        </label>
-                      ))}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(() => {
+                        const PICKUP_IDS = ['inpost_paczkomat', 'dpd_pickup', 'dhl_pop', 'orlen_paczka'];
+                        const doorOptions   = stableShippingOptions.filter(o => !PICKUP_IDS.includes(o.id));
+                        const pickupOptions = stableShippingOptions.filter(o =>  PICKUP_IDS.includes(o.id));
+
+                        const renderCard = (option: ShippingOption) => {
+                          const isSelected = selectedShipping?.id === option.id;
+                          const accentColor =
+                            option.carrier === 'InPost' ? '#22c55e' :
+                            option.carrier === 'DPD'    ? '#ef4444' :
+                            option.carrier === 'DHL'    ? '#eab308' :
+                            option.carrier === 'Orlen'  ? '#f97316' : '#6366f1';
+                          const accentBg =
+                            option.carrier === 'InPost' ? 'rgba(34,197,94,0.08)' :
+                            option.carrier === 'DPD'    ? 'rgba(239,68,68,0.08)' :
+                            option.carrier === 'DHL'    ? 'rgba(234,179,8,0.08)' :
+                            option.carrier === 'Orlen'  ? 'rgba(249,115,22,0.08)' : 'rgba(99,102,241,0.08)';
+                          return (
+                            <label
+                              key={option.id}
+                              style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '16px 18px',
+                                borderRadius: '16px',
+                                border: isSelected ? `2px solid ${accentColor}` : '2px solid rgba(255,255,255,0.06)',
+                                background: isSelected ? accentBg : 'rgba(255,255,255,0.03)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: isSelected ? `0 0 20px ${accentColor}22` : 'none',
+                                overflow: 'hidden',
+                                position: 'relative',
+                              }}
+                            >
+                              <span style={{
+                                position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px',
+                                background: accentColor,
+                                opacity: isSelected ? 1 : 0.25,
+                                borderRadius: '16px 0 0 16px',
+                                transition: 'opacity 0.2s'
+                              }} />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginLeft: 8 }}>
+                                <input
+                                  type="radio"
+                                  name="shipping_method"
+                                  checked={isSelected}
+                                  onChange={() => setSelectedShipping(option)}
+                                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor } as React.CSSProperties}
+                                />
+                                <div>
+                                  <p style={{ color: '#fff', fontWeight: 900, fontSize: '13px', margin: 0 }}>
+                                    <span style={{ marginRight: 6 }}>{option.icon}</span>
+                                    {option.carrier} &mdash; {option.service}
+                                  </p>
+                                  <p style={{ color: '#6b7280', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
+                                    {option.description} &middot; {option.deliveryDays} business days
+                                  </p>
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <p style={{ color: accentColor, fontWeight: 900, fontSize: '14px', margin: 0 }}>{formatPrice(option.priceEur)}</p>
+                                <p style={{ color: '#4b5563', fontSize: '10px', fontWeight: 700, margin: '2px 0 0' }}>{option.pricePln.toFixed(2)} PLN</p>
+                              </div>
+                            </label>
+                          );
+                        };
+
+                        return (
+                          <>
+                            {/* ── DOOR-TO-DOOR SECTION ── */}
+                            {doorOptions.length > 0 && (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, marginTop: 4 }}>
+                                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                                  <span style={{
+                                    display: 'flex', alignItems: 'center', gap: 6,
+                                    fontSize: '10px', fontWeight: 800, letterSpacing: '0.16em',
+                                    textTransform: 'uppercase', color: '#6b7280',
+                                    background: 'rgba(255,255,255,0.04)',
+                                    border: '1px solid rgba(255,255,255,0.07)',
+                                    padding: '4px 12px', borderRadius: 99
+                                  }}>
+                                    <Truck size={11} style={{ color: '#6b7280' }} /> Door-to-door
+                                  </span>
+                                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                                </div>
+                                {doorOptions.map(renderCard)}
+                              </>
+                            )}
+
+                            {/* ── PICKUP POINT SECTION ── */}
+                            {pickupOptions.length > 0 && (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, marginTop: doorOptions.length > 0 ? 14 : 4 }}>
+                                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                                  <span style={{
+                                    display: 'flex', alignItems: 'center', gap: 6,
+                                    fontSize: '10px', fontWeight: 800, letterSpacing: '0.16em',
+                                    textTransform: 'uppercase', color: '#818cf8',
+                                    background: 'rgba(99,102,241,0.08)',
+                                    border: '1px solid rgba(99,102,241,0.2)',
+                                    padding: '4px 12px', borderRadius: 99
+                                  }}>
+                                    <MapPin size={11} style={{ color: '#818cf8' }} /> Pickup Points
+                                  </span>
+                                  <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                                </div>
+                                <p style={{ color: '#6b7280', fontSize: '11px', fontWeight: 600, margin: '0 0 8px 2px' }}>
+                                  Choose a carrier and then select a specific point on the interactive map.
+                                </p>
+                                {pickupOptions.map(renderCard)}
+                              </>
+                            )}
+                          </>
+                        );
+                      })()}
+
+                      {/* PICKUP POINT PANEL */}
                       {isPickupOption && (
-                        <div className="mt-4 p-5 bg-[#121826] border border-blue-500/30 rounded-2xl shadow-inner text-left">
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <h3 className="font-black text-sm text-blue-400 flex items-center gap-1.5 uppercase tracking-wider">
-                                <MapPin size={16} className="text-blue-500 animate-pulse" />
+                        <div style={{
+                          marginTop: 12,
+                          background: 'linear-gradient(135deg, #0a0f1e 0%, #111827 100%)',
+                          border: '1px solid rgba(99,102,241,0.25)',
+                          borderRadius: '20px',
+                          padding: '20px',
+                          boxShadow: '0 4px 30px rgba(99,102,241,0.1), inset 0 1px 0 rgba(255,255,255,0.04)'
+                        }}>
+                          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <h3 style={{ color: '#818cf8', fontWeight: 900, fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                                <MapPin size={14} style={{ color: '#6366f1', flexShrink: 0 }} />
                                 {pickupLabels.title}
                               </h3>
                               {selectedPoint ? (
-                                <div className="mt-3 text-xs text-gray-200 font-bold space-y-1 bg-[#1a2336] p-3 rounded-xl border border-blue-500/20 shadow-sm">
-                                  <p className="text-blue-400 font-black text-sm">{selectedPoint.code}</p>
-                                  <p className="text-white">{selectedPoint.name}</p>
-                                  <p className="text-gray-400 font-medium">{selectedPoint.street}, {selectedPoint.zip} {selectedPoint.city}</p>
+                                <div style={{
+                                  marginTop: 12,
+                                  background: 'rgba(99,102,241,0.08)',
+                                  border: '1px solid rgba(99,102,241,0.2)',
+                                  borderRadius: '14px',
+                                  padding: '14px 16px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 4
+                                }}>
+                                  <p style={{ color: '#818cf8', fontWeight: 900, fontSize: '13px', margin: 0 }}>
+                                    ✓ &nbsp;{selectedPoint.code}
+                                  </p>
+                                  <p style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '12px', margin: 0 }}>{selectedPoint.name}</p>
+                                  <p style={{ color: '#6b7280', fontWeight: 600, fontSize: '11px', margin: 0 }}>{selectedPoint.street}, {selectedPoint.zip} {selectedPoint.city}</p>
                                 </div>
                               ) : (
-                                <p className="mt-2 text-xs font-bold text-gray-300">
+                                <p style={{ color: '#6b7280', fontWeight: 600, fontSize: '12px', margin: '8px 0 0' }}>
                                   {pickupLabels.placeholder}
                                 </p>
                               )}
                               {showMapError && (
-                                <p className="mt-2.5 text-xs font-black text-red-500 flex items-center gap-1.5">
-                                  <AlertCircle size={14} className="animate-bounce" />
-                                  {pickupLabels.error}
-                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+                                  <AlertCircle size={13} style={{ color: '#ef4444', flexShrink: 0 }} />
+                                  <p style={{ color: '#ef4444', fontWeight: 800, fontSize: '11px', margin: 0 }}>
+                                    {pickupLabels.error}
+                                  </p>
+                                </div>
                               )}
                             </div>
                             <button
                               type="button"
                               onClick={openFurgonetkaMap}
-                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-black uppercase rounded-xl transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap self-stretch sm:self-center justify-center border border-blue-500/30"
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '11px 20px',
+                                background: selectedPoint
+                                  ? 'linear-gradient(135deg,#4f46e5,#7c3aed)'
+                                  : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                                color: '#fff',
+                                fontWeight: 900,
+                                fontSize: '11px',
+                                letterSpacing: '0.1em',
+                                textTransform: 'uppercase',
+                                border: 'none',
+                                borderRadius: '12px',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 4px 16px rgba(99,102,241,0.4)',
+                                transition: 'all 0.2s',
+                                flexShrink: 0,
+                              }}
                             >
-                              <Zap size={14} /> {pickupLabels.button}
+                              <Zap size={13} />
+                              {pickupLabels.button}
                             </button>
                           </div>
                         </div>
                       )}
+
+                      {/* SIZE ESTIMATE BADGE */}
                       {selectedShipping && (
-                        <div className="mt-4 p-3 bg-green-50 rounded-xl flex items-center gap-2 border border-green-100">
-                          <CheckCircle2 className="text-green-600" size={16} />
-                          <p className="text-xs font-black text-green-700">
+                        <div style={{
+                          marginTop: 10,
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          background: 'rgba(34,197,94,0.06)',
+                          border: '1px solid rgba(34,197,94,0.18)',
+                          borderRadius: '12px',
+                          padding: '10px 14px'
+                        }}>
+                          <CheckCircle2 size={15} style={{ color: '#22c55e', flexShrink: 0 }} />
+                          <p style={{ color: '#4ade80', fontWeight: 800, fontSize: '11px', margin: 0 }}>
                             Parcel size estimated from product dimensions + 5 cm safety margin
                           </p>
                         </div>

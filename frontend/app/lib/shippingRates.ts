@@ -151,7 +151,6 @@ export function getShippingOptions(
         deliveryDays: '1-2',
         description: 'Door-to-door delivery',
       });
-      // DHL POP / Box (Pickup Point)
       options.push({
         id: 'dhl_pop',
         carrier: 'DHL',
@@ -176,7 +175,6 @@ export function getShippingOptions(
         deliveryDays: '1-2',
         description: 'Door-to-door delivery',
       });
-      // DPD Pickup (Pickup Point)
       options.push({
         id: 'dpd_pickup',
         carrier: 'DPD',
@@ -203,6 +201,21 @@ export function getShippingOptions(
           description: 'Parcel locker pickup',
         });
       }
+    }
+
+    // Orlen Paczka (PL domestic only) - flat rate
+    if (chargeableGrams <= 30000) {
+      const orlenPrice = chargeableGrams <= 1000 ? 9.99 : chargeableGrams <= 5000 ? 12.99 : 15.99;
+      options.push({
+        id: 'orlen_paczka',
+        carrier: 'Orlen',
+        service: 'Orlen Paczka',
+        icon: '🟠',
+        pricePln: orlenPrice,
+        priceEur: Math.round((orlenPrice / plnToEurRate) * 100) / 100,
+        deliveryDays: '1-3',
+        description: 'Parcel locker / Pickup point',
+      });
     }
   } else {
     // INTERNATIONAL
