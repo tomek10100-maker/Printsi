@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import {
-  User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins, AlertCircle, Loader2
+  User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins, AlertCircle, Loader2, MapPin
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
+import { DHL_COUNTRIES } from '../lib/dhlRates';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,6 +50,7 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [roleError, setRoleError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [country, setCountry] = useState('PL');
 
   useEffect(() => {
     if (roleError) {
@@ -76,6 +78,7 @@ export default function SettingsPage() {
         setFullName(profile.full_name || '');
         setBio(profile.bio || '');
         setRoles(profile.roles || ['customer']);
+        setCountry(profile.country || 'PL');
       }
       setLoading(false);
     };
@@ -91,6 +94,7 @@ export default function SettingsPage() {
         full_name: fullName,
         bio,
         roles,
+        country,
         updated_at: new Date(),
       };
 
@@ -356,10 +360,10 @@ export default function SettingsPage() {
               <p className="text-gray-500 font-medium mt-2">Customize your currency and region settings.</p>
             </div>
 
-            <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm space-y-8">
+            <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm space-y-10">
               <div>
                 <h3 className="font-black text-xl text-gray-900 mb-6 flex items-center gap-3 uppercase">
-                  <Globe className="text-blue-600" size={24} /> Currency
+                  <Coins className="text-blue-600" size={24} /> Currency
                 </h3>
                 <p className="text-gray-500 text-sm mb-8 leading-relaxed max-w-lg">
                   Choose your preferred currency. Prices across the store will be automatically converted from EUR based on real-time exchange rates.
@@ -428,12 +432,52 @@ export default function SettingsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Divider */}
+              <div className="h-px bg-gray-100" />
+
+              {/* Region Section */}
+              <div>
+                <h3 className="font-black text-xl text-gray-900 mb-6 flex items-center gap-3 uppercase">
+                  <Globe className="text-blue-600" size={24} /> Region / Country
+                </h3>
+                <p className="text-gray-500 text-sm mb-8 leading-relaxed max-w-lg">
+                  Select your country to calculate shipping rates, carrier options, and tax estimates in the checkout flow.
+                </p>
+
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Your Region</label>
+                <div className="relative max-w-sm">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600">
+                    <MapPin size={20} />
+                  </div>
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    disabled={saving}
+                    className="w-full p-4 pl-12 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all appearance-none cursor-pointer text-gray-900 disabled:opacity-50"
+                  >
+                    {DHL_COUNTRIES.map((c) => {
+                      const codePoints = c.code
+                        .toUpperCase()
+                        .split('')
+                        .map(char => 127397 + char.charCodeAt(0));
+                      let flag = '';
+                      try {
+                        flag = String.fromCodePoint(...codePoints);
+                      } catch (e) {}
+                      return (
+                        <option key={c.code} value={c.code}>
+                          {flag} {c.name} ({c.code})
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 font-bold text-xs">▼</div>
+                </div>
+              </div>
             </div>
 
-            <ActionButtons onSave={() => {
-              setSaveSuccess(true);
-              setTimeout(() => setSaveSuccess(false), 2000);
-            }} saving={false} saveSuccess={saveSuccess} />
+            <ActionButtons onSave={handleSaveProfile} saving={saving} saveSuccess={saveSuccess} />
           </div>
         )}
 
