@@ -12,23 +12,14 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// Waluty krajów obsługiwanych przez Vinted (wysyłka z PL)
 const CURRENCIES = [
     { code: 'EUR', label: '🇪🇺 Euro (€)' },
-    { code: 'USD', label: '🇺🇸 US Dollar ($)' },
-    { code: 'GBP', label: '🇬🇧 British Pound (£)' },
     { code: 'PLN', label: '🇵🇱 Polski Złoty (zł)' },
-    { code: 'CHF', label: '🇨🇭 Swiss Franc (CHF)' },
-    { code: 'SEK', label: '🇸🇪 Swedish Krona (kr)' },
-    { code: 'NOK', label: '🇳🇴 Norwegian Krone (kr)' },
-    { code: 'DKK', label: '🇩🇰 Danish Krone (kr)' },
     { code: 'CZK', label: '🇨🇿 Czech Koruna (Kč)' },
     { code: 'HUF', label: '🇭🇺 Hungarian Forint (Ft)' },
     { code: 'RON', label: '🇷🇴 Romanian Leu (lei)' },
-    { code: 'BGN', label: '🇧🇬 Bulgarian Lev (лв)' },
-    { code: 'ISK', label: '🇮🇸 Icelandic Króna (kr)' },
-    { code: 'RSD', label: '🇷🇸 Serbian Dinar (din)' },
-    { code: 'BAM', label: '🇧🇦 Bosnian Mark (KM)' },
-    { code: 'MKD', label: '🇲🇰 Macedonian Denar (ден)' },
+    { code: 'SEK', label: '🇸🇪 Swedish Krona (kr)' },
 ];
 
 export default function OnboardingPage() {

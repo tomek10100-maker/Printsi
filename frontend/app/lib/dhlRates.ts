@@ -16,58 +16,38 @@ export interface DhlCountry {
     };
 }
 
-// All DHL Parcel Connect countries, sorted by delivery time
+// Vinted-connected countries — shipping from Poland only
+// Based on Vinted integrated shipping matrix (PL → destination)
 export const DHL_COUNTRIES: DhlCountry[] = [
     { name: 'Poland', code: 'PL', deliveryDays: '1-2', rates: { upTo5kg: 20.00, upTo10kg: 25.00, upTo20kg: 35.00, upTo31kg: 50.00 } },
-    { name: 'Germany', code: 'DE', deliveryDays: '2', rates: { upTo5kg: 39.67, upTo10kg: 47.65, upTo20kg: 54.67, upTo31kg: 73.95 } },
     { name: 'Czech Republic', code: 'CZ', deliveryDays: '2', rates: { upTo5kg: 39.67, upTo10kg: 47.65, upTo20kg: 54.67, upTo31kg: 73.95 } },
     { name: 'Slovakia', code: 'SK', deliveryDays: '2', rates: { upTo5kg: 39.67, upTo10kg: 47.65, upTo20kg: 54.67, upTo31kg: 73.95 } },
-    { name: 'Netherlands', code: 'NL', deliveryDays: '2', rates: { upTo5kg: 39.67, upTo10kg: 47.65, upTo20kg: 54.67, upTo31kg: 73.95 } },
-    { name: 'Austria', code: 'AT', deliveryDays: '2', rates: { upTo5kg: 43.89, upTo10kg: 52.71, upTo20kg: 60.45, upTo31kg: 81.80 } },
-    { name: 'Belgium', code: 'BE', deliveryDays: '3', rates: { upTo5kg: 46.76, upTo10kg: 56.18, upTo20kg: 64.43, upTo31kg: 87.18 } },
-    { name: 'Lithuania', code: 'LT', deliveryDays: '3', rates: { upTo5kg: 53.53, upTo10kg: 64.30, upTo20kg: 73.75, upTo31kg: 99.77 } },
     { name: 'Hungary', code: 'HU', deliveryDays: '3', rates: { upTo5kg: 55.22, upTo10kg: 66.31, upTo20kg: 76.09, upTo31kg: 102.92 } },
-    { name: 'Latvia', code: 'LV', deliveryDays: '3', rates: { upTo5kg: 55.58, upTo10kg: 66.77, upTo20kg: 76.59, upTo31kg: 103.61 } },
-    { name: 'Ireland', code: 'IE', deliveryDays: '4', rates: { upTo5kg: 51.67, upTo10kg: 62.06, upTo20kg: 71.19, upTo31kg: 96.32 } },
-    { name: 'Denmark', code: 'DK', deliveryDays: '4', rates: { upTo5kg: 58.90, upTo10kg: 70.75, upTo20kg: 81.16, upTo31kg: 109.79 } },
-    { name: 'Estonia', code: 'EE', deliveryDays: '4', rates: { upTo5kg: 59.21, upTo10kg: 69.60, upTo20kg: 79.85, upTo31kg: 108.02 } },
-    { name: 'Luxembourg', code: 'LU', deliveryDays: '4', rates: { upTo5kg: 55.59, upTo10kg: 66.77, upTo20kg: 76.59, upTo31kg: 103.61 } },
-    { name: 'Spain', code: 'ES', deliveryDays: '4', rates: { upTo5kg: 55.56, upTo10kg: 66.74, upTo20kg: 76.58, upTo31kg: 103.57 } },
-    { name: 'Italy', code: 'IT', deliveryDays: '4', rates: { upTo5kg: 64.93, upTo10kg: 77.99, upTo20kg: 89.45, upTo31kg: 121.00 } },
-    { name: 'France', code: 'FR', deliveryDays: '4', rates: { upTo5kg: 75.64, upTo10kg: 80.53, upTo20kg: 98.94, upTo31kg: 122.68 } },
-    { name: 'Sweden', code: 'SE', deliveryDays: '4', rates: { upTo5kg: 67.17, upTo10kg: 80.68, upTo20kg: 92.55, upTo31kg: 125.22 } },
-    { name: 'Portugal', code: 'PT', deliveryDays: '5', rates: { upTo5kg: 59.02, upTo10kg: 70.88, upTo20kg: 81.32, upTo31kg: 110.02 } },
-    { name: 'Croatia', code: 'HR', deliveryDays: '5', rates: { upTo5kg: 68.35, upTo10kg: 82.10, upTo20kg: 94.18, upTo31kg: 127.37 } },
     { name: 'Romania', code: 'RO', deliveryDays: '5', rates: { upTo5kg: 56.53, upTo10kg: 67.88, upTo20kg: 77.88, upTo31kg: 105.36 } },
+    { name: 'Croatia', code: 'HR', deliveryDays: '5', rates: { upTo5kg: 68.35, upTo10kg: 82.10, upTo20kg: 94.18, upTo31kg: 127.37 } },
     { name: 'Slovenia', code: 'SI', deliveryDays: '5', rates: { upTo5kg: 62.14, upTo10kg: 74.62, upTo20kg: 85.60, upTo31kg: 115.82 } },
+    { name: 'Lithuania', code: 'LT', deliveryDays: '3', rates: { upTo5kg: 53.53, upTo10kg: 64.30, upTo20kg: 73.75, upTo31kg: 99.77 } },
+    { name: 'Latvia', code: 'LV', deliveryDays: '3', rates: { upTo5kg: 55.58, upTo10kg: 66.77, upTo20kg: 76.59, upTo31kg: 103.61 } },
+    { name: 'Estonia', code: 'EE', deliveryDays: '4', rates: { upTo5kg: 59.21, upTo10kg: 69.60, upTo20kg: 79.85, upTo31kg: 108.02 } },
+    { name: 'Sweden', code: 'SE', deliveryDays: '4', rates: { upTo5kg: 67.17, upTo10kg: 80.68, upTo20kg: 92.55, upTo31kg: 125.22 } },
     { name: 'Finland', code: 'FI', deliveryDays: '5', rates: { upTo5kg: 68.56, upTo10kg: 82.33, upTo20kg: 94.46, upTo31kg: 127.78 } },
-    { name: 'Monaco', code: 'MC', deliveryDays: '5', rates: { upTo5kg: 73.09, upTo10kg: 77.83, upTo20kg: 95.60, upTo31kg: 118.56 } },
-    { name: 'Bulgaria', code: 'BG', deliveryDays: '5', rates: { upTo5kg: 83.51, upTo10kg: 100.28, upTo20kg: 115.05, upTo31kg: 155.65 } },
-    { name: 'Greece', code: 'GR', deliveryDays: '7', rates: { upTo5kg: 62.64, upTo10kg: 75.24, upTo20kg: 86.32, upTo31kg: 116.79 } },
-    { name: 'Malta', code: 'MT', deliveryDays: '7', rates: { upTo5kg: 506.04, upTo10kg: 581.56, upTo20kg: 659.32, upTo31kg: 740.47 } },
-    { name: 'Cyprus', code: 'CY', deliveryDays: '10', rates: { upTo5kg: 123.98, upTo10kg: 170.19, upTo20kg: 218.65, upTo31kg: 273.87 } },
 ];
 
 // Domestic shipping rates (within the same country) in PLN equivalent
 // Based on typical major courier prices per country, 2025
 const DOMESTIC_RATES_PLN: Record<string, { upTo5kg: number; upTo10kg: number; upTo20kg: number; upTo31kg: number }> = {
     PL: { upTo5kg: 15, upTo10kg: 20, upTo20kg: 30, upTo31kg: 45 },
-    DE: { upTo5kg: 25, upTo10kg: 32, upTo20kg: 42, upTo31kg: 60 },
-    FR: { upTo5kg: 27, upTo10kg: 35, upTo20kg: 48, upTo31kg: 68 },
-    NL: { upTo5kg: 22, upTo10kg: 30, upTo20kg: 40, upTo31kg: 58 },
-    AT: { upTo5kg: 24, upTo10kg: 31, upTo20kg: 41, upTo31kg: 59 },
-    BE: { upTo5kg: 23, upTo10kg: 30, upTo20kg: 40, upTo31kg: 57 },
-    ES: { upTo5kg: 25, upTo10kg: 33, upTo20kg: 44, upTo31kg: 63 },
-    IT: { upTo5kg: 26, upTo10kg: 34, upTo20kg: 46, upTo31kg: 65 },
-    SE: { upTo5kg: 26, upTo10kg: 34, upTo20kg: 45, upTo31kg: 64 },
     CZ: { upTo5kg: 18, upTo10kg: 24, upTo20kg: 33, upTo31kg: 47 },
     SK: { upTo5kg: 18, upTo10kg: 24, upTo20kg: 33, upTo31kg: 47 },
     HU: { upTo5kg: 20, upTo10kg: 26, upTo20kg: 36, upTo31kg: 52 },
     RO: { upTo5kg: 19, upTo10kg: 25, upTo20kg: 35, upTo31kg: 50 },
-    BG: { upTo5kg: 18, upTo10kg: 24, upTo20kg: 33, upTo31kg: 47 },
-    PT: { upTo5kg: 24, upTo10kg: 31, upTo20kg: 42, upTo31kg: 60 },
-    GR: { upTo5kg: 22, upTo10kg: 29, upTo20kg: 39, upTo31kg: 56 },
     HR: { upTo5kg: 20, upTo10kg: 27, upTo20kg: 37, upTo31kg: 53 },
+    SI: { upTo5kg: 20, upTo10kg: 26, upTo20kg: 36, upTo31kg: 52 },
+    LT: { upTo5kg: 18, upTo10kg: 24, upTo20kg: 33, upTo31kg: 48 },
+    LV: { upTo5kg: 19, upTo10kg: 25, upTo20kg: 34, upTo31kg: 49 },
+    EE: { upTo5kg: 19, upTo10kg: 25, upTo20kg: 34, upTo31kg: 49 },
+    SE: { upTo5kg: 26, upTo10kg: 34, upTo20kg: 45, upTo31kg: 64 },
+    FI: { upTo5kg: 24, upTo10kg: 31, upTo20kg: 42, upTo31kg: 60 },
     // Default for remaining countries
     DEFAULT: { upTo5kg: 23, upTo10kg: 30, upTo20kg: 42, upTo31kg: 60 },
 };

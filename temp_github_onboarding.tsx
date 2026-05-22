@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -12,23 +12,14 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// Waluty krajów obsługiwanych przez Vinted (wysyłka z PL)
 const CURRENCIES = [
-    { code: 'EUR', label: '­čç¬­čç║ Euro (ÔéČ)' },
-    { code: 'USD', label: '­čç║­čçŞ US Dollar ($)' },
-    { code: 'GBP', label: '­čçČ­čçž British Pound (┬ú)' },
-    { code: 'PLN', label: '­čçÁ­čç▒ Polski Z┼éoty (z┼é)' },
-    { code: 'CHF', label: '­čçĘ­čçş Swiss Franc (CHF)' },
-    { code: 'SEK', label: '­čçŞ­čç¬ Swedish Krona (kr)' },
-    { code: 'NOK', label: '­čç│­čç┤ Norwegian Krone (kr)' },
-    { code: 'DKK', label: '­čçę­čç░ Danish Krone (kr)' },
-    { code: 'CZK', label: '­čçĘ­čç┐ Czech Koruna (K─Ź)' },
-    { code: 'HUF', label: '­čçş­čç║ Hungarian Forint (Ft)' },
-    { code: 'RON', label: '­čçĚ­čç┤ Romanian Leu (lei)' },
-    { code: 'BGN', label: '­čçž­čçČ Bulgarian Lev (đ╗đ▓)' },
-    { code: 'ISK', label: '­čç«­čçŞ Icelandic Kr├│na (kr)' },
-    { code: 'RSD', label: '­čçĚ­čçŞ Serbian Dinar (din)' },
-    { code: 'BAM', label: '­čçž­čçŽ Bosnian Mark (KM)' },
-    { code: 'MKD', label: '­čç▓­čç░ Macedonian Denar (đ┤đÁđŻ)' },
+    { code: 'EUR', label: '🇪🇺 Euro (€)' },
+    { code: 'PLN', label: '🇵🇱 Polski Złoty (zł)' },
+    { code: 'CZK', label: '🇨🇿 Czech Koruna (Kč)' },
+    { code: 'HUF', label: '🇭🇺 Hungarian Forint (Ft)' },
+    { code: 'RON', label: '🇷🇴 Romanian Leu (lei)' },
+    { code: 'SEK', label: '🇸🇪 Swedish Krona (kr)' },
 ];
 
 export default function OnboardingPage() {

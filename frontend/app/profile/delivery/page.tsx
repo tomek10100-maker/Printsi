@@ -123,9 +123,9 @@ export default function DeliverySettingsPage() {
                             <div className="grid grid-cols-2 gap-2 text-sm">
                                 {[
                                     { label: 'Same country (domestic)', rate: null, note: 'lower rate' },
-                                    { label: 'To Germany', rate: selectedCode === 'DE' ? 'domestic' : '≈ ' + DHL_COUNTRIES.find(c => c.code === 'DE')?.rates.upTo5kg.toFixed(2) + ' PLN / 5kg', note: '' },
-                                    { label: 'To France', rate: selectedCode === 'FR' ? 'domestic' : '≈ ' + DHL_COUNTRIES.find(c => c.code === 'FR')?.rates.upTo5kg.toFixed(2) + ' PLN / 5kg', note: '' },
-                                    { label: 'To Italy', rate: selectedCode === 'IT' ? 'domestic' : '≈ ' + DHL_COUNTRIES.find(c => c.code === 'IT')?.rates.upTo5kg.toFixed(2) + ' PLN / 5kg', note: '' },
+                                    { label: 'To Czech Republic', rate: selectedCode === 'CZ' ? 'domestic' : '≈ ' + DHL_COUNTRIES.find(c => c.code === 'CZ')?.rates.upTo5kg.toFixed(2) + ' PLN / 5kg', note: '' },
+                                    { label: 'To Sweden', rate: selectedCode === 'SE' ? 'domestic' : '≈ ' + DHL_COUNTRIES.find(c => c.code === 'SE')?.rates.upTo5kg.toFixed(2) + ' PLN / 5kg', note: '' },
+                                    { label: 'To Slovakia', rate: selectedCode === 'SK' ? 'domestic' : '≈ ' + DHL_COUNTRIES.find(c => c.code === 'SK')?.rates.upTo5kg.toFixed(2) + ' PLN / 5kg', note: '' },
                                 ].map((row, i) => (
                                     <div key={i} className="bg-white rounded-xl p-3 border border-gray-100">
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide">{row.label}</p>
