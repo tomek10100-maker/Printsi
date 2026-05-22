@@ -89,7 +89,8 @@ function CheckoutInner() {
     const map = new (window as any).Furgonetka.Map({
       apiKey: apiKey,
       courierServices: mapCouriers,
-      countries: [targetCountry],
+      countryCode: targetCountry.toUpperCase(),
+      countryCodesFilter: [targetCountry.toUpperCase()],
       callback: (params: any) => {
         if (params && params.point) {
           const p = params.point;
