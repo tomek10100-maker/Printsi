@@ -307,7 +307,7 @@ function CheckoutInner() {
       setFetchingProfile(false);
     };
     fetchUserData();
-  }, [router]);
+  }, [router, items.length]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
