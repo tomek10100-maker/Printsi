@@ -79,11 +79,17 @@ function CheckoutInner() {
       mapCouriers = ['dpd'];
     } else if (selectedShipping?.id === 'dhl_pop') {
       mapCouriers = ['dhl'];
+    } else if (selectedShipping?.id === 'orlen_paczka') {
+      mapCouriers = ['orlen'];
     }
+
+    // Set country for international pickup point search
+    const targetCountry = (formData.country || 'PL').toLowerCase();
 
     const map = new (window as any).Furgonetka.Map({
       apiKey: apiKey,
       courierServices: mapCouriers,
+      countries: [targetCountry],
       callback: (params: any) => {
         if (params && params.point) {
           const p = params.point;
@@ -93,7 +99,7 @@ function CheckoutInner() {
             street: p.street || '',
             city: p.city || '',
             zip: p.zip || p.postcode || '',
-            courier: p.courier || p.service || (selectedShipping?.id === 'dpd_pickup' ? 'dpd' : selectedShipping?.id === 'dhl_pop' ? 'dhl' : 'inpost'),
+            courier: p.courier || p.service || p.type || (selectedShipping?.id === 'dpd_pickup' ? 'dpd' : selectedShipping?.id === 'dhl_pop' ? 'dhl' : 'inpost'),
           };
           setSelectedPoint(pointDetails);
           setShowMapError(false);
