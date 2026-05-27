@@ -185,6 +185,7 @@ export async function POST(req: Request) {
     }
 
     // COMPLETED → email to both buyer & seller with amount
+    // + expire related custom offers + schedule chat for auto-archiving
     if (newStatus === 'completed' && chatData) {
       try {
         const earnedEur = (orderItem?.price_at_purchase || 0) * (orderItem?.quantity || 1);
@@ -203,6 +204,46 @@ export async function POST(req: Request) {
         );
       } catch (err) {
         console.error('❌ Failed to send completed email:', err);
+      }
+
+      // Expire all custom offers tied to this chat's offer (so they can't be bought again)
+      try {
+        const { data: chatInfo } = await supabase
+          .from('chats')
+          .select('offer_id')
+          .eq('id', chatId)
+          .single();
+
+        if (chatInfo?.offer_id) {
+          // Expire custom sub-offers linked to this parent offer
+          await supabase
+            .from('offers')
+            .update({ stock: 0 })
+            .eq('parent_offer_id', chatInfo.offer_id)
+            .eq('is_custom', true);
+        }
+
+        // Also expire the specific custom offer bought in this order
+        if (orderItem?.offer_id) {
+          await supabase
+            .from('offers')
+            .update({ stock: 0 })
+            .eq('id', orderItem.offer_id)
+            .eq('is_custom', true);
+        }
+      } catch (err) {
+        console.error('⚠️ Failed to expire custom offers (non-fatal):', err);
+      }
+
+      // Schedule this chat for auto-archiving after 24h
+      // We record completed_at on the chat so the frontend can check it
+      try {
+        await supabase
+          .from('chats')
+          .update({ completed_at: new Date().toISOString() })
+          .eq('id', chatId);
+      } catch (err) {
+        console.error('⚠️ Failed to set completed_at on chat (non-fatal):', err);
       }
     }
 

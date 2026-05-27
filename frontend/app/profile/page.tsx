@@ -540,8 +540,9 @@ export default function ProfilePage() {
                     {myOffers.filter((o: any) => !o.is_custom).map((offer: any) => {
                       const variants = offer.color_variants || [];
                       const hasVariants = variants.length > 1;
+                      // Only show active custom orders (stock > 0 means not yet fulfilled/expired)
                       const linkedCustomOrders = myOffers.filter(
-                        (o: any) => o.is_custom && o.parent_offer_id === offer.id
+                        (o: any) => o.is_custom && o.parent_offer_id === offer.id && o.stock > 0
                       );
                       return (
                         <div key={offer.id} className="flex flex-col">
@@ -723,7 +724,7 @@ export default function ProfilePage() {
                   </div>
 
                   {/* ── Stand-alone Custom Orders (e.g. from Jobs or deleted parents) ── */}
-                  {myOffers.some((o: any) => o.is_custom && !myOffers.some(parent => parent.id === o.parent_offer_id)) && (
+                  {myOffers.some((o: any) => o.is_custom && o.stock > 0 && !myOffers.some(parent => parent.id === o.parent_offer_id)) && (
                     <div className="mt-8">
                       <div className="flex items-center gap-3 mb-6">
                         <div className="h-px bg-purple-100 flex-1" />
@@ -732,7 +733,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {myOffers
-                          .filter((o: any) => o.is_custom && !myOffers.some(parent => parent.id === o.parent_offer_id))
+                          .filter((o: any) => o.is_custom && o.stock > 0 && !myOffers.some(parent => parent.id === o.parent_offer_id))
                           .map((co: any) => {
                             const buyerName = co._buyer?.full_name || 'Unknown buyer';
                             const buyerAvatar = co._buyer?.avatar_url;

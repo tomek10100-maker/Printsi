@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -47,6 +47,8 @@ function MessagesInner() {
     const [newMessage, setNewMessage] = useState('');
     const [loadingChats, setLoadingChats] = useState(true);
     const [loadingMessages, setLoadingMessages] = useState(false);
+    const [chatTab, setChatTab] = useState<'active' | 'archived'>('active');
+    const [archivingChatId, setArchivingChatId] = useState<string | null>(null);
 
     // Proposal Modal State
     const [showProposalModal, setShowProposalModal] = useState(false);
@@ -110,7 +112,7 @@ function MessagesInner() {
             .select(`
         id, created_at, updated_at, order_id,
         buyer_id, seller_id,
-        offer_id,
+        offer_id, archived_at, archived_by, completed_at,
         offers ( id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants )
       `)
             .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
@@ -184,6 +186,24 @@ function MessagesInner() {
         }));
 
         const filteredChats = enrichChats.filter(c => c !== null) as any[];
+
+        // AUTO-ARCHIVE: chats completed > 24h ago that aren't archived yet
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        for (const chat of filteredChats) {
+            if (
+                chat.completed_at &&
+                !chat.archived_at &&
+                (now - new Date(chat.completed_at).getTime()) > oneDayMs
+            ) {
+                await supabase
+                    .from('chats')
+                    .update({ archived_at: new Date().toISOString(), archived_by: 'auto' })
+                    .eq('id', chat.id);
+                chat.archived_at = new Date().toISOString();
+                chat.archived_by = 'auto';
+            }
+        }
 
         // HANDLE DRAFT CHAT (INITIATED BY EITHER BUYER OR SELLER)
         if ((paramSellerId || paramBuyerId) && paramOfferId && userId) {
@@ -1095,6 +1115,35 @@ function MessagesInner() {
         router.push('/cart');
     };
 
+    const handleArchiveChat = async (chatId: string, currentlyArchived: boolean) => {
+        if (!currentUser) return;
+        setArchivingChatId(chatId);
+        try {
+            const res = await fetch('/api/chat/archive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chatId, userId: currentUser.id, unarchive: currentlyArchived }),
+            });
+            if (res.ok) {
+                setChats(prev => prev.map(c => {
+                    if (c.id !== chatId) return c;
+                    if (currentlyArchived) {
+                        return { ...c, archived_at: null, archived_by: null };
+                    } else {
+                        return { ...c, archived_at: new Date().toISOString(), archived_by: 'manual' };
+                    }
+                }));
+                // If archiving the active chat, deselect it
+                if (!currentlyArchived && activeChatId === chatId) {
+                    setActiveChatId(null);
+                }
+            }
+        } catch (e) {
+            console.error('Archive error:', e);
+        }
+        setArchivingChatId(null);
+    };
+
     const renderSystemMessage = (msg: any, idx: number) => {
         const messageType = msg.message_type || 'system';
         const typeStyles: Record<string, { bg: string; border: string; icon: any; iconColor: string; label: string; accent: string }> = {
@@ -1339,49 +1388,102 @@ function MessagesInner() {
             </div>
 
             <div className="flex flex-1 overflow-hidden h-[calc(100vh-73px)]">
-                <div className="w-full md:w-1/3 max-w-sm bg-white border-r border-gray-100 flex flex-col overflow-y-auto">
+                <div className="w-full md:w-1/3 max-w-sm bg-white border-r border-gray-100 flex flex-col overflow-hidden">
+                    {/* Tab bar */}
+                    <div className="flex border-b border-gray-100 shrink-0">
+                        <button
+                            onClick={() => setChatTab('active')}
+                            className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 ${chatTab === 'active' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-400 hover:text-gray-700'}`}
+                        >
+                            <MessageSquare size={13} /> Active
+                            {chats.filter(c => !c.archived_at && c.id !== 'draft').reduce((acc, c) => acc + (c.unreadCount || 0), 0) > 0 && (
+                                <span className="ml-1 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">
+                                    {chats.filter(c => !c.archived_at && c.id !== 'draft').reduce((acc, c) => acc + (c.unreadCount || 0), 0)}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setChatTab('archived')}
+                            className={`flex-1 py-3 text-[11px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 ${chatTab === 'archived' ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50/50' : 'text-gray-400 hover:text-gray-700'}`}
+                        >
+                            <Archive size={13} /> Archive
+                            {chats.filter(c => !!c.archived_at).length > 0 && (
+                                <span className="ml-1 bg-gray-300 text-gray-700 text-[9px] font-black rounded-full px-1.5 h-4 flex items-center justify-center">
+                                    {chats.filter(c => !!c.archived_at).length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                    {/* Chat list */}
+                    <div className="flex-1 overflow-y-auto">
                     {loadingChats ? (
                         <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-blue-600" /></div>
-                    ) : chats.length === 0 ? (
-                        <div className="p-8 text-center text-gray-400">
-                            <MessageSquare className="mx-auto mb-2 opacity-50" size={32} />
-                            <p className="text-sm font-bold">No messages yet</p>
-                        </div>
-                    ) : (
-                        chats.map((chat) => (
-                            <button
-                                key={chat.id}
-                                onClick={() => setActiveChatId(chat.id)}
-                                className={`w-full text-left p-4 border-b border-gray-50 transition-colors hover:bg-blue-50/50 flex gap-3 ${activeChatId === chat.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'border-l-4 border-l-transparent'}`}
-                            >
-                                <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-                                    {chat.otherUser?.avatar_url ? (
-                                        <img src={chat.otherUser.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <User size={20} className="text-gray-400" />
+                    ) : (() => {
+                        const filteredChats = chats.filter(c =>
+                            chatTab === 'active' ? !c.archived_at : !!c.archived_at
+                        );
+                        if (filteredChats.length === 0) return (
+                            <div className="p-8 text-center text-gray-400">
+                                {chatTab === 'archived' ? <Archive className="mx-auto mb-2 opacity-50" size={32} /> : <MessageSquare className="mx-auto mb-2 opacity-50" size={32} />}
+                                <p className="text-sm font-bold">{chatTab === 'archived' ? 'No archived chats' : 'No active chats'}</p>
+                                {chatTab === 'archived' && <p className="text-xs text-gray-400 mt-1 font-medium">Chats are auto-archived 24h after completion</p>}
+                            </div>
+                        );
+                        return filteredChats.map((chat) => (
+                            <div key={chat.id} className="relative group/chatrow">
+                                <button
+                                    onClick={() => setActiveChatId(chat.id)}
+                                    className={`w-full text-left p-4 border-b border-gray-50 transition-colors hover:bg-blue-50/50 flex gap-3 pr-10 ${activeChatId === chat.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'border-l-4 border-l-transparent'}`}
+                                >
+                                    <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                        {chat.otherUser?.avatar_url ? (
+                                            <img src={chat.otherUser.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <User size={20} className="text-gray-400" />
+                                        )}
+                                    </div>
+                                    <div className="overflow-hidden flex-1 flex flex-col justify-center">
+                                        <h3 className={`truncate text-sm ${chat.id === 'draft' ? 'text-blue-500 font-black' : (chat.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-700')}`}>
+                                            {chat.otherUser?.full_name}
+                                        </h3>
+                                        <p className={`text-xs truncate mt-0.5 ${chat.unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-blue-600 font-bold'}`}>{chat.offers?.title || 'Unknown Item'}</p>
+                                        {chat.order_id && (
+                                            <span className={`inline-block mt-1.5 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${chat.orderItem?.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                chat.orderItem?.status === 'disputed' ? 'bg-red-100 text-red-700' :
+                                                    chat.orderItem?.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                {chat.orderItem?.status || 'pending'}
+                                            </span>
+                                        )}
+                                        {chat.archived_at && chat.archived_by === 'auto' && (
+                                            <span className="inline-block mt-1 text-[8px] font-black uppercase text-purple-400">Auto-archived</span>
+                                        )}
+                                    </div>
+                                    {chat.unreadCount > 0 && (
+                                        <div className="w-2.5 h-2.5 bg-red-500 rounded-full self-center ml-2 border border-white shrink-0 shadow-sm" />
                                     )}
-                                </div>
-                                <div className="overflow-hidden flex-1 flex flex-col justify-center">
-                                    <h3 className={`truncate text-sm ${chat.id === 'draft' ? 'text-blue-500 font-black' : (chat.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-700')}`}>
-                                        {chat.otherUser?.full_name}
-                                    </h3>
-                                    <p className={`text-xs truncate mt-0.5 ${chat.unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-blue-600 font-bold'}`}>{chat.offers?.title || 'Unknown Item'}</p>
-                                    {chat.order_id && (
-                                        <span className={`inline-block mt-1.5 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${chat.orderItem?.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                            chat.orderItem?.status === 'disputed' ? 'bg-red-100 text-red-700' :
-                                                chat.orderItem?.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                                                    'bg-amber-100 text-amber-700'
-                                            }`}>
-                                            {chat.orderItem?.status || 'pending'}
-                                        </span>
-                                    )}
-                                </div>
-                                {chat.unreadCount > 0 && (
-                                    <div className="w-2.5 h-2.5 bg-red-500 rounded-full self-center ml-2 border border-white shrink-0 shadow-sm" />
+                                </button>
+                                {/* Archive/Unarchive button — shown on hover, hidden for draft chats */}
+                                {chat.id !== 'draft' && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleArchiveChat(chat.id, !!chat.archived_at); }}
+                                        disabled={archivingChatId === chat.id}
+                                        title={chat.archived_at ? 'Restore from archive' : 'Archive this chat'}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/chatrow:opacity-100 transition-all p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-purple-600 disabled:opacity-50"
+                                    >
+                                        {archivingChatId === chat.id
+                                            ? <Loader2 size={14} className="animate-spin" />
+                                            : chat.archived_at
+                                                ? <ArchiveRestore size={14} />
+                                                : <Archive size={14} />
+                                        }
+                                    </button>
                                 )}
-                            </button>
-                        ))
-                    )}
+                            </div>
+                        ));
+                    })()}
+                    </div>
                 </div>
 
                 <div className={`flex-1 flex flex-col bg-gray-50 relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`}>
