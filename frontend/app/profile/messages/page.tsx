@@ -1544,8 +1544,9 @@ function MessagesInner() {
                                     </div>
                                 </div>
                             )}
-                            {(showJobProposalBanner || (activeChatData?.offers?.category === 'job' && !activeChatData.order_id)) && activeChatData && (
-                                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5 flex flex-col gap-4 animate-in slide-in-from-top duration-500 shadow-lg relative z-20">
+                            <div className="shrink-0 max-h-[35vh] overflow-y-auto custom-scrollbar border-b border-gray-100 bg-white relative z-20 shadow-sm">
+                                {(showJobProposalBanner || (activeChatData?.offers?.category === 'job' && !activeChatData.order_id)) && activeChatData && (
+                                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5 flex flex-col gap-4 animate-in slide-in-from-top duration-500 relative z-20">
                                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                                         <div className="flex items-center gap-3 w-full md:w-auto">
                                             <div className="bg-white/20 p-2 rounded-xl">
@@ -1636,8 +1637,9 @@ function MessagesInner() {
                                             </div>
                                         )}
                                     </div>
-                                </div>
-                            )}
+                                    </div>
+                                )}
+                            </div>
 
                             {showDisputeModal && activeChatData && (
                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
@@ -2025,6 +2027,17 @@ function MessagesInner() {
                                             created_at: '',
                                         });
                                     }
+                                    
+                                    // Push messages to the bottom
+                                    chronList.unshift({
+                                        _type: 'spacer',
+                                        _time: 0,
+                                        id: 'spacer',
+                                        content: '',
+                                        sender_id: '',
+                                        created_at: '',
+                                    });
+
                                     chronList.sort((a, b) => a._time - b._time);
 
                                     if (chronList.length === 0 && activeChatId !== 'draft') {
@@ -2032,6 +2045,10 @@ function MessagesInner() {
                                     }
 
                                     return chronList.map((msg, idx) => {
+                                        if (msg._type === 'spacer') {
+                                            return <div key={`spacer-${idx}`} className="flex-1 min-h-[20px]" />;
+                                        }
+
                                         if (msg._type === 'action_card') {
                                             return <div key={`ac-${idx}`}>{renderActionCard(activeChatData?.orderItem, activeChatData)}</div>;
                                         }
