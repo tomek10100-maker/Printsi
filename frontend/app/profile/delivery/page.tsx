@@ -143,36 +143,46 @@ export default function DeliverySettingsPage() {
                     <hr className="border-gray-100" />
 
                     {/* Free Shipping */}
-                    <div>
-                        <div className="flex justify-between items-center mb-3">
-                            <label className="block text-xs font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                                <PackageOpen size={14} /> Free Shipping Threshold
-                            </label>
-                            <label className="relative inline-flex items-center cursor-pointer">
+                    <div className={`border-2 rounded-2xl p-5 sm:p-6 transition-all ${freeShippingEnabled ? 'border-blue-500/50 bg-blue-50/30 shadow-md shadow-blue-500/5' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+                            <div>
+                                <label className="text-sm font-black uppercase tracking-widest text-gray-900 flex items-center gap-2 mb-1">
+                                    <PackageOpen size={18} className={freeShippingEnabled ? 'text-blue-600' : 'text-gray-400'} /> 
+                                    Free Shipping Threshold
+                                </label>
+                                <p className="text-xs font-medium text-gray-500 max-w-sm">
+                                    Offering free shipping makes your items more attractive and can significantly increase sales volume. 
+                                </p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-2 sm:mt-0">
                                 <input type="checkbox" className="sr-only peer" checked={freeShippingEnabled} onChange={e => setFreeShippingEnabled(e.target.checked)} />
-                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                {/* Enlarged toggle switch */}
+                                <div className="w-14 h-8 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-7 after:w-7 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
                             </label>
                         </div>
                         
-                        <div className={`transition-all duration-300 overflow-hidden ${freeShippingEnabled ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                            <div className="flex items-center gap-3 mt-4">
-                                <div className="relative flex-1">
+                        <div className={`transition-all duration-300 overflow-hidden ${freeShippingEnabled ? 'max-h-[300px] opacity-100 mt-5' : 'max-h-0 opacity-0 mt-0'}`}>
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 mb-4">
+                                <Info className="text-amber-600 shrink-0 mt-0.5" size={16} />
+                                <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                                    <strong>How it works:</strong> If a buyer's order from you exceeds the amount below, they get free shipping. 
+                                    <strong> The shipping cost will be deducted directly from your final profit payout.</strong>
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col">
+                                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2">Minimum Order Value</label>
+                                <div className="relative">
                                     <input 
                                         type="number" 
                                         min="0"
                                         value={freeShippingThreshold} 
                                         onChange={e => setFreeShippingThreshold(e.target.value)}
-                                        className="w-full p-4 pl-12 bg-gray-50 border-2 border-gray-200 rounded-xl font-bold text-gray-900 outline-none focus:border-blue-500 transition-all text-lg"
+                                        className="w-full p-4 pl-12 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl font-black text-blue-900 outline-none transition-all text-xl shadow-sm"
                                         placeholder="0.00"
                                     />
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">PLN</span>
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 font-black">PLN</span>
                                 </div>
-                            </div>
-                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mt-4 flex gap-3">
-                                <Info className="text-blue-500 shrink-0 mt-0.5" size={16} />
-                                <p className="text-xs text-blue-700 font-medium">
-                                    If a buyer's order from you exceeds this amount, they will get free shipping. <strong>The shipping cost will be deducted from your payout.</strong>
-                                </p>
                             </div>
                         </div>
                     </div>
