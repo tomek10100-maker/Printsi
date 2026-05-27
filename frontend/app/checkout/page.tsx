@@ -668,8 +668,12 @@ function CheckoutInner() {
                                 </div>
                               </div>
                               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                <p style={{ color: accentColor, fontWeight: 900, fontSize: '14px', margin: 0 }}>{formatPrice(option.priceEur)}</p>
-                                <p style={{ color: '#4b5563', fontSize: '10px', fontWeight: 700, margin: '2px 0 0' }}>{option.pricePln.toFixed(2)} PLN</p>
+                                <p style={{ color: accentColor, fontWeight: 900, fontSize: '14px', margin: 0 }}>
+                                  {currency === 'PLN' ? `${option.pricePln.toFixed(2)} PLN` : formatPrice(option.priceEur)}
+                                </p>
+                                {currency !== 'PLN' && (
+                                  <p style={{ color: '#4b5563', fontSize: '10px', fontWeight: 700, margin: '2px 0 0' }}>{option.pricePln.toFixed(2)} PLN</p>
+                                )}
                               </div>
                             </label>
                           );
