@@ -112,7 +112,7 @@ function MessagesInner() {
             .select(`
         id, created_at, updated_at, order_id,
         buyer_id, seller_id,
-        offer_id, archived_at, archived_by, completed_at,
+        offer_id,
         offers ( id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants )
       `)
             .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
@@ -187,22 +187,44 @@ function MessagesInner() {
 
         const filteredChats = enrichChats.filter(c => c !== null) as any[];
 
-        // AUTO-ARCHIVE: chats completed > 24h ago that aren't archived yet
-        const oneDayMs = 24 * 60 * 60 * 1000;
-        const now = Date.now();
-        for (const chat of filteredChats) {
-            if (
-                chat.completed_at &&
-                !chat.archived_at &&
-                (now - new Date(chat.completed_at).getTime()) > oneDayMs
-            ) {
-                await supabase
-                    .from('chats')
-                    .update({ archived_at: new Date().toISOString(), archived_by: 'auto' })
-                    .eq('id', chat.id);
-                chat.archived_at = new Date().toISOString();
-                chat.archived_by = 'auto';
+        // Try to fetch archive columns separately (they may not exist yet if migration hasn't been run)
+        try {
+            const { data: archiveData, error: archiveErr } = await supabase
+                .from('chats')
+                .select('id, archived_at, archived_by, completed_at')
+                .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`);
+
+            if (!archiveErr && archiveData) {
+                // Merge archive data into filteredChats
+                archiveData.forEach((a: any) => {
+                    const chat = filteredChats.find(c => c.id === a.id);
+                    if (chat) {
+                        chat.archived_at = a.archived_at || null;
+                        chat.archived_by = a.archived_by || null;
+                        chat.completed_at = a.completed_at || null;
+                    }
+                });
+
+                // AUTO-ARCHIVE: chats completed > 24h ago that aren't archived yet
+                const oneDayMs = 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                for (const chat of filteredChats) {
+                    if (
+                        chat.completed_at &&
+                        !chat.archived_at &&
+                        (now - new Date(chat.completed_at).getTime()) > oneDayMs
+                    ) {
+                        await supabase
+                            .from('chats')
+                            .update({ archived_at: new Date().toISOString(), archived_by: 'auto' })
+                            .eq('id', chat.id);
+                        chat.archived_at = new Date().toISOString();
+                        chat.archived_by = 'auto';
+                    }
+                }
             }
+        } catch {
+            // Columns don't exist yet — archiving will be enabled after migration
         }
 
         // HANDLE DRAFT CHAT (INITIATED BY EITHER BUYER OR SELLER)
