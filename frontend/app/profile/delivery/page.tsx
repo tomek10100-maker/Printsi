@@ -150,15 +150,21 @@ export default function DeliverySettingsPage() {
                                     <PackageOpen size={18} className={freeShippingEnabled ? 'text-blue-600' : 'text-gray-400'} /> 
                                     Free Shipping Threshold
                                 </label>
-                                <p className="text-xs font-medium text-gray-500 max-w-sm">
-                                    Offering free shipping makes your items more attractive and can significantly increase sales volume. 
+                                <p className="text-xs font-medium text-gray-500 max-w-sm mt-1">
+                                    Offering free shipping makes your items more attractive and increases sales. 
+                                    <strong className="text-gray-700 block mt-1">Please note: The shipping cost will be deducted from your profit.</strong>
                                 </p>
                             </div>
-                            <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-2 sm:mt-0">
-                                <input type="checkbox" className="sr-only peer" checked={freeShippingEnabled} onChange={e => setFreeShippingEnabled(e.target.checked)} />
-                                {/* Enlarged toggle switch */}
-                                <div className="w-14 h-8 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-7 after:w-7 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
-                            </label>
+                            <div className="flex items-center gap-3 shrink-0 mt-4 sm:mt-0 bg-gray-50 border border-gray-200 p-2 rounded-xl">
+                                <span className={`text-xs font-black uppercase tracking-widest w-8 text-right ${freeShippingEnabled ? 'text-blue-600' : 'text-gray-400'}`}>
+                                    {freeShippingEnabled ? 'ON' : 'OFF'}
+                                </span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" className="sr-only peer" checked={freeShippingEnabled} onChange={e => setFreeShippingEnabled(e.target.checked)} />
+                                    {/* High-contrast toggle switch */}
+                                    <div className="w-14 h-8 bg-gray-300 border border-gray-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border-gray-400 after:border after:rounded-full after:h-[24px] after:w-[24px] after:transition-all peer-checked:bg-blue-600 peer-checked:border-blue-700 shadow-inner"></div>
+                                </label>
+                            </div>
                         </div>
                         
                         <div className={`transition-all duration-300 overflow-hidden ${freeShippingEnabled ? 'max-h-[300px] opacity-100 mt-5' : 'max-h-0 opacity-0 mt-0'}`}>
