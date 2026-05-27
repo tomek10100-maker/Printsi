@@ -31,6 +31,10 @@ export const DHL_COUNTRIES: DhlCountry[] = [
     { name: 'Estonia', code: 'EE', deliveryDays: '4', rates: { upTo5kg: 59.21, upTo10kg: 69.60, upTo20kg: 79.85, upTo31kg: 108.02 } },
     { name: 'Sweden', code: 'SE', deliveryDays: '4', rates: { upTo5kg: 67.17, upTo10kg: 80.68, upTo20kg: 92.55, upTo31kg: 125.22 } },
     { name: 'Finland', code: 'FI', deliveryDays: '5', rates: { upTo5kg: 68.56, upTo10kg: 82.33, upTo20kg: 94.46, upTo31kg: 127.78 } },
+    { name: 'Germany', code: 'DE', deliveryDays: '2-3', rates: { upTo5kg: 40.00, upTo10kg: 50.00, upTo20kg: 60.00, upTo31kg: 80.00 } },
+    { name: 'France', code: 'FR', deliveryDays: '3-4', rates: { upTo5kg: 50.00, upTo10kg: 60.00, upTo20kg: 70.00, upTo31kg: 90.00 } },
+    { name: 'Austria', code: 'AT', deliveryDays: '2-3', rates: { upTo5kg: 45.00, upTo10kg: 55.00, upTo20kg: 65.00, upTo31kg: 85.00 } },
+    { name: 'Italy', code: 'IT', deliveryDays: '3-5', rates: { upTo5kg: 55.00, upTo10kg: 65.00, upTo20kg: 75.00, upTo31kg: 95.00 } },
 ];
 
 // Domestic shipping rates (within the same country) in PLN equivalent
@@ -48,6 +52,10 @@ const DOMESTIC_RATES_PLN: Record<string, { upTo5kg: number; upTo10kg: number; up
     EE: { upTo5kg: 19, upTo10kg: 25, upTo20kg: 34, upTo31kg: 49 },
     SE: { upTo5kg: 26, upTo10kg: 34, upTo20kg: 45, upTo31kg: 64 },
     FI: { upTo5kg: 24, upTo10kg: 31, upTo20kg: 42, upTo31kg: 60 },
+    DE: { upTo5kg: 20, upTo10kg: 28, upTo20kg: 38, upTo31kg: 55 },
+    FR: { upTo5kg: 22, upTo10kg: 30, upTo20kg: 40, upTo31kg: 58 },
+    AT: { upTo5kg: 21, upTo10kg: 29, upTo20kg: 39, upTo31kg: 56 },
+    IT: { upTo5kg: 24, upTo10kg: 32, upTo20kg: 42, upTo31kg: 60 },
     // Default for remaining countries
     DEFAULT: { upTo5kg: 23, upTo10kg: 30, upTo20kg: 42, upTo31kg: 60 },
 };

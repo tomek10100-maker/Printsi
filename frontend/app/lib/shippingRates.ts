@@ -98,11 +98,6 @@ interface WeightTier {
 // SE          |   ❌   |  ✅ |  ✅ |     ❌
 // FI          |   ❌   |  ✅ |  ❌ |     ❌
 
-const INPOST_COUNTRIES = ['PL', 'CZ', 'SK', 'HU', 'RO', 'HR', 'SI'];
-const DPD_COUNTRIES    = ['PL', 'CZ', 'SK', 'HU', 'LT', 'LV', 'EE', 'SE', 'FI'];
-const DHL_COUNTRIES_AVAILABLE = ['PL', 'CZ', 'SE']; // DHL door-to-door + pickup
-const ORLEN_COUNTRIES  = ['PL']; // Orlen Paczka domestic only
-
 // ─── DOMESTIC RATES (PL → PL) ────────────────────────────────────────────────
 
 const DHL_DOMESTIC_PL: WeightTier   = { upTo1kg: 14, upTo5kg: 18, upTo10kg: 24, upTo20kg: 32, upTo31kg: 48 };
@@ -119,6 +114,10 @@ const INPOST_INTERNATIONAL: Record<string, WeightTier> = {
   RO: { upTo1kg: 28, upTo5kg: 35, upTo10kg: 45, upTo20kg: 60, upTo31kg: 85 },
   HR: { upTo1kg: 30, upTo5kg: 38, upTo10kg: 48, upTo20kg: 65, upTo31kg: 90 },
   SI: { upTo1kg: 28, upTo5kg: 35, upTo10kg: 45, upTo20kg: 60, upTo31kg: 85 },
+  DE: { upTo1kg: 25, upTo5kg: 30, upTo10kg: 40, upTo20kg: 55, upTo31kg: 75 },
+  FR: { upTo1kg: 30, upTo5kg: 38, upTo10kg: 48, upTo20kg: 65, upTo31kg: 90 },
+  AT: { upTo1kg: 28, upTo5kg: 35, upTo10kg: 45, upTo20kg: 60, upTo31kg: 85 },
+  IT: { upTo1kg: 32, upTo5kg: 40, upTo10kg: 50, upTo20kg: 68, upTo31kg: 95 },
 };
 
 // DPD international rates from PL
@@ -131,12 +130,20 @@ const DPD_INTERNATIONAL: Record<string, WeightTier> = {
   EE: { upTo1kg: 28, upTo5kg: 34, upTo10kg: 42, upTo20kg: 55, upTo31kg: 78 },
   SE: { upTo1kg: 35, upTo5kg: 42, upTo10kg: 52, upTo20kg: 68, upTo31kg: 95 },
   FI: { upTo1kg: 35, upTo5kg: 42, upTo10kg: 52, upTo20kg: 68, upTo31kg: 95 },
+  DE: { upTo1kg: 30, upTo5kg: 40, upTo10kg: 50, upTo20kg: 65, upTo31kg: 85 },
+  FR: { upTo1kg: 35, upTo5kg: 45, upTo10kg: 55, upTo20kg: 70, upTo31kg: 95 },
+  AT: { upTo1kg: 32, upTo5kg: 42, upTo10kg: 52, upTo20kg: 68, upTo31kg: 90 },
+  IT: { upTo1kg: 38, upTo5kg: 48, upTo10kg: 58, upTo20kg: 75, upTo31kg: 100 },
 };
 
 // DHL international rates from PL (for Vinted-available countries only: CZ, SE)
 const DHL_INTERNATIONAL_VINTED: Record<string, WeightTier> = {
   CZ: { upTo1kg: 30, upTo5kg: 39.67, upTo10kg: 47.65, upTo20kg: 54.67, upTo31kg: 73.95 },
   SE: { upTo1kg: 45, upTo5kg: 67.17, upTo10kg: 80.68, upTo20kg: 92.55, upTo31kg: 125.22 },
+  DE: { upTo1kg: 35, upTo5kg: 45.00, upTo10kg: 55.00, upTo20kg: 70.00, upTo31kg: 90.00 },
+  FR: { upTo1kg: 40, upTo5kg: 50.00, upTo10kg: 60.00, upTo20kg: 75.00, upTo31kg: 95.00 },
+  AT: { upTo1kg: 38, upTo5kg: 48.00, upTo10kg: 58.00, upTo20kg: 72.00, upTo31kg: 92.00 },
+  IT: { upTo1kg: 45, upTo5kg: 55.00, upTo10kg: 65.00, upTo20kg: 80.00, upTo31kg: 100.00 },
 };
 
 function getWeightPrice(tier: WeightTier, weightGrams: number): number | null {
@@ -249,88 +256,88 @@ export function getShippingOptions(
   }
   // ── INTERNATIONAL (PL → abroad) ─────────────────────────────────────────
   else if (fromCode === 'PL') {
-    // InPost international — available to: CZ, SK, HU, RO, HR, SI
-    if (INPOST_COUNTRIES.includes(toCode) && toCode !== 'PL') {
-      const tier = INPOST_INTERNATIONAL[toCode];
-      if (tier) {
-        const inpostPrice = getWeightPrice(tier, chargeableGrams);
-        if (inpostPrice !== null) {
-          options.push({
-            id: 'inpost_paczkomat',
-            carrier: 'InPost',
-            service: 'InPost International',
-            icon: '🟢',
-            pricePln: inpostPrice,
-            priceEur: Math.round((inpostPrice / plnToEurRate) * 100) / 100,
-            deliveryDays: toCode === 'CZ' || toCode === 'SK' ? '2-3' : '3-5',
-            description: 'Parcel locker / Pickup point',
-          });
-        }
-      }
+    // InPost international
+    const inpostTier = INPOST_INTERNATIONAL[toCode] || { upTo1kg: 25, upTo5kg: 30, upTo10kg: 40, upTo20kg: 55, upTo31kg: 75 };
+    const inpostPrice = getWeightPrice(inpostTier, chargeableGrams);
+    if (inpostPrice !== null) {
+      options.push({
+        id: 'inpost_paczkomat',
+        carrier: 'InPost',
+        service: 'InPost International',
+        icon: '🟢',
+        pricePln: inpostPrice,
+        priceEur: Math.round((inpostPrice / plnToEurRate) * 100) / 100,
+        deliveryDays: toCode === 'CZ' || toCode === 'SK' ? '2-3' : '3-5',
+        description: 'Parcel locker / Pickup point',
+      });
     }
 
-    // DPD international — available to: CZ, SK, HU, LT, LV, EE, SE, FI
-    if (DPD_COUNTRIES.includes(toCode) && toCode !== 'PL') {
-      const tier = DPD_INTERNATIONAL[toCode];
-      if (tier) {
-        const dpdPrice = getWeightPrice(tier, chargeableGrams);
-        if (dpdPrice !== null) {
-          options.push({
-            id: 'dpd_international',
-            carrier: 'DPD',
-            service: 'DPD International',
-            icon: '🔴',
-            pricePln: dpdPrice,
-            priceEur: Math.round((dpdPrice / plnToEurRate) * 100) / 100,
-            deliveryDays: ['CZ', 'SK', 'HU'].includes(toCode) ? '2-3' : ['LT', 'LV', 'EE'].includes(toCode) ? '3-4' : '4-6',
-            description: 'Door-to-door delivery',
-          });
-          options.push({
-            id: 'dpd_pickup',
-            carrier: 'DPD',
-            service: 'DPD Pickup Point',
-            icon: '🔴',
-            pricePln: Math.max(15, dpdPrice - 2),
-            priceEur: Math.round((Math.max(15, dpdPrice - 2) / plnToEurRate) * 100) / 100,
-            deliveryDays: ['CZ', 'SK', 'HU'].includes(toCode) ? '2-4' : ['LT', 'LV', 'EE'].includes(toCode) ? '3-5' : '4-7',
-            description: 'Parcel locker / Pickup point',
-          });
-        }
-      }
+    // DPD international
+    const dpdTier = DPD_INTERNATIONAL[toCode] || { upTo1kg: 30, upTo5kg: 40, upTo10kg: 50, upTo20kg: 65, upTo31kg: 85 };
+    const dpdPrice = getWeightPrice(dpdTier, chargeableGrams);
+    if (dpdPrice !== null) {
+      options.push({
+        id: 'dpd_international',
+        carrier: 'DPD',
+        service: 'DPD International',
+        icon: '🔴',
+        pricePln: dpdPrice,
+        priceEur: Math.round((dpdPrice / plnToEurRate) * 100) / 100,
+        deliveryDays: ['CZ', 'SK', 'HU'].includes(toCode) ? '2-3' : ['LT', 'LV', 'EE'].includes(toCode) ? '3-4' : '4-6',
+        description: 'Door-to-door delivery',
+      });
+      options.push({
+        id: 'dpd_pickup',
+        carrier: 'DPD',
+        service: 'DPD Pickup Point',
+        icon: '🔴',
+        pricePln: Math.max(15, dpdPrice - 2),
+        priceEur: Math.round((Math.max(15, dpdPrice - 2) / plnToEurRate) * 100) / 100,
+        deliveryDays: ['CZ', 'SK', 'HU'].includes(toCode) ? '2-4' : ['LT', 'LV', 'EE'].includes(toCode) ? '3-5' : '4-7',
+        description: 'Parcel locker / Pickup point',
+      });
     }
 
-    // DHL international — available to: CZ, SE only
-    if (DHL_COUNTRIES_AVAILABLE.includes(toCode) && toCode !== 'PL') {
-      const tier = DHL_INTERNATIONAL_VINTED[toCode];
-      if (tier) {
-        const dhlPrice = getWeightPrice(tier, chargeableGrams);
-        if (dhlPrice !== null) {
-          options.push({
-            id: 'dhl_international',
-            carrier: 'DHL',
-            service: 'DHL Parcel Connect',
-            icon: '🟡',
-            pricePln: dhlPrice,
-            priceEur: Math.round((dhlPrice / plnToEurRate) * 100) / 100,
-            deliveryDays: toCode === 'CZ' ? '2-3' : '4-6',
-            description: 'International door-to-door',
-          });
-          options.push({
-            id: 'dhl_pop',
-            carrier: 'DHL',
-            service: 'DHL POP / Box',
-            icon: '🟡',
-            pricePln: Math.max(15, dhlPrice - 2),
-            priceEur: Math.round((Math.max(15, dhlPrice - 2) / plnToEurRate) * 100) / 100,
-            deliveryDays: toCode === 'CZ' ? '2-3' : '4-6',
-            description: 'Parcel locker / Pickup point',
-          });
-        }
-      }
+    // DHL international
+    const dhlTier = DHL_INTERNATIONAL_VINTED[toCode] || { upTo1kg: 40, upTo5kg: 50, upTo10kg: 60, upTo20kg: 80, upTo31kg: 100 };
+    const dhlPrice = getWeightPrice(dhlTier, chargeableGrams);
+    if (dhlPrice !== null) {
+      options.push({
+        id: 'dhl_international',
+        carrier: 'DHL',
+        service: 'DHL Parcel Connect',
+        icon: '🟡',
+        pricePln: dhlPrice,
+        priceEur: Math.round((dhlPrice / plnToEurRate) * 100) / 100,
+        deliveryDays: toCode === 'CZ' ? '2-3' : '4-6',
+        description: 'International door-to-door',
+      });
+      options.push({
+        id: 'dhl_pop',
+        carrier: 'DHL',
+        service: 'DHL POP / Box',
+        icon: '🟡',
+        pricePln: Math.max(15, dhlPrice - 2),
+        priceEur: Math.round((Math.max(15, dhlPrice - 2) / plnToEurRate) * 100) / 100,
+        deliveryDays: toCode === 'CZ' ? '2-3' : '4-6',
+        description: 'Parcel locker / Pickup point',
+      });
     }
 
-    // Orlen Paczka — NOT available internationally
-    // (ORLEN_COUNTRIES only contains 'PL')
+    // Orlen Paczka
+    if (chargeableGrams <= 30000) {
+      const orlenPrice = chargeableGrams <= 1000 ? 19.99 : chargeableGrams <= 5000 ? 25.99 : 35.99;
+      options.push({
+        id: 'orlen_paczka',
+        carrier: 'Orlen',
+        service: 'Orlen Paczka',
+        icon: '🟠',
+        pricePln: orlenPrice,
+        priceEur: Math.round((orlenPrice / plnToEurRate) * 100) / 100,
+        deliveryDays: '3-6',
+        description: 'Parcel locker / Pickup point',
+      });
+    }
   }
 
   // Sort by price
