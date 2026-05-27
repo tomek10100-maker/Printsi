@@ -1397,7 +1397,7 @@ function MessagesInner() {
     };
 
     return (
-        <main className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
+        <main className="h-[calc(100dvh-32px)] sm:h-[calc(100dvh-36px)] overflow-hidden bg-gray-50 flex flex-col font-sans text-gray-900">
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shrink-0">
                 <div className="flex items-center gap-4">
                     <Link href="/profile" className="p-2 bg-gray-50 text-gray-500 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors">
@@ -1409,7 +1409,7 @@ function MessagesInner() {
                 </div>
             </div>
 
-            <div className="flex flex-1 overflow-hidden h-[calc(100vh-73px)]">
+            <div className="flex flex-1 overflow-hidden min-h-0">
                 <div className="w-full md:w-1/3 max-w-sm bg-white border-r border-gray-100 flex flex-col overflow-hidden">
                     {/* Tab bar */}
                     <div className="flex border-b border-gray-100 shrink-0">
