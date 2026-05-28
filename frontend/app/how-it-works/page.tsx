@@ -95,7 +95,7 @@ export default function HowItWorksPage() {
 
             {/* ── HERO ─────────────────────────────────────────── */}
             <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-                <div className="max-w-6xl mx-auto px-6 py-16">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
                     <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-10 font-bold uppercase text-[10px] tracking-widest transition-colors">
                         <ArrowLeft size={14} /> Back to Home
                     </Link>
@@ -125,10 +125,10 @@ export default function HowItWorksPage() {
             </div>
 
             {/* ── ROLE STEPS ────────────────────────────────────── */}
-            <div className="max-w-6xl mx-auto px-6 py-16">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
 
                 {/* Tab header */}
-                <div className={`bg-gradient-to-r ${currentTab.accent} rounded-3xl p-8 text-white mb-10 shadow-xl`}>
+                <div className={`bg-gradient-to-r ${currentTab.accent} rounded-3xl p-5 sm:p-8 text-white mb-10 shadow-xl`}>
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70 mb-1">{currentTabMeta.label} Flow</p>
                     <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter">{currentTab.title}</h2>
                     <p className="text-white/80 font-medium mt-2">{currentTab.subtitle}</p>
@@ -148,7 +148,7 @@ export default function HowItWorksPage() {
                                 </div>
 
                                 {/* Content card */}
-                                <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md hover:border-gray-200 transition-all group-hover:-translate-y-0.5">
+                                <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 hover:shadow-md hover:border-gray-200 transition-all group-hover:-translate-y-0.5">
                                     <div className="flex items-start gap-4">
                                         <div className={`p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-600 shrink-0`}>
                                             {step.icon}
@@ -184,7 +184,7 @@ export default function HowItWorksPage() {
 
             {/* ── PLATFORM FEATURES ─────────────────────────────── */}
             <div className="bg-white border-t border-gray-100">
-                <div className="max-w-6xl mx-auto px-6 py-16">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
                     <div className="text-center mb-12">
                         <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-600 mb-3">Platform Features</p>
                         <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-gray-900">
@@ -210,7 +210,7 @@ export default function HowItWorksPage() {
             </div>
 
             {/* ── CATEGORIES OVERVIEW ───────────────────────────── */}
-            <div className="max-w-6xl mx-auto px-6 py-16">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
                 <div className="text-center mb-12">
                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-600 mb-3">Marketplace Categories</p>
                     <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-gray-900">
@@ -257,7 +257,7 @@ export default function HowItWorksPage() {
                             ctaStyle: 'bg-orange-500 hover:bg-orange-600',
                         },
                     ].map((cat, i) => (
-                        <div key={i} className={`bg-gradient-to-br ${cat.gradient} border ${cat.border} rounded-3xl p-7 flex flex-col`}>
+                        <div key={i} className={`bg-gradient-to-br ${cat.gradient} border ${cat.border} rounded-3xl p-5 sm:p-7 flex flex-col`}>
                             <div className={`w-12 h-12 rounded-2xl bg-white border ${cat.border} flex items-center justify-center ${cat.textColor} shadow-sm mb-5`}>
                                 {cat.icon}
                             </div>
@@ -277,7 +277,7 @@ export default function HowItWorksPage() {
 
             {/* ── BOTTOM CTA ────────────────────────────────────── */}
             <div className="bg-gray-900 text-white">
-                <div className="max-w-4xl mx-auto px-6 py-16 text-center">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 text-center">
                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400 mb-4">Ready to Start?</p>
                     <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-4">
                         Join the <span className="text-blue-400">Ecosystem.</span>

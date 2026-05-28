@@ -6,14 +6,14 @@ import { ArrowLeft } from 'lucide-react';
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans text-gray-900">
+    <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 font-sans text-gray-900">
       <div className="max-w-4xl mx-auto">
         <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-8 font-bold uppercase text-xs tracking-widest">
           <ArrowLeft size={16} /> Back to Home
         </Link>
 
         {/* Hero Section */}
-        <div className="bg-white p-12 rounded-3xl shadow-sm border border-gray-100 mb-8 text-center">
+        <div className="bg-white p-6 sm:p-12 rounded-3xl shadow-sm border border-gray-100 mb-8 text-center">
           <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-4">
             The Future of <span className="text-blue-600">Creation.</span>
           </h1>
@@ -24,7 +24,7 @@ export default function AboutPage() {
 
         {/* Content Blocks */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+          <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
             <h2 className="text-xl font-black uppercase mb-4 flex items-center gap-2">
               <span className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm">1</span>
               Who We Are
@@ -34,7 +34,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+          <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
             <h2 className="text-xl font-black uppercase mb-4 flex items-center gap-2">
               <span className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-sm">2</span>
               Our Mission
@@ -43,7 +43,7 @@ export default function AboutPage() {
               To democratize manufacturing. Whether you need a replacement part, a custom figurine, or a digital file to print at home, Printis is the bridge that makes it happen. We empower creators to earn from their passion.
             </p>
           </div>
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 md:col-span-2 mt-2">
+          <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100 md:col-span-2 mt-2">
             <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
               <span className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-sm">3</span>
               Company Details (Demo Data)

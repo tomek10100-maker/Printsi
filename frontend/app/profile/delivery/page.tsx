@@ -119,7 +119,7 @@ export default function DeliverySettingsPage() {
                 </div>
 
                 {/* Main Form container */}
-                <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-8 relative z-10">
+                <div className="bg-white p-5 sm:p-8 rounded-3xl border border-gray-200 shadow-sm space-y-8 relative z-10">
 
                     {/* Ship From */}
                     <div>

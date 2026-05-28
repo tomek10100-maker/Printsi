@@ -1635,7 +1635,8 @@ function MessagesInner() {
     };
 
     return (
-        <main className="h-[calc(100dvh-32px)] sm:h-[calc(100dvh-36px)] overflow-hidden bg-gray-50 flex flex-col font-sans text-gray-900">
+        <>
+            <main className="h-[calc(100dvh-32px)] sm:h-[calc(100dvh-36px)] overflow-hidden bg-gray-50 flex flex-col font-sans text-gray-900">
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shrink-0">
                 <div className="flex items-center gap-4">
                     <Link href="/profile" className="p-2 bg-gray-50 text-gray-500 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors">
@@ -1648,7 +1649,7 @@ function MessagesInner() {
             </div>
 
             <div className="flex flex-1 overflow-hidden min-h-0">
-                <div className="w-full md:w-1/3 max-w-sm bg-white border-r border-gray-100 flex flex-col overflow-hidden">
+                <div className={`w-full md:w-1/3 max-w-sm bg-white border-r border-gray-100 flex flex-col overflow-hidden ${activeChatId ? 'hidden md:flex' : 'flex'}`}>
                     {/* Tab bar */}
                     <div className="flex border-b border-gray-100 shrink-0">
                         <button
@@ -2578,25 +2579,27 @@ function MessagesInner() {
                             </div>
 
                             <div className="p-4 bg-white border-t border-gray-100 shrink-0">
-                                <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto items-end">
-                                    <textarea
-                                        value={newMessage}
-                                        onChange={(e) => setNewMessage(e.target.value)}
-                                        placeholder="Type a message..."
-                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[50px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
-                                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
-                                    />
-                                    <button type="submit" disabled={!newMessage.trim()} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
-                                        <Send size={20} />
-                                    </button>
+                                <form onSubmit={handleSendMessage} className="flex flex-col sm:flex-row gap-2 max-w-4xl mx-auto items-stretch sm:items-end">
+                                    <div className="flex-1 flex gap-2 items-end">
+                                        <textarea
+                                            value={newMessage}
+                                            onChange={(e) => setNewMessage(e.target.value)}
+                                            placeholder="Type a message..."
+                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[50px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
+                                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
+                                        />
+                                        <button type="submit" disabled={!newMessage.trim()} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
+                                            <Send size={20} />
+                                        </button>
+                                    </div>
 
                                     {currentUser?.id === activeChatData?.buyer_id && (
-                                        <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] shrink-0 whitespace-nowrap shadow-sm">
+                                        <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
                                             <Handshake size={14} /> Negotiate
                                         </button>
                                     )}
                                     {currentUser?.id === activeChatData?.seller_id && (
-                                        <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] shrink-0 whitespace-nowrap shadow-sm">
+                                        <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
                                             <Handshake size={14} /> Special Offer
                                         </button>
                                     )}
@@ -2712,6 +2715,7 @@ function MessagesInner() {
                 </div>
             </div>
         )}
+        </>
     );
 }
 

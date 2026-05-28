@@ -457,7 +457,7 @@ function CheckoutInner() {
             {isTopup ? (
               <>
                 {/* TOPUP SELECTION */}
-                <div className="bg-[#0f1115] p-10 rounded-[40px] shadow-2xl border border-white/5 relative overflow-hidden">
+                <div className="bg-[#0f1115] p-6 sm:p-10 rounded-[40px] shadow-2xl border border-white/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full -mr-48 -mt-48 blur-[100px] opacity-50" />
                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600/10 rounded-full -ml-32 -mb-32 blur-[80px] opacity-30" />
 
@@ -532,7 +532,7 @@ function CheckoutInner() {
               </>
             ) : (
               <>
-              <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+              <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
                 <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
                   {!hasShippable ? <ShieldCheck className="text-green-600" /> : <MapPin className="text-blue-600" />}
                   {!hasShippable ? 'Order Details' : 'Shipping Details'}
@@ -626,15 +626,7 @@ function CheckoutInner() {
 
               {/* SHIPPING METHOD SELECTION */}
               {hasShippable && (
-                <div
-                  style={{
-                    background: 'linear-gradient(135deg, #0d1117 0%, #161b27 100%)',
-                    border: '1px solid rgba(99,102,241,0.15)',
-                    borderRadius: '28px',
-                    padding: '32px',
-                    boxShadow: '0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)'
-                  }}
-                >
+                <div className="bg-gradient-to-br from-[#0d1117] to-[#161b27] border border-indigo-500/15 rounded-[28px] p-5 sm:p-8 shadow-2xl shadow-black/45">
                   <h2 style={{ color: '#fff', fontWeight: 900, fontSize: '14px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Truck size={16} style={{ color: '#fff' }} />
@@ -799,14 +791,7 @@ function CheckoutInner() {
 
                       {/* PICKUP POINT PANEL */}
                       {isPickupOption && (
-                        <div style={{
-                          marginTop: 12,
-                          background: 'linear-gradient(135deg, #0a0f1e 0%, #111827 100%)',
-                          border: '1px solid rgba(99,102,241,0.25)',
-                          borderRadius: '20px',
-                          padding: '20px',
-                          boxShadow: '0 4px 30px rgba(99,102,241,0.1), inset 0 1px 0 rgba(255,255,255,0.04)'
-                        }}>
+                        <div className="mt-3 bg-gradient-to-br from-[#0a0f1e] to-[#111827] border border-indigo-500/25 rounded-[20px] p-4 sm:p-5 shadow-lg shadow-indigo-500/10">
                           <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <h3 style={{ color: '#818cf8', fontWeight: 900, fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
@@ -895,7 +880,7 @@ function CheckoutInner() {
                 </div>
               )}
 
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+            <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
               <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
                 <Wallet className="text-blue-600" /> Payment Method
               </h2>
@@ -935,7 +920,7 @@ function CheckoutInner() {
           </div>
 
           <div className="w-full lg:w-96">
-            <div className="bg-white p-8 rounded-[40px] shadow-2xl border border-gray-100 sticky top-8">
+            <div className="bg-white p-6 sm:p-8 rounded-[40px] shadow-2xl border border-gray-100 sticky top-8">
               <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-2">
                 {isTopup ? <Wallet className="text-blue-600" /> : <Package className="text-blue-600" />}
                 {isTopup ? 'Wallet Summary' : 'Order Summary'}

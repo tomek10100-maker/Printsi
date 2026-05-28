@@ -256,7 +256,7 @@ function BillingContent() {
             </div>
 
             {/* TRANSACTION HISTORY */}
-            <div className={`${styles.cardBg} rounded-[40px] p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
+            <div className={`${styles.cardBg} rounded-[40px] p-5 sm:p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
               <h2 className={`text-xl font-black uppercase tracking-tight mb-10 flex items-center gap-2 ${styles.textTitle}`}>
                 <History size={20} className="text-blue-500" /> Transaction History
               </h2>
@@ -266,8 +266,8 @@ function BillingContent() {
                     <p className="font-bold uppercase tracking-widest text-xs">No transactions recorded</p>
                   </div>
                 ) : transactions.map(tx => (
-                  <div key={tx.id} className={`flex items-center justify-between p-6 border rounded-[28px] transition-all group ${styles.itemBg} ${styles.itemHover} ${styles.cardBorder}`}>
-                    <div className="flex items-center gap-6">
+                  <div key={tx.id} className={`flex items-center justify-between p-4 sm:p-6 gap-3 border rounded-[28px] transition-all group ${styles.itemBg} ${styles.itemHover} ${styles.cardBorder}`}>
+                    <div className="flex items-center gap-3 sm:gap-6">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? 'bg-emerald-500/10 text-emerald-400' :
                           tx.type === 'payout' ? 'bg-orange-500/10 text-orange-400' :
                             'bg-blue-500/10 text-blue-400'
@@ -301,7 +301,7 @@ function BillingContent() {
           {/* SIDEBAR - ONLY FOR SELLERS */}
           {isSeller && (
             <div className="space-y-8">
-              <div className={`${styles.cardBg} rounded-[40px] p-10 border ${styles.cardBorder} shadow-2xl relative overflow-hidden transition-all duration-700`}>
+              <div className={`${styles.cardBg} rounded-[40px] p-5 sm:p-10 border ${styles.cardBorder} shadow-2xl relative overflow-hidden transition-all duration-700`}>
                 <h3 className={`text-lg font-black mb-8 flex items-center gap-2 uppercase tracking-tight ${styles.textTitle}`}>
                   <ArrowUpRight className="text-blue-500" /> Payout
                 </h3>
@@ -314,7 +314,7 @@ function BillingContent() {
                 />
               </div>
 
-              <div className={`${styles.cardBg} rounded-[40px] p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
+              <div className={`${styles.cardBg} rounded-[40px] p-5 sm:p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
                 <h3 className={`text-lg font-black mb-8 flex items-center gap-2 uppercase tracking-tight ${styles.textTitle}`}>
                   <Shield className="text-blue-500" /> Security
                 </h3>

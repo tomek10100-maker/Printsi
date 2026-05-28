@@ -326,7 +326,7 @@ export default function ProfilePage() {
       <div className="max-w-5xl mx-auto px-6 pb-20">
 
         {/* HEADER */}
-        <div className="relative -mt-20 mb-12 flex flex-col md:flex-row items-end gap-8">
+        <div className="relative -mt-20 mb-12 flex flex-col md:flex-row items-center md:items-end text-center md:text-left gap-8">
           {/* AVATAR */}
           <div className="w-40 h-40 bg-white p-1 rounded-full shadow-2xl flex-shrink-0 relative group">
             <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl font-black text-gray-400 uppercase overflow-hidden">
@@ -339,16 +339,16 @@ export default function ProfilePage() {
           </div>
 
           {/* USER INFO & STATS */}
-          <div className="flex-1 mb-2 w-full">
+          <div className="flex-1 mb-2 w-full flex flex-col items-center md:items-start">
             <h1 className="text-4xl font-black text-gray-900">{profile?.full_name || 'Anonymous User'}</h1>
             <p className="text-gray-500 font-bold mb-6">Member since 2026</p>
 
             {/* --- BALANCE STATS --- */}
-            <div className="flex flex-wrap gap-6 bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl w-fit shadow-lg">
+            <div className="flex flex-col sm:flex-row flex-wrap items-center sm:items-stretch gap-6 bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl w-full sm:w-auto shadow-lg">
               {/* Total Earned from Sales — only for printer/cad roles */}
               {(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) && (
                 <>
-                  <div className="flex items-center gap-3 pr-6 border-r border-gray-200">
+                  <div className="flex items-center gap-3 pr-6 border-b sm:border-b-0 sm:border-r border-gray-200 pb-4 sm:pb-0 w-full sm:w-auto justify-center sm:justify-start">
                     <div className="p-2 bg-green-100 text-green-600 rounded-lg shadow-inner">
                       <TrendingUp size={20} />
                     </div>
@@ -360,7 +360,7 @@ export default function ProfilePage() {
                   </div>
 
                   {/* Pending Funds */}
-                  <div className="flex items-center gap-3 pr-6 border-r border-gray-200">
+                  <div className="flex items-center gap-3 pr-6 border-b sm:border-b-0 sm:border-r border-gray-200 pb-4 sm:pb-0 w-full sm:w-auto justify-center sm:justify-start">
                     <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg shadow-inner">
                       <Package size={20} />
                     </div>
@@ -374,7 +374,7 @@ export default function ProfilePage() {
               )}
 
               {/* Account Balance (available money, never below 0) */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start pt-2 sm:pt-0">
                 <div className={`p-2 rounded-lg shadow-inner ${netBalance > 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
                   <Wallet size={20} />
                 </div>
@@ -389,7 +389,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="flex gap-3 mb-4 flex-wrap">
+          <div className="flex gap-3 mb-4 flex-wrap justify-center md:justify-start">
             <button
               onClick={() => setTheme(theme === 'white' ? 'black' : theme === 'black' ? 'midnight' : 'white')}
               className="px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:border-purple-500 hover:text-purple-600 transition-all flex items-center gap-2 shadow-sm min-w-[140px] justify-center group overflow-hidden relative"

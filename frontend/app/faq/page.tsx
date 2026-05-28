@@ -182,7 +182,7 @@ export default function FAQPage() {
 
             {/* ── HERO ─────────────────────────────────────────── */}
             <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-                <div className="max-w-5xl mx-auto px-6 py-16">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
                     <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-10 font-bold uppercase text-[10px] tracking-widest transition-colors">
                         <ArrowLeft size={14} /> Back to Home
                     </Link>
@@ -211,7 +211,7 @@ export default function FAQPage() {
                 </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-6 py-12">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
 
                 {/* ── CATEGORY FILTERS ─────────────────────────── */}
                 <div className="flex flex-wrap gap-2 mb-10">
@@ -250,7 +250,7 @@ export default function FAQPage() {
                                 >
                                     <button
                                         onClick={() => toggle(i)}
-                                        className="w-full flex items-start gap-4 p-5 text-left group"
+                                        className="w-full flex items-start gap-4 p-4 sm:p-5 text-left group"
                                         aria-expanded={isOpen}
                                     >
                                         {/* Category badge */}
@@ -301,7 +301,7 @@ export default function FAQPage() {
                 </div>
 
                 {/* ── STILL NEED HELP ───────────────────────────── */}
-                <div className="mt-10 bg-gradient-to-r from-gray-900 to-gray-800 rounded-3xl p-8 text-white text-center">
+                <div className="mt-10 bg-gradient-to-r from-gray-900 to-gray-800 rounded-3xl p-6 sm:p-8 text-white text-center">
                     <Mail size={32} className="mx-auto text-blue-400 mb-4" />
                     <h3 className="text-2xl font-black uppercase tracking-tighter mb-2">Still have questions?</h3>
                     <p className="text-gray-400 font-medium mb-6 max-w-md mx-auto">
