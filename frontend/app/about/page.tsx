@@ -43,9 +43,35 @@ export default function AboutPage() {
               To democratize manufacturing. Whether you need a replacement part, a custom figurine, or a digital file to print at home, Printis is the bridge that makes it happen. We empower creators to earn from their passion.
             </p>
           </div>
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 md:col-span-2 mt-2">
+            <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
+              <span className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-sm">3</span>
+              Company Details (Demo Data)
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm font-medium text-gray-600">
+              <div>
+                <p className="font-black text-gray-900 uppercase tracking-widest mb-2 text-xs">Registered Address</p>
+                <p>Printis Global Sp. z o.o. (To Jest Fikcja)</p>
+                <p>ul. Wymyślona 404/2</p>
+                <p>00-000 Warszawa, Polska</p>
+              </div>
+              <div>
+                <p className="font-black text-gray-900 uppercase tracking-widest mb-2 text-xs">Legal Information</p>
+                <p><span className="text-gray-400 w-16 inline-block">NIP:</span> 1234567890 (Fake)</p>
+                <p><span className="text-gray-400 w-16 inline-block">REGON:</span> 000000000 (Fake)</p>
+                <p><span className="text-gray-400 w-16 inline-block">KRS:</span> 0000000000 (Fake)</p>
+                <p className="mt-2"><span className="text-gray-400 w-16 inline-block">Email:</span> hello@printis.demo</p>
+              </div>
+            </div>
+            <div className="mt-6 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+              <p className="text-xs text-orange-600 font-bold uppercase tracking-widest text-center">
+                This is a demo platform. The company details above are purely fictional for demonstration purposes.
+              </p>
+            </div>
+          </div>
         </div>
         
-        <div className="mt-8 text-center">
+        <div className="mt-12 text-center">
              <Link href="/gallery" className="inline-block px-8 py-4 bg-gray-900 text-white rounded-full font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl text-xs">
                 Explore the Gallery
              </Link>
