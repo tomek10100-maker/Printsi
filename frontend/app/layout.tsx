@@ -8,6 +8,7 @@ import NotificationToast from './components/NotificationToast';
 import GlobalToast from './components/GlobalToast';
 import { AuthGuard } from './components/AuthGuard';
 import { ErrorSuppressor } from './components/ErrorSuppressor';
+import CookieConsent from './components/CookieConsent';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -37,6 +38,8 @@ export default function RootLayout({
               <NotificationToast />
               {/* Global application alert toasts */}
               <GlobalToast />
+              {/* Cookie consent banner */}
+              <CookieConsent />
             </CurrencyProvider>
           </CartProvider>
         </ThemeProvider>

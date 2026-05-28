@@ -1291,7 +1291,7 @@ function MessagesInner() {
                                     </div>
                                     <p className="leading-snug">
                                         <span className="text-[#D40511] font-black uppercase tracking-wider block mb-0.5 text-[9px]">Important</span>
-                                        A DHL shipping label will be sent to your email shortly. Please print and attach it to the package.
+                                        A shipping label will be sent to your email shortly. Please print and attach it to the package.
                                     </p>
                                 </div>
                             )}
@@ -1300,7 +1300,7 @@ function MessagesInner() {
                                 className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
                             >
                                 {isDigital ? <Check size={14} className="inline mr-2 -mt-0.5" /> : <Truck size={14} className="inline mr-2 -mt-0.5" />}
-                                {isDigital ? 'Mark as Sent to Email' : 'Mark as Shipped via DHL'}
+                                {isDigital ? 'Mark as Sent to Email' : 'Mark as Shipped'}
                             </button>
                         </div>
                     </div>
@@ -1338,10 +1338,10 @@ function MessagesInner() {
                             </p>
                             <p className="text-xs text-gray-500 font-medium mb-4">
                                 {isJob
-                                    ? "The printer has shipped your item via DHL. Have you received it? Confirm delivery below."
+                                    ? "The printer has shipped your item. Have you received it? Confirm delivery below."
                                     : isDigital
                                         ? "The seller reported that files were sent to your email. Do you accept the delivery?"
-                                        : "The seller has shipped your order via DHL. Have you received the package? Confirm delivery below."}
+                                        : "The seller has shipped your order. Have you received the package? Confirm delivery below."}
                             </p>
                             <div className="flex gap-3 justify-center">
                                 <button
@@ -1534,12 +1534,6 @@ function MessagesInner() {
                                             <Link href={`/offer/${activeChatData.offer_id}`} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 w-fit">
                                                 <Package size={12} /> {activeChatData.offers?.title}
                                             </Link>
-                                            {activeChatData.offers?.category !== 'digital' && (
-                                                <div className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 animate-in fade-in">
-                                                    <Truck size={12} className="text-blue-500" />
-                                                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">DHL Shipping</span>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -2347,26 +2341,6 @@ function MessagesInner() {
 
                             <div className="p-4 bg-white border-t border-gray-100 shrink-0">
                                 <form onSubmit={handleSendMessage} className="flex gap-2 max-w-4xl mx-auto items-end">
-                                    {activeChatData?.orderItem && activeChatData.offers?.category !== 'digital' && (
-                                        activeChatData.orderItem.tracking_code ? (
-                                            <a
-                                                href={`https://www.dhl.com/pl-pl/home/tracking.html?tracking-id=${activeChatData.orderItem.tracking_code}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="group relative flex flex-col items-center justify-center h-[50px] w-[60px] rounded-xl bg-gray-900 border border-gray-800 text-white shadow hover:shadow-lg hover:-translate-y-0.5 transition-all shrink-0 overflow-hidden"
-                                                title={`Track DHL: ${activeChatData.orderItem.tracking_code}`}
-                                            >
-                                                <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                <Truck size={20} strokeWidth={2} className="relative z-10 mb-0.5 text-[#FFCC00]" />
-                                                <span className="relative z-10 text-[8px] uppercase tracking-widest leading-none font-bold text-gray-300 group-hover:text-white transition-colors">Track</span>
-                                            </a>
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center h-[50px] w-[60px] rounded-xl bg-gray-50/50 border border-dashed border-gray-200 text-gray-400 shrink-0" title="Waiting for DHL tracking code">
-                                                <Truck size={20} strokeWidth={1.5} className="mb-0.5 opacity-40" />
-                                                <span className="text-[8px] uppercase tracking-widest leading-none font-bold opacity-60">Status</span>
-                                            </div>
-                                        )
-                                    )}
                                     <textarea
                                         value={newMessage}
                                         onChange={(e) => setNewMessage(e.target.value)}
