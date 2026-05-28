@@ -131,7 +131,7 @@ export default function BankConnect({ profile, onSaved, sessionToken, theme = 'w
     <div className="relative">
       {/* Toast */}
       {toast && (
-        <div className={`absolute -top-2 left-0 right-0 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300 ${
+        <div className={`absolute bottom-full mb-3 left-0 right-0 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300 ${
           toast.type === 'success'
             ? 'bg-emerald-500/15 border border-emerald-500/20 text-emerald-400'
             : 'bg-red-500/15 border border-red-500/20 text-red-400'
