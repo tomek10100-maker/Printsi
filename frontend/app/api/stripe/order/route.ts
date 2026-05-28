@@ -49,6 +49,7 @@ export async function POST(req: Request) {
                 total_amount: Number(totalEur) || 0,
                 status: 'paid',
                 stripe_payment_intent_id: sessionId,
+                shipping_cost_eur: Number(shippingCostEur) || 0,
             })
             .select()
             .single();

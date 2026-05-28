@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -74,6 +74,16 @@ function MessagesInner() {
     const [disputeDescription, setDisputeDescription] = useState('');
     const [disputeEmail, setDisputeEmail] = useState('');
     const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+
+    // Cancel Modal State
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelInitiator, setCancelInitiator] = useState<'seller' | 'buyer'>('seller');
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelSubmitting, setCancelSubmitting] = useState(false);
+    const [cancelRespondSubmitting, setCancelRespondSubmitting] = useState(false);
+    // For buyer cancel: store shipping info fetched from order
+    const [cancelShippingEur, setCancelShippingEur] = useState(0);
+    const [cancelItemTotalEur, setCancelItemTotalEur] = useState(0);
 
     // Tracking code state
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
@@ -461,6 +471,78 @@ function MessagesInner() {
             alert(`Failed back-end: ${errorData.error || 'Unknown error'}`);
         }
     };
+
+    // ── CANCEL ORDER ─────────────────────────────────────────────
+    const openCancelModal = async (initiator: 'seller' | 'buyer') => {
+        if (!activeChatData?.orderItem) return;
+        setCancelInitiator(initiator);
+        setCancelReason('');
+        // Fetch shipping cost from order for buyer warning
+        if (initiator === 'buyer') {
+            try {
+                const orderId = activeChatData.order_id;
+                const { data: ord } = await supabase.from('orders').select('shipping_cost_eur').eq('id', orderId).maybeSingle();
+                setCancelShippingEur(Number(ord?.shipping_cost_eur) || 0);
+                setCancelItemTotalEur(activeChatData.orderItem.price_at_purchase * (activeChatData.orderItem.quantity || 1));
+            } catch { setCancelShippingEur(0); }
+        }
+        setShowCancelModal(true);
+    };
+
+    const handleCancelOrder = async () => {
+        if (!activeChatData?.orderItem || !currentUser || cancelReason.trim().length < 5) return;
+        setCancelSubmitting(true);
+        try {
+            const res = await fetch('/api/order/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    itemId: activeChatData.orderItem.id,
+                    chatId: activeChatId,
+                    userId: currentUser.id,
+                    initiator: cancelInitiator,
+                    reason: cancelReason.trim(),
+                }),
+            });
+            if (res.ok) {
+                const newStatus = cancelInitiator === 'seller' ? 'cancelled' : 'cancellation_requested';
+                setChats(prev => prev.map(c =>
+                    c.id === activeChatId ? { ...c, orderItem: { ...c.orderItem, status: newStatus } } : c
+                ));
+                setShowCancelModal(false);
+                setCancelReason('');
+                loadMessages(activeChatId as string);
+            } else {
+                const d = await res.json();
+                setFormError(d.error || 'Failed to cancel order');
+            }
+        } catch { setFormError('Network error'); }
+        setCancelSubmitting(false);
+    };
+
+    const handleCancelResponse = async (accept: boolean, itemId: string) => {
+        if (!currentUser) return;
+        setCancelRespondSubmitting(true);
+        try {
+            const res = await fetch('/api/order/cancel/respond', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ itemId, chatId: activeChatId, userId: currentUser.id, accept }),
+            });
+            if (res.ok) {
+                const newStatus = accept ? 'cancelled' : 'disputed';
+                setChats(prev => prev.map(c =>
+                    c.id === activeChatId ? { ...c, orderItem: { ...c.orderItem, status: newStatus } } : c
+                ));
+                loadMessages(activeChatId as string);
+            } else {
+                const d = await res.json();
+                setFormError(d.error || 'Failed to respond');
+            }
+        } catch { setFormError('Network error'); }
+        setCancelRespondSubmitting(false);
+    };
+    // ─────────────────────────────────────────────────────────────
 
     const parseDimensionsAdvanced = (dimStr: string): ParsedDim[] => {
         let parsed: ParsedDim[] = [];
@@ -1217,13 +1299,40 @@ function MessagesInner() {
                 label: 'Dispute Opened',
                 accent: 'from-red-500 to-orange-500',
             },
+            status_cancelled: {
+                bg: 'bg-gradient-to-r from-slate-50 to-gray-100/80',
+                border: 'border-slate-300',
+                icon: <Ban size={16} />,
+                iconColor: 'text-slate-500',
+                label: 'Order Cancelled',
+                accent: 'from-slate-500 to-gray-600',
+            },
+            cancellation_request: {
+                bg: 'bg-gradient-to-r from-orange-50 to-amber-50/50',
+                border: 'border-orange-200',
+                icon: <AlertTriangle size={16} />,
+                iconColor: 'text-orange-500',
+                label: 'Cancellation Request',
+                accent: 'from-orange-500 to-amber-500',
+            },
         };
 
         const style = typeStyles[messageType] || typeStyles.system;
         let disputeData: any = null;
+        let cancelData: any = null;
+        let cancelRequestData: any = null;
+
         if (messageType === 'dispute_opened') {
             try { disputeData = JSON.parse(msg.content); } catch { }
         }
+        if (messageType === 'status_cancelled') {
+            try { cancelData = JSON.parse(msg.content); } catch { }
+        }
+        if (messageType === 'cancellation_request') {
+            try { cancelRequestData = JSON.parse(msg.content); } catch { }
+        }
+
+        const isSeller = activeChatData && String(currentUser?.id) === String(activeChatData.seller_id);
 
         return (
             <div key={msg.id || idx} className="flex justify-center my-5 px-4">
@@ -1235,7 +1344,7 @@ function MessagesInner() {
                             {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </span>
                     </div>
-                    <div className="px-4 py-3">
+                    <div className="px-4 py-3 space-y-3">
                         {disputeData ? (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
@@ -1243,6 +1352,84 @@ function MessagesInner() {
                                     <span className="text-sm font-bold text-slate-800">{disputeData.problemType}</span>
                                 </div>
                                 <p className="text-sm text-slate-600 font-medium leading-relaxed">{disputeData.description}</p>
+                            </div>
+                        ) : cancelData ? (
+                            // ── CANCELLED message ──
+                            <div className="space-y-2">
+                                {cancelData.type === 'seller_cancelled' ? (
+                                    <>
+                                        <p className="text-sm font-black text-slate-800">😔 We're sorry — the seller has cancelled this order.</p>
+                                        <p className="text-xs text-slate-500 font-medium">Reason: <span className="italic">"{cancelData.reason}"</span></p>
+                                        <div className="flex items-center gap-2 mt-2 p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
+                                            <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                                            <span className="text-xs font-black text-emerald-700">Full refund of €{Number(cancelData.refund_eur).toFixed(2)} credited to your Printis Wallet.</span>
+                                        </div>
+                                    </>
+                                ) : cancelData.type === 'seller_accepted_cancel' ? (
+                                    <>
+                                        <p className="text-sm font-black text-slate-800">✅ Cancellation confirmed by seller.</p>
+                                        <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 space-y-1">
+                                            <div className="flex justify-between text-xs font-bold text-slate-600">
+                                                <span>Refund issued:</span>
+                                                <span className="text-emerald-700 font-black">€{Number(cancelData.refund_eur).toFixed(2)}</span>
+                                            </div>
+                                            {cancelData.shipping_deducted_eur > 0 && (
+                                                <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                                                    <span>Shipping (non-refundable):</span>
+                                                    <span>−€{Number(cancelData.shipping_deducted_eur).toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            <p className="text-[10px] text-emerald-600 font-bold pt-1">Amount credited to your Printis Wallet.</p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-sm font-bold text-slate-700">Order has been cancelled.</p>
+                                )}
+                            </div>
+                        ) : cancelRequestData ? (
+                            // ── CANCELLATION REQUEST message ──
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-sm font-black text-slate-800 mb-1">⚠️ The buyer has requested to cancel this order.</p>
+                                    <p className="text-xs text-slate-500 font-medium">Reason: <span className="italic">"{cancelRequestData.reason}"</span></p>
+                                </div>
+                                <div className="p-3 bg-white rounded-xl border border-orange-200 space-y-1.5">
+                                    <div className="flex justify-between text-xs font-bold text-slate-600">
+                                        <span>Item total:</span><span>€{Number(cancelRequestData.item_total_eur).toFixed(2)}</span>
+                                    </div>
+                                    {cancelRequestData.shipping_cost_eur > 0 && (
+                                        <div className="flex justify-between text-xs font-bold text-slate-400">
+                                            <span>Shipping (non-refundable):</span><span>−€{Number(cancelRequestData.shipping_cost_eur).toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between text-xs font-black text-emerald-700 border-t border-orange-100 pt-1.5">
+                                        <span>Buyer would receive:</span><span>€{Number(cancelRequestData.refund_eur).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                                {/* Only seller sees Accept/Decline — and only when item is still cancellation_requested */}
+                                {isSeller && activeChatData?.orderItem?.status === 'cancellation_requested' && (
+                                    <div className="flex gap-2 pt-1">
+                                        <button
+                                            onClick={() => handleCancelResponse(true, cancelRequestData.item_id)}
+                                            disabled={cancelRespondSubmitting}
+                                            className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                        >
+                                            {cancelRespondSubmitting ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                            Accept Cancellation
+                                        </button>
+                                        <button
+                                            onClick={() => handleCancelResponse(false, cancelRequestData.item_id)}
+                                            disabled={cancelRespondSubmitting}
+                                            className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                        >
+                                            {cancelRespondSubmitting ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                                            Decline + Dispute
+                                        </button>
+                                    </div>
+                                )}
+                                {!isSeller && (
+                                    <p className="text-[11px] font-black text-orange-600 uppercase tracking-wide text-center">⏳ Awaiting seller's response...</p>
+                                )}
                             </div>
                         ) : (
                             <p className="text-sm text-slate-800 font-bold leading-relaxed">{msg.content}</p>
@@ -1378,21 +1565,72 @@ function MessagesInner() {
             );
         }
 
-        if (status === 'completed' || status === 'disputed') {
+        if (status === 'completed' || status === 'disputed' || status === 'cancelled') {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className={`w-full max-w-md rounded-2xl p-4 text-center ${status === 'completed' ? 'bg-green-50/80 border border-green-100' : 'bg-red-50/80 border border-red-100'
+                        <div className={`w-full max-w-md rounded-2xl p-4 text-center ${
+                            status === 'completed' ? 'bg-green-50/80 border border-green-100' :
+                            status === 'cancelled' ? 'bg-slate-50/80 border border-slate-200' :
+                            'bg-red-50/80 border border-red-100'
+                        }`}>
+                            <p className={`text-xs font-black uppercase tracking-widest ${
+                                status === 'completed' ? 'text-green-600' :
+                                status === 'cancelled' ? 'text-slate-500' :
+                                'text-red-600'
                             }`}>
-                            <p className={`text-xs font-black uppercase tracking-widest ${status === 'completed' ? 'text-green-600' : 'text-red-600'
-                                }`}>
-                                {status === 'completed' ? '✅ Transaction Finalized' : '⚠️ Dispute Open — Funds on hold'}
+                                {status === 'completed' ? '✅ Transaction Finalized' :
+                                 status === 'cancelled' ? '🚫 Order Cancelled' :
+                                 '⚠️ Dispute Open — Funds on hold'}
                             </p>
                         </div>
                     </div>
                 </div>
             );
         }
+
+        // ── CANCELLATION REQUESTED — buyer waiting ──
+        if (status === 'cancellation_requested') {
+            return (
+                <div className="flex justify-center my-4 px-4 w-full">
+                    <div className="w-full max-w-md bg-orange-50/80 border border-orange-200 rounded-2xl p-4 text-center">
+                        <p className="text-xs font-bold text-orange-700">
+                            ⏳ Cancellation request sent — waiting for the seller's response.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // ── CANCEL BUTTONS (physical & job only, non-terminal statuses) ──
+        const canShowCancelButtons = !isDigital && !['completed', 'disputed', 'cancelled'].includes(status);
+        if (canShowCancelButtons) {
+            return (
+                <div className="flex justify-center my-2 px-4 w-full">
+                    <div className="w-full max-w-md">
+                        {/* Seller cancel button — available at pending OR shipped */}
+                        {isSeller && ['pending', 'shipped'].includes(status) && (
+                            <button
+                                onClick={() => openCancelModal('seller')}
+                                className="w-full mt-2 py-2.5 border-2 border-dashed border-red-200 rounded-xl text-xs font-black uppercase tracking-wider text-red-400 hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Ban size={13} /> Cancel Order
+                            </button>
+                        )}
+                        {/* Buyer cancel request — only at pending (not after shipped) */}
+                        {isBuyer && status === 'pending' && (
+                            <button
+                                onClick={() => openCancelModal('buyer')}
+                                className="w-full mt-2 py-2.5 border-2 border-dashed border-orange-200 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Ban size={13} /> Request Cancellation
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
         return null;
     };
 
@@ -2369,6 +2607,111 @@ function MessagesInner() {
                 </div>
             </div>
         </main>
+
+        {/* ─── CANCEL ORDER MODAL ─────────────────────────────────── */}
+        {showCancelModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowCancelModal(false)}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+
+                    {/* Header */}
+                    <div className={`px-6 py-5 flex items-center gap-3 ${cancelInitiator === 'seller' ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-orange-500 to-amber-500'}`}>
+                        <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                            <Ban size={20} className="text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-white font-black text-base uppercase tracking-tight">
+                                {cancelInitiator === 'seller' ? 'Cancel This Order' : 'Request Cancellation'}
+                            </h2>
+                            <p className="text-white/70 text-[11px] font-bold">
+                                {cancelInitiator === 'seller' ? 'This action cannot be undone' : 'The seller must agree to proceed'}
+                            </p>
+                        </div>
+                        <button onClick={() => setShowCancelModal(false)} className="ml-auto text-white/70 hover:text-white transition-colors">
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                        {/* SELLER CANCEL: warning about full refund */}
+                        {cancelInitiator === 'seller' && (
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
+                                <p className="text-sm font-black text-red-700 mb-1">⚠️ Important before you cancel:</p>
+                                <ul className="text-xs text-red-600 font-medium space-y-1 list-disc list-inside">
+                                    <li>The buyer will receive a <strong>full refund</strong> to their Printis Wallet.</li>
+                                    <li>Your seller reliability score may be affected.</li>
+                                    <li>Repeated cancellations may lead to account review.</li>
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* BUYER CANCEL: shipping cost warning */}
+                        {cancelInitiator === 'buyer' && (
+                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+                                <p className="text-sm font-black text-amber-800">📦 Shipping has already been paid.</p>
+                                <div className="space-y-1.5 text-xs font-bold">
+                                    <div className="flex justify-between text-slate-600">
+                                        <span>Item total:</span>
+                                        <span>€{cancelItemTotalEur.toFixed(2)}</span>
+                                    </div>
+                                    {cancelShippingEur > 0 && (
+                                        <div className="flex justify-between text-red-500">
+                                            <span>Shipping (non-refundable):</span>
+                                            <span>−€{cancelShippingEur.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between text-emerald-700 font-black border-t border-amber-200 pt-1.5">
+                                        <span>You would receive back:</span>
+                                        <span>€{Math.max(0, cancelItemTotalEur - cancelShippingEur).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-amber-600 font-bold">The seller must accept your request. If they decline, a dispute will be opened.</p>
+                            </div>
+                        )}
+
+                        {/* Reason input */}
+                        <div>
+                            <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
+                                Reason for cancellation <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                value={cancelReason}
+                                onChange={e => setCancelReason(e.target.value)}
+                                placeholder={cancelInitiator === 'seller'
+                                    ? 'e.g. Material out of stock, printer malfunction, unable to fulfil order...'
+                                    : 'e.g. Changed my mind, ordered by mistake, found another seller...'}
+                                rows={3}
+                                className="w-full p-3 border-2 border-gray-100 bg-gray-50 rounded-2xl focus:border-red-400 focus:bg-white outline-none transition-all text-sm font-medium text-gray-800 placeholder:text-gray-300 resize-none"
+                            />
+                            {cancelReason.trim().length > 0 && cancelReason.trim().length < 5 && (
+                                <p className="text-[11px] text-red-500 font-bold mt-1">Please provide a more detailed reason (min. 5 characters)</p>
+                            )}
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex gap-3 pt-1">
+                            <button
+                                onClick={() => setShowCancelModal(false)}
+                                className="flex-1 py-3 border-2 border-gray-200 rounded-2xl text-xs font-black uppercase tracking-widest text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-all"
+                            >
+                                Keep Order
+                            </button>
+                            <button
+                                onClick={handleCancelOrder}
+                                disabled={cancelSubmitting || cancelReason.trim().length < 5}
+                                className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                    cancelInitiator === 'seller'
+                                        ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-red-500/20'
+                                        : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/20'
+                                }`}
+                            >
+                                {cancelSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+                                {cancelInitiator === 'seller' ? 'Cancel & Refund' : 'Send Request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
     );
 }
 
