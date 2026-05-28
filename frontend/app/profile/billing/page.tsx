@@ -237,7 +237,7 @@ function BillingContent() {
                     <Sparkles size={24} />
                   </div>
                   <p className="text-[11px] uppercase font-black tracking-[0.2em] mb-2 text-white/70">Available Balance</p>
-                  <p className="text-2xl md:text-xl lg:text-2xl xl:text-3xl font-black tracking-tighter text-white text-center w-full max-w-full overflow-hidden text-ellipsis whitespace-nowrap leading-tight px-2">{formatPrice(Math.max(0, netBalance))}</p>
+                  <p className="text-3xl md:text-xl lg:text-2xl xl:text-4xl font-black tracking-tighter text-white text-center w-full leading-none">{formatPrice(Math.max(0, netBalance))}</p>
                 </div>
                 <div className="relative z-10 flex items-center gap-4">
                   <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
@@ -346,7 +346,7 @@ function StatCard({ styles, icon, label, value, color, subtitle }: any) {
       <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mb-10 shadow-lg ${colorStyles[color]}`}>{icon}</div>
       <div>
         <p className={`text-[11px] uppercase font-black tracking-[0.2em] mb-2 ${styles.textMuted}`}>{label}</p>
-        <p className={`text-xl sm:text-2xl lg:text-3xl font-black tracking-tighter whitespace-nowrap overflow-hidden text-ellipsis max-w-full ${styles.textTitle}`}>{value}</p>
+        <p className={`text-2xl md:text-xl lg:text-3xl font-black tracking-tighter leading-none ${styles.textTitle}`}>{value}</p>
         {subtitle && <p className={`text-[10px] font-bold mt-2 uppercase tracking-wide ${styles.textMuted}`}>{subtitle}</p>}
       </div>
     </div>
