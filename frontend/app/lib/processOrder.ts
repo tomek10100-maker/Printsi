@@ -244,6 +244,7 @@ export async function processOrder(orderId: string, userId: string) {
       .eq('buyer_id', userId)
       .eq('seller_id', sellerId)
       .eq('offer_id', chatOfferId)
+      .is('order_id', null)
       .maybeSingle();
 
     let chatId = existingChat?.id;
