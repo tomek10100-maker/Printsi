@@ -242,7 +242,8 @@ function MessagesInner() {
             const otherUserId = paramSellerId || paramBuyerId;
             const existing = filteredChats.find(c =>
                 ((c.seller_id === paramSellerId && c.buyer_id === userId) || (c.buyer_id === paramBuyerId && c.seller_id === userId)) &&
-                c.offer_id === paramOfferId
+                c.offer_id === paramOfferId &&
+                !c.order_id
             );
 
             if (existing) {
@@ -2594,14 +2595,24 @@ function MessagesInner() {
                                     </div>
 
                                     {currentUser?.id === activeChatData?.buyer_id && (
-                                        <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                            <Handshake size={14} /> Negotiate
-                                        </button>
+                                        <>
+                                            <button type="button" onClick={() => openCancelModal('buyer')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                <Ban size={14} /> Cancel
+                                            </button>
+                                            <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                <Handshake size={14} /> Negotiate
+                                            </button>
+                                        </>
                                     )}
                                     {currentUser?.id === activeChatData?.seller_id && (
-                                        <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                            <Handshake size={14} /> Special Offer
-                                        </button>
+                                        <>
+                                            <button type="button" onClick={() => openCancelModal('seller')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                <Ban size={14} /> Cancel
+                                            </button>
+                                            <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                <Handshake size={14} /> Special Offer
+                                            </button>
+                                        </>
                                     )}
                                 </form>
                             </div>

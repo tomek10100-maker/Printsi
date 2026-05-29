@@ -129,10 +129,16 @@ export async function POST(req: Request) {
 
     // 7. Trigger chat creation + stock deduction + seller notifications
     console.log('🔄 Processing order post-payment logic...');
+    let chatId: string | null = null;
     try {
       const confirmResult = await processOrder(newOrder.id, userId);
       if (!confirmResult.success) {
         console.error('⚠️ Order confirm step had issues:', confirmResult);
+      } else {
+        const chatResult = confirmResult.results?.find((r: string) => r.startsWith('chat_created:') || r.startsWith('chat_updated:'));
+        if (chatResult) {
+          chatId = chatResult.split(':')[1];
+        }
       }
     } catch (confirmErr) {
       console.error('⚠️ Order confirm threw error:', confirmErr);
@@ -140,8 +146,7 @@ export async function POST(req: Request) {
     }
 
     console.log('🎉 Balance checkout complete!');
-    return NextResponse.json({ success: true, orderId: newOrder.id });
-
+    return NextResponse.json({ success: true, orderId: newOrder.id, chatId });
   } catch (error: any) {
     console.error('❌ Balance Checkout Error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

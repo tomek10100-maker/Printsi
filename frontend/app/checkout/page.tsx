@@ -403,7 +403,7 @@ function CheckoutInner() {
           cart.clearCart();
 
           // Sukces płatności balansem - przekierowanie do wiadomości lub zamówień
-          window.location.href = `/profile/messages`;
+          window.location.href = data.chatId ? `/profile/messages?chat=${data.chatId}` : `/profile/messages`;
         } else {
           alert('Error: ' + data.error);
           setLoading(false);

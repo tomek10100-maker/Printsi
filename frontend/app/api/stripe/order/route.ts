@@ -33,12 +33,17 @@ export async function POST(req: Request) {
         if (existing) {
             console.log('ℹ️ Order already exists for session:', sessionId);
             // Still trigger confirm in case chats weren't created
-        try {
-          await processOrder(existing.id, userId);
-        } catch (e) {
-          console.error('⚠️ processOrder error on existing order:', e);
-        }
-        return NextResponse.json({ success: true, orderId: existing.id, alreadyExisted: true });
+            let chatId: string | null = null;
+            try {
+              const confirmResult = await processOrder(existing.id, userId);
+              const chatResult = confirmResult.results?.find((r: string) => r.startsWith('chat_created:') || r.startsWith('chat_updated:'));
+              if (chatResult) {
+                chatId = chatResult.split(':')[1];
+              }
+            } catch (e) {
+              console.error('⚠️ processOrder error on existing order:', e);
+            }
+            return NextResponse.json({ success: true, orderId: existing.id, alreadyExisted: true, chatId });
         }
 
         // 1. Create order
@@ -82,16 +87,22 @@ export async function POST(req: Request) {
         }
 
         // 3. Trigger chat creation + stock + notifications
+        let chatId: string | null = null;
         try {
           const confirmResult = await processOrder(newOrder.id, userId);
           if (!confirmResult.success) {
             console.error('⚠️ Order confirm step issues:', confirmResult);
+          } else {
+            const chatResult = confirmResult.results?.find((r: string) => r.startsWith('chat_created:') || r.startsWith('chat_updated:'));
+            if (chatResult) {
+              chatId = chatResult.split(':')[1];
+            }
           }
         } catch (confirmErr) {
           console.error('⚠️ Order confirm threw error:', confirmErr);
         }
 
-        return NextResponse.json({ success: true, orderId: newOrder.id });
+        return NextResponse.json({ success: true, orderId: newOrder.id, chatId });
 
     } catch (error: any) {
         console.error('❌ Stripe order creation error:', error);

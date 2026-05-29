@@ -24,6 +24,7 @@ function SuccessContent() {
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [paidDisplay, setPaidDisplay] = useState<{ amount: number, currency: string } | null>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
   const confirmed = useRef(false);
 
   const isTopup = type === 'topup';
@@ -84,6 +85,9 @@ function SuccessContent() {
 
         const data = await response.json();
         if (data.success || data.orderId) {
+          if (data.chatId) {
+            setChatId(data.chatId);
+          }
           clearCart();
           setStatus('done');
         } else {
@@ -148,7 +152,7 @@ function SuccessContent() {
       </p>
 
       <div className="space-y-4 relative z-10">
-        <Link href={isTopup ? "/profile/billing" : "/profile/messages"} className={`flex items-center justify-center gap-2 w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95 ${isTopup ? 'bg-white text-gray-900 hover:bg-blue-600 hover:text-white' : 'bg-gray-900 text-white hover:bg-blue-600'}`}>
+        <Link href={isTopup ? "/profile/billing" : (chatId ? `/profile/messages?chat=${chatId}` : "/profile/messages")} className={`flex items-center justify-center gap-2 w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95 ${isTopup ? 'bg-white text-gray-900 hover:bg-blue-600 hover:text-white' : 'bg-gray-900 text-white hover:bg-blue-600'}`}>
           {isTopup ? <CheckCircle size={18} /> : <MessageCircle size={18} />} {isTopup ? 'Back to Billing' : 'View Order Chat'}
         </Link>
         <Link href={isTopup ? "/gallery" : "/"} className={`flex items-center justify-center gap-2 w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 ${isTopup ? 'bg-white/5 text-white border border-white/10 hover:bg-white/10' : 'bg-white text-gray-900 border-2 border-gray-100 hover:border-gray-300'}`}>
