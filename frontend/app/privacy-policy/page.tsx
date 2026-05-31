@@ -5,96 +5,96 @@ import { ArrowLeft, Shield, Lock, FileText, Database, Eye, Server } from 'lucide
 export default function PrivacyPolicyPage() {
     const sections = [
         {
-            id: 'postanowienia-ogolne',
-            title: '1. Postanowienia ogólne',
+            id: 'general-provisions',
+            title: '1. General Provisions',
             icon: <FileText size={20} />,
             content: (
                 <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
                     <p>
-                        Niniejsza Polityka Prywatności określa zasady przetwarzania i ochrony danych osobowych przekazanych przez Użytkowników w związku z korzystaniem z platformy Printis (printis.store).
+                        This Privacy Policy sets out the rules for the processing and protection of personal data provided by Users in connection with their use of the Printis platform (printis.store).
                     </p>
                     <p>
-                        Szanujemy prawo do prywatności i dbamy o bezpieczeństwo danych. W tym celu używany jest m.in. bezpieczny protokół szyfrowania komunikacji (SSL).
+                        We respect your right to privacy and care about data security. For this purpose, we use, among other things, a secure communication encryption protocol (SSL).
                     </p>
                 </div>
             )
         },
         {
-            id: 'administrator',
-            title: '2. Administrator Danych Osobowych',
+            id: 'data-controller',
+            title: '2. Data Controller',
             icon: <Shield size={20} />,
             content: (
                 <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
                     <p>
-                        Administratorem Państwa danych osobowych jest Printis. We wszelkich sprawach związanych z przetwarzaniem danych osobowych można kontaktować się z nami za pośrednictwem adresu e-mail: <strong>kontakt@printis.store</strong>.
+                        The controller of your personal data is Printis. For all matters related to the processing of personal data, you can contact us via email at: <strong>kontakt@printis.store</strong>.
                     </p>
                 </div>
             )
         },
         {
-            id: 'cel-przetwarzania',
-            title: '3. Cel i podstawy przetwarzania danych',
+            id: 'purpose-and-basis',
+            title: '3. Purpose and Basis of Processing',
             icon: <Database size={20} />,
             content: (
                 <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
-                    <p>Państwa dane osobowe przetwarzane są w następujących celach:</p>
+                    <p>Your personal data is processed for the following purposes:</p>
                     <ul className="list-disc pl-5 space-y-2">
-                        <li>Świadczenie usług drogą elektroniczną (np. rejestracja konta, obsługa zamówień) – na podstawie art. 6 ust. 1 lit. b RODO.</li>
-                        <li>Obsługa komunikacji i zapytań przez czat i formularze kontaktowe – na podstawie art. 6 ust. 1 lit. f RODO.</li>
-                        <li>Wypełnienie obowiązków prawnych ciążących na Administratorze (np. księgowych i podatkowych) – na podstawie art. 6 ust. 1 lit. c RODO.</li>
-                        <li>Marketingowych i analitycznych (np. newsletter, ulepszanie platformy) – na podstawie art. 6 ust. 1 lit. a i f RODO.</li>
+                        <li>Providing electronic services (e.g., account registration, order processing) – based on Art. 6(1)(b) of the GDPR.</li>
+                        <li>Handling communication and inquiries via chat and contact forms – based on Art. 6(1)(f) of the GDPR.</li>
+                        <li>Fulfilling the legal obligations incumbent on the Controller (e.g., accounting and tax purposes) – based on Art. 6(1)(c) of the GDPR.</li>
+                        <li>Marketing and analytical purposes (e.g., newsletter, platform improvement) – based on Art. 6(1)(a) and (f) of the GDPR.</li>
                     </ul>
                 </div>
             )
         },
         {
-            id: 'odbiorcy-danych',
-            title: '4. Odbiorcy danych',
+            id: 'data-recipients',
+            title: '4. Data Recipients',
             icon: <Server size={20} />,
             content: (
                 <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
                     <p>
-                        Dla prawidłowego funkcjonowania platformy Printis, korzystamy z usług podmiotów zewnętrznych, którym mogą zostać przekazane Państwa dane. Należą do nich:
+                        For the proper functioning of the Printis platform, we use the services of external entities to whom your data may be transferred. These include:
                     </p>
                     <ul className="list-disc pl-5 space-y-2">
-                        <li>Dostawcy usług płatniczych (obsługa escrow i płatności).</li>
-                        <li>Firmy kurierskie i logistyczne (w celu dostarczenia fizycznych zamówień).</li>
-                        <li>Dostawcy usług hostingowych i narzędzi analitycznych.</li>
+                        <li>Payment service providers (handling escrow and payments).</li>
+                        <li>Courier and logistics companies (in order to deliver physical orders).</li>
+                        <li>Hosting service providers and analytical tools.</li>
                     </ul>
-                    <p>Wszystkie te podmioty przetwarzają dane na podstawie odpowiednich umów powierzenia przetwarzania danych.</p>
+                    <p>All these entities process data on the basis of appropriate data processing agreements.</p>
                 </div>
             )
         },
         {
-            id: 'prawa',
-            title: '5. Prawa Użytkowników',
+            id: 'user-rights',
+            title: '5. User Rights',
             icon: <Eye size={20} />,
             content: (
                 <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
-                    <p>Zgodnie z przepisami RODO, posiadają Państwo następujące prawa:</p>
+                    <p>In accordance with GDPR regulations, you have the following rights:</p>
                     <ul className="list-disc pl-5 space-y-2">
-                        <li>Prawo dostępu do swoich danych oraz otrzymania ich kopii.</li>
-                        <li>Prawo do sprostowania (poprawiania) swoich danych.</li>
-                        <li>Prawo do usunięcia danych ("prawo do bycia zapomnianym").</li>
-                        <li>Prawo do ograniczenia przetwarzania danych.</li>
-                        <li>Prawo do przenoszenia danych.</li>
-                        <li>Prawo do wniesienia sprzeciwu wobec przetwarzania.</li>
+                        <li>The right to access your data and receive a copy of it.</li>
+                        <li>The right to rectify (correct) your data.</li>
+                        <li>The right to erase data (the "right to be forgotten").</li>
+                        <li>The right to restrict data processing.</li>
+                        <li>The right to data portability.</li>
+                        <li>The right to object to processing.</li>
                     </ul>
-                    <p>Aby skorzystać ze swoich praw, prosimy o kontakt pod adresem e-mail: <strong>kontakt@printis.store</strong>.</p>
+                    <p>To exercise your rights, please contact us at the following email address: <strong>kontakt@printis.store</strong>.</p>
                 </div>
             )
         },
         {
             id: 'cookies',
-            title: '6. Pliki Cookies',
+            title: '6. Cookies',
             icon: <Lock size={20} />,
             content: (
                 <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
                     <p>
-                        Strona korzysta z plików cookies (ciasteczek) w celu prawidłowego działania serwisu, a także w celach analitycznych i marketingowych.
+                        The site uses cookies to ensure the proper functioning of the service, as well as for analytical and marketing purposes.
                     </p>
                     <p>
-                        Mogą Państwo samodzielnie zarządzać plikami cookies, zmieniając ustawienia swojej przeglądarki internetowej. Ograniczenie stosowania plików cookies może wpłynąć na niektóre funkcjonalności dostępne na stronie.
+                        You can manage cookies yourself by changing your web browser settings. Restricting the use of cookies may affect some functionalities available on the site.
                     </p>
                 </div>
             )
@@ -107,15 +107,15 @@ export default function PrivacyPolicyPage() {
             <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
                     <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 font-bold uppercase text-[10px] tracking-widest transition-colors">
-                        <ArrowLeft size={14} /> Wróć do strony głównej
+                        <ArrowLeft size={14} /> Back to Home
                     </Link>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400 mb-4">Informacje Prawne</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400 mb-4">Legal Information</p>
                         <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none mb-5">
-                            Polityka <span className="text-blue-400">Prywatności</span>.
+                            Privacy <span className="text-blue-400">Policy</span>.
                         </h1>
                         <p className="text-gray-300 font-medium text-lg leading-relaxed max-w-xl">
-                            Twoja prywatność i bezpieczeństwo danych są dla nas priorytetem. Dowiedz się, w jaki sposób chronimy Twoje informacje na platformie Printis.
+                            Your privacy and data security are our priority. Learn how we protect your information on the Printis platform.
                         </p>
                     </div>
                 </div>
@@ -127,7 +127,7 @@ export default function PrivacyPolicyPage() {
                     <div className="p-6 sm:p-10 space-y-12">
                         
                         <div className="text-sm text-gray-500 font-medium mb-8 pb-8 border-b border-gray-100">
-                            Ostatnia aktualizacja: {new Date().toLocaleDateString('pl-PL')}
+                            Last updated: {new Date().toLocaleDateString('en-US')}
                         </div>
 
                         {sections.map((section) => (
@@ -152,13 +152,13 @@ export default function PrivacyPolicyPage() {
                 {/* ── CONTACT CTA ──────────────────────────────────── */}
                 <div className="mt-10 bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-3xl p-6 sm:p-10 text-center">
                     <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-3">
-                        Masz pytania dotyczące prywatności?
+                        Have questions about privacy?
                     </h3>
                     <p className="text-gray-600 font-medium mb-6">
-                        Jesteśmy do Twojej dyspozycji. Skontaktuj się z nami w każdej chwili.
+                        We are at your disposal. Contact us anytime.
                     </p>
                     <a href="mailto:kontakt@printis.store" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
-                        Kontakt z nami
+                        Contact Us
                     </a>
                 </div>
             </div>
