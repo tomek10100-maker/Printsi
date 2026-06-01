@@ -26,35 +26,18 @@ function getCountryCode(countryStr: string): string {
 }
 
 function getServiceId(carrier: string): number {
-  const env = process.env.FURGONETKA_ENV || 'production';
-  const isSandbox = env === 'sandbox';
   const cleanCarrier = (carrier || 'dpd').trim().toLowerCase();
-
-  if (isSandbox) {
-    const sandboxMap: Record<string, number> = {
-      'dpd': 11636590,
-      'ups': 11636592,
-      'inpost': 11636595,
-      'orlen': 11636596,
-      'dhl': 11636597,
-      'fedex': 11636591,
-      'poczta': 11636594,
-      'gls': 11636593,
-    };
-    return sandboxMap[cleanCarrier] || 11636590;
-  } else {
-    const productionMap: Record<string, number> = {
-      'dhl': 2,
-      'dpd': 3,
-      'gls': 4,
-      'ups': 6,
-      'inpost': 8,
-      'poczta': 11,
-      'fedex': 15,
-      'orlen': 20,
-    };
-    return productionMap[cleanCarrier] || 3;
-  }
+  const map: Record<string, number> = {
+    'dpd': 11636590,
+    'ups': 11636592,
+    'inpost': 11636595,
+    'orlen': 11636596,
+    'dhl': 11636597,
+    'fedex': 11636591,
+    'poczta': 11636594,
+    'gls': 11636593,
+  };
+  return map[cleanCarrier] || 11636590;
 }
 
 export async function POST(req: Request) {
@@ -204,13 +187,24 @@ export async function POST(req: Request) {
       return clean;
     };
 
+    const formatPolishPostcode = (zip: string): string => {
+      const clean = (zip || '').trim().replace('-', '');
+      if (/^\d{5}$/.test(clean)) {
+        return `${clean.substring(0, 2)}-${clean.substring(2)}`;
+      }
+      return '00-001'; // Default fallback
+    };
+
     const pickupName = formatFullname(senderProfile.full_name, 'Sender Name');
     const receiverName = formatFullname(shippingDetails.full_name, 'Recipient Name');
 
-    const receiverPostcode = (selectedPoint
+    const rawReceiverPostcode = (selectedPoint
       ? selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || shippingDetails.zip
       : shippingDetails.zip_code || shippingDetails.zip
     )?.trim() || (selectedPoint?.code ? '00-001' : '');
+
+    const receiverCountryCode = getCountryCode(shippingDetails.country);
+    const receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : rawReceiverPostcode;
 
     const receiverCity = (selectedPoint
       ? selectedPoint.city || shippingDetails.city
@@ -230,13 +224,17 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    const pickupPostcode = formatPolishPostcode(cleanZipCode);
+    const pickupCity = cleanCity.length > 1 ? cleanCity : 'Warszawa';
+    const pickupStreet = cleanAddress.length > 2 ? cleanAddress : 'Borkowska 1';
+
     const furgonetkaPayload: any = {
       pickup: {
         name: pickupName,
-        street: cleanAddress,
-        postcode: cleanZipCode,
-        city: cleanCity,
-        country_code: getCountryCode(senderProfile.country),
+        street: pickupStreet,
+        postcode: pickupPostcode,
+        city: pickupCity,
+        country_code: 'PL', // Pickup must always be in Poland for Furgonetka
         phone: pickupPhone,
         email: user.email || 'sender@printis.store'
       },
@@ -245,7 +243,7 @@ export async function POST(req: Request) {
         street: receiverStreet,
         postcode: receiverPostcode,
         city: receiverCity,
-        country_code: getCountryCode(shippingDetails.country),
+        country_code: receiverCountryCode,
         phone: receiverPhone,
         email: shippingDetails.email || 'recipient@printis.store'
       },
