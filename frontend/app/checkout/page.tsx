@@ -200,45 +200,20 @@ function CheckoutInner() {
         }
       }
     }
+    // Cap total weight at 31kg so carriers always return at least one option
+    // Heavy shipments will be quoted at the max tier price
+    totalWeightGrams = Math.min(totalWeightGrams, 31000);
 
-    // Get seller's country and delivery settings (first shippable seller)
+    // Get seller's country (first shippable seller)
     const firstSellerId = shippableItems[0]?.seller_id;
     const fromCode = (sellerCountries as any)[firstSellerId] || 'PL';
     const toCode = formData.country;
-    const deliverySettings = sellerDeliverySettings[firstSellerId] || {};
-    const disabledCouriers: string[] = deliverySettings.disabled_couriers || [];
-    const freeShippingEnabled: boolean = deliverySettings.free_shipping_enabled || false;
-    const freeShippingThreshold: number = deliverySettings.free_shipping_threshold || 0;
-
-    // Calculate total price of items from this seller to check free shipping threshold
-    // For simplicity we check total shippable cart price, but ideal would be per-seller
-    const sellerItemsPricePln = shippableItems
-        .filter(item => item.seller_id === firstSellerId)
-        .reduce((sum, item) => sum + (item.price * item.quantity * (currency !== 'PLN' && rates && rates['PLN'] && rates[currency] ? (rates['PLN']/rates[currency]) : 1)), 0);
 
     const parcel = calculateParcel(maxDimsMm, totalWeightGrams);
-    let options = getShippingOptions(fromCode, toCode, parcel, plnRate);
-
-    // Filter out disabled couriers
-    if (disabledCouriers.length > 0) {
-        options = options.filter(opt => {
-            const carrierUpper = opt.carrier.toUpperCase();
-            return !disabledCouriers.some(dc => carrierUpper.includes(dc.toUpperCase()) || dc.toUpperCase().includes(carrierUpper));
-        });
-    }
-
-    // Apply free shipping if threshold is met
-    if (freeShippingEnabled && freeShippingThreshold > 0 && sellerItemsPricePln >= freeShippingThreshold) {
-        options = options.map(opt => ({
-            ...opt,
-            pricePln: 0,
-            priceEur: 0,
-            description: 'FREE SHIPPING (Seller Promo)'
-        }));
-    }
+    const options = getShippingOptions(fromCode, toCode, parcel, plnRate);
 
     return options;
-  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, sellerDeliverySettings, formData.country, rates]);
+  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, formData.country, rates]);
 
   // Keep stable options — only update when we have real results (never flash to empty)
   useEffect(() => {
@@ -315,29 +290,22 @@ function CheckoutInner() {
           setOfferWeights(weights);
           setOfferDimensions(dimensions);
 
-          // Fetch seller countries & delivery settings
+          // Fetch seller countries (only columns that exist in the live DB)
           if (sellerIds.length > 0) {
             const { data: sellerProfiles } = await supabase
               .from('profiles')
-              .select('id, country, free_shipping_enabled, free_shipping_threshold, disabled_couriers')
+              .select('id, country')
               .in('id', [...new Set(sellerIds)]);
 
             const countries: Record<string, string> = {};
-            const deliverySettings: Record<string, any> = {};
             
             sellerProfiles?.forEach(p => {
               const code = (p.country || 'PL').length === 2
                 ? p.country.toUpperCase()
                 : (countryNameToCode(p.country) || 'PL');
               countries[p.id] = code;
-              deliverySettings[p.id] = {
-                  free_shipping_enabled: p.free_shipping_enabled,
-                  free_shipping_threshold: p.free_shipping_threshold,
-                  disabled_couriers: p.disabled_couriers || []
-              };
             });
             setSellerCountries(countries);
-            setSellerDeliverySettings(deliverySettings);
           }
         }
       }
