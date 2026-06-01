@@ -129,13 +129,24 @@ export async function POST(req: Request) {
     }
 
     // 6. Fetch Receiver Shipping Details
-    const { data: shippingDetails, error: shippingError } = await supabase
+    const { data: dbShippingDetails } = await supabase
       .from('order_shipping_details')
       .select('*')
       .eq('order_id', item.order_id)
       .maybeSingle();
 
-    if (shippingError || !shippingDetails) {
+    const orderShippingAddr = order.shipping_address as any;
+    const shippingDetails = dbShippingDetails || (orderShippingAddr ? {
+      full_name: orderShippingAddr.name || 'Recipient',
+      address: orderShippingAddr.address?.line1 || orderShippingAddr.line1 || '',
+      city: orderShippingAddr.address?.city || orderShippingAddr.city || '',
+      zip_code: orderShippingAddr.address?.postal_code || orderShippingAddr.postal_code || '',
+      country: orderShippingAddr.address?.country || orderShippingAddr.country || 'PL',
+      email: orderShippingAddr.email || orderShippingAddr.customer_details?.email || '',
+      phone: orderShippingAddr.phone || orderShippingAddr.customer_details?.phone || ''
+    } : null);
+
+    if (!shippingDetails) {
       return NextResponse.json({ success: false, error: 'Recipient shipping address details not found' }, { status: 404 });
     }
 

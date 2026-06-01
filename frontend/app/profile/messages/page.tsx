@@ -1581,12 +1581,6 @@ function MessagesInner() {
                                         {furgonetkaLoading ? <Loader2 size={14} className="animate-spin" /> : '📦'}
                                         Wyślij przez Furgonetka
                                     </button>
-                                    <button
-                                        onClick={() => handleStatusUpdate('shipped')}
-                                        className="w-full py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all"
-                                    >
-                                        Mark as Shipped manually
-                                    </button>
                                 </div>
                             ) : (
                                 <button
