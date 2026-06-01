@@ -136,7 +136,7 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     const orderShippingAddr = order.shipping_address as any;
-    const shippingDetails = dbShippingDetails || (orderShippingAddr ? {
+    let shippingDetails: any = dbShippingDetails || (orderShippingAddr ? {
       full_name: orderShippingAddr.name || 'Recipient',
       address: orderShippingAddr.address?.line1 || orderShippingAddr.line1 || '',
       city: orderShippingAddr.address?.city || orderShippingAddr.city || '',
@@ -147,7 +147,34 @@ export async function POST(req: Request) {
     } : null);
 
     if (!shippingDetails) {
-      return NextResponse.json({ success: false, error: 'Recipient shipping address details not found' }, { status: 404 });
+      // Fallback: look up the buyer's profile address
+      const { data: buyerProfile } = await supabase
+        .from('profiles')
+        .select('full_name, address, city, zip_code, country, phone, phone_number')
+        .eq('id', receiverId)
+        .single();
+
+      if (!buyerProfile || (!buyerProfile.address && !buyerProfile.city)) {
+        return NextResponse.json({
+          success: false,
+          error: 'Recipient shipping address not found. Please ask the buyer to add their address in Profile Settings.',
+          code: 'RECIPIENT_ADDRESS_MISSING'
+        }, { status: 404 });
+      }
+
+      const profileCountry = (buyerProfile.country || 'PL').length === 2
+        ? (buyerProfile.country as string).toUpperCase()
+        : 'PL';
+
+      shippingDetails = {
+        full_name: buyerProfile.full_name || 'Recipient',
+        address: buyerProfile.address || '',
+        city: buyerProfile.city || '',
+        zip_code: buyerProfile.zip_code || '',
+        country: profileCountry,
+        email: '',
+        phone: buyerProfile.phone || buyerProfile.phone_number || '',
+      };
     }
 
     // 7. Parse Shipping Address / Selected Points

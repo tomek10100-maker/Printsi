@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     if (userBalance < orderTotalEur) {
       return NextResponse.json({
         success: false,
-        error: `Insufficient Printis Balance. You have €${userBalance.toFixed(2)} but need €${orderTotalEur.toFixed(2)}`
+        error: `Insufficient Printis Balance. You have \u20ac${userBalance.toFixed(2)} but need \u20ac${orderTotalEur.toFixed(2)}`
       }, { status: 400 });
     }
 
@@ -84,10 +84,11 @@ export async function POST(req: Request) {
       throw new Error(`Failed to create order: ${orderError?.message}`);
     }
 
-    console.log(`✅ Balance order created: ${newOrder.id}`);
+    console.log(`Balance order created: ${newOrder.id}`);
 
     // 5. Save detailed shipping info
-    if (shipping && (shipping.address || shipping.fullName)) {
+    if (shipping) {
+      // Shipping form was filled out — save it directly
       const { error: shippingError } = await supabase
         .from('order_shipping_details')
         .insert({
@@ -103,7 +104,32 @@ export async function POST(req: Request) {
           country: shipping.country || '',
         });
       if (shippingError) {
-        console.error('❌ Failed to save shipping details:', shippingError);
+        console.error('Failed to save shipping details:', shippingError);
+      }
+    } else {
+      // No shipping form submitted (e.g. old cart item without category field)
+      // Fall back to buyer's profile address so Furgonetka can still ship
+      const { data: buyerProfile } = await supabase
+        .from('profiles')
+        .select('full_name, address, city, zip_code, country, phone, phone_number')
+        .eq('id', userId)
+        .single();
+      if (buyerProfile) {
+        const { error: shippingError } = await supabase
+          .from('order_shipping_details')
+          .insert({
+            order_id: newOrder.id,
+            full_name: buyerProfile.full_name || '',
+            email: '',
+            phone: buyerProfile.phone || buyerProfile.phone_number || '',
+            address: buyerProfile.address || '',
+            city: buyerProfile.city || '',
+            zip_code: buyerProfile.zip_code || '',
+            country: buyerProfile.country || 'PL',
+          });
+        if (shippingError) {
+          console.error('Failed to save fallback shipping details:', shippingError);
+        }
       }
     }
 
@@ -128,12 +154,12 @@ export async function POST(req: Request) {
     }
 
     // 7. Trigger chat creation + stock deduction + seller notifications
-    console.log('🔄 Processing order post-payment logic...');
+    console.log('Processing order post-payment logic...');
     let chatId: string | null = null;
     try {
       const confirmResult = await processOrder(newOrder.id, userId);
       if (!confirmResult.success) {
-        console.error('⚠️ Order confirm step had issues:', confirmResult);
+        console.error('Order confirm step had issues:', confirmResult);
       } else {
         const chatResult = confirmResult.results?.find((r: string) => r.startsWith('chat_created:') || r.startsWith('chat_updated:'));
         if (chatResult) {
@@ -141,14 +167,14 @@ export async function POST(req: Request) {
         }
       }
     } catch (confirmErr) {
-      console.error('⚠️ Order confirm threw error:', confirmErr);
-      // Non-fatal – order is created and paid, continue
+      console.error('Order confirm threw error:', confirmErr);
+      // Non-fatal - order is created and paid, continue
     }
 
-    console.log('🎉 Balance checkout complete!');
+    console.log('Balance checkout complete!');
     return NextResponse.json({ success: true, orderId: newOrder.id, chatId });
   } catch (error: any) {
-    console.error('❌ Balance Checkout Error:', error);
+    console.error('Balance Checkout Error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
