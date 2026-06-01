@@ -128,58 +128,56 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 6. Fetch Receiver Shipping Details
+    // 6. Parse selected point (paczkomat/pickup point) from order
+    const orderShippingAddr = order.shipping_address as any;
+    const selectedPoint = orderShippingAddr?.selected_point;
+    const isPickupPoint = !!selectedPoint?.code;
+
+    // 7. Fetch Receiver Shipping Details
     const { data: dbShippingDetails } = await supabase
       .from('order_shipping_details')
       .select('*')
       .eq('order_id', item.order_id)
       .maybeSingle();
 
-    const orderShippingAddr = order.shipping_address as any;
-    let shippingDetails: any = dbShippingDetails || (orderShippingAddr ? {
-      full_name: orderShippingAddr.name || 'Recipient',
-      address: orderShippingAddr.address?.line1 || orderShippingAddr.line1 || '',
-      city: orderShippingAddr.address?.city || orderShippingAddr.city || '',
-      zip_code: orderShippingAddr.address?.postal_code || orderShippingAddr.postal_code || '',
-      country: orderShippingAddr.address?.country || orderShippingAddr.country || 'PL',
+    let shippingDetails: any = dbShippingDetails || (orderShippingAddr && (orderShippingAddr.fullName || orderShippingAddr.address || orderShippingAddr.phone) ? {
+      full_name: orderShippingAddr.fullName || orderShippingAddr.name || 'Recipient',
+      address: orderShippingAddr.address || orderShippingAddr.address?.line1 || orderShippingAddr.line1 || '',
+      city: orderShippingAddr.city || orderShippingAddr.address?.city || '',
+      zip_code: orderShippingAddr.zip || orderShippingAddr.zip_code || orderShippingAddr.address?.postal_code || '',
+      country: orderShippingAddr.country || orderShippingAddr.address?.country || 'PL',
       email: orderShippingAddr.email || orderShippingAddr.customer_details?.email || '',
       phone: orderShippingAddr.phone || orderShippingAddr.customer_details?.phone || ''
     } : null);
 
     if (!shippingDetails) {
-      // Fallback: look up the buyer's profile address
+      // For pickup points (paczkomat) we only need phone - no home address required
+      // Fallback: get phone/name from buyer profile
       const { data: buyerProfile } = await supabase
         .from('profiles')
         .select('full_name, address, city, zip_code, country, phone, phone_number')
         .eq('id', receiverId)
         .single();
 
-      if (!buyerProfile || (!buyerProfile.address && !buyerProfile.city)) {
+      if (!isPickupPoint && (!buyerProfile || (!buyerProfile.address && !buyerProfile.city))) {
+        // For door-to-door we need real address
         return NextResponse.json({
           success: false,
-          error: 'Recipient shipping address not found. Please ask the buyer to add their address in Profile Settings.',
+          error: 'Recipient home address not found. Ask the buyer to add their address in Profile Settings.',
           code: 'RECIPIENT_ADDRESS_MISSING'
         }, { status: 404 });
       }
 
-      const profileCountry = (buyerProfile.country || 'PL').length === 2
-        ? (buyerProfile.country as string).toUpperCase()
-        : 'PL';
-
       shippingDetails = {
-        full_name: buyerProfile.full_name || 'Recipient',
-        address: buyerProfile.address || '',
-        city: buyerProfile.city || '',
-        zip_code: buyerProfile.zip_code || '',
-        country: profileCountry,
+        full_name: buyerProfile?.full_name || 'Recipient',
+        address: buyerProfile?.address || '',
+        city: buyerProfile?.city || '',
+        zip_code: buyerProfile?.zip_code || '',
+        country: buyerProfile?.country || 'PL',
         email: '',
-        phone: buyerProfile.phone || buyerProfile.phone_number || '',
+        phone: buyerProfile?.phone || buyerProfile?.phone_number || '',
       };
     }
-
-    // 7. Parse Shipping Address / Selected Points
-    const shippingAddrJson = order.shipping_address as any;
-    const selectedPoint = shippingAddrJson?.selected_point;
 
     // 8. Determine Carrier / Service ID
     let carrier = 'dpd';
