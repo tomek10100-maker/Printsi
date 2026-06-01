@@ -26,7 +26,8 @@ function getCountryCode(countryStr: string): string {
 }
 
 function getServiceId(carrier: string): number {
-  const isSandbox = process.env.FURGONETKA_ENV !== 'production';
+  const env = process.env.FURGONETKA_ENV || 'production';
+  const isSandbox = env === 'sandbox';
   const cleanCarrier = (carrier || 'dpd').trim().toLowerCase();
 
   if (isSandbox) {
@@ -120,7 +121,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Sender profile address details not found' }, { status: 404 });
     }
 
-    if (!senderProfile.address || !senderProfile.city || !senderProfile.zip_code) {
+    const cleanAddress = (senderProfile.address || '').trim();
+    const cleanCity = (senderProfile.city || '').trim();
+    const cleanZipCode = (senderProfile.zip_code || '').trim();
+
+    if (!cleanAddress || !cleanCity || !cleanZipCode) {
       return NextResponse.json({
         success: false,
         error: 'Please fill in your address, city, and zip code in your profile before shipping.',
@@ -188,23 +193,58 @@ export async function POST(req: Request) {
     const pickupPhone = (senderProfile.phone_number || '500600700').replace(/[^\d+]/g, '');
     const receiverPhone = (shippingDetails.phone || '600700800').replace(/[^\d+]/g, '');
 
+    // Format pickup and receiver name to contain at least 2 words
+    const formatFullname = (name: string, defaultName: string): string => {
+      const clean = (name || '').trim();
+      if (!clean) return defaultName;
+      const parts = clean.split(/\s+/);
+      if (parts.length < 2) {
+        return `${clean} ${defaultName.split(' ')[1] || 'User'}`;
+      }
+      return clean;
+    };
+
+    const pickupName = formatFullname(senderProfile.full_name, 'Sender Name');
+    const receiverName = formatFullname(shippingDetails.full_name, 'Recipient Name');
+
+    const receiverPostcode = (selectedPoint
+      ? selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || shippingDetails.zip
+      : shippingDetails.zip_code || shippingDetails.zip
+    )?.trim() || '';
+
+    const receiverCity = (selectedPoint
+      ? selectedPoint.city || shippingDetails.city
+      : shippingDetails.city
+    )?.trim() || '';
+
+    const receiverStreet = (selectedPoint
+      ? selectedPoint.street || shippingDetails.address
+      : shippingDetails.address
+    )?.trim() || '';
+
+    if (!receiverPostcode || !receiverCity || !receiverStreet) {
+      return NextResponse.json({
+        success: false,
+        error: 'Receiver address, city, or zip code is missing. Please check shipping details.',
+        code: 'RECEIVER_ADDRESS_MISSING'
+      }, { status: 400 });
+    }
+
     const furgonetkaPayload: any = {
       pickup: {
-        name: senderProfile.full_name || 'Sender',
-        street: senderProfile.address,
-        postcode: senderProfile.zip_code,
-        city: senderProfile.city,
+        name: pickupName,
+        street: cleanAddress,
+        postcode: cleanZipCode,
+        city: cleanCity,
         country_code: getCountryCode(senderProfile.country),
         phone: pickupPhone,
         email: user.email || 'sender@printis.store'
       },
       receiver: {
-        name: shippingDetails.full_name || 'Recipient',
-        street: selectedPoint
-          ? selectedPoint.street || shippingDetails.address
-          : shippingDetails.address,
-        postcode: shippingDetails.zip_code,
-        city: shippingDetails.city,
+        name: receiverName,
+        street: receiverStreet,
+        postcode: receiverPostcode,
+        city: receiverCity,
         country_code: getCountryCode(shippingDetails.country),
         phone: receiverPhone,
         email: shippingDetails.email || 'recipient@printis.store'
