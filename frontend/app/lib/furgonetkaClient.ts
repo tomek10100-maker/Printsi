@@ -95,10 +95,10 @@ async function refreshAccessToken(currentRefreshToken: string): Promise<string> 
   return data.access_token;
 }
 
-export async function getValidAccessToken(): Promise<string> {
+export async function getValidAccessToken(forceRefresh = false): Promise<string> {
   // 1. Try Supabase-stored token first (persists across serverless invocations)
   const stored = await getStoredTokens();
-  if (stored?.access_token && !isTokenExpired(stored.access_token)) {
+  if (!forceRefresh && stored?.access_token && !isTokenExpired(stored.access_token)) {
     return stored.access_token;
   }
 
@@ -120,8 +120,8 @@ export async function getValidAccessToken(): Promise<string> {
   return refreshPromise;
 }
 
-async function apiRequest(endpoint: string, method: string = 'GET', body: any = null, isBinary: boolean = false) {
-  const token = await getValidAccessToken();
+async function apiRequest(endpoint: string, method: string = 'GET', body: any = null, isBinary: boolean = false, retry = true) {
+  let token = await getValidAccessToken();
   const url = `${BASE_URL}${endpoint}`;
 
   const headers: Record<string, string> = {
@@ -134,11 +134,26 @@ async function apiRequest(endpoint: string, method: string = 'GET', body: any = 
   }
 
   console.log(`[FurgonetkaClient API] Calling ${method} ${url}...`);
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined
   });
+
+  if (response.status === 401 && retry) {
+    console.warn('[FurgonetkaClient API] Unauthorized (401). Forcing token refresh and retrying...');
+    try {
+      token = await getValidAccessToken(true);
+      headers['Authorization'] = `Bearer ${token}`;
+      response = await fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined
+      });
+    } catch (refreshErr) {
+      console.error('[FurgonetkaClient API] Token refresh failed during retry:', refreshErr);
+    }
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
