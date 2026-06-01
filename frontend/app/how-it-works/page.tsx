@@ -27,7 +27,7 @@ export default function HowItWorksPage() {
             subtitle: 'From browsing to doorstep — secure, simple and fast.',
             accent: 'from-blue-600 to-blue-800',
             steps: [
-                { icon: <Search size={22} />, title: 'Browse the Gallery', desc: 'Explore thousands of unique physical 3D-printed items and digital STL files made by independent creators. Filter by material, category, or price.' },
+                { icon: <Search size={22} />, title: 'Browse the Gallery', desc: 'Explore thousands of unique 3D items and digital STL files made by independent creators. Filter by material, category, or price.' },
                 { icon: <Handshake size={22} />, title: 'Negotiate & Customize', desc: 'Message the seller directly. Propose custom colors, materials or sizes. Use the built-in proposal system to reach a deal — no back-and-forth emails needed.' },
                 { icon: <ShoppingCart size={22} />, title: 'Add to Cart & Checkout', desc: 'Pay securely through our escrow system. Your money is held safely until the order is fulfilled. Multiple currencies supported — PLN, EUR, USD, GBP and more.' },
                 { icon: <Truck size={22} />, title: 'Track & Receive', desc: 'Follow your order status live in the chat. Once you receive your item, confirm delivery to release payment to the seller. Something wrong? Open a dispute.' },
@@ -41,7 +41,7 @@ export default function HowItWorksPage() {
             accent: 'from-emerald-600 to-teal-700',
             steps: [
                 { icon: <Upload size={22} />, title: 'Set Up Your Profile', desc: 'Complete onboarding as a Printer. Add your delivery zones, shipping methods and filament inventory. Our filament manager auto-calculates material costs.' },
-                { icon: <Package size={22} />, title: 'Create Listings', desc: 'List physical items with up to 6 photos, multi-color variants, dimensions and auto-calculated pricing from your filament stock. Or use Manual Mode to set prices directly.' },
+                { icon: <Package size={22} />, title: 'Create Listings', desc: 'List 3D items with up to 6 photos, multi-color variants, dimensions and auto-calculated pricing from your filament stock. Or use Manual Mode to set prices directly.' },
                 { icon: <MessageSquare size={22} />, title: 'Chat & Negotiate', desc: 'Receive orders and messages from buyers. Use the chat panel to negotiate custom requests, propose changes and confirm orders before production.' },
                 { icon: <Truck size={22} />, title: 'Ship the Order', desc: 'Pack the item and ship via your preferred carrier. Mark it as shipped in the chat. A shipping label can be sent to your email if using our courier integration.' },
                 { icon: <Wallet size={22} />, title: 'Get Paid', desc: 'Once the buyer confirms delivery, funds are instantly released to your Printsi balance. Withdraw to your bank account at any time via the billing panel.' },
@@ -222,14 +222,14 @@ export default function HowItWorksPage() {
                     {[
                         {
                             href: '/gallery?category=physical',
-                            badge: 'Physical Items',
+                            badge: '3D Items',
                             title: 'Ready-Made 3D Prints',
-                            desc: 'Browse printed items made by real printers. Order physical objects shipped directly to your door with full escrow protection.',
+                            desc: 'Browse printed items made by real printers. Order 3D items shipped directly to your door with full escrow protection.',
                             icon: <Package size={28} />,
                             gradient: 'from-blue-50 to-blue-100/50',
                             border: 'border-blue-200',
                             textColor: 'text-blue-700',
-                            cta: 'Browse Physical',
+                            cta: 'Browse 3D Items',
                             ctaStyle: 'bg-blue-600 hover:bg-blue-700',
                         },
                         {

@@ -145,7 +145,7 @@ export const EmailTemplates = {
       ${ctaButton('View Order Status', `${SITE_URL}/profile/messages`)}
 
       <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">
-        Need help? Reply to this email or contact support. Sellers of physical items have 4 days to ship your order.
+        Need help? Reply to this email or contact support. Sellers of 3D items have 4 days to ship your order.
       </p>
     `;
 
@@ -486,7 +486,7 @@ export const EmailTemplates = {
           <td style="padding:16px;background:#f0f9ff;border-radius:12px;margin-bottom:12px;border:1px solid #bae6fd;">
             <div style="font-size:20px;margin-bottom:4px;">🛒</div>
             <div style="color:#0369a1;font-size:14px;font-weight:800;">Buy 3D Prints & Files</div>
-            <div style="color:#0284c7;font-size:12px;margin-top:4px;">Browse physical items and digital 3D files from sellers worldwide.</div>
+            <div style="color:#0284c7;font-size:12px;margin-top:4px;">Browse 3D items and digital 3D files from sellers worldwide.</div>
           </td>
         </tr>
         <tr><td style="height:12px;"></td></tr>
@@ -808,6 +808,87 @@ export const EmailTemplates = {
       'linear-gradient(135deg,#7f1d1d 0%,#ef4444 100%)',
       '✖️ Update',
       'Offer Rejected',
+      body
+    );
+  },
+
+  packageOutForDelivery: (buyerName: string, productTitle: string, trackingCode: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Out for Delivery! 🚚</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        Great news, ${buyerName}! Your package for <strong>${productTitle}</strong> is out for delivery today. Keep an eye out for the courier!
+      </p>
+      
+      <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:16px;padding:28px;margin:24px 0;border:1px solid #bfdbfe;text-align:center;">
+        <div style="font-size:40px;margin-bottom:8px;">📦</div>
+        <div style="color:#1e40af;font-size:24px;font-weight:900;">OUT FOR DELIVERY TODAY</div>
+        <div style="color:#2563eb;font-size:14px;font-weight:700;margin-top:8px;">Tracking Number: ${trackingCode}</div>
+      </div>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${SITE_URL}/profile/messages" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:18px 40px;border-radius:14px;box-shadow:0 10px 20px rgba(37,99,235,0.25);letter-spacing:0.5px;">
+          Track Package
+        </a>
+      </div>
+    `;
+    return emailWrapper(
+      'linear-gradient(135deg,#1e40af 0%,#3b82f6 100%)',
+      '🚚 Delivery Today',
+      'Package Out For Delivery',
+      body
+    );
+  },
+
+  packageDeliveryFailed: (buyerName: string, productTitle: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Delivery Attempt Failed ⚠️</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        Hi ${buyerName}, the courier was unable to deliver your package for <strong>${productTitle}</strong>. 
+      </p>
+      
+      <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:16px;padding:28px;margin:24px 0;border:1px solid #fcd34d;text-align:center;">
+        <div style="font-size:40px;margin-bottom:8px;">⚠️</div>
+        <div style="color:#854d0e;font-size:20px;font-weight:900;">DELIVERY ATTEMPT FAILED</div>
+        <div style="color:#a16207;font-size:13px;font-weight:600;margin-top:8px;">Please check tracking details for instructions.</div>
+      </div>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${SITE_URL}/profile/messages" style="display:inline-block;background-color:#d97706;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:18px 40px;border-radius:14px;box-shadow:0 10px 20px rgba(217,119,6,0.25);letter-spacing:0.5px;">
+          Check Tracking
+        </a>
+      </div>
+    `;
+    return emailWrapper(
+      'linear-gradient(135deg,#854d0e 0%,#d97706 100%)',
+      '⚠️ Delivery Failed',
+      'Delivery Attempt Unsuccessful',
+      body
+    );
+  },
+
+  packageReturned: (sellerName: string, productTitle: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Package Returned to Sender 📦</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        Hi ${sellerName}, the package you shipped for <strong>${productTitle}</strong> has been returned to you.
+      </p>
+      
+      <div style="background:linear-gradient(135deg,#f8fafc,#e2e8f0);border-radius:16px;padding:28px;margin:24px 0;border:1px solid #cbd5e1;text-align:center;">
+        <div style="font-size:40px;margin-bottom:8px;">🔄</div>
+        <div style="color:#334155;font-size:20px;font-weight:900;">RETURNED TO SENDER</div>
+        <div style="color:#475569;font-size:13px;margin-top:8px;">Please check chat for details or contact the courier.</div>
+      </div>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${SITE_URL}/profile/messages" style="display:inline-block;background-color:#475569;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:18px 40px;border-radius:14px;box-shadow:0 10px 20px rgba(71,85,105,0.25);letter-spacing:0.5px;">
+          View Chat
+        </a>
+      </div>
+    `;
+    return emailWrapper(
+      'linear-gradient(135deg,#334155 0%,#475569 100%)',
+      '🔄 Returned to Sender',
+      'Package Return Notification',
       body
     );
   },

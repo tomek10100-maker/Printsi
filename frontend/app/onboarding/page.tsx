@@ -35,7 +35,7 @@ Definitions:
 • User – any individual or legal entity accessing the Platform.
 • Buyer – a User who purchases Products or Services via the Platform.
 • Seller / Maker – a User (individual, legal entity, or unincorporated body) offering Products or Services on the Platform.
-• Physical Product – a tangible, 3D-printed item listed for sale by a Seller.
+• 3D Product – a tangible, 3D-printed item listed for sale by a Seller.
 • Digital Product – a non-material digital file (e.g. STL, OBJ, 3MF, STEP) containing a 3D model offered for download.
 • Print Job – a service consisting of printing a 3D model on demand, according to the Buyer's individual specifications.
 • Escrow – a payment protection mechanism whereby funds are held by the Platform until the Buyer confirms delivery or the dispute resolution period expires.`,
@@ -58,7 +58,7 @@ An account is required to: (a) place orders, (b) list Products or Services, (c) 
 
 Users must be at least 18 years of age (or the legal age of majority in their jurisdiction) to register.
 
-The Seller listing a Physical Product is obligated to: (a) accurately describe the item's category, material, dimensions and weight, (b) provide genuine photographs of the actual item — computer renders alone are insufficient, (c) ensure stock levels are kept accurate and up to date.
+The Seller listing a 3D Product is obligated to: (a) accurately describe the item's category, material, dimensions and weight, (b) provide genuine photographs of the actual item — computer renders alone are insufficient, (c) ensure stock levels are kept accurate and up to date.
 
 The Seller listing a Digital Product (3D model file) declares that the file is their original work or that they hold a valid commercial licence permitting resale.
 
@@ -66,9 +66,9 @@ The Seller offering a Print Job service declares their capability to fulfil the 
     },
     {
         title: '§4. Intellectual Property and Licences',
-        content: `Any Seller offering Digital Products or Physical Products based on third-party 3D model files declares that they hold full copyright or a commercial licence for that content.
+        content: `Any Seller offering Digital Products or 3D Products based on third-party 3D model files declares that they hold full copyright or a commercial licence for that content.
 
-It is strictly prohibited to sell Digital Products or Physical Products derived from files downloaded from the internet that are subject to a licence excluding commercial use (e.g. Creative Commons Non-Commercial — CC BY-NC or CC BY-NC-SA).
+It is strictly prohibited to sell Digital Products or 3D Products derived from files downloaded from the internet that are subject to a licence excluding commercial use (e.g. Creative Commons Non-Commercial — CC BY-NC or CC BY-NC-SA).
 
 Upon receipt of a credible copyright infringement notice from the legitimate rights-holder, the Administrator reserves the right to immediately remove the listing and suspend the Seller's account (Notice & Takedown procedure, consistent with applicable EU and Polish copyright law).
 
@@ -100,7 +100,7 @@ Buyers may fund their Printis Wallet (internal balance) to pay for orders withou
     },
     {
         title: '§7. Withdrawal Rights and Returns',
-        content: `Physical Products (ready-made, from stock): The Buyer (acting as a consumer) has the right to withdraw from the contract within 14 days of receiving the parcel, without giving any reason. Return shipping costs are borne by the Buyer unless the item is defective.
+        content: `3D Products (ready-made, from stock): The Buyer (acting as a consumer) has the right to withdraw from the contract within 14 days of receiving the parcel, without giving any reason. Return shipping costs are borne by the Buyer unless the item is defective.
 
 Print Jobs (custom-made items): In accordance with Article 38(3) of the Polish Consumer Rights Act (and analogous EU Directive 2011/83/EU provisions), the right of withdrawal does NOT apply where the Print Job is manufactured to the Buyer's individual specifications (e.g. custom size, colour, engraving, or personal 3D file).
 

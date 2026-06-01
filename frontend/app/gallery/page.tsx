@@ -561,7 +561,7 @@ function MarketplaceContent() {
                   } text-center`}
                   style={{ transitionDuration: '1.5s' }}
                 >
-                  {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : 'Physical Items'}
+                  {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : '3D Items'}
                 </button>
               )
             })}

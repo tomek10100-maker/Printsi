@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     // Fetch order item
     const { data: item, error: itemErr } = await supabase
       .from('order_items')
-      .select('id, order_id, seller_id, price_at_purchase, quantity, status')
+      .select('id, order_id, seller_id, price_at_purchase, quantity, status, furgonetka_package_id')
       .eq('id', itemId)
       .single();
 
@@ -68,6 +68,18 @@ export async function POST(req: Request) {
         cancellation_reason: reason.trim(),
         cancellation_initiated_by: 'seller',
       }).eq('id', itemId);
+
+      // Cancel Furgonetka package if exists
+      if (item.furgonetka_package_id) {
+        try {
+          console.log(`[Cancel Route] Cancelling Furgonetka package ${item.furgonetka_package_id}...`);
+          const { furgonetkaClient } = await import('@/app/lib/furgonetkaClient');
+          await furgonetkaClient.cancelPackage(item.furgonetka_package_id);
+          console.log(`[Cancel Route] Furgonetka package ${item.furgonetka_package_id} cancelled successfully.`);
+        } catch (e) {
+          console.error('[Cancel Route] Failed to cancel Furgonetka package (non-fatal):', e);
+        }
+      }
 
       // Full refund → buyer wallet via payouts table (negative amount = credit)
       await supabase.from('payouts').insert({

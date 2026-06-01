@@ -478,7 +478,7 @@ export default function EditOfferPage() {
               <div className="grid grid-cols-3 gap-4 pointer-events-none">
                  <div className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-opacity ${category === 'job' ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-100 text-gray-300 opacity-40'}`}><Printer size={32}/><span className="font-black uppercase text-[10px]">Print Request</span></div>
                  <div className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-opacity ${category === 'digital' ? 'border-purple-500 bg-purple-50 text-purple-600' : 'border-gray-100 text-gray-300 opacity-40'}`}><Layers size={32}/><span className="font-black uppercase text-[10px]">Digital File</span></div>
-                 <div className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-opacity ${category === 'physical' ? 'border-orange-500 bg-orange-50 text-orange-600' : 'border-gray-100 text-gray-300 opacity-40'}`}><Box size={32}/><span className="font-black uppercase text-[10px]">Physical Item</span></div>
+                 <div className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-opacity ${category === 'physical' ? 'border-orange-500 bg-orange-50 text-orange-600' : 'border-gray-100 text-gray-300 opacity-40'}`}><Box size={32}/><span className="font-black uppercase text-[10px]">3D Item</span></div>
               </div>
             </section>
 

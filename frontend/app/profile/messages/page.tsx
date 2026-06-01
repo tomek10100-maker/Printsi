@@ -423,6 +423,87 @@ function MessagesInner() {
         }
     };
 
+    const [furgonetkaLoading, setFurgonetkaLoading] = useState(false);
+
+    const handleFurgonetkaShip = async (itemId: string) => {
+        setFurgonetkaLoading(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('Session expired. Please log in again.');
+                setFurgonetkaLoading(false);
+                return;
+            }
+
+            const res = await fetch('/api/furgonetka/create-package', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ itemId, chatId: activeChatId })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setChats(prev => prev.map(c =>
+                    c.id === activeChatId ? {
+                        ...c,
+                        orderItem: {
+                            ...c.orderItem,
+                            status: 'shipped',
+                            tracking_code: data.trackingNumber,
+                            furgonetka_package_id: data.packageId,
+                            label_url: data.labelUrl
+                        }
+                    } : c
+                ));
+                loadMessages(activeChatId as string);
+            } else {
+                alert(data.error || 'Failed to ship via Furgonetka');
+            }
+        } catch (err) {
+            console.error('Furgonetka shipping error:', err);
+            alert('Network error occurred.');
+        }
+        setFurgonetkaLoading(false);
+    };
+
+    const handleDownloadLabel = async (packageId: string) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('Session expired. Please log in again.');
+                return;
+            }
+            
+            const res = await fetch(`/api/furgonetka/label/${packageId}`, {
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
+            
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.error || 'Failed to download label');
+                return;
+            }
+            
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `label_${packageId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Label download error:', err);
+            alert('Network error downloading label');
+        }
+    };
+
     const [formError, setFormError] = useState('');
     useEffect(() => {
         if (formError) {
@@ -1483,13 +1564,32 @@ function MessagesInner() {
                                     </p>
                                 </div>
                             )}
-                            <button
-                                onClick={() => handleStatusUpdate('shipped')}
-                                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
-                            >
-                                {isDigital ? <Check size={14} className="inline mr-2 -mt-0.5" /> : <Truck size={14} className="inline mr-2 -mt-0.5" />}
-                                {isDigital ? 'Mark as Sent to Email' : 'Mark as Shipped'}
-                            </button>
+                            {!isDigital ? (
+                                <div className="flex flex-col gap-3 max-w-[280px] mx-auto">
+                                    <button
+                                        onClick={() => handleFurgonetkaShip(orderItem.id)}
+                                        disabled={furgonetkaLoading}
+                                        className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {furgonetkaLoading ? <Loader2 size={14} className="animate-spin" /> : '📦'}
+                                        Wyślij przez Furgonetka
+                                    </button>
+                                    <button
+                                        onClick={() => handleStatusUpdate('shipped')}
+                                        className="w-full py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all"
+                                    >
+                                        Mark as Shipped manually
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => handleStatusUpdate('shipped')}
+                                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20"
+                                >
+                                    <Check size={14} className="inline mr-2 -mt-0.5" />
+                                    Mark as Sent to Email
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1560,6 +1660,14 @@ function MessagesInner() {
                                 {isJob ? '📦 Item shipped! Waiting for the customer to confirm delivery...'
                                     : isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
                             </p>
+                            {isSeller && orderItem.label_url && (
+                                <button
+                                    onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
+                                    className="mt-3 px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 mx-auto transition-all shadow-sm"
+                                >
+                                    <Printer size={12} /> Pobierz etykietę PDF
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

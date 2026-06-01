@@ -43,12 +43,12 @@ const FAQS: FAQItem[] = [
     {
         category: 'buying',
         q: 'Can I request custom colors or materials?',
-        a: 'Yes! Most physical listings support color and material customization. When viewing an offer, you can select from available variants or message the seller directly to request a specific color or material. Sellers can also send you a custom price proposal through the built-in negotiation system.',
+        a: 'Yes! Most 3D items support color and material customization. When viewing an offer, you can select from available variants or message the seller directly to request a specific color or material. Sellers can also send you a custom price proposal through the built-in negotiation system.',
     },
     {
         category: 'buying',
-        q: 'What is the difference between Physical Items, Digital Files, and Print Requests?',
-        a: 'Physical Items are real 3D-printed objects that will be shipped to you by the seller. Digital Files are downloadable STL/OBJ/3MF models you print yourself or use at a print shop. Print Requests (Jobs) are listings where you upload your own 3D file and printers bid on printing it for you.',
+        q: 'What is the difference between 3D Items, Digital Files, and Print Requests?',
+        a: '3D Items are real 3D-printed objects that will be shipped to you by the seller. Digital Files are downloadable STL/OBJ/3MF models you print yourself or use at a print shop. Print Requests (Jobs) are listings where you upload your own 3D file and printers bid on printing it for you.',
     },
     {
         category: 'buying',
@@ -64,11 +64,11 @@ const FAQS: FAQItem[] = [
     {
         category: 'selling',
         q: 'How do I start selling on Printsi?',
-        a: 'Create an account and go through onboarding to set your role — Printer (for physical items) or CAD Designer (for digital files). Then go to Upload to create your first listing. Add photos, set a price, choose your delivery settings, and publish.',
+        a: 'Create an account and go through onboarding to set your role — Printer (for 3D items) or CAD Designer (for digital files). Then go to Upload to create your first listing. Add photos, set a price, choose your delivery settings, and publish.',
     },
     {
         category: 'selling',
-        q: 'What is the Auto Pricing mode for physical items?',
+        q: 'What is the Auto Pricing mode for 3D items?',
         a: 'Auto Pricing is available if you have added your filament inventory in the Profile → Filaments section. When creating a listing, you select which filaments and how many grams each variant uses. Printsi automatically calculates the material cost and lets you add a markup. This ensures your prices always reflect current material costs.',
     },
     {
@@ -126,7 +126,7 @@ const FAQS: FAQItem[] = [
     // SHIPPING
     {
         category: 'shipping',
-        q: 'How does shipping work for physical items?',
+        q: 'How does shipping work for 3D items?',
         a: 'Each seller defines their delivery settings — including which countries they ship to and at what rates. Shipping costs are shown on the product page. After a purchase, the seller ships the item and marks the order as shipped in the chat. The order status updates in real time.',
     },
     {

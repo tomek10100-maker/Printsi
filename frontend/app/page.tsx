@@ -97,7 +97,7 @@ export default function HomePage() {
   }, [showStats]);
 
   const bricks = [
-    { title: 'Physical Items', link: '/gallery?category=physical', angle: 0, status: 'active' },
+    { title: '3D Items', link: '/gallery?category=physical', angle: 0, status: 'active' },
     { title: '3D Files', link: '/gallery?category=digital', angle: 72, status: 'active' },
     { title: 'Shop', link: '#', angle: 144, status: 'soon' },
     { title: 'Partnership', link: '#', angle: 216, status: 'soon' },

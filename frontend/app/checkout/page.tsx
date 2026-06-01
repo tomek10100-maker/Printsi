@@ -520,7 +520,7 @@ function CheckoutInner() {
                   <div className="relative z-10 flex-1">
                     <h4 className="text-lg font-black uppercase tracking-tight mb-2">Skip checkout in the future</h4>
                     <p className="text-gray-400 text-xs font-semibold leading-relaxed">
-                      Use your internal balance to buy 3D files and physical items without pulling out your card every time. It's the fastest way to get your items.
+                      Use your internal balance to buy 3D files and 3D items without pulling out your card every time. It's the fastest way to get your items.
                     </p>
                   </div>
                   <div className="relative z-10 hidden md:block">

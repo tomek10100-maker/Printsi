@@ -616,7 +616,7 @@ export default function AddOfferPage() {
                 {([
                   { key: 'job', label: 'Print Request', Icon: Printer, c: 'blue', requiredRole: null, roleLabel: '' },
                   { key: 'digital', label: 'Digital File', Icon: Layers, c: 'orange', requiredRole: 'designer', roleLabel: 'CAD Designer' },
-                  { key: 'physical', label: 'Physical Item', Icon: Box, c: 'emerald', requiredRole: 'printer', roleLabel: 'Printer' },
+                  { key: 'physical', label: '3D Item', Icon: Box, c: 'emerald', requiredRole: 'printer', roleLabel: 'Printer' },
                 ] as const).map(({ key, label, Icon, c, requiredRole, roleLabel }) => {
                   const disabled = !!requiredRole && !userRoles.includes(requiredRole);
                   const active = category === key;
