@@ -2709,24 +2709,32 @@ function MessagesInner() {
                                         </button>
                                     </div>
 
-                                    {currentUser?.id === activeChatData?.buyer_id && activeChatData?.orderItem && activeChatData.orderItem.status === 'pending' && (
+                                    {currentUser?.id === activeChatData?.buyer_id && (
                                         <>
-                                            <button type="button" onClick={() => openCancelModal('buyer')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                <Ban size={14} /> Cancel
-                                            </button>
-                                            <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                <Handshake size={14} /> Negotiate
-                                            </button>
+                                            {activeChatData?.orderItem && activeChatData.orderItem.status === 'pending' && (
+                                                <button type="button" onClick={() => openCancelModal('buyer')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                    <Ban size={14} /> Cancel
+                                                </button>
+                                            )}
+                                            {!activeChatData?.orderItem && (
+                                                <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                    <Handshake size={14} /> Negotiate
+                                                </button>
+                                            )}
                                         </>
                                     )}
-                                    {currentUser?.id === activeChatData?.seller_id && activeChatData?.orderItem && ['pending', 'shipped'].includes(activeChatData.orderItem.status) && (
+                                    {currentUser?.id === activeChatData?.seller_id && (
                                         <>
-                                            <button type="button" onClick={() => openCancelModal('seller')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                <Ban size={14} /> Cancel
-                                            </button>
-                                            <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                <Handshake size={14} /> Special Offer
-                                            </button>
+                                            {activeChatData?.orderItem && ['pending', 'shipped'].includes(activeChatData.orderItem.status) && (
+                                                <button type="button" onClick={() => openCancelModal('seller')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                    <Ban size={14} /> Cancel
+                                                </button>
+                                            )}
+                                            {!activeChatData?.orderItem && (
+                                                <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                    <Handshake size={14} /> Special Offer
+                                                </button>
+                                            )}
                                         </>
                                     )}
                                 </form>
