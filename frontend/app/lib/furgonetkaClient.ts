@@ -1,9 +1,16 @@
 import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 
-const ENV = process.env.FURGONETKA_ENV || 'sandbox';
+const ENV = process.env.FURGONETKA_ENV || 'production';
 const BASE_URL = ENV === 'sandbox'
   ? 'https://api.sandbox.furgonetka.pl'
   : 'https://api.furgonetka.pl';
+
+// Supabase admin client for token persistence
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 function isTokenExpired(token: string): boolean {
   try {
@@ -17,30 +24,45 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
-// In-memory token cache – persists within the same serverless function instance.
-// On Vercel, writing to the filesystem is not possible, so we cache in memory only.
-let cachedAccessToken: string | null = null;
-let cachedRefreshToken: string | null = null;
+async function getStoredTokens(): Promise<{ access_token: string; refresh_token: string } | null> {
+  try {
+    const { data, error } = await supabase
+      .from('furgonetka_tokens')
+      .select('access_token, refresh_token')
+      .eq('id', 1)
+      .maybeSingle();
 
-function updateCachedTokens(accessToken: string, refreshToken: string) {
-  cachedAccessToken = accessToken;
-  cachedRefreshToken = refreshToken;
-  // Also update process.env so any direct reads work within the same instance
-  process.env.FURGONETKA_ACCESS_TOKEN = accessToken;
-  process.env.FURGONETKA_REFRESH_TOKEN = refreshToken;
-  console.log('[FurgonetkaClient] Tokens updated in memory cache.');
+    if (error || !data) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function saveTokens(accessToken: string, refreshToken: string): Promise<void> {
+  try {
+    await supabase
+      .from('furgonetka_tokens')
+      .upsert({
+        id: 1,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+    console.log('[FurgonetkaClient] Tokens saved to Supabase.');
+  } catch (err) {
+    console.error('[FurgonetkaClient] Failed to save tokens to Supabase:', err);
+  }
 }
 
 let refreshPromise: Promise<string> | null = null;
 
-async function refreshAccessToken(): Promise<string> {
+async function refreshAccessToken(currentRefreshToken: string): Promise<string> {
   const clientId = process.env.FURGONETKA_CLIENT_ID;
   const clientSecret = process.env.FURGONETKA_CLIENT_SECRET;
-  // Use in-memory cached refresh token first, fall back to env var
-  const refreshToken = cachedRefreshToken || process.env.FURGONETKA_REFRESH_TOKEN;
 
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error('Furgonetka client credentials or refresh token are missing in env.');
+  if (!clientId || !clientSecret) {
+    throw new Error('Furgonetka client credentials are missing in env.');
   }
 
   const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
@@ -55,7 +77,7 @@ async function refreshAccessToken(): Promise<string> {
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: refreshToken
+      refresh_token: currentRefreshToken
     })
   });
 
@@ -69,29 +91,29 @@ async function refreshAccessToken(): Promise<string> {
     throw new Error(`Invalid response structure from token endpoint: ${JSON.stringify(data)}`);
   }
 
-  updateCachedTokens(data.access_token, data.refresh_token);
+  await saveTokens(data.access_token, data.refresh_token);
   return data.access_token;
 }
 
 export async function getValidAccessToken(): Promise<string> {
-  // Check in-memory cache first (fastest, survives within same serverless instance)
-  if (cachedAccessToken && !isTokenExpired(cachedAccessToken)) {
-    return cachedAccessToken;
+  // 1. Try Supabase-stored token first (persists across serverless invocations)
+  const stored = await getStoredTokens();
+  if (stored?.access_token && !isTokenExpired(stored.access_token)) {
+    return stored.access_token;
   }
 
-  // Fall back to env var (set at deploy time)
-  const envToken = process.env.FURGONETKA_ACCESS_TOKEN;
-  if (envToken && !isTokenExpired(envToken)) {
-    cachedAccessToken = envToken;
-    return envToken;
-  }
-
-  // Token missing or expired – refresh it
+  // 2. Token missing or expired – refresh it
   if (refreshPromise) {
     return refreshPromise;
   }
 
-  refreshPromise = refreshAccessToken().finally(() => {
+  // Get the best available refresh token: stored in DB or from env var
+  const refreshToken = stored?.refresh_token || process.env.FURGONETKA_REFRESH_TOKEN;
+  if (!refreshToken) {
+    throw new Error('Furgonetka refresh token is missing. Add FURGONETKA_REFRESH_TOKEN to env vars.');
+  }
+
+  refreshPromise = refreshAccessToken(refreshToken).finally(() => {
     refreshPromise = null;
   });
 
@@ -101,7 +123,7 @@ export async function getValidAccessToken(): Promise<string> {
 async function apiRequest(endpoint: string, method: string = 'GET', body: any = null, isBinary: boolean = false) {
   const token = await getValidAccessToken();
   const url = `${BASE_URL}${endpoint}`;
-  
+
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${token}`,
     'Accept': 'application/vnd.furgonetka.v2+json',
@@ -184,32 +206,32 @@ export const furgonetkaClient = {
     const payload = {
       packages: [{ id: Number(packageId) }]
     };
-    
+
     // Call order-commands endpoint
     const response = await apiRequest(`/order-commands/${uuid}`, 'PUT', payload);
-    
+
     // Poll the status command for completion
     console.log(`[FurgonetkaClient] Polling status of order command ${uuid}...`);
     let attempts = 0;
     const maxAttempts = 5;
-    
+
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       const statusRes = await apiRequest(`/order-commands/${uuid}`, 'GET');
-      
+
       console.log(`[FurgonetkaClient] Command status response (attempt ${attempts + 1}):`, statusRes.status);
-      
+
       if (statusRes.status === 'success' || statusRes.status === 'successful') {
         return statusRes;
       }
-      
+
       if (statusRes.status === 'error' || statusRes.status === 'failed') {
         throw new Error(`Order command failed: ${JSON.stringify(statusRes.errors || statusRes.error)}`);
       }
-      
+
       attempts++;
     }
-    
+
     throw new Error(`Order command timeout: package ${packageId} order was not processed in time.`);
   },
 
