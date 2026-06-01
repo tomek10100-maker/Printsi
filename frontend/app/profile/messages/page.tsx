@@ -1579,7 +1579,7 @@ function MessagesInner() {
                                         className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
                                     >
                                         {furgonetkaLoading ? <Loader2 size={14} className="animate-spin" /> : '📦'}
-                                        Wyślij przez Furgonetka
+                                        Ship via Furgonetka
                                     </button>
                                 </div>
                             ) : (
