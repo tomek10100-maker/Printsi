@@ -81,6 +81,7 @@ function MessagesInner() {
     const [cancelReason, setCancelReason] = useState('');
     const [cancelSubmitting, setCancelSubmitting] = useState(false);
     const [cancelRespondSubmitting, setCancelRespondSubmitting] = useState(false);
+    const [cancelError, setCancelError] = useState('');
     // For buyer cancel: store shipping info fetched from order
     const [cancelShippingEur, setCancelShippingEur] = useState(0);
     const [cancelItemTotalEur, setCancelItemTotalEur] = useState(0);
@@ -559,6 +560,7 @@ function MessagesInner() {
         if (!activeChatData?.orderItem) return;
         setCancelInitiator(initiator);
         setCancelReason('');
+        setCancelError('');
         // Fetch shipping cost from order for buyer warning
         if (initiator === 'buyer') {
             try {
@@ -574,6 +576,7 @@ function MessagesInner() {
     const handleCancelOrder = async () => {
         if (!activeChatData?.orderItem || !currentUser || cancelReason.trim().length < 5) return;
         setCancelSubmitting(true);
+        setCancelError('');
         try {
             const res = await fetch('/api/order/cancel', {
                 method: 'POST',
@@ -596,9 +599,9 @@ function MessagesInner() {
                 loadMessages(activeChatId as string);
             } else {
                 const d = await res.json();
-                setFormError(d.error || 'Failed to cancel order');
+                setCancelError(d.error || 'Failed to cancel order');
             }
-        } catch { setFormError('Network error'); }
+        } catch { setCancelError('Network error'); }
         setCancelSubmitting(false);
     };
 
@@ -2702,7 +2705,7 @@ function MessagesInner() {
                                         </button>
                                     </div>
 
-                                    {currentUser?.id === activeChatData?.buyer_id && (
+                                    {currentUser?.id === activeChatData?.buyer_id && activeChatData?.orderItem && activeChatData.orderItem.status === 'pending' && (
                                         <>
                                             <button type="button" onClick={() => openCancelModal('buyer')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
                                                 <Ban size={14} /> Cancel
@@ -2712,7 +2715,7 @@ function MessagesInner() {
                                             </button>
                                         </>
                                     )}
-                                    {currentUser?.id === activeChatData?.seller_id && (
+                                    {currentUser?.id === activeChatData?.seller_id && activeChatData?.orderItem && ['pending', 'shipped'].includes(activeChatData.orderItem.status) && (
                                         <>
                                             <button type="button" onClick={() => openCancelModal('seller')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
                                                 <Ban size={14} /> Cancel
@@ -2773,17 +2776,17 @@ function MessagesInner() {
                                 <div className="space-y-1.5 text-xs font-bold">
                                     <div className="flex justify-between text-slate-600">
                                         <span>Item total:</span>
-                                        <span>€{cancelItemTotalEur.toFixed(2)}</span>
+                                        <span>{formatPrice(cancelItemTotalEur)}</span>
                                     </div>
                                     {cancelShippingEur > 0 && (
                                         <div className="flex justify-between text-red-500">
                                             <span>Shipping (non-refundable):</span>
-                                            <span>−€{cancelShippingEur.toFixed(2)}</span>
+                                            <span>-{formatPrice(cancelShippingEur)}</span>
                                         </div>
                                     )}
                                     <div className="flex justify-between text-emerald-700 font-black border-t border-amber-200 pt-1.5">
                                         <span>You would receive back:</span>
-                                        <span>€{Math.max(0, cancelItemTotalEur - cancelShippingEur).toFixed(2)}</span>
+                                        <span>{formatPrice(Math.max(0, cancelItemTotalEur - cancelShippingEur))}</span>
                                     </div>
                                 </div>
                                 <p className="text-[10px] text-amber-600 font-bold">The seller must accept your request. If they decline, a dispute will be opened.</p>
@@ -2808,6 +2811,12 @@ function MessagesInner() {
                                 <p className="text-[11px] text-red-500 font-bold mt-1">Please provide a more detailed reason (min. 5 characters)</p>
                             )}
                         </div>
+
+                        {cancelError && (
+                            <div className="p-4 bg-red-50/50 border border-red-200 rounded-2xl text-red-600 text-xs font-bold leading-relaxed">
+                                ⚠️ {cancelError}
+                            </div>
+                        )}
 
                         {/* Buttons */}
                         <div className="flex gap-3 pt-1">
