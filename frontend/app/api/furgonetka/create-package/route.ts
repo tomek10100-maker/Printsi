@@ -151,22 +151,14 @@ export async function POST(req: Request) {
     } : null);
 
     if (!shippingDetails) {
-      // For pickup points (paczkomat) we only need phone - no home address required
-      // Fallback: get phone/name from buyer profile
+      // For pickup points (paczkomat) we only need phone - no home address required.
+      // For door-to-door the seller fills in the address via a separate form.
+      // Fetch whatever info we have from buyer profile (name, phone).
       const { data: buyerProfile } = await supabase
         .from('profiles')
         .select('full_name, address, city, zip_code, country, phone, phone_number')
         .eq('id', receiverId)
         .single();
-
-      if (!isPickupPoint && (!buyerProfile || (!buyerProfile.address && !buyerProfile.city))) {
-        // For door-to-door we need real address
-        return NextResponse.json({
-          success: false,
-          error: 'Recipient home address not found. Ask the buyer to add their address in Profile Settings.',
-          code: 'RECIPIENT_ADDRESS_MISSING'
-        }, { status: 404 });
-      }
 
       shippingDetails = {
         full_name: buyerProfile?.full_name || 'Recipient',
@@ -178,6 +170,7 @@ export async function POST(req: Request) {
         phone: buyerProfile?.phone || buyerProfile?.phone_number || '',
       };
     }
+
 
     // 8. Determine Carrier / Service ID
     let carrier = 'dpd';
