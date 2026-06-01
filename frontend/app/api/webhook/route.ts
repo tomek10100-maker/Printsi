@@ -75,7 +75,7 @@ export async function POST(req: Request) {
 
     console.log(`👤 buyer: ${userId} | total: ${currencySymbol}${(session.amount_total || 0) / 100}`);
 
-    // Read selected_point from metadata
+    // Read selected_point and shipping_custom from metadata
     const selectedPointStr = session.metadata?.selected_point;
     let selectedPoint = null;
     if (selectedPointStr) {
@@ -83,6 +83,16 @@ export async function POST(req: Request) {
         selectedPoint = JSON.parse(selectedPointStr);
       } catch (e) {
         console.error('Error parsing selected_point metadata:', e);
+      }
+    }
+
+    const shippingCustomStr = session.metadata?.shipping_custom;
+    let shippingCustom = null;
+    if (shippingCustomStr) {
+      try {
+        shippingCustom = JSON.parse(shippingCustomStr);
+      } catch (e) {
+        console.error('Error parsing shipping_custom metadata:', e);
       }
     }
 
@@ -95,6 +105,7 @@ export async function POST(req: Request) {
         status: 'paid_awaiting_transfer',
         shipping_address: {
           ...((session as any).shipping_details || session.customer_details || {}),
+          ...(shippingCustom || {}),
           selected_point: selectedPoint || null
         },
         stripe_payment_intent_id: (session.payment_intent as string) || session.id,
@@ -111,21 +122,31 @@ export async function POST(req: Request) {
 
     // --- 1.5 Create the shipping details ---
     const shippingDetails = (session as any).shipping_details || session.customer_details;
-    if (shippingDetails) {
-      const addressObj = shippingDetails.address || {};
+    if (shippingDetails || shippingCustom) {
+      const addressObj = shippingDetails?.address || {};
+      const customAddressObj = shippingCustom?.address || {};
+      
+      const fullName = shippingCustom?.name || shippingDetails?.name || '';
+      const email = shippingCustom?.email || session.customer_details?.email || '';
+      const phone = shippingCustom?.phone || shippingDetails?.phone || '';
+      const addressLine = shippingCustom?.address?.line1 || shippingCustom?.address || addressObj.line1 || '';
+      const city = shippingCustom?.address?.city || shippingCustom?.city || addressObj.city || '';
+      const zipCode = shippingCustom?.address?.postal_code || shippingCustom?.zip || addressObj.postal_code || '';
+      const country = shippingCustom?.address?.country || shippingCustom?.country || addressObj.country || '';
+
       const { error: shippingError } = await supabase
         .from('order_shipping_details')
         .insert({
           order_id: newOrder.id,
-          full_name: shippingDetails.name || '',
-          email: session.customer_details?.email || '',
-          phone: shippingDetails.phone || '',
+          full_name: fullName,
+          email: email,
+          phone: phone,
           address: selectedPoint
-            ? `${selectedPoint.name || selectedPoint.code}, ${selectedPoint.street || addressObj.line1 || ''}`
-            : addressObj.line1 || '',
-          city: addressObj.city || '',
-          zip_code: addressObj.postal_code || '',
-          country: addressObj.country || '',
+            ? `${selectedPoint.name || selectedPoint.code}, ${selectedPoint.street || addressLine}`
+            : addressLine,
+          city: city,
+          zip_code: zipCode,
+          country: country,
         });
 
       if (shippingError) {

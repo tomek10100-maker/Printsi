@@ -375,7 +375,7 @@ function CheckoutInner() {
 
     try {
       if (paymentMethod === 'balance') {
-        const shippingDetails = (shippingEur ?? 0) > 0 ? {
+        const shippingDetails = hasShippable ? {
           fullName: formData.fullName,
           email: formData.email,
           phone: formData.phone,
@@ -416,7 +416,7 @@ function CheckoutInner() {
               selectedCurrency: currency, exchangeRate: currentRate,
               shippingCostEur: shippingEur || 0,
               shippingLabel: selectedShipping ? `${selectedShipping.carrier} ${selectedShipping.service}` : 'Shipping',
-              shipping: (shippingEur ?? 0) > 0 ? {
+              shipping: hasShippable ? {
                 name: formData.fullName,
                 address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country }
               } : undefined,
