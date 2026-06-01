@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
 
 const ENV = process.env.FURGONETKA_ENV || 'sandbox';
@@ -19,38 +17,18 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
-function updateEnvTokens(accessToken: string, refreshToken: string) {
+// In-memory token cache – persists within the same serverless function instance.
+// On Vercel, writing to the filesystem is not possible, so we cache in memory only.
+let cachedAccessToken: string | null = null;
+let cachedRefreshToken: string | null = null;
+
+function updateCachedTokens(accessToken: string, refreshToken: string) {
+  cachedAccessToken = accessToken;
+  cachedRefreshToken = refreshToken;
+  // Also update process.env so any direct reads work within the same instance
   process.env.FURGONETKA_ACCESS_TOKEN = accessToken;
   process.env.FURGONETKA_REFRESH_TOKEN = refreshToken;
-
-  try {
-    // Determine .env.local path relative to application root
-    const envPath = path.join(process.cwd(), '.env.local');
-    if (fs.existsSync(envPath)) {
-      let content = fs.readFileSync(envPath, 'utf8');
-
-      // Replace or insert ACCESS_TOKEN
-      if (content.includes('FURGONETKA_ACCESS_TOKEN=')) {
-        content = content.replace(/FURGONETKA_ACCESS_TOKEN=.*/, `FURGONETKA_ACCESS_TOKEN=${accessToken}`);
-      } else {
-        content += `\nFURGONETKA_ACCESS_TOKEN=${accessToken}`;
-      }
-
-      // Replace or insert REFRESH_TOKEN
-      if (content.includes('FURGONETKA_REFRESH_TOKEN=')) {
-        content = content.replace(/FURGONETKA_REFRESH_TOKEN=.*/, `FURGONETKA_REFRESH_TOKEN=${refreshToken}`);
-      } else {
-        content += `\nFURGONETKA_REFRESH_TOKEN=${refreshToken}`;
-      }
-
-      fs.writeFileSync(envPath, content, 'utf8');
-      console.log('[FurgonetkaClient] Successfully saved new tokens to .env.local');
-    } else {
-      console.warn('[FurgonetkaClient] .env.local file not found at:', envPath);
-    }
-  } catch (error) {
-    console.error('[FurgonetkaClient] Failed to save refreshed tokens to .env.local:', error);
-  }
+  console.log('[FurgonetkaClient] Tokens updated in memory cache.');
 }
 
 let refreshPromise: Promise<string> | null = null;
@@ -58,7 +36,8 @@ let refreshPromise: Promise<string> | null = null;
 async function refreshAccessToken(): Promise<string> {
   const clientId = process.env.FURGONETKA_CLIENT_ID;
   const clientSecret = process.env.FURGONETKA_CLIENT_SECRET;
-  const refreshToken = process.env.FURGONETKA_REFRESH_TOKEN;
+  // Use in-memory cached refresh token first, fall back to env var
+  const refreshToken = cachedRefreshToken || process.env.FURGONETKA_REFRESH_TOKEN;
 
   if (!clientId || !clientSecret || !refreshToken) {
     throw new Error('Furgonetka client credentials or refresh token are missing in env.');
@@ -90,16 +69,24 @@ async function refreshAccessToken(): Promise<string> {
     throw new Error(`Invalid response structure from token endpoint: ${JSON.stringify(data)}`);
   }
 
-  updateEnvTokens(data.access_token, data.refresh_token);
+  updateCachedTokens(data.access_token, data.refresh_token);
   return data.access_token;
 }
 
 export async function getValidAccessToken(): Promise<string> {
-  const currentToken = process.env.FURGONETKA_ACCESS_TOKEN;
-  if (currentToken && !isTokenExpired(currentToken)) {
-    return currentToken;
+  // Check in-memory cache first (fastest, survives within same serverless instance)
+  if (cachedAccessToken && !isTokenExpired(cachedAccessToken)) {
+    return cachedAccessToken;
   }
 
+  // Fall back to env var (set at deploy time)
+  const envToken = process.env.FURGONETKA_ACCESS_TOKEN;
+  if (envToken && !isTokenExpired(envToken)) {
+    cachedAccessToken = envToken;
+    return envToken;
+  }
+
+  // Token missing or expired – refresh it
   if (refreshPromise) {
     return refreshPromise;
   }
