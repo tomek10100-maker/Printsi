@@ -9,12 +9,12 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-    theme: 'black',
+    theme: 'midnight',
     setTheme: () => { }
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-    const [theme, setThemeState] = useState<Theme>('black');
+    const [theme, setThemeState] = useState<Theme>('midnight');
 
     useEffect(() => {
         const saved = localStorage.getItem('printis-theme') as Theme;

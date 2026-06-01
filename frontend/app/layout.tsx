@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-theme="black">
+    <html lang="en" data-theme="midnight">
       <body className={inter.className}>
         <ErrorSuppressor />
         <ThemeProvider>
