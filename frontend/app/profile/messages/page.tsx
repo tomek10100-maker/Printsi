@@ -574,7 +574,11 @@ function MessagesInner() {
     };
 
     const handleCancelOrder = async () => {
-        if (!activeChatData?.orderItem || !currentUser || cancelReason.trim().length < 5) return;
+        if (!activeChatData?.orderItem || !currentUser) return;
+        if (cancelReason.trim().length < 5) {
+            setCancelError('Please provide a reason for cancellation (minimum 5 characters).');
+            return;
+        }
         setCancelSubmitting(true);
         setCancelError('');
         try {
@@ -2828,7 +2832,7 @@ function MessagesInner() {
                             </button>
                             <button
                                 onClick={handleCancelOrder}
-                                disabled={cancelSubmitting || cancelReason.trim().length < 5}
+                                disabled={cancelSubmitting}
                                 className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                                     cancelInitiator === 'seller'
                                         ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-red-500/20'
