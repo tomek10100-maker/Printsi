@@ -166,6 +166,48 @@ export async function sendDisputeEmail(
         html: EmailTemplates.disputeOpened(seller.name, productTitle, problemType, description, 'seller'),
       });
     }
+
+    // Send to support
+    try {
+      await sendEmail({
+        to: 'support@printis.store',
+        subject: `⚠️ [Dispute/Problem] ${problemType} - ${productTitle}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #ffffff; color: #333333;">
+            <h2 style="color: #ef4444; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin-top: 0; text-transform: uppercase; font-size: 18px;">
+              New Dispute / Shipping Problem Opened
+            </h2>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; width: 120px; color: #666;">Product:</td>
+                <td style="padding: 8px 0; font-weight: bold;">${productTitle}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #666;">Problem Type:</td>
+                <td style="padding: 8px 0; font-weight: bold; color: #ef4444;">${problemType}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #666;">Buyer:</td>
+                <td style="padding: 8px 0;">${buyer?.name || 'N/A'} (${buyer?.email || 'N/A'})</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #666;">Seller:</td>
+                <td style="padding: 8px 0;">${seller?.name || 'N/A'} (${seller?.email || 'N/A'})</td>
+              </tr>
+            </table>
+            <div style="margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 8px; border-left: 4px solid #ef4444;">
+              <h3 style="margin-top: 0; font-size: 14px; color: #555; text-transform: uppercase;">Buyer Description:</h3>
+              <p style="margin-bottom: 0; line-height: 1.6; white-space: pre-wrap;">${description}</p>
+            </div>
+            <p style="margin-top: 30px; font-size: 11px; color: #999; text-align: center; border-top: 1px solid #eaeaea; padding-top: 15px;">
+              This is an automated notification from the Printis Platform.
+            </p>
+          </div>
+        `
+      });
+    } catch (supportErr) {
+      console.error('❌ Failed to send dispute notification to support email:', supportErr);
+    }
   } catch (err) {
     console.error('❌ Failed to send dispute email:', err);
   }

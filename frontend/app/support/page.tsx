@@ -101,22 +101,27 @@ export default function SupportPage() {
     setSending(true);
     setError('');
 
-    const { error: dbError } = await supabase.from('support_tickets').insert({
-      category: activeForm,
-      subject: subject.trim(),
-      message: message.trim(),
-      contact: contact.trim(),
-      status: 'open',
-      created_at: new Date().toISOString(),
-    });
-
-    setSending(false);
-
-    if (dbError) {
-      console.error('Support ticket error:', dbError.code, dbError.message, dbError.details, dbError.hint);
-      setError(`Error: ${dbError.message || 'Something went wrong. Please try again.'}`);
-    } else {
-      setSent(true);
+    try {
+      const res = await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: activeForm,
+          subject: subject.trim(),
+          message: message.trim(),
+          contact: contact.trim(),
+        }),
+      });
+      const data = await res.json();
+      setSending(false);
+      if (!res.ok) {
+        setError(`Error: ${data.error || 'Something went wrong. Please try again.'}`);
+      } else {
+        setSent(true);
+      }
+    } catch (err: any) {
+      setSending(false);
+      setError(`Error: ${err.message || 'Network error. Please try again.'}`);
     }
   };
 
