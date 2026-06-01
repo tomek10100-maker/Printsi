@@ -210,17 +210,17 @@ export async function POST(req: Request) {
     const receiverPostcode = (selectedPoint
       ? selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || shippingDetails.zip
       : shippingDetails.zip_code || shippingDetails.zip
-    )?.trim() || '';
+    )?.trim() || (selectedPoint?.code ? '00-001' : '');
 
     const receiverCity = (selectedPoint
       ? selectedPoint.city || shippingDetails.city
       : shippingDetails.city
-    )?.trim() || '';
+    )?.trim() || (selectedPoint?.code ? 'Warszawa' : '');
 
     const receiverStreet = (selectedPoint
       ? selectedPoint.street || shippingDetails.address
       : shippingDetails.address
-    )?.trim() || '';
+    )?.trim() || (selectedPoint?.code ? `Paczkomat ${selectedPoint.code}` : '');
 
     if (!receiverPostcode || !receiverCity || !receiverStreet) {
       return NextResponse.json({
