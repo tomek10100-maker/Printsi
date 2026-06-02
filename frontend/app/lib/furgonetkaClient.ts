@@ -152,6 +152,7 @@ async function apiRequest(endpoint: string, method: string = 'GET', body: any = 
       });
     } catch (refreshErr) {
       console.error('[FurgonetkaClient API] Token refresh failed during retry:', refreshErr);
+      throw new Error(`Furgonetka Token Refresh Failed. The refresh token may have been revoked or expired. Please re-authorize by visiting /api/furgonetka/auth?secret=YOUR_WEBHOOK_SECRET. Details: ${refreshErr}`);
     }
   }
 
