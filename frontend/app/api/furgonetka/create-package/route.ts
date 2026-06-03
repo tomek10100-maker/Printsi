@@ -193,7 +193,7 @@ export async function POST(req: Request) {
       if (/^\d{5}$/.test(clean)) {
         return `${clean.substring(0, 2)}-${clean.substring(2)}`;
       }
-      return '00-001'; // Default fallback
+      return '02-222'; // Default fallback
     };
 
     const pickupName = formatFullname(senderProfile.full_name, 'Sender Name');
@@ -209,7 +209,7 @@ export async function POST(req: Request) {
       // For paczkomat/pickup point shipments, the point code is what matters.
       // Address fields are irrelevant but Furgonetka still requires them - use safe fallbacks.
       receiverPostcode = formatPolishPostcode(
-        selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || '00-001'
+        selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || '02-222'
       );
       receiverCity = (selectedPoint.city || shippingDetails.city || 'Warszawa').substring(0, 40);
       receiverStreet = 'Przykładowa 1';
@@ -243,7 +243,7 @@ export async function POST(req: Request) {
 
     // In sandbox, force a 100% valid Polish sender address to avoid any postal code / city mismatches or missing building number errors
     if (process.env.FURGONETKA_ENV === 'sandbox') {
-      pickupPostcode = '00-001';
+      pickupPostcode = '02-222';
       pickupCity = 'Warszawa';
       pickupStreet = 'Borkowska 1';
       if (receiverStreet && pickupStreet.toLowerCase() === receiverStreet.toLowerCase()) {
