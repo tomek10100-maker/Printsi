@@ -228,11 +228,19 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    const pickupPostcode = formatPolishPostcode(cleanZipCode);
-    const pickupCity = cleanCity.length > 1 ? cleanCity : 'Warszawa';
+    let pickupPostcode = formatPolishPostcode(cleanZipCode);
+    let pickupCity = cleanCity.length > 1 ? cleanCity : 'Warszawa';
     let pickupStreet = cleanAddress.length > 2 ? cleanAddress : 'Borkowska 1';
-    if (pickupStreet && !/\d/.test(pickupStreet)) {
-      pickupStreet = `${pickupStreet} 1`;
+
+    // In sandbox, force a 100% valid Polish sender address to avoid any postal code / city mismatches or missing building number errors
+    if (process.env.FURGONETKA_ENV === 'sandbox') {
+      pickupPostcode = '00-001';
+      pickupCity = 'Warszawa';
+      pickupStreet = 'Borkowska 1';
+    } else {
+      if (pickupStreet && !/\d/.test(pickupStreet)) {
+        pickupStreet = `${pickupStreet} 1`;
+      }
     }
 
     const furgonetkaPayload: any = {
