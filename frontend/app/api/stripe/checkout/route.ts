@@ -16,7 +16,8 @@ export async function POST(req: Request) {
       shipping,
       isTopup,
       topupAmount,
-      selectedPoint
+      selectedPoint,
+      grandTotalEur,   // <-- exact total pre-calculated by checkout UI
     } = await req.json();
 
     // 1. Validation for standard checkout
@@ -29,7 +30,6 @@ export async function POST(req: Request) {
 
     if (isTopup) {
       // 2. Handle Wallet Top-up
-      // The amount is already in the user-selected currency from the UI.
       const amount = Math.round(Number(topupAmount) * 100);
       line_items.push({
         price_data: {
@@ -37,100 +37,49 @@ export async function POST(req: Request) {
           product_data: {
             name: 'Printis Wallet Top-up',
             description: `Refilling digital balance for faster 3D marketplace transactions.`,
-            images: ['https://raw.githubusercontent.com/lucide-react/lucide/main/icons/wallet.png'], 
+            images: ['https://raw.githubusercontent.com/lucide-react/lucide/main/icons/wallet.png'],
           },
           unit_amount: amount,
         },
         quantity: 1,
       });
     } else {
-      // 3. Handle Standard Cart items
-      items.forEach((item: any) => {
-        const unitAmount = Math.round(item.price * exchangeRate * 100);
-        line_items.push({
-          price_data: {
-            currency,
-            product_data: {
-              name: item.name || item.title,
-              images: item.image_url ? [item.image_url] : [],
-              metadata: {
-                offer_id: item.id,
-                seller_id: item.seller_id,
-              },
-            },
-            unit_amount: unitAmount,
+      // 3. Standard checkout — use grandTotalEur from the UI as the single source of truth.
+      // This guarantees the Stripe charge = exactly what was shown to the buyer.
+      // We round once on the final total to avoid any per-item rounding accumulation.
+
+      const totalInSmallestUnit = grandTotalEur != null
+        ? Math.round(grandTotalEur * exchangeRate * 100)
+        : (() => {
+            // Fallback if grandTotalEur not provided: compute from parts
+            const itemsSubtotalEur = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0);
+            const feeBaseEur = itemsSubtotalEur + (shippingCostEur || 0);
+            const isForeign = currency !== 'eur';
+            const feesEur = feeBaseEur * (0.01 + 0.025 + (isForeign ? 0.015 : 0));
+            return Math.round((feeBaseEur + feesEur) * exchangeRate * 100);
+          })();
+
+      // Build a human-readable order summary label
+      const itemNames = items.map((i: any) => `${i.quantity}× ${i.name || i.title}`).join(', ');
+      const summaryLabel = `Printis Order${itemNames.length <= 80 ? ': ' + itemNames : ''}`;
+
+      line_items.push({
+        price_data: {
+          currency,
+          product_data: {
+            name: summaryLabel,
+            description: [
+              shippingLabel ? `Shipping: ${shippingLabel}` : null,
+              'Includes Printis platform fees',
+            ].filter(Boolean).join(' · '),
           },
-          quantity: item.quantity,
-        });
+          unit_amount: totalInSmallestUnit,
+        },
+        quantity: 1,
       });
+    }
 
-      // 4. Add shipping cost
-      if (shippingCostEur && shippingCostEur > 0) {
-        const shippingAmount = Math.round(shippingCostEur * exchangeRate * 100);
-        line_items.push({
-          price_data: {
-            currency,
-            product_data: {
-              name: shippingLabel || 'Shipping',
-              description: 'Delivery service',
-            },
-            unit_amount: shippingAmount,
-          },
-          quantity: 1,
-        });
-      }
-
-      // 5. Platform fees — must match exactly what's shown in checkout UI
-      // Base = subtotal (items) + shipping
-      const itemsSubtotalEur = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0);
-      const feeBaseEur = itemsSubtotalEur + (shippingCostEur || 0);
-
-      const printsiTaxEur      = feeBaseEur * 0.01;   // 1%  Printis Tax
-      const buyerProtectionEur = feeBaseEur * 0.025;  // 2.5% Buyer Protection
-
-      const printsiTaxAmount      = Math.round(printsiTaxEur * exchangeRate * 100);
-      const buyerProtectionAmount = Math.round(buyerProtectionEur * exchangeRate * 100);
-
-      if (printsiTaxAmount > 0) {
-        line_items.push({
-          price_data: {
-            currency,
-            product_data: { name: 'Printis Tax (1%)' },
-            unit_amount: printsiTaxAmount,
-          },
-          quantity: 1,
-        });
-      }
-
-      if (buyerProtectionAmount > 0) {
-        line_items.push({
-          price_data: {
-            currency,
-            product_data: { name: 'Buyer Protection (2.5%)' },
-            unit_amount: buyerProtectionAmount,
-          },
-          quantity: 1,
-        });
-      }
-
-      // Currency Conversion fee — only for non-EUR currencies
-      if (currency !== 'eur') {
-        const currencyConversionEur    = feeBaseEur * 0.015; // 1.5%
-        const currencyConversionAmount = Math.round(currencyConversionEur * exchangeRate * 100);
-        if (currencyConversionAmount > 0) {
-          line_items.push({
-            price_data: {
-              currency,
-              product_data: { name: 'Currency Conversion (1.5%)' },
-              unit_amount: currencyConversionAmount,
-            },
-            quantity: 1,
-          });
-        }
-      }
-    } // end else (standard checkout)
-
-    // 6. Payment Methods
+    // 4. Payment Methods
     const payment_method_types: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = ['card'];
     if (currency === 'pln') {
       payment_method_types.push('blik', 'p24');

@@ -410,6 +410,7 @@ function CheckoutInner() {
               userId: user.id, items, email: formData.email,
               selectedCurrency: currency, exchangeRate: currentRate,
               shippingCostEur: shippingEur || 0,
+              grandTotalEur: grandTotalEur,
               shippingLabel: selectedShipping ? `${selectedShipping.carrier} ${selectedShipping.service}` : 'Shipping',
               shipping: hasShippable ? {
                 name: formData.fullName,
