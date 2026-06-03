@@ -969,11 +969,11 @@ function CheckoutInner() {
                   <div className="bg-gray-50 rounded-2xl p-4 space-y-2.5 border border-gray-100">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 mb-3">Platform Fees</p>
 
-                    {/* 1% Printsi Tax */}
+                    {/* 1% Printis Tax */}
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">1%</span>
-                        <span className="text-xs font-bold text-gray-600">Printsi Tax</span>
+                        <span className="text-xs font-bold text-gray-600">Printis Tax</span>
                       </div>
                       <span className="text-xs font-black text-gray-800">{formatPrice(printsiTaxEur)}</span>
                     </div>
