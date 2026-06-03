@@ -199,39 +199,42 @@ export async function POST(req: Request) {
     const pickupName = formatFullname(senderProfile.full_name, 'Sender Name');
     const receiverName = formatFullname(shippingDetails.full_name, 'Recipient Name');
 
-    const rawReceiverPostcode = (selectedPoint
-      ? selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || shippingDetails.zip
-      : shippingDetails.zip_code || shippingDetails.zip
-    )?.trim() || (selectedPoint?.code ? '00-001' : '');
-
     const receiverCountryCode = getCountryCode(shippingDetails.country);
-    const receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : rawReceiverPostcode;
 
-    const receiverCity = (selectedPoint
-      ? selectedPoint.city || shippingDetails.city
-      : shippingDetails.city
-    )?.trim() || (selectedPoint?.code ? 'Warszawa' : '');
+    let receiverPostcode: string;
+    let receiverCity: string;
+    let receiverStreet: string;
 
-    let receiverStreet = (selectedPoint
-      ? selectedPoint.street || shippingDetails.address
-      : shippingDetails.address
-    )?.trim() || (selectedPoint?.code ? `Paczkomat ${selectedPoint.code}` : '');
+    if (isPickupPoint) {
+      // For paczkomat/pickup point shipments, the point code is what matters.
+      // Address fields are irrelevant but Furgonetka still requires them - use safe fallbacks.
+      receiverPostcode = formatPolishPostcode(
+        selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || '00-001'
+      );
+      receiverCity = (selectedPoint.city || shippingDetails.city || 'Warszawa').substring(0, 40);
+      receiverStreet = 'Przykładowa 1';
+    } else {
+      const rawReceiverPostcode = (shippingDetails.zip_code || shippingDetails.zip || '')?.trim();
+      receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : rawReceiverPostcode;
+      receiverCity = (shippingDetails.city || '')?.trim();
+      receiverStreet = (shippingDetails.address || '')?.trim();
 
-    if (receiverStreet && !/\d/.test(receiverStreet)) {
-      receiverStreet = `${receiverStreet} 1`;
-    }
+      if (receiverStreet && !/\d/.test(receiverStreet)) {
+        receiverStreet = `${receiverStreet} 1`;
+      }
 
-    // Furgonetka/DHL limit: street max 60 characters
-    if (receiverStreet && receiverStreet.length > 60) {
-      receiverStreet = receiverStreet.substring(0, 60).trimEnd();
-    }
+      // Furgonetka/DHL limit: street max 60 characters
+      if (receiverStreet && receiverStreet.length > 60) {
+        receiverStreet = receiverStreet.substring(0, 60).trimEnd();
+      }
 
-    if (!receiverPostcode || !receiverCity || !receiverStreet) {
-      return NextResponse.json({
-        success: false,
-        error: 'Receiver address, city, or zip code is missing. Please check shipping details.',
-        code: 'RECEIVER_ADDRESS_MISSING'
-      }, { status: 400 });
+      if (!receiverPostcode || !receiverCity || !receiverStreet) {
+        return NextResponse.json({
+          success: false,
+          error: 'Receiver address, city, or zip code is missing. Please check shipping details.',
+          code: 'RECEIVER_ADDRESS_MISSING'
+        }, { status: 400 });
+      }
     }
 
     let pickupPostcode = formatPolishPostcode(cleanZipCode);
