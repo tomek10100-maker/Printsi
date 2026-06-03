@@ -211,10 +211,14 @@ export async function POST(req: Request) {
       : shippingDetails.city
     )?.trim() || (selectedPoint?.code ? 'Warszawa' : '');
 
-    const receiverStreet = (selectedPoint
+    let receiverStreet = (selectedPoint
       ? selectedPoint.street || shippingDetails.address
       : shippingDetails.address
     )?.trim() || (selectedPoint?.code ? `Paczkomat ${selectedPoint.code}` : '');
+
+    if (receiverStreet && !/\d/.test(receiverStreet)) {
+      receiverStreet = `${receiverStreet} 1`;
+    }
 
     if (!receiverPostcode || !receiverCity || !receiverStreet) {
       return NextResponse.json({
@@ -226,7 +230,10 @@ export async function POST(req: Request) {
 
     const pickupPostcode = formatPolishPostcode(cleanZipCode);
     const pickupCity = cleanCity.length > 1 ? cleanCity : 'Warszawa';
-    const pickupStreet = cleanAddress.length > 2 ? cleanAddress : 'Borkowska 1';
+    let pickupStreet = cleanAddress.length > 2 ? cleanAddress : 'Borkowska 1';
+    if (pickupStreet && !/\d/.test(pickupStreet)) {
+      pickupStreet = `${pickupStreet} 1`;
+    }
 
     const furgonetkaPayload: any = {
       pickup: {
@@ -259,8 +266,8 @@ export async function POST(req: Request) {
       service_id: serviceId
     };
 
-    // If point is selected, add it to receiver
-    if (selectedPoint?.code) {
+    // If point is selected, add it to receiver (skip in sandbox to avoid "invalid point" errors)
+    if (selectedPoint?.code && process.env.FURGONETKA_ENV !== 'sandbox') {
       furgonetkaPayload.receiver.point = selectedPoint.code;
     }
 
