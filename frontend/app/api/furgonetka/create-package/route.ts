@@ -188,7 +188,8 @@ export async function POST(req: Request) {
     };
 
     const formatPolishPostcode = (zip: string): string => {
-      const clean = (zip || '').trim().replace('-', '');
+      // Strip ALL dashes/spaces before reformatting to avoid double-dash or missing-dash issues
+      const clean = (zip || '').trim().replace(/[-\s]/g, '');
       if (/^\d{5}$/.test(clean)) {
         return `${clean.substring(0, 2)}-${clean.substring(2)}`;
       }
@@ -220,6 +221,11 @@ export async function POST(req: Request) {
       receiverStreet = `${receiverStreet} 1`;
     }
 
+    // Furgonetka/DHL limit: street max 60 characters
+    if (receiverStreet && receiverStreet.length > 60) {
+      receiverStreet = receiverStreet.substring(0, 60).trimEnd();
+    }
+
     if (!receiverPostcode || !receiverCity || !receiverStreet) {
       return NextResponse.json({
         success: false,
@@ -244,6 +250,11 @@ export async function POST(req: Request) {
       if (pickupStreet && !/\d/.test(pickupStreet)) {
         pickupStreet = `${pickupStreet} 1`;
       }
+    }
+
+    // Furgonetka/DHL limit: street max 60 characters
+    if (pickupStreet && pickupStreet.length > 60) {
+      pickupStreet = pickupStreet.substring(0, 60).trimEnd();
     }
 
     const furgonetkaPayload: any = {
