@@ -237,6 +237,9 @@ export async function POST(req: Request) {
       pickupPostcode = '00-001';
       pickupCity = 'Warszawa';
       pickupStreet = 'Borkowska 1';
+      if (receiverStreet && pickupStreet.toLowerCase() === receiverStreet.toLowerCase()) {
+        pickupStreet = 'Borkowska 2';
+      }
     } else {
       if (pickupStreet && !/\d/.test(pickupStreet)) {
         pickupStreet = `${pickupStreet} 1`;
