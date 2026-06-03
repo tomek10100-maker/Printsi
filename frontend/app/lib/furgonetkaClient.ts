@@ -178,6 +178,18 @@ async function apiRequest(endpoint: string, method: string = 'GET', body: any = 
 
 export const furgonetkaClient = {
   /**
+   * Get real-time shipping prices from Furgonetka API.
+   * Calls POST /packages/calculate-price and returns available services with live prices.
+   */
+  async calculateShipping(payload: {
+    pickup: { name: string; street: string; postcode: string; city: string; country_code: string; phone: string; email: string };
+    receiver: { name: string; street: string; postcode: string; city: string; country_code: string; phone: string; email: string };
+    parcels: Array<{ width: number; height: number; depth: number; weight: number; type: string }>;
+  }) {
+    return apiRequest('/packages/calculate-price', 'POST', payload);
+  },
+
+  /**
    * Create a draft package (state = waiting)
    */
   async createPackage(payload: {
