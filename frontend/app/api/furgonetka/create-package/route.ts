@@ -287,7 +287,6 @@ export async function POST(req: Request) {
         code: 'PICKUP_POINT_MISSING'
       }, { status: 400 });
     }
-    }
 
     const furgonetkaPayload: any = {
       pickup: {
