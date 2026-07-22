@@ -392,19 +392,19 @@ export default function OnboardingPage() {
                             <p className="text-gray-500 mb-6 font-medium text-sm">Please read and accept our Terms of Service before completing your registration.</p>
 
                             {/* ToS Accordion */}
-                            <div className="border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-100 mb-6 max-h-80 overflow-y-auto shadow-inner">
+                            <div className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 rounded-2xl overflow-hidden divide-y divide-gray-200 dark:divide-gray-700 mb-6 max-h-80 overflow-y-auto shadow-inner">
                                 {TOS_SECTIONS.map((section, idx) => (
-                                    <div key={idx}>
+                                    <div key={idx} className="bg-white dark:bg-slate-900">
                                         <button
                                             onClick={() => setOpenSection(openSection === idx ? null : idx)}
-                                            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors group"
+                                            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
                                         >
-                                            <span className="font-black text-xs text-gray-700 uppercase tracking-wide group-hover:text-blue-600 transition-colors">{section.title}</span>
-                                            <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 flex-shrink-0 ml-3 ${openSection === idx ? 'rotate-180' : ''}`} />
+                                            <span className="font-black text-xs sm:text-sm text-slate-900 dark:text-white uppercase tracking-wide group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{section.title}</span>
+                                            <ChevronDown size={16} className={`text-slate-500 dark:text-slate-400 transition-transform duration-300 flex-shrink-0 ml-3 ${openSection === idx ? 'rotate-180 text-blue-600' : ''}`} />
                                         </button>
                                         {openSection === idx && (
-                                            <div className="px-5 pb-5 bg-gray-50/50">
-                                                <p className="text-xs text-gray-600 leading-relaxed font-medium whitespace-pre-line">{section.content}</p>
+                                            <div className="px-5 pb-5 pt-3 bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                                                <p className="text-xs sm:text-sm text-slate-900 dark:text-slate-100 leading-relaxed font-bold whitespace-pre-line">{section.content}</p>
                                             </div>
                                         )}
                                     </div>
@@ -414,7 +414,7 @@ export default function OnboardingPage() {
                             {/* Checkboxes */}
                             <div className="space-y-4">
                                 {/* Main ToS acceptance */}
-                                <label className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${tosAccepted ? 'border-blue-600 bg-blue-50/50' : 'border-gray-200 hover:border-blue-200'}`}>
+                                <label className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${tosAccepted ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/50' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 hover:border-blue-300'}`}>
                                     <div className="relative flex-shrink-0 mt-0.5">
                                         <input
                                             type="checkbox"
@@ -422,17 +422,17 @@ export default function OnboardingPage() {
                                             onChange={e => setTosAccepted(e.target.checked)}
                                             className="sr-only"
                                         />
-                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${tosAccepted ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${tosAccepted ? 'bg-blue-600 border-blue-600' : 'border-gray-400 dark:border-gray-500 bg-white dark:bg-slate-800'}`}>
                                             {tosAccepted && <Check size={12} className="text-white" strokeWidth={3} />}
                                         </div>
                                     </div>
-                                    <span className="text-xs font-bold text-gray-700 leading-relaxed">
-                                        I have read and I accept the <span className="text-blue-600 font-black">Printis Terms of Service</span> and <span className="text-blue-600 font-black">Privacy Policy</span>. I understand that by using the Platform, I agree to be bound by these Terms.
+                                    <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
+                                        I have read and I accept the <span className="text-blue-600 dark:text-blue-400 font-black underline">Printis Terms of Service</span> and <span className="text-blue-600 dark:text-blue-400 font-black underline">Privacy Policy</span>. I understand that by using the Platform, I agree to be bound by these Terms.
                                     </span>
                                 </label>
 
                                 {/* Digital content consent */}
-                                <label className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${digitalConsent ? 'border-emerald-500 bg-emerald-50/50' : 'border-gray-200 hover:border-emerald-200'}`}>
+                                <label className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${digitalConsent ? 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/50' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 hover:border-emerald-300'}`}>
                                     <div className="relative flex-shrink-0 mt-0.5">
                                         <input
                                             type="checkbox"
@@ -440,12 +440,12 @@ export default function OnboardingPage() {
                                             onChange={e => setDigitalConsent(e.target.checked)}
                                             className="sr-only"
                                         />
-                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${digitalConsent ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300'}`}>
+                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${digitalConsent ? 'bg-emerald-600 border-emerald-600' : 'border-gray-400 dark:border-gray-500 bg-white dark:bg-slate-800'}`}>
                                             {digitalConsent && <Check size={12} className="text-white" strokeWidth={3} />}
                                         </div>
                                     </div>
-                                    <span className="text-xs font-bold text-gray-700 leading-relaxed">
-                                        I expressly consent to the immediate delivery of digital content (3D model files) before the expiry of the 14-day withdrawal period, and I acknowledge that by granting this consent, <span className="text-emerald-700 font-black">I lose my right to withdraw from the contract</span> for digital file purchases once the file has been delivered. (§7 of the Terms, Art. 38(13) of the Consumer Rights Act)
+                                    <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
+                                        I expressly consent to the immediate delivery of digital content (3D model files) before the expiry of the 14-day withdrawal period, and I acknowledge that by granting this consent, <span className="text-emerald-700 dark:text-emerald-400 font-black underline">I lose my right to withdraw from the contract</span> for digital file purchases once the file has been delivered. (§7 of the Terms, Art. 38(13) of the Consumer Rights Act)
                                     </span>
                                 </label>
                             </div>
