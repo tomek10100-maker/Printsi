@@ -335,7 +335,14 @@ export default function OnboardingPage() {
                                     <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 italic">Account Type (Choose one)</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <RoleCard title="Hobbyist / Maker" desc="I do this for fun." active={roles.includes('hobbyist')} onClick={() => toggleRole('hobbyist')} />
-                                        <RoleCard title="Business / Studio" desc="I represent a company." active={roles.includes('business')} onClick={() => toggleRole('business')} />
+                                        <RoleCard
+                                            title="Business / Studio"
+                                            desc="I represent a company."
+                                            active={roles.includes('business')}
+                                            onClick={() => toggleRole('business')}
+                                            disabled={true}
+                                            badge="Contact Sales"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -497,18 +504,31 @@ export default function OnboardingPage() {
     );
 }
 
-function RoleCard({ title, desc, active, onClick }: any) {
+function RoleCard({ title, desc, active, onClick, disabled, badge }: any) {
     return (
         <div
-            onClick={onClick}
-            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all hover:-translate-y-1 ${active
-                ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600'
-                : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-md'
+            onClick={disabled ? undefined : onClick}
+            className={`p-5 rounded-2xl border-2 transition-all relative overflow-hidden ${disabled
+                ? 'border-gray-200 bg-gray-50/80 opacity-60 cursor-not-allowed'
+                : active
+                ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600 cursor-pointer hover:-translate-y-1'
+                : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-md cursor-pointer hover:-translate-y-1'
             }`}
         >
-            <h3 className={`font-black text-sm md:text-base ${active ? 'text-blue-900' : 'text-gray-900'}`}>{title}</h3>
+            {badge && (
+                <span className="absolute top-3 right-3 text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200 shadow-sm">
+                    {badge}
+                </span>
+            )}
+            <h3 className={`font-black text-sm md:text-base ${disabled ? 'text-gray-400' : active ? 'text-blue-900' : 'text-gray-900'}`}>{title}</h3>
             <p className="text-[11px] md:text-xs text-gray-500 mt-2 leading-relaxed font-bold">{desc}</p>
-            {active && <div className="mt-3 flex items-center gap-1 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-blue-600"><Check size={12} strokeWidth={4} /> Selected</div>}
+            {disabled ? (
+                <div className="mt-3 flex items-center gap-1 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-amber-600">
+                    🔒 Temporarily Disabled — Contact Sales
+                </div>
+            ) : active ? (
+                <div className="mt-3 flex items-center gap-1 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-blue-600"><Check size={12} strokeWidth={4} /> Selected</div>
+            ) : null}
         </div>
     );
 }
