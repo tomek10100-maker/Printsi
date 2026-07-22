@@ -126,8 +126,11 @@ export function parseWeightToGrams(weightStr: string | null | undefined): number
     if (!weightStr) return 500;
     const normalized = weightStr.trim().toLowerCase().replace(',', '.');
     const kgMatch = normalized.match(/^([\d.]+)\s*kg$/);
-    if (kgMatch) return Math.round(parseFloat(kgMatch[1]) * 1000);
+    if (kgMatch) return Math.max(1, Math.round(parseFloat(kgMatch[1]) * 1000));
     const gMatch = normalized.match(/^([\d.]+)\s*g?$/);
-    if (gMatch) return Math.round(parseFloat(gMatch[1]));
+    if (gMatch) {
+        const val = Math.round(parseFloat(gMatch[1]));
+        return val > 0 ? Math.max(1, val) : 1;
+    }
     return 500;
 }

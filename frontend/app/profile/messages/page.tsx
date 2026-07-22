@@ -1666,7 +1666,7 @@ function MessagesInner() {
                                     onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
                                     className="mt-3 px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 mx-auto transition-all shadow-sm"
                                 >
-                                    <Printer size={12} /> Pobierz etykietę PDF
+                                    <Printer size={12} /> Download PDF Label
                                 </button>
                             )}
                         </div>

@@ -12,6 +12,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+import { formatOfferWeight } from '../lib/offerHelpers';
+
 export default function CartPage() {
   const { items, updateQuantity, removeItem, cartTotal, cartCount } = useCart();
   const { formatPrice } = useCurrency();
@@ -171,7 +173,7 @@ export default function CartPage() {
 
                          {item.weight && (
                            <p className="text-[10px] text-amber-600 font-black uppercase tracking-widest">
-                             Net Weight: {item.weight}
+                             Net Weight: {formatOfferWeight(item.weight)}
                            </p>
                          )}
                        </div>

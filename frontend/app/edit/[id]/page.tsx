@@ -411,28 +411,47 @@ export default function EditOfferPage() {
             return ok && maxP !== Infinity ? Math.max(0, maxP) : 0;
           };
           dbStock = variants.reduce((s, v) => s + resolveStock(v), 0);
+          const fl = variants[0].layers[0];
+          dbMaterial = fl.filament?.plastic_type || null;
+          dbColor = fl.filament?.color_hex || null;
+          dbColorName = fl.filament?.color_name || null;
+          const calcW0 = Math.round(variants[0].layers.reduce((s, l) => s + (parseFloat(l.grams) || 0), 0));
+          dbWeight = (calcW0 > 0 ? Math.max(1, calcW0) : 1).toString();
+          dbFilamentId = fl.filament?.id || null;
           colorVariantsPayload = variants.map((v, i) => ({
             variantId: v.variantId, label: v.layers.map(l => l.filament?.color_name).join(' + '),
             priceEUR: prices[i]?.totalEUR, stock: resolveStock(v), stockTracking: v.stockTracking,
             markupType: v.markupType, markupValue: v.markupValue, primaryColor: v.layers[0]?.filament?.color_hex,
+            weight: (Math.round(v.layers.reduce((s, l) => s + (parseFloat(l.grams) || 0), 0)) > 0 ? Math.max(1, Math.round(v.layers.reduce((s, l) => s + (parseFloat(l.grams) || 0), 0))) : 1).toString(),
             layers: v.layers.map(l => ({ filament_id: l.filament?.id, grams: l.grams, color_hex: l.filament?.color_hex, color_name: l.filament?.color_name, plastic_type: l.filament?.plastic_type }))
           }));
         } else {
           const pricesEUR = manualVariants.map(v => (parseFloat(v.priceLocal) || 0) / (rates?.[currency] || 1));
           dbPrice = Math.min(...pricesEUR);
           dbStock = manualVariants.reduce((s, v) => s + (parseInt(v.stock) || 0), 0);
-          colorVariantsPayload = manualVariants.map((v, i) => ({
-            manual: true, variantId: v.id, label: v.layers.map(l => l.colorName).join(' + '),
-            priceEUR: pricesEUR[i], stock: parseInt(v.stock) || 0, primaryColor: v.layers[0].colorHex,
-            layers: v.layers.map(l => ({ color_hex: l.colorHex, color_name: l.colorName, plastic_type: l.material, grams: l.weight }))
-          }));
+          const v0 = manualVariants[0];
+          const l0 = v0.layers[0];
+          dbMaterial = l0.material || null;
+          dbColor = l0.colorHex || null;
+          dbColorName = l0.colorName || null;
+          const calcW1 = Math.round(v0.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0));
+          dbWeight = (calcW1 > 0 ? Math.max(1, calcW1) : 1).toString();
+          colorVariantsPayload = manualVariants.map((v, i) => {
+            const vW = Math.round(v.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0));
+            return {
+              manual: true, variantId: v.id, label: v.layers.map(l => l.colorName).join(' + '),
+              priceEUR: pricesEUR[i], stock: parseInt(v.stock) || 0, primaryColor: v.layers[0].colorHex,
+              weight: (vW > 0 ? Math.max(1, vW) : 1).toString(),
+              layers: v.layers.map(l => ({ color_hex: l.colorHex, color_name: l.colorName, plastic_type: l.material, grams: l.weight }))
+            };
+          });
         }
       } else {
         dbPrice = isNegotiable ? 0 : (parseFloat(manualPriceLocal) || 0) / (rates?.[currency] || 1);
         dbMaterial = manualMaterial === 'Custom / Other' ? customMaterialName : (manualMaterial || null);
         dbColor = manualColorHex || null;
         dbColorName = manualColor || null;
-        dbWeight = manualWeight || null;
+        dbWeight = manualWeight ? (parseFloat(manualWeight) > 0 ? Math.max(1, Math.round(parseFloat(manualWeight))).toString() : '1') : null;
         dbStock = category === 'digital' ? 999999 : (parseInt(manualStock) || 1);
       }
 

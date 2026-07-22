@@ -455,7 +455,8 @@ export default function AddOfferPage() {
           dbMaterial = fl.filament?.plastic_type || null;
           dbColor = fl.filament?.color_hex || null;
           dbColorName = fl.filament?.color_name || null;
-          dbWeight = variants[0].layers.reduce((s, l) => s + (parseFloat(l.grams) || 0), 0).toString();
+          const calcW0 = Math.round(variants[0].layers.reduce((s, l) => s + (parseFloat(l.grams) || 0), 0));
+          dbWeight = (calcW0 > 0 ? Math.max(1, calcW0) : 1).toString();
           dbFilamentId = fl.filament?.id || null;
           colorVariantsPayload = variants.map((v, i) => ({
             variantId: v.variantId,
@@ -488,26 +489,30 @@ export default function AddOfferPage() {
           dbMaterial = l0.material || null;
           dbColor = l0.colorHex || null;
           dbColorName = l0.colorName || null;
-          dbWeight = v0.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0).toString();
+          const calcW1 = Math.round(v0.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0));
+          dbWeight = (calcW1 > 0 ? Math.max(1, calcW1) : 1).toString();
 
-          colorVariantsPayload = manualVariants.map((v, i) => ({
-            variantId: v.id,
-            label: v.layers.map(l => l.colorName).filter(Boolean).join(' + ') || `Variant ${i + 1}`,
-            color_name: v.layers[0]?.colorName || null,
-            plastic_type: v.layers[0]?.material || null,
-            layers: v.layers.map(l => ({
-              color_hex: l.colorHex,
-              color_name: l.colorName,
-              plastic_type: l.material,
-              grams: l.weight,
-            })),
-            priceEUR: pricesEUR[i],
-            stock: parseInt(v.stock) || 0,
-            weight: v.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0).toString(),
-            primaryColor: v.layers[0]?.colorHex || '#888',
-            isMultiColor: v.layers.length > 1,
-            manual: true,
-          }));
+          colorVariantsPayload = manualVariants.map((v, i) => {
+            const vW = Math.round(v.layers.reduce((s, l) => s + (parseFloat(l.weight) || 0), 0));
+            return {
+              variantId: v.id,
+              label: v.layers.map(l => l.colorName).filter(Boolean).join(' + ') || `Variant ${i + 1}`,
+              color_name: v.layers[0]?.colorName || null,
+              plastic_type: v.layers[0]?.material || null,
+              layers: v.layers.map(l => ({
+                color_hex: l.colorHex,
+                color_name: l.colorName,
+                plastic_type: l.material,
+                grams: l.weight,
+              })),
+              priceEUR: pricesEUR[i],
+              stock: parseInt(v.stock) || 0,
+              weight: (vW > 0 ? Math.max(1, vW) : 1).toString(),
+              primaryColor: v.layers[0]?.colorHex || '#888',
+              isMultiColor: v.layers.length > 1,
+              manual: true,
+            };
+          });
         }
       } else {
         // Digital or Job

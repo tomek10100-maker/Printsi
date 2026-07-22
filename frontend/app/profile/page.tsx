@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
+import { getOfferStock, isOfferSoldOut, formatOfferWeight } from '../lib/offerHelpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -540,6 +541,9 @@ export default function ProfilePage() {
                     {myOffers.filter((o: any) => !o.is_custom).map((offer: any) => {
                       const variants = offer.color_variants || [];
                       const hasVariants = variants.length > 1;
+                      const offerSoldOut = isOfferSoldOut(offer);
+                      const offerStock = getOfferStock(offer);
+                      const displayWeight = formatOfferWeight(offer.weight, variants[0]?.layers);
                       // Only show active custom orders (stock > 0 means not yet fulfilled/expired)
                       const linkedCustomOrders = myOffers.filter(
                         (o: any) => o.is_custom && o.parent_offer_id === offer.id && o.stock > 0
@@ -558,7 +562,7 @@ export default function ProfilePage() {
                                <div className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[9px] font-black uppercase text-gray-900 shadow-sm z-20">
                                  {offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}
                                </div>
-                               {offer.stock === 0 && (
+                               {offerSoldOut && (
                                  <div className="absolute inset-0 bg-red-500/10 backdrop-blur-[2px] flex items-center justify-center z-30">
                                    <div className="bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] py-2 px-8 -rotate-12 border-2 border-white shadow-xl">Sold Out</div>
                                  </div>
@@ -589,7 +593,7 @@ export default function ProfilePage() {
                                 <div className="bg-blue-50/50 p-2.5 rounded-2xl border border-blue-50 flex flex-col justify-center">
                                    <span className="block text-[8px] font-black uppercase text-blue-400 tracking-widest mb-0.5">Total Stock</span>
                                    <span className="block font-black text-blue-900 text-xs">
-                                     {offer.category === 'digital' ? <span className="text-xl leading-none">∞</span> : (offer.stock === 0 ? <span className="text-red-500">Sold</span> : `${offer.stock} pcs`)}
+                                     {offer.category === 'digital' ? <span className="text-xl leading-none">∞</span> : (offerSoldOut ? <span className="text-red-500">Sold</span> : `${offerStock} pcs`)}
                                    </span>
                                 </div>
                                 <div className={`p-2.5 rounded-2xl border ${
@@ -618,7 +622,7 @@ export default function ProfilePage() {
                                      </div>
                                      <div className="bg-amber-50/50 p-2.5 rounded-2xl border border-amber-50 flex flex-col justify-center">
                                        <span className="block text-[8px] font-black uppercase text-amber-400 tracking-widest mb-0.5">Net Weight</span>
-                                       <span className="block font-black text-amber-900 text-xs">{offer.weight || 'N/A'}</span>
+                                       <span className="block font-black text-amber-900 text-xs">{displayWeight}</span>
                                      </div>
                                    </>
                                  )}

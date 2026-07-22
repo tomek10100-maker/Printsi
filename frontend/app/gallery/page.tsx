@@ -11,6 +11,7 @@ import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import ThemeToggle from '../components/ThemeToggle';
 import { supabase } from '../lib/supabase';
+import { getOfferStock, isOfferSoldOut, formatOfferWeight } from '../lib/offerHelpers';
 
 type ColorVariant = {
   label: string;
@@ -174,7 +175,7 @@ function MarketplaceContent() {
       router.push('/login');
       return;
     }
-    if (offer.stock <= 0) return;
+    if (isOfferSoldOut(offer)) return;
     // Job offers → redirect to offer detail page for download & fulfill flow
     if (offer.category === 'job') {
       router.push(`/offer/${offer.id}`);
@@ -190,16 +191,14 @@ function MarketplaceContent() {
     }
     const firstVariant = variants[0];
     const fvLayers = firstVariant?.layers;
-    const fvWeight = fvLayers && fvLayers.length > 0
-      ? fvLayers.reduce((sum: number, l: any) => sum + (parseFloat(l.grams) || 0), 0) + 'g'
-      : offer.weight;
+    const fvWeight = formatOfferWeight(firstVariant ? null : offer.weight, fvLayers);
     addItem({
       id: offer.id,
       title: offer.title,
       price: firstVariant ? firstVariant.priceEUR : offer.price,
       image_url: offer.image_urls?.[0] || null,
       seller_id: offer.user_id,
-      stock: firstVariant ? firstVariant.stock : offer.stock,
+      stock: firstVariant ? firstVariant.stock : getOfferStock(offer),
       variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
       variant_color: firstVariant ? getVariantColor(firstVariant) : offer.color_hex,
       variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams, color_hex: l.color_hex, color_name: l.color_name })) || undefined,
@@ -216,7 +215,7 @@ function MarketplaceContent() {
       router.push('/login');
       return;
     }
-    if (offer.stock <= 0) return;
+    if (isOfferSoldOut(offer)) return;
     // Job offers → redirect to offer detail page for download & fulfill flow
     if (offer.category === 'job') {
       router.push(`/offer/${offer.id}`);
@@ -231,16 +230,14 @@ function MarketplaceContent() {
     }
     const firstVariant = variants[0];
     const fvLayers2 = firstVariant?.layers;
-    const fvWeight2 = fvLayers2 && fvLayers2.length > 0
-      ? fvLayers2.reduce((sum: number, l: any) => sum + (parseFloat(l.grams) || 0), 0) + 'g'
-      : offer.weight;
+    const fvWeight2 = formatOfferWeight(firstVariant ? null : offer.weight, fvLayers2);
     addItem({
       id: offer.id,
       title: offer.title,
       price: firstVariant ? firstVariant.priceEUR : offer.price,
       image_url: offer.image_urls?.[0] || null,
       seller_id: offer.user_id,
-      stock: firstVariant ? firstVariant.stock : offer.stock,
+      stock: firstVariant ? firstVariant.stock : getOfferStock(offer),
       variant_name: firstVariant ? firstVariant.color_name : offer.color_name,
       variant_color: firstVariant ? getVariantColor(firstVariant) : offer.color_hex,
       variant_layers: firstVariant?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams, color_hex: l.color_hex, color_name: l.color_name })) || undefined,
@@ -256,16 +253,14 @@ function MarketplaceContent() {
     const variants = colorPickerOffer.color_variants || [];
     const v = variants[selectedVariantIdx];
     const vLayers = v?.layers;
-    const vWeight = vLayers && vLayers.length > 0
-      ? vLayers.reduce((sum: number, l: any) => sum + (parseFloat(l.grams) || 0), 0) + 'g'
-      : colorPickerOffer.weight;
+    const vWeight = formatOfferWeight(v ? null : colorPickerOffer.weight, vLayers);
     addItem({
       id: colorPickerOffer.id,
       title: colorPickerOffer.title,
       price: v ? v.priceEUR : colorPickerOffer.price,
       image_url: colorPickerOffer.image_urls?.[0] || null,
       seller_id: colorPickerOffer.user_id,
-      stock: v ? v.stock : colorPickerOffer.stock,
+      stock: v ? v.stock : getOfferStock(colorPickerOffer),
       variant_name: v ? v.color_name : colorPickerOffer.color_name,
       variant_color: v ? getVariantColor(v) : colorPickerOffer.color_hex,
       variant_layers: v?.layers?.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams, color_hex: l.color_hex, color_name: l.color_name })) || undefined,
@@ -407,8 +402,10 @@ function MarketplaceContent() {
       return true;
     })
     .sort((a, b) => {
-      if (a.stock === 0 && b.stock > 0) return 1;
-      if (a.stock > 0 && b.stock === 0) return -1;
+      const stockA = getOfferStock(a);
+      const stockB = getOfferStock(b);
+      if (stockA === 0 && stockB > 0) return 1;
+      if (stockA > 0 && stockB === 0) return -1;
       if (sortBy === 'price_asc') return a.price - b.price;
       if (sortBy === 'price_desc') return b.price - a.price;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -631,13 +628,16 @@ function MarketplaceContent() {
           <div className="text-center py-20 opacity-50 text-gray-900"><Package className="mx-auto mb-4 text-gray-200" size={64} /><h2 className="text-xl font-black uppercase">No Listings Here</h2></div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {filteredOffers.map((offer) => (
+            {filteredOffers.map((offer) => {
+              const offerSoldOut = isOfferSoldOut(offer);
+              const offerStock = getOfferStock(offer);
+              return (
               <div
                 key={offer.id}
                 onClick={() => router.push(`/offer/${offer.id}`)} // CAŁA KARTA KLIKALNA
-                className={`group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col relative cursor-pointer ${offer.stock <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-2'}`}
+                className={`group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col relative cursor-pointer ${offerSoldOut ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-2'}`}
               >
-                {offer.stock <= 0 && (
+                {offerSoldOut && (
                   <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/20 backdrop-blur-[2px]">
                     <div className="bg-red-600 text-white text-xs font-black uppercase tracking-[0.2em] py-3 px-10 -rotate-12 shadow-2xl border-2 border-white">Sold Out</div>
                   </div>
@@ -654,7 +654,7 @@ function MarketplaceContent() {
                     <Heart size={18} className={`transition-colors ${savedIds.includes(offer.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
                   </button>
 
-                  {offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) && (offer.category !== 'job' || userRoles.includes('printer')) && (() => {
+                  {!offerSoldOut && (!currentUser || currentUser.id !== offer.user_id) && (offer.category !== 'job' || userRoles.includes('printer')) && (() => {
                     const isAlreadyInCart = offer.category === 'digital' && items.some(i => i.id === offer.id);
                     return (
                       <button
@@ -674,6 +674,7 @@ function MarketplaceContent() {
                     const firstVariant = (offer.color_variants || [])[0];
                     const layers = firstVariant?.layers;
                     const isMultiLayer = layers && layers.length > 1;
+                    const itemWeight = formatOfferWeight(offer.weight, layers);
                     return (
                       <div className="flex flex-wrap items-center gap-1.5 mb-2">
                         {isMultiLayer ? (
@@ -683,13 +684,13 @@ function MarketplaceContent() {
                         ) : (
                           offer.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1.5 py-0.5 rounded-sm">{offer.material}</span>
                         )}
-                        {offer.weight && <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1.5 py-0.5 rounded-sm">{offer.weight}</span>}
+                        <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1.5 py-0.5 rounded-sm">{itemWeight}</span>
                       </div>
                     );
                   })()}
 
                   {/* Color variant swatches preview */}
-                  {offer.category === 'physical' && offer.stock > 0 && (() => {
+                  {offer.category === 'physical' && !offerSoldOut && (() => {
                     const variants = offer.color_variants || [];
                     if (variants.length > 1) {
                       const displayVariants = variants.slice(0, 5);
@@ -718,7 +719,7 @@ function MarketplaceContent() {
                     return null;
                   })()}
 
-                  {offer.stock > 0 && offer.category !== 'digital' && !(offer.color_variants && offer.color_variants.length > 1) && (
+                  {!offerSoldOut && offer.category !== 'digital' && !(offer.color_variants && offer.color_variants.length > 1) && (
                     <div className="flex items-center gap-1.5 mt-1 mb-3 bg-blue-50 w-fit px-2 py-0.5 rounded-sm">
                       <MessageSquare size={10} className="text-blue-500" />
                       <span className="text-[8px] font-black uppercase tracking-widest text-blue-600">Customizable</span>
@@ -774,7 +775,7 @@ function MarketplaceContent() {
                           <button disabled className="flex items-center bg-gray-50 text-red-500 px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest cursor-not-allowed border border-red-100">
                             Printer Role Required
                           </button>
-                        ) : offer.stock > 0 && (!currentUser || currentUser.id !== offer.user_id) ? (() => {
+                        ) : !offerSoldOut && (!currentUser || currentUser.id !== offer.user_id) ? (() => {
                           const isAlreadyInCart = offer.category === 'digital' && items.some(i => i.id === offer.id);
                           return (
                             <button
@@ -792,14 +793,15 @@ function MarketplaceContent() {
                             </button>
                           );
                         })() : (
-                          offer.stock > 0 && <span className="text-gray-300 group-hover:text-blue-600 transition-colors"><ArrowRight size={20} /></span>
+                          !offerSoldOut && <span className="text-gray-300 group-hover:text-blue-600 transition-colors"><ArrowRight size={20} /></span>
                         )}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

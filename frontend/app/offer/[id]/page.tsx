@@ -12,6 +12,8 @@ import { useCurrency } from '../../../context/CurrencyContext';
 import { parseWeightToGrams } from '../../lib/dhlRates';
 import { supabase } from '../../lib/supabase';
 
+import { formatOfferWeight } from '../../lib/offerHelpers';
+
 export default function OfferDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -277,9 +279,7 @@ export default function OfferDetailsPage() {
   const currentColor = currentVariant ? currentVariant.color_name : (offer.color_name || offer.color);
   const currentColorHex = currentVariant ? currentVariant.primaryColor : (offer.color_hex || offer.color);
   const currentMaterial = currentVariant ? currentVariant.plastic_type : offer.material;
-  const currentWeight = currentVariant && currentVariant.layers
-    ? currentVariant.layers.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0) + 'g'
-    : offer.weight;
+  const currentWeight = formatOfferWeight(currentVariant ? null : offer.weight, currentVariant?.layers);
 
   const isOutOfStock = currentStock === 0;
   const weightGrams = currentWeight ? parseWeightToGrams(currentWeight.toString()) : null;
@@ -409,7 +409,7 @@ export default function OfferDetailsPage() {
                                   {mat && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{mat}</span>}
                                 </div>
                               </div>
-                              <span className="text-sm font-black text-blue-600">{l.grams}g</span>
+                              <span className="text-sm font-black text-blue-600">{Math.max(1, Math.round(parseFloat(l.grams) || 0))}g</span>
                             </div>
                           );
                         })}

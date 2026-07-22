@@ -25,6 +25,9 @@ function getCountryCode(countryStr: string): string {
   return countryCodeMap[clean] || (clean.length === 2 ? clean.toUpperCase() : 'PL');
 }
 
+/** Carriers that use point-to-point delivery (require pickup.point + receiver.point) */
+const POINT_TO_POINT_CARRIERS = new Set(['inpost', 'orlen']);
+
 function getServiceId(carrier: string): number {
   const cleanCarrier = (carrier || 'dpd').trim().toLowerCase();
   const map: Record<string, number> = {
@@ -38,6 +41,10 @@ function getServiceId(carrier: string): number {
     'gls': 11636593,
   };
   return map[cleanCarrier] || 11636590;
+}
+
+function isPointToPoint(carrier: string): boolean {
+  return POINT_TO_POINT_CARRIERS.has((carrier || '').trim().toLowerCase());
 }
 
 export async function POST(req: Request) {
@@ -246,6 +253,27 @@ export async function POST(req: Request) {
       }
     }
 
+    // Determine if this carrier requires point-to-point delivery
+    const pointToPoint = isPointToPoint(carrier);
+
+    // For point-to-point carriers, get the seller's drop-off point.
+    // Use env var for the default pickup point (e.g. a nearby InPost/Orlen machine).
+    // In sandbox, use a known test point code.
+    const sandboxPickupPoint = process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01';
+    const productionPickupPoint = process.env.FURGONETKA_PICKUP_POINT || '';
+    const pickupPointCode = process.env.FURGONETKA_ENV === 'sandbox'
+      ? sandboxPickupPoint
+      : productionPickupPoint;
+
+    // For point-to-point, validate we have a pickup point code
+    if (pointToPoint && !pickupPointCode) {
+      return NextResponse.json({
+        success: false,
+        error: 'Seller pickup point (FURGONETKA_PICKUP_POINT) is not configured. Please set it in your environment variables.',
+        code: 'PICKUP_POINT_MISSING'
+      }, { status: 400 });
+    }
+
     const furgonetkaPayload: any = {
       pickup: {
         name: pickupName,
@@ -277,8 +305,14 @@ export async function POST(req: Request) {
       service_id: serviceId
     };
 
-    // If point is selected, add it to receiver (skip in sandbox to avoid "invalid point" errors)
-    if (selectedPoint?.code && process.env.FURGONETKA_ENV !== 'sandbox') {
+    // For point-to-point carriers (InPost, Orlen): set both pickup.point and receiver.point
+    if (pointToPoint) {
+      furgonetkaPayload.pickup.point = pickupPointCode;
+      if (selectedPoint?.code) {
+        furgonetkaPayload.receiver.point = selectedPoint.code;
+      }
+    } else if (selectedPoint?.code) {
+      // Door-to-door carrier but buyer chose a pickup point — add receiver.point if present
       furgonetkaPayload.receiver.point = selectedPoint.code;
     }
 
