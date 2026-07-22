@@ -49,6 +49,7 @@ function CheckoutInner() {
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   // Stable options — never clears once set, prevents spinner flash between re-renders
   const [stableShippingOptions, setStableShippingOptions] = useState<ShippingOption[]>([]);
+  const [shippingLoading, setShippingLoading] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<{
     code: string;
     name: string;
@@ -172,16 +173,13 @@ function CheckoutInner() {
     return items.some(item => item.category !== 'digital');
   }, [items, isTopup]);
 
-  // Compute available shipping options based on items dimensions + weight
-  const availableShippingOptions = useMemo((): ShippingOption[] => {
-    if (!hasShippable) return [];
+  // Compute available shipping options — first try live Furgonetka prices, fall back to static
+  const fetchShippingOptions = React.useCallback(async () => {
+    if (!hasShippable) return;
     const plnRate = rates?.['PLN'] || 4.25;
 
-    // Group by seller, find worst-case (largest) dimensions
     let totalWeightGrams = 0;
     let maxDimsMm: [number, number, number] | null = null;
-
-    // Use item.category from cart (no async fetch needed)
     const shippableItems = items.filter(item => item.category !== 'digital');
     for (const item of shippableItems) {
       totalWeightGrams += (offerWeights[item.id] ?? 500) * item.quantity;
@@ -191,7 +189,6 @@ function CheckoutInner() {
         if (!maxDimsMm) {
           maxDimsMm = dims;
         } else {
-          // Combine: assume items stack, so add longest side
           maxDimsMm = [
             Math.max(maxDimsMm[0], dims[0]),
             Math.max(maxDimsMm[1], dims[1]),
@@ -200,34 +197,64 @@ function CheckoutInner() {
         }
       }
     }
-    // Cap total weight at 31kg so carriers always return at least one option
-    // Heavy shipments will be quoted at the max tier price
     totalWeightGrams = Math.min(totalWeightGrams, 31000);
 
-    // Get seller's country (first shippable seller)
     const firstSellerId = shippableItems[0]?.seller_id;
     const fromCode = (sellerCountries as any)[firstSellerId] || 'PL';
     const toCode = formData.country;
-
     const parcel = calculateParcel(maxDimsMm, totalWeightGrams);
-    const options = getShippingOptions(fromCode, toCode, parcel, plnRate);
 
-    return options;
-  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, formData.country, rates]);
+    setShippingLoading(true);
+    try {
+      const res = await fetch('/api/furgonetka/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          widthCm: parcel.widthCm,
+          heightCm: parcel.heightCm,
+          lengthCm: parcel.lengthCm,
+          weightGrams: parcel.weightGrams,
+          fromCountry: fromCode,
+          toCountry: toCode,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.options && data.options.length > 0) {
+        // Live prices from Furgonetka — convert PLN to EUR using current rate
+        const liveOptions: ShippingOption[] = data.options.map((o: any) => ({
+          ...o,
+          priceEur: Math.round((o.pricePln / plnRate) * 100) / 100,
+        }));
+        setStableShippingOptions(liveOptions);
+        setSelectedShipping(prev => {
+          if (!prev) return liveOptions[0];
+          const still = liveOptions.find((o: ShippingOption) => o.id === prev.id);
+          return still || liveOptions[0];
+        });
+        return;
+      }
+    } catch (_) {
+      // fall through to static fallback
+    } finally {
+      setShippingLoading(false);
+    }
 
-  // Keep stable options — only update when we have real results (never flash to empty)
-  useEffect(() => {
-    if (availableShippingOptions.length > 0) {
-      setStableShippingOptions(availableShippingOptions);
-      // Re-select same carrier if still available, otherwise pick first
+    // Static fallback if Furgonetka API unavailable
+    const staticOptions = getShippingOptions(fromCode, toCode, parcel, plnRate);
+    if (staticOptions.length > 0) {
+      setStableShippingOptions(staticOptions);
       setSelectedShipping(prev => {
-        if (!prev) return availableShippingOptions[0];
-        const still = availableShippingOptions.find(o => o.id === prev.id);
-        return still || availableShippingOptions[0];
+        if (!prev) return staticOptions[0];
+        const still = staticOptions.find(o => o.id === prev.id);
+        return still || staticOptions[0];
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableShippingOptions]);
+  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, formData.country, rates]);
+
+  useEffect(() => {
+    fetchShippingOptions();
+  }, [fetchShippingOptions]);
 
   const shippingPln = selectedShipping?.pricePln ?? 0;
 
@@ -383,6 +410,7 @@ function CheckoutInner() {
               userId: user.id, items, email: formData.email,
               selectedCurrency: currency, exchangeRate: currentRate,
               shippingCostEur: shippingEur || 0,
+              grandTotalEur: grandTotalEur,
               shippingLabel: selectedShipping ? `${selectedShipping.carrier} ${selectedShipping.service}` : 'Shipping',
               shipping: hasShippable ? {
                 name: formData.fullName,
@@ -605,10 +633,10 @@ function CheckoutInner() {
                     </span>
                     Delivery Method
                   </h2>
-                  {stableShippingOptions.length === 0 ? (
+                  {(shippingLoading || stableShippingOptions.length === 0) ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#6b7280' }}>
                       <Loader2 className="animate-spin" size={18} />
-                      <p style={{ fontSize: '13px', fontWeight: 700 }}>Calculating shipping options…</p>
+                      <p style={{ fontSize: '13px', fontWeight: 700 }}>Calculating live shipping prices…</p>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -969,11 +997,11 @@ function CheckoutInner() {
                   <div className="bg-gray-50 rounded-2xl p-4 space-y-2.5 border border-gray-100">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 mb-3">Platform Fees</p>
 
-                    {/* 1% Printsi Tax */}
+                    {/* 1% Printis Tax */}
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">1%</span>
-                        <span className="text-xs font-bold text-gray-600">Printsi Tax</span>
+                        <span className="text-xs font-bold text-gray-600">Printis Tax</span>
                       </div>
                       <span className="text-xs font-black text-gray-800">{formatPrice(printsiTaxEur)}</span>
                     </div>

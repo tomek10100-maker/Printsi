@@ -16,7 +16,8 @@ export async function POST(req: Request) {
       shipping,
       isTopup,
       topupAmount,
-      selectedPoint
+      selectedPoint,
+      grandTotalEur,   // <-- exact total pre-calculated by checkout UI
     } = await req.json();
 
     // 1. Validation for standard checkout
@@ -29,7 +30,6 @@ export async function POST(req: Request) {
 
     if (isTopup) {
       // 2. Handle Wallet Top-up
-      // The amount is already in the user-selected currency from the UI.
       const amount = Math.round(Number(topupAmount) * 100);
       line_items.push({
         price_data: {
@@ -37,51 +37,49 @@ export async function POST(req: Request) {
           product_data: {
             name: 'Printis Wallet Top-up',
             description: `Refilling digital balance for faster 3D marketplace transactions.`,
-            images: ['https://raw.githubusercontent.com/lucide-react/lucide/main/icons/wallet.png'], 
+            images: ['https://raw.githubusercontent.com/lucide-react/lucide/main/icons/wallet.png'],
           },
           unit_amount: amount,
         },
         quantity: 1,
       });
     } else {
-      // 3. Handle Standard Cart items
-      items.forEach((item: any) => {
-        const unitAmount = Math.round(item.price * exchangeRate * 100);
-        line_items.push({
-          price_data: {
-            currency,
-            product_data: {
-              name: item.name || item.title,
-              images: item.image_url ? [item.image_url] : [],
-              metadata: {
-                offer_id: item.id,
-                seller_id: item.seller_id,
-              },
-            },
-            unit_amount: unitAmount,
-          },
-          quantity: item.quantity,
-        });
-      });
+      // 3. Standard checkout — use grandTotalEur from the UI as the single source of truth.
+      // This guarantees the Stripe charge = exactly what was shown to the buyer.
+      // We round once on the final total to avoid any per-item rounding accumulation.
 
-      // 4. Add DHL shipping
-      if (shippingCostEur && shippingCostEur > 0) {
-        const shippingAmount = Math.round(shippingCostEur * exchangeRate * 100);
-        line_items.push({
-          price_data: {
-            currency,
-            product_data: {
-              name: shippingLabel || 'DHL Shipping',
-              description: 'Door-to-door delivery via DHL Parcel Connect',
-            },
-            unit_amount: shippingAmount,
+      const totalInSmallestUnit = grandTotalEur != null
+        ? Math.round(grandTotalEur * exchangeRate * 100)
+        : (() => {
+            // Fallback if grandTotalEur not provided: compute from parts
+            const itemsSubtotalEur = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0);
+            const feeBaseEur = itemsSubtotalEur + (shippingCostEur || 0);
+            const isForeign = currency !== 'eur';
+            const feesEur = feeBaseEur * (0.01 + 0.025 + (isForeign ? 0.015 : 0));
+            return Math.round((feeBaseEur + feesEur) * exchangeRate * 100);
+          })();
+
+      // Build a human-readable order summary label
+      const itemNames = items.map((i: any) => `${i.quantity}× ${i.name || i.title}`).join(', ');
+      const summaryLabel = `Printis Order${itemNames.length <= 80 ? ': ' + itemNames : ''}`;
+
+      line_items.push({
+        price_data: {
+          currency,
+          product_data: {
+            name: summaryLabel,
+            description: [
+              shippingLabel ? `Shipping: ${shippingLabel}` : null,
+              'Includes Printis platform fees',
+            ].filter(Boolean).join(' · '),
           },
-          quantity: 1,
-        });
-      }
+          unit_amount: totalInSmallestUnit,
+        },
+        quantity: 1,
+      });
     }
 
-    // 5. Payment Methods
+    // 4. Payment Methods
     const payment_method_types: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = ['card'];
     if (currency === 'pln') {
       payment_method_types.push('blik', 'p24');

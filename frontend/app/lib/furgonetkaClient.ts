@@ -178,6 +178,18 @@ async function apiRequest(endpoint: string, method: string = 'GET', body: any = 
 
 export const furgonetkaClient = {
   /**
+   * Get real-time shipping prices from Furgonetka API.
+   * Calls POST /packages/calculate-price and returns available services with live prices.
+   */
+  async calculateShipping(payload: {
+    pickup: { name: string; street: string; postcode: string; city: string; country_code: string; phone: string; email: string };
+    receiver: { name: string; street: string; postcode: string; city: string; country_code: string; phone: string; email: string };
+    parcels: Array<{ width: number; height: number; depth: number; weight: number; type: string }>;
+  }) {
+    return apiRequest('/packages/calculate-price', 'POST', payload);
+  },
+
+  /**
    * Create a draft package (state = waiting)
    */
   async createPackage(payload: {
@@ -216,24 +228,26 @@ export const furgonetkaClient = {
   },
 
   /**
-   * Finalize and order a package (creates a shipment and pays for it)
+   * Finalize and order a package (creates a shipment and pays for it).
+   * Automatically retries up to 3 times on transient carrier connection errors (e.g. DHL timeout).
    */
-  async orderPackage(packageId: number | string) {
+  async orderPackage(packageId: number | string, retryCount = 0): Promise<any> {
+    const MAX_RETRIES = 3;
     const uuid = crypto.randomUUID();
     const payload = {
       packages: [{ id: Number(packageId) }]
     };
 
     // Call order-commands endpoint
-    const response = await apiRequest(`/order-commands/${uuid}`, 'PUT', payload);
+    await apiRequest(`/order-commands/${uuid}`, 'PUT', payload);
 
     // Poll the status command for completion
-    console.log(`[FurgonetkaClient] Polling status of order command ${uuid}...`);
+    console.log(`[FurgonetkaClient] Polling status of order command ${uuid} (retry ${retryCount})...`);
     let attempts = 0;
-    const maxAttempts = 5;
+    const maxAttempts = 8;
 
     while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 2500));
       const statusRes = await apiRequest(`/order-commands/${uuid}`, 'GET');
 
       console.log(`[FurgonetkaClient] Command status response (attempt ${attempts + 1}):`, statusRes.status);
@@ -243,7 +257,19 @@ export const furgonetkaClient = {
       }
 
       if (statusRes.status === 'error' || statusRes.status === 'failed') {
-        throw new Error(`Order command failed: ${JSON.stringify(statusRes.errors || statusRes.error)}`);
+        const errors = statusRes.errors || statusRes.error || [];
+        const isCarrierTimeout = Array.isArray(errors) && errors.some(
+          (e: any) => e.code === 'carrierConnectionError'
+        );
+
+        if (isCarrierTimeout && retryCount < MAX_RETRIES) {
+          const delayMs = (retryCount + 1) * 5000; // 5s, 10s, 15s
+          console.warn(`[FurgonetkaClient] Carrier connection error (DHL timeout). Retrying in ${delayMs / 1000}s... (retry ${retryCount + 1}/${MAX_RETRIES})`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          return this.orderPackage(packageId, retryCount + 1);
+        }
+
+        throw new Error(`Order command failed: ${JSON.stringify(errors)}`);
       }
 
       attempts++;
