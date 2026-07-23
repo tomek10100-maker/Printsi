@@ -322,10 +322,10 @@ export async function POST(req: Request) {
       },
       parcels: [
         {
-          width: parcel.widthCm,
-          height: parcel.heightCm,
-          depth: parcel.lengthCm, // depth is used as length
-          weight: Math.max(0.1, parcel.weightGrams / 1000), // weight in kg
+          width: Math.max(15, Math.round(parcel.widthCm || 15)),
+          height: Math.max(11, Math.round(parcel.heightCm || 11)),
+          depth: Math.max(5, Math.round(parcel.lengthCm || 5)), // depth is used as length
+          weight: Math.max(1, Math.ceil((parcel.weightGrams || 500) / 1000)), // weight in full integer kg
           type: 'package'
         }
       ],
@@ -338,8 +338,8 @@ export async function POST(req: Request) {
       if (selectedPoint?.code) {
         furgonetkaPayload.receiver.point = selectedPoint.code;
       }
-    } else if (selectedPoint?.code) {
-      // Door-to-door carrier but buyer chose a pickup point — add receiver.point if present
+    } else if (selectedPoint?.code && selectedPoint?.courier && selectedPoint.courier.toLowerCase() === carrier.toLowerCase()) {
+      // Pickup service matching carrier — add receiver.point
       furgonetkaPayload.receiver.point = selectedPoint.code;
     }
 
@@ -446,6 +446,15 @@ export async function POST(req: Request) {
 function translateFurgonetkaError(message: string): string {
   let cleanMsg = message || '';
 
+  if (cleanMsg.includes('invalidPointName') || cleanMsg.includes('poprawny punkt')) {
+    return 'The selected pickup point code is invalid for this carrier.';
+  }
+  if (cleanMsg.includes('packageWeightFullKg') || cleanMsg.includes('pełnych kilogramach')) {
+    return 'Package weight must be specified in full integer kilograms.';
+  }
+  if (cleanMsg.includes('packageMinimalDimensions') || cleanMsg.includes('Minimalne wymiary')) {
+    return 'Parcel dimensions must be at least 15 x 11 x 5 cm.';
+  }
   if (cleanMsg.includes('terms_and_conditions_not_valid') || cleanMsg.includes('regulamin')) {
     return 'Carrier terms and conditions require acceptance in your Furgonetka account.';
   }
