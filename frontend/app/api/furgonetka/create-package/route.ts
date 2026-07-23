@@ -470,7 +470,7 @@ function translateFurgonetkaError(message: string): string {
 
   // 1. Try to match exact error code from JSON errors array if present
   try {
-    const jsonMatch = cleanMsg.match(/\{"errors":\s*(\[.*?\])\}/s);
+    const jsonMatch = cleanMsg.match(/\{"errors":\s*(\[[\s\S]*?\])\}/);
     if (jsonMatch && jsonMatch[1]) {
       const errList = JSON.parse(jsonMatch[1]);
       if (Array.isArray(errList) && errList.length > 0) {
