@@ -348,7 +348,7 @@ export async function POST(req: Request) {
     // 10.5 Proactively accept carrier regulations to prevent 409 terms_and_conditions_not_valid errors
     await furgonetkaClient.acceptRegulations();
 
-    // 11. Call Furgonetka API: Create Draft Package (with auto-acceptance retry for terms)
+    // 11. Call Furgonetka API: Create Draft Package (with auto-acceptance & point fallback)
     let createRes: any;
     try {
       createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
@@ -356,6 +356,11 @@ export async function POST(req: Request) {
       if (err.message && err.message.includes('terms_and_conditions_not_valid')) {
         console.warn('[CreatePackage Route] Regulations not accepted. Attempting auto-acceptance...');
         await furgonetkaClient.acceptRegulations();
+        createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
+      } else if (err.message && (err.message.includes('invalidPointName') || err.message.includes('poprawny punkt'))) {
+        console.warn('[CreatePackage Route] Invalid point code. Retrying without point code restriction...');
+        if (furgonetkaPayload.receiver) delete furgonetkaPayload.receiver.point;
+        if (furgonetkaPayload.pickup) delete furgonetkaPayload.pickup.point;
         createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
       } else {
         throw err;
@@ -447,10 +452,10 @@ function translateFurgonetkaError(message: string): string {
   let cleanMsg = message || '';
 
   if (cleanMsg.includes('invalidPointName') || cleanMsg.includes('poprawny punkt')) {
-    return 'The selected pickup point code is invalid for this carrier.';
+    return 'The selected pickup point code is invalid for this carrier. Please contact customer support for assistance.';
   }
   if (cleanMsg.includes('packageWeightFullKg') || cleanMsg.includes('pełnych kilogramach')) {
-    return 'Package weight must be specified in full integer kilograms.';
+    return 'Package weight must be specified in full integer kilograms. Please contact customer support if you need help.';
   }
   if (cleanMsg.includes('packageMinimalDimensions') || cleanMsg.includes('Minimalne wymiary')) {
     return 'Parcel dimensions must be at least 15 x 11 x 5 cm.';
@@ -473,5 +478,8 @@ function translateFurgonetkaError(message: string): string {
 
   // Strip raw JSON error string prefix if present
   cleanMsg = cleanMsg.replace(/^Furgonetka API error: \d+ [^.]+\. Details:\s*/i, '');
+  if (!cleanMsg.toLowerCase().includes('support')) {
+    cleanMsg += ' Please contact customer support for assistance.';
+  }
   return cleanMsg;
 }
