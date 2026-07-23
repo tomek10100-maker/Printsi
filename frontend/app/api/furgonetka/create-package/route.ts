@@ -203,7 +203,7 @@ export async function POST(req: Request) {
       return clean;
     };
 
-    const pickupPhone = sanitizePhone(senderProfile.phone_number || senderProfile.phone, '500600700');
+    const pickupPhone = sanitizePhone(senderProfile.phone_number || (senderProfile as any).phone, '500600700');
     const receiverPhone = sanitizePhone(shippingDetails.phone, '600700800');
 
     const formatPolishPostcode = (zip: string): string => {
