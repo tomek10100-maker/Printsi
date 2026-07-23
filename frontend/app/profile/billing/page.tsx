@@ -301,8 +301,8 @@ function BillingContent() {
           {/* SIDEBAR - ONLY FOR SELLERS */}
           {isSeller && (
             <div className="space-y-8">
-              <div className={`${styles.cardBg} rounded-[40px] p-5 sm:p-10 border ${styles.cardBorder} shadow-2xl relative overflow-hidden transition-all duration-700`}>
-                <h3 className={`text-lg font-black mb-8 flex items-center gap-2 uppercase tracking-tight ${styles.textTitle}`}>
+              <div className={`${styles.cardBg} rounded-[40px] p-5 sm:p-10 border ${styles.cardBorder} shadow-2xl relative overflow-hidden transition-all duration-700 space-y-6`}>
+                <h3 className={`text-lg font-black mb-6 flex items-center gap-2 uppercase tracking-tight ${styles.textTitle}`}>
                   <ArrowUpRight className="text-blue-500" /> Payout
                 </h3>
 
@@ -312,6 +312,74 @@ function BillingContent() {
                   theme={theme}
                   onSaved={fetchData}
                 />
+
+                <hr className={`my-6 ${theme !== 'white' ? 'border-white/10' : 'border-gray-100'}`} />
+
+                {/* Payout Request Form */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className={`text-[10px] font-black uppercase tracking-[0.2em] ${styles.textMuted}`}>
+                      Withdraw Amount
+                    </label>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${styles.textMuted}`}>
+                      Max: <strong className="text-blue-500">{formatPrice(Math.max(0, netBalance))}</strong>
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      max={Math.max(0, netBalance)}
+                      step="0.01"
+                      value={payoutAmount}
+                      onChange={(e) => setPayoutAmount(e.target.value)}
+                      placeholder="0.00"
+                      className={`w-full py-3.5 pl-4 pr-16 rounded-2xl font-black text-lg border outline-none transition-all ${
+                        theme !== 'white'
+                          ? 'bg-white/[0.05] border-white/10 text-white focus:border-blue-500 placeholder-gray-600'
+                          : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-blue-500 placeholder-gray-300'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPayoutAmount(Math.max(0, netBalance).toFixed(2))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-lg transition-all"
+                    >
+                      Max
+                    </button>
+                  </div>
+
+                  {message && (
+                    <div className={`p-3.5 rounded-2xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 ${
+                      message.type === 'success'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    }`}>
+                      {message.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                      {message.text}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handlePayoutRequest}
+                    disabled={isProcessing || !payoutAmount || Number(payoutAmount) <= 0 || Number(payoutAmount) > netBalance || !(profile?.payout_iban && profile?.payout_recipient_name)}
+                    className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
+                  >
+                    {isProcessing ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <>
+                        <ArrowUpRight size={16} /> Request Payout
+                      </>
+                    )}
+                  </button>
+                  {!(profile?.payout_iban && profile?.payout_recipient_name) && (
+                    <p className="text-[9px] font-bold text-amber-500 text-center uppercase tracking-wider">
+                      Connect bank account above before requesting payout
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className={`${styles.cardBg} rounded-[40px] p-5 sm:p-10 border ${styles.cardBorder} shadow-2xl transition-all duration-700`}>
