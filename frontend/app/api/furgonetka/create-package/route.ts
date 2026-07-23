@@ -180,19 +180,31 @@ export async function POST(req: Request) {
     const parcel = calculateParcel(parsedDims, weightGrams * item.quantity);
 
     // 10. Format Furgonetka POST /packages payload
-    const pickupPhone = (senderProfile.phone_number || '500600700').replace(/[^\d+]/g, '');
-    const receiverPhone = (shippingDetails.phone || '600700800').replace(/[^\d+]/g, '');
+    // Helper function to sanitize phone numbers for Furgonetka (must be exactly 9 digits in PL)
+    const sanitizePhone = (phone: string, defaultPhone: string): string => {
+      const digits = (phone || '').replace(/\D/g, '');
+      if (digits.length >= 9) {
+        return digits.slice(-9); // Take the last 9 digits (handles +48 / 48 prefixes)
+      }
+      if (digits.length > 0) {
+        return digits.padEnd(9, '0'); // Pad with 0s if fewer than 9 digits
+      }
+      return defaultPhone;
+    };
 
-    // Format pickup and receiver name to contain at least 2 words
-    const formatFullname = (name: string, defaultName: string): string => {
-      const clean = (name || '').trim();
+    // Helper function to sanitize names for Furgonetka (only letters and spaces, at least 2 words)
+    const sanitizeName = (name: string, defaultName: string): string => {
+      let clean = (name || '').replace(/[^\p{L}\s]/gu, '').replace(/\s+/g, ' ').trim();
       if (!clean) return defaultName;
-      const parts = clean.split(/\s+/);
+      const parts = clean.split(' ');
       if (parts.length < 2) {
-        return `${clean} ${defaultName.split(' ')[1] || 'User'}`;
+        return `${clean} User`;
       }
       return clean;
     };
+
+    const pickupPhone = sanitizePhone(senderProfile.phone_number || senderProfile.phone, '500600700');
+    const receiverPhone = sanitizePhone(shippingDetails.phone, '600700800');
 
     const formatPolishPostcode = (zip: string): string => {
       // Strip ALL dashes/spaces before reformatting to avoid double-dash or missing-dash issues
@@ -203,8 +215,8 @@ export async function POST(req: Request) {
       return '02-222'; // Default fallback
     };
 
-    const pickupName = formatFullname(senderProfile.full_name, 'Sender Name');
-    const receiverName = formatFullname(shippingDetails.full_name, 'Recipient Name');
+    const pickupName = sanitizeName(senderProfile.full_name, 'Jan Kowalski');
+    const receiverName = sanitizeName(shippingDetails.full_name, 'Jan Kowalski');
 
     const receiverCountryCode = getCountryCode(shippingDetails.country);
 
