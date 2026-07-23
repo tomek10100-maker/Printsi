@@ -518,7 +518,7 @@ export default function FilamentsPage() {
                                 {/* Hex row */}
                                 <div className="relative">
                                     <div className="absolute -top-6 right-0 flex items-center gap-1 text-[10px] font-black text-orange-500 uppercase tracking-tighter animate-bounce-v-simple">
-                                        Click to adjust <span className="text-xs">↓</span>
+                                        Click box to pick color <span className="text-xs">↓</span>
                                     </div>
                                     <div className="flex items-center gap-2 mb-5">
                                         <div className="flex items-center gap-1 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 overflow-hidden focus-within:border-orange-400 transition-all">
@@ -537,7 +537,7 @@ export default function FilamentsPage() {
                                             value={form.color_hex.startsWith('#') && form.color_hex.length === 7 ? form.color_hex : '#3A86FF'}
                                             onChange={e => handleHexInput(e.target.value)}
                                             className="w-11 h-11 rounded-xl border-2 border-orange-200 cursor-pointer overflow-hidden flex-shrink-0 hover:scale-105 transition-all shadow-sm shadow-orange-200"
-                                            title="Custom color picker"
+                                            title="Click square to open color picker"
                                         />
                                     </div>
                                 </div>

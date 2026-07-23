@@ -2187,8 +2187,8 @@ function MessagesInner() {
 
                                                                             {layer.showCustom && (
                                                                                 <div className="flex gap-2 mt-3 animate-in fade-in">
-                                                                                    <div className="relative shrink-0">
-                                                                                        <div className="w-9 h-9 rounded-xl border border-gray-200 shadow-sm flex items-center justify-center transition-transform hover:scale-105 overflow-hidden" style={{ backgroundColor: layer.custom_color_hex }}>
+                                                                                    <div className="relative shrink-0" title="Click to pick color">
+                                                                                        <div className="w-9 h-9 rounded-xl border border-gray-200 shadow-sm flex items-center justify-center transition-transform hover:scale-105 overflow-hidden cursor-pointer" style={{ backgroundColor: layer.custom_color_hex }}>
                                                                                             <input
                                                                                                 type="color"
                                                                                                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -2198,6 +2198,7 @@ function MessagesInner() {
                                                                                                     updated[lIdx].custom_color_hex = e.target.value;
                                                                                                     setSwappedLayers(updated);
                                                                                                 }}
+                                                                                                title="Click to pick color"
                                                                                             />
                                                                                             {layer.custom_color_hex === '#cccccc' && <Palette size={14} className="text-gray-400 pointer-events-none" />}
                                                                                         </div>
@@ -2278,9 +2279,9 @@ function MessagesInner() {
                                                                     {showCustomFilamentInput && (
                                                                         <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1">
                                                                             <div className="flex gap-2">
-                                                                                <div className="relative shrink-0">
-                                                                                    <div className="w-10 h-10 rounded-xl border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center" style={{ backgroundColor: proposalColorHex }}>
-                                                                                        <input type="color" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" value={proposalColorHex} onChange={e => setProposalColorHex(e.target.value)} />
+                                                                                <div className="relative shrink-0" title="Click to pick color">
+                                                                                    <div className="w-10 h-10 rounded-xl border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center cursor-pointer transition-transform hover:scale-105" style={{ backgroundColor: proposalColorHex }}>
+                                                                                        <input type="color" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" value={proposalColorHex} onChange={e => setProposalColorHex(e.target.value)} title="Click to pick color" />
                                                                                         {proposalColorHex === '#cccccc' && <Palette size={14} className="text-gray-400 pointer-events-none" />}
                                                                                     </div>
                                                                                 </div>

@@ -940,9 +940,13 @@ export default function AddOfferPage() {
                                <div className="flex-1 w-full relative">
                                  <input type="text" placeholder="Custom color name (e.g. Neon Yellow)" value={manualColor === 'Any' ? '' : manualColor} onChange={e => setManualColor(e.target.value)} className="w-full p-4 bg-white border-2 border-gray-100 rounded-2xl font-bold text-gray-900 outline-none focus:border-blue-600 transition-all shadow-sm" />
                                </div>
-                               <div className="shrink-0 relative overflow-hidden rounded-2xl w-full sm:w-20 h-14 border-2 border-gray-100 p-1 flex items-center justify-center bg-white shadow-sm">
-                                  <input type="color" value={manualColorHex} onChange={e => setManualColorHex(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Pick precise color" />
-                                  <div className="w-full h-full rounded-xl pointer-events-none border border-black/10" style={{ backgroundColor: manualColorHex }} />
+                               <div className="shrink-0 relative overflow-hidden rounded-2xl w-full sm:w-28 h-14 border-2 border-blue-200 hover:border-blue-500 p-1 flex items-center justify-center bg-white shadow-sm transition-all cursor-pointer group" title="Click to pick color">
+                                  <input type="color" value={manualColorHex} onChange={e => setManualColorHex(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Click to pick color" />
+                                  <div className="w-full h-full rounded-xl pointer-events-none border border-black/10 flex items-center justify-center text-white font-bold" style={{ backgroundColor: manualColorHex }}>
+                                    <span className="bg-black/50 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider backdrop-blur-xs flex items-center gap-1 group-hover:scale-105 transition-transform">
+                                      🎨 Pick Color
+                                    </span>
+                                  </div>
                                </div>
                             </div>
                           </div>
@@ -1362,10 +1366,15 @@ export default function AddOfferPage() {
                                     )}
                                     <div className="grid grid-cols-1 gap-3">
                                       <div>
-                                        <SectionLabel step="" label="HEX Color" />
+                                        <div className="flex items-center justify-between">
+                                          <SectionLabel step="" label="HEX Color" />
+                                          <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1">
+                                            Click box to pick color 🎨
+                                          </span>
+                                        </div>
                                         <div className="flex items-center gap-2 mt-1">
-                                          <input type="text" value={layer.colorHex} onChange={e => updateManualLayer(v.id, layer.id, { colorHex: e.target.value })} className="flex-1 p-2.5 bg-gray-50 border border-gray-200 rounded-lg font-mono text-[11px] font-bold outline-none focus:border-blue-500" />
-                                          <input type="color" value={layer.colorHex.length === 7 ? layer.colorHex : '#3b82f6'} onChange={e => updateManualLayer(v.id, layer.id, { colorHex: e.target.value })} className="w-10 h-[42px] rounded-lg border-2 border-white shadow-sm cursor-pointer" />
+                                          <input type="text" value={layer.colorHex} onChange={e => updateManualLayer(v.id, layer.id, { colorHex: e.target.value })} className="flex-1 p-2.5 bg-gray-50 border border-gray-200 rounded-lg font-mono text-[11px] font-bold outline-none focus:border-blue-500" placeholder="#HEX" />
+                                          <input type="color" value={layer.colorHex.length === 7 ? layer.colorHex : '#3b82f6'} onChange={e => updateManualLayer(v.id, layer.id, { colorHex: e.target.value })} className="w-10 h-[42px] rounded-lg border-2 border-white shadow-sm cursor-pointer hover:scale-105 transition-transform" title="Click square to open color picker" />
                                         </div>
                                       </div>
                                     </div>
