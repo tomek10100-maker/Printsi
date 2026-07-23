@@ -435,9 +435,34 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('❌ Furgonetka package creation route error:', error);
+    const userError = translateFurgonetkaError(error.message || 'Internal Server Error');
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal Server Error'
+      error: userError
     }, { status: 500 });
   }
+}
+
+function translateFurgonetkaError(message: string): string {
+  let cleanMsg = message || '';
+
+  if (cleanMsg.includes('terms_and_conditions_not_valid') || cleanMsg.includes('regulamin')) {
+    return 'Carrier terms and conditions require acceptance in your Furgonetka account.';
+  }
+  if (cleanMsg.includes('notAlpha') || cleanMsg.includes('składać się tylko z liter')) {
+    return 'Name contains invalid characters. Please use letters only.';
+  }
+  if (cleanMsg.includes('notSizeMin') || cleanMsg.includes('za krótkie')) {
+    return 'Name or address details provided are too short.';
+  }
+  if (cleanMsg.includes('Niewłaściwa liczba znaków') || cleanMsg.includes('9 cyfr')) {
+    return 'Phone number must contain exactly 9 digits.';
+  }
+  if (cleanMsg.includes('carrierConnectionError')) {
+    return 'Carrier service temporary connection error. Please try again in a few moments.';
+  }
+
+  // Strip raw JSON error string prefix if present
+  cleanMsg = cleanMsg.replace(/^Furgonetka API error: \d+ [^.]+\. Details:\s*/i, '');
+  return cleanMsg;
 }
