@@ -192,15 +192,16 @@ export async function POST(req: Request) {
       return defaultPhone;
     };
 
-    // Helper function to sanitize names for Furgonetka (only letters and spaces, at least 2 words)
-    const sanitizeName = (name: string, defaultName: string): string => {
+    // Helper function to sanitize names for Furgonetka (only letters and spaces, at least 2 words, each word >= 2 letters)
+    const sanitizeName = (name: string, defaultName: string = 'Jan Kowalski'): string => {
       let clean = (name || '').replace(/[^\p{L}\s]/gu, '').replace(/\s+/g, ' ').trim();
-      if (!clean) return defaultName;
-      const parts = clean.split(' ');
-      if (parts.length < 2) {
-        return `${clean} User`;
+      if (!clean || clean.length < 3) return defaultName;
+      const parts = clean.split(' ').filter(p => p.length >= 2);
+      if (parts.length === 0) return defaultName;
+      if (parts.length === 1) {
+        return `${parts[0]} Kowalski`;
       }
-      return clean;
+      return parts.join(' ');
     };
 
     const pickupPhone = sanitizePhone(senderProfile.phone_number || (senderProfile as any).phone, '500600700');
