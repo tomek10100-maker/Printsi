@@ -448,37 +448,64 @@ export async function POST(req: Request) {
   }
 }
 
+const FURGONETKA_ERRORS_EN: Record<string, string> = {
+  "terms_and_conditions_not_valid": "Carrier terms have changed. Please accept the new terms in your Furgonetka account.",
+  "insufficient_funds": "Not enough funds in your account to create the package.",
+  "invalidPointName": "The selected pickup point code is invalid for this carrier. Please contact customer support for assistance.",
+  "packageWeightFullKg": "Package weight must be specified in full integer kilograms. Please contact customer support if you need help.",
+  "packageMinimalDimensions": "Parcel dimensions must be at least 15 x 11 x 5 cm.",
+  "notAlpha": "Name contains invalid characters. Please use letters only.",
+  "notSizeMin": "Name or address details provided are too short.",
+  "carrierConnectionError": "Carrier service connection timeout. Please try again in a few moments.",
+  "packageAlreadyOrdered": "This package has already been ordered.",
+  "packageNotFound": "Package not found in Furgonetka database.",
+  "unauthorized": "Furgonetka account authorization failed.",
+  "SENDER_ADDRESS_MISSING": "Please fill in your address, city, and zip code in your profile before shipping.",
+  "RECEIVER_ADDRESS_MISSING": "Receiver address, city, or zip code is missing. Please check shipping details.",
+  "PICKUP_POINT_MISSING": "Seller pickup point is not configured.",
+};
+
 function translateFurgonetkaError(message: string): string {
   let cleanMsg = message || '';
 
-  if (cleanMsg.includes('invalidPointName') || cleanMsg.includes('poprawny punkt')) {
-    return 'The selected pickup point code is invalid for this carrier. Please contact customer support for assistance.';
-  }
-  if (cleanMsg.includes('packageWeightFullKg') || cleanMsg.includes('pełnych kilogramach')) {
-    return 'Package weight must be specified in full integer kilograms. Please contact customer support if you need help.';
-  }
-  if (cleanMsg.includes('packageMinimalDimensions') || cleanMsg.includes('Minimalne wymiary')) {
-    return 'Parcel dimensions must be at least 15 x 11 x 5 cm.';
-  }
-  if (cleanMsg.includes('terms_and_conditions_not_valid') || cleanMsg.includes('regulamin')) {
-    return 'Carrier terms and conditions require acceptance in your Furgonetka account.';
-  }
-  if (cleanMsg.includes('notAlpha') || cleanMsg.includes('składać się tylko z liter')) {
-    return 'Name contains invalid characters. Please use letters only.';
-  }
-  if (cleanMsg.includes('notSizeMin') || cleanMsg.includes('za krótkie')) {
-    return 'Name or address details provided are too short.';
-  }
-  if (cleanMsg.includes('Niewłaściwa liczba znaków') || cleanMsg.includes('9 cyfr')) {
-    return 'Phone number must contain exactly 9 digits.';
-  }
-  if (cleanMsg.includes('carrierConnectionError')) {
-    return 'Carrier service temporary connection error. Please try again in a few moments.';
+  // 1. Try to match exact error code from JSON errors array if present
+  try {
+    const jsonMatch = cleanMsg.match(/\{"errors":\s*(\[.*?\])\}/s);
+    if (jsonMatch && jsonMatch[1]) {
+      const errList = JSON.parse(jsonMatch[1]);
+      if (Array.isArray(errList) && errList.length > 0) {
+        const translatedList = errList.map((e: any) => {
+          if (e.code && FURGONETKA_ERRORS_EN[e.code]) {
+            return FURGONETKA_ERRORS_EN[e.code];
+          }
+          if (e.message && FURGONETKA_ERRORS_EN[e.message]) {
+            return FURGONETKA_ERRORS_EN[e.message];
+          }
+          return 'Package details validation error occurred.';
+        });
+        return translatedList.join(' ');
+      }
+    }
+  } catch (_) {}
+
+  // 2. Keyword fallback matching
+  for (const [code, translation] of Object.entries(FURGONETKA_ERRORS_EN)) {
+    if (cleanMsg.includes(code)) {
+      return translation;
+    }
   }
 
+  if (cleanMsg.includes('regulamin')) return FURGONETKA_ERRORS_EN['terms_and_conditions_not_valid'];
+  if (cleanMsg.includes('składać się tylko z liter')) return FURGONETKA_ERRORS_EN['notAlpha'];
+  if (cleanMsg.includes('za krótkie')) return FURGONETKA_ERRORS_EN['notSizeMin'];
+  if (cleanMsg.includes('9 cyfr')) return 'Phone number must contain exactly 9 digits.';
+  if (cleanMsg.includes('pełnych kilogramach')) return FURGONETKA_ERRORS_EN['packageWeightFullKg'];
+  if (cleanMsg.includes('Minimalne wymiary')) return FURGONETKA_ERRORS_EN['packageMinimalDimensions'];
+  if (cleanMsg.includes('poprawny punkt')) return FURGONETKA_ERRORS_EN['invalidPointName'];
+
   // Strip raw JSON error string prefix if present
-  cleanMsg = cleanMsg.replace(/^Furgonetka API error: \d+ [^.]+\. Details:\s*/i, '');
-  if (!cleanMsg.toLowerCase().includes('support')) {
+  cleanMsg = cleanMsg.replace(/^Furgonetka API error: \d+ [^.]+\. Details:\s*/i, '').trim();
+  if (!cleanMsg.toLowerCase().includes('support') && !cleanMsg.toLowerCase().includes('please')) {
     cleanMsg += ' Please contact customer support for assistance.';
   }
   return cleanMsg;

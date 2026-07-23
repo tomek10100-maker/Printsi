@@ -90,6 +90,7 @@ function CheckoutInner() {
 
     const map = new (window as any).Furgonetka.Map({
       apiKey: apiKey,
+      language: 'en',
       courierServices: mapCouriers,
       countryCode: targetCountry.toUpperCase(),
       countryCodesFilter: [targetCountry.toUpperCase()],
