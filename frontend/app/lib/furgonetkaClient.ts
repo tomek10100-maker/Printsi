@@ -294,24 +294,45 @@ export const furgonetkaClient = {
 
   /**
    * Automatically fetch and accept all pending carrier regulations on Furgonetka.
+   * Handles both array and object (with items/data field) response shapes.
    */
   async acceptRegulations() {
     try {
       console.log('[FurgonetkaClient] Fetching pending carrier regulations...');
-      const list = await apiRequest('/regulations', 'GET');
-      if (Array.isArray(list)) {
-        for (const reg of list) {
-          if (reg.service_id && !reg.accepted) {
-            console.log(`[FurgonetkaClient] Auto-accepting regulation for service_id: ${reg.service_id}...`);
+      const res = await apiRequest('/regulations', 'GET');
+      console.log('[FurgonetkaClient] Regulations API response:', JSON.stringify(res));
+
+      // Handle different shapes: array directly, or {items: [...]} / {data: [...]}
+      const items: any[] = Array.isArray(res) ? res
+        : Array.isArray(res?.items) ? res.items
+        : Array.isArray(res?.data) ? res.data
+        : [];
+
+      if (items.length === 0) {
+        console.log('[FurgonetkaClient] No pending regulations found (or unrecognized format).');
+      }
+
+      for (const reg of items) {
+        const regId = reg.id || reg.service_id;
+        const isAccepted = reg.accepted === true || reg.status === 'accepted';
+        if (!isAccepted && regId) {
+          console.log(`[FurgonetkaClient] Accepting regulation id=${regId}...`);
+          try {
             await apiRequest('/regulations', 'POST', {
+              id: regId,
               service_id: reg.service_id,
               accepted: true
             });
+            console.log(`[FurgonetkaClient] Accepted regulation id=${regId}.`);
+          } catch (postErr) {
+            console.error(`[FurgonetkaClient] Failed to accept regulation id=${regId}:`, postErr);
           }
+        } else {
+          console.log(`[FurgonetkaClient] Regulation id=${regId} already accepted, skipping.`);
         }
       }
     } catch (err) {
-      console.error('[FurgonetkaClient] Failed to auto-accept regulations:', err);
+      console.error('[FurgonetkaClient] Failed to fetch/accept regulations:', err);
     }
   },
 

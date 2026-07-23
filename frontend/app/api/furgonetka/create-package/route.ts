@@ -345,6 +345,9 @@ export async function POST(req: Request) {
 
     console.log('[CreatePackage Route] Sending payload to Furgonetka:', JSON.stringify(furgonetkaPayload, null, 2));
 
+    // 10.5 Proactively accept carrier regulations to prevent 409 terms_and_conditions_not_valid errors
+    await furgonetkaClient.acceptRegulations();
+
     // 11. Call Furgonetka API: Create Draft Package (with auto-acceptance retry for terms)
     let createRes: any;
     try {
