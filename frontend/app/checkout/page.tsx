@@ -216,6 +216,7 @@ function CheckoutInner() {
           weightGrams: parcel.weightGrams,
           fromCountry: fromCode,
           toCountry: toCode,
+          plnToEurRate: plnRate, // Pass live PLN→EUR rate so server uses correct conversion
         }),
       });
       const data = await res.json();

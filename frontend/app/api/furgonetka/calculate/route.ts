@@ -17,7 +17,7 @@ const SERVICE_MAP: Record<string, { id: string; carrier: string; service: string
 
 export async function POST(req: Request) {
   try {
-    const { widthCm, heightCm, lengthCm, weightGrams, fromCountry, toCountry, fromZip, toZip } = await req.json();
+    const { widthCm, heightCm, lengthCm, weightGrams, fromCountry, toCountry, fromZip, toZip, plnToEurRate } = await req.json();
 
     if (!widthCm || !heightCm || !lengthCm || !weightGrams) {
       return NextResponse.json({ success: false, error: 'Missing parcel dimensions' }, { status: 400 });
@@ -58,7 +58,8 @@ export async function POST(req: Request) {
     // Furgonetka returns either `services_prices` or `offers` depending on API version
     const services: any[] = result?.services_prices || result?.offers || [];
 
-    const plnToEur = 4.25; // fallback rate; ideally this comes from CurrencyContext but we don't have it server-side
+    // Use live rate from client, fall back to a reasonable default
+    const plnToEur: number = (typeof plnToEurRate === 'number' && plnToEurRate > 0) ? plnToEurRate : 4.25;
 
     const options = services
       .filter((s: any) => s.available && (!s.errors || s.errors.length === 0))
