@@ -74,8 +74,15 @@ export async function POST(req: Request) {
           isPickup: false,
         };
 
-        // pricing.price is the net price in PLN (without VAT); use price_gross if available
-        const pricePln: number = s.pricing?.price_gross ?? s.pricing?.price ?? s.price ?? 0;
+        // Prioritize account_price_gross (the actual price charged to the account with discounts / sandbox rates)
+        const pricePln: number = 
+          s.pricing?.account_price_gross ?? 
+          s.pricing?.price_gross_account ?? 
+          s.pricing?.account_price ?? 
+          s.pricing?.price_account ?? 
+          s.pricing?.price_gross ?? 
+          s.pricing?.price ?? 
+          s.price ?? 0;
 
         return {
           ...meta,
