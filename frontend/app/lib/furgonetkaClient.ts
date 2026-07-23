@@ -293,6 +293,29 @@ export const furgonetkaClient = {
   },
 
   /**
+   * Automatically fetch and accept all pending carrier regulations on Furgonetka.
+   */
+  async acceptRegulations() {
+    try {
+      console.log('[FurgonetkaClient] Fetching pending carrier regulations...');
+      const list = await apiRequest('/regulations', 'GET');
+      if (Array.isArray(list)) {
+        for (const reg of list) {
+          if (reg.service_id && !reg.accepted) {
+            console.log(`[FurgonetkaClient] Auto-accepting regulation for service_id: ${reg.service_id}...`);
+            await apiRequest('/regulations', 'POST', {
+              service_id: reg.service_id,
+              accepted: true
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[FurgonetkaClient] Failed to auto-accept regulations:', err);
+    }
+  },
+
+  /**
    * Fetch details of a package (for tracking or checking status)
    */
   async getPackageDetails(packageId: number | string) {

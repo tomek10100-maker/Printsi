@@ -345,8 +345,20 @@ export async function POST(req: Request) {
 
     console.log('[CreatePackage Route] Sending payload to Furgonetka:', JSON.stringify(furgonetkaPayload, null, 2));
 
-    // 11. Call Furgonetka API: Create Draft Package
-    const createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
+    // 11. Call Furgonetka API: Create Draft Package (with auto-acceptance retry for terms)
+    let createRes: any;
+    try {
+      createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
+    } catch (err: any) {
+      if (err.message && err.message.includes('terms_and_conditions_not_valid')) {
+        console.warn('[CreatePackage Route] Regulations not accepted. Attempting auto-acceptance...');
+        await furgonetkaClient.acceptRegulations();
+        createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
+      } else {
+        throw err;
+      }
+    }
+
     if (!createRes || !createRes.package_id) {
       throw new Error(`Failed to create package draft: ${JSON.stringify(createRes)}`);
     }
@@ -354,8 +366,19 @@ export async function POST(req: Request) {
     const packageId = createRes.package_id;
     console.log(`[CreatePackage Route] Created Furgonetka draft package ID: ${packageId}`);
 
-    // 12. Call Furgonetka API: Confirm/Order Package
-    const orderRes = await furgonetkaClient.orderPackage(packageId);
+    // 12. Call Furgonetka API: Confirm/Order Package (with auto-acceptance retry for terms)
+    let orderRes: any;
+    try {
+      orderRes = await furgonetkaClient.orderPackage(packageId);
+    } catch (err: any) {
+      if (err.message && err.message.includes('terms_and_conditions_not_valid')) {
+        console.warn('[CreatePackage Route] Regulations not accepted during ordering. Attempting auto-acceptance...');
+        await furgonetkaClient.acceptRegulations();
+        orderRes = await furgonetkaClient.orderPackage(packageId);
+      } else {
+        throw err;
+      }
+    }
     console.log(`[CreatePackage Route] Confirmed Furgonetka package successfully:`, orderRes);
 
     // Retrieve details to get the final waybill / tracking code
