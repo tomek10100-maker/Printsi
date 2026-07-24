@@ -78,6 +78,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Order item not found' }, { status: 404 });
     }
 
+    // Check if package was already created to prevent duplicate shipments on multi-click
+    if (item.status === 'shipped' || item.furgonetka_package_id) {
+      console.log(`[CreatePackage Route] Package already created for item ${itemId}. Returning existing package info.`);
+      return NextResponse.json({
+        success: true,
+        packageId: item.furgonetka_package_id,
+        trackingNumber: item.tracking_code,
+        labelUrl: item.label_url || `/api/furgonetka/label/${item.furgonetka_package_id}`,
+        message: 'Package already created.'
+      });
+    }
+
     const offer = item.offers as any;
     const isJob = offer?.category === 'job';
 

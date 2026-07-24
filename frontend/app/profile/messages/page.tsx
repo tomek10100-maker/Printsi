@@ -390,8 +390,13 @@ function MessagesInner() {
 
     const activeChatData = chats.find(c => c.id === activeChatId);
 
+    const [statusUpdating, setStatusUpdating] = useState(false);
+    const statusUpdatingRef = useRef(false);
+    const furgonetkaShippingRef = useRef(false);
+
     const handleStatusUpdate = async (newStatus: string) => {
         if (!activeChatData || !activeChatData.orderItem || !currentUser) return;
+        if (statusUpdatingRef.current) return; // Prevent multi-click race conditions
 
         if (newStatus === 'disputed') {
             setDisputeEmail(currentUser.email || '');
@@ -399,40 +404,51 @@ function MessagesInner() {
             return;
         }
 
-        const res = await fetch('/api/order/status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                itemId: activeChatData.orderItem.id,
-                newStatus,
-                chatId: activeChatId,
-                userId: currentUser.id,
-                trackingCode: newStatus === 'shipped' ? trackingCodeInput.trim() || null : undefined,
-            })
-        });
+        statusUpdatingRef.current = true;
+        setStatusUpdating(true);
+        try {
+            const res = await fetch('/api/order/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    itemId: activeChatData.orderItem.id,
+                    newStatus,
+                    chatId: activeChatId,
+                    userId: currentUser.id,
+                    trackingCode: newStatus === 'shipped' ? trackingCodeInput.trim() || null : undefined,
+                })
+            });
 
-        if (res.ok) {
-            setChats(prev => prev.map(c =>
-                c.id === activeChatId
-                    ? { ...c, orderItem: { ...c.orderItem, status: newStatus, tracking_code: newStatus === 'shipped' ? trackingCodeInput.trim() || c.orderItem?.tracking_code : c.orderItem?.tracking_code } }
-                    : c
-            ));
-            setTrackingCodeInput('');
-            loadMessages(activeChatId as string);
-        } else {
-            setFormError('Failed to update order status.');
+            if (res.ok) {
+                setChats(prev => prev.map(c =>
+                    c.id === activeChatId
+                        ? { ...c, orderItem: { ...c.orderItem, status: newStatus, tracking_code: newStatus === 'shipped' ? trackingCodeInput.trim() || c.orderItem?.tracking_code : c.orderItem?.tracking_code } }
+                        : c
+                ));
+                setTrackingCodeInput('');
+                loadMessages(activeChatId as string);
+            } else {
+                setFormError('Failed to update order status.');
+            }
+        } catch (err) {
+            console.error('Status update error:', err);
+            setFormError('Network error updating status.');
+        } finally {
+            statusUpdatingRef.current = false;
+            setStatusUpdating(false);
         }
     };
 
     const [furgonetkaLoading, setFurgonetkaLoading] = useState(false);
 
     const handleFurgonetkaShip = async (itemId: string) => {
+        if (furgonetkaShippingRef.current) return; // Prevent multi-click race conditions
+        furgonetkaShippingRef.current = true;
         setFurgonetkaLoading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 alert('Session expired. Please log in again.');
-                setFurgonetkaLoading(false);
                 return;
             }
 
@@ -466,8 +482,10 @@ function MessagesInner() {
         } catch (err) {
             console.error('Furgonetka shipping error:', err);
             alert('Network error occurred.');
+        } finally {
+            furgonetkaShippingRef.current = false;
+            setFurgonetkaLoading(false);
         }
-        setFurgonetkaLoading(false);
     };
 
     const handleDownloadLabel = async (packageId: string) => {
@@ -1635,13 +1653,15 @@ function MessagesInner() {
                             <div className="flex gap-3 justify-center">
                                 <button
                                     onClick={() => handleStatusUpdate('completed')}
-                                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+                                    disabled={statusUpdating}
+                                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
                                 >
-                                    <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" /> {isDigital ? 'Accept Files' : 'I Received It'}
+                                    {statusUpdating ? <Loader2 size={14} className="inline mr-2 animate-spin" /> : <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" />} {isDigital ? 'Accept Files' : 'I Received It'}
                                 </button>
                                 <button
                                     onClick={() => handleStatusUpdate('disputed')}
-                                    className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20"
+                                    disabled={statusUpdating}
+                                    className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20 disabled:opacity-50"
                                 >
                                     <AlertTriangle size={14} className="inline mr-2 -mt-0.5" /> Problem
                                 </button>

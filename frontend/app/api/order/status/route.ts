@@ -43,6 +43,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Missing data' }, { status: 400 });
     }
 
+    // Check current status in database first to prevent duplicate status changes or double payouts on multi-click
+    const { data: currentItem } = await supabase
+      .from('order_items')
+      .select('status')
+      .eq('id', itemId)
+      .single();
+
+    if (currentItem?.status === newStatus || currentItem?.status === 'completed') {
+      console.log(`[OrderStatus Route] Order item ${itemId} is already status '${currentItem?.status}'. Skipping duplicate request.`);
+      return NextResponse.json({ success: true, newStatus: currentItem?.status || newStatus, message: 'Status already up to date' });
+    }
+
     // Update status in order_items (with optional tracking code)
     const updatePayload: any = { status: newStatus };
     if (newStatus === 'shipped' && trackingCode) {
@@ -53,7 +65,6 @@ export async function POST(req: Request) {
       .from('order_items')
       .update(updatePayload)
       .eq('id', itemId);
-
 
     if (updateError) throw updateError;
 

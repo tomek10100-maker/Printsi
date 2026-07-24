@@ -361,8 +361,11 @@ function CheckoutInner() {
     setFormData({ ...formData, [name]: value });
   };
 
+  const isSubmittingRef = React.useRef(false);
+
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || loading) return; // Prevent double-clicking checkout
     if (!user) return;
     if (!isTopup && items.length === 0) return;
     if (hasShippable && !selectedShipping) { alert('Please select a shipping method.'); return; }
@@ -371,6 +374,7 @@ function CheckoutInner() {
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
     const currentRate = rates?.[currency] || 1;
 
@@ -408,6 +412,7 @@ function CheckoutInner() {
         } else {
           alert('Error: ' + data.error);
           setLoading(false);
+          isSubmittingRef.current = false;
         }
       } else {
         const body = isTopup
@@ -432,9 +437,13 @@ function CheckoutInner() {
         });
         const data = await response.json();
         if (data.url) window.location.href = data.url;
-        else { alert('Error: ' + data.error); setLoading(false); }
+        else { alert('Error: ' + data.error); setLoading(false); isSubmittingRef.current = false; }
       }
-    } catch (err) { alert('Request error'); setLoading(false); }
+    } catch (err) {
+      alert('Request error');
+      setLoading(false);
+      isSubmittingRef.current = false;
+    }
   };
 
   if (!isTopup && items.length === 0 && !loading && !fetchingProfile) {
