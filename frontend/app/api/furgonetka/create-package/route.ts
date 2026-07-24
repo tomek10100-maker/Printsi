@@ -477,6 +477,25 @@ const FURGONETKA_ERRORS_EN: Record<string, string> = {
   "PICKUP_POINT_MISSING": "Seller pickup point is not configured.",
 };
 
+function translateSingleError(e: any): string {
+  const code = e?.code || '';
+  const msg = e?.message || '';
+  const path = e?.path || '';
+
+  if (code && FURGONETKA_ERRORS_EN[code]) return FURGONETKA_ERRORS_EN[code];
+
+  if (msg.includes('regulamin') || code.includes('terms')) return FURGONETKA_ERRORS_EN['terms_and_conditions_not_valid'];
+  if (msg.includes('poprawny punkt') || code.includes('invalidPointName') || path.includes('point')) return FURGONETKA_ERRORS_EN['invalidPointName'];
+  if (msg.includes('pełnych kilogramach') || code.includes('packageWeightFullKg') || path.includes('weight')) return FURGONETKA_ERRORS_EN['packageWeightFullKg'];
+  if (msg.includes('Minimalne wymiary') || code.includes('packageMinimalDimensions') || path.includes('width') || path.includes('height') || path.includes('depth')) return FURGONETKA_ERRORS_EN['packageMinimalDimensions'];
+  if (msg.includes('składać się tylko z liter') || code.includes('notAlpha')) return FURGONETKA_ERRORS_EN['notAlpha'];
+  if (msg.includes('za krótkie') || code.includes('notSizeMin')) return FURGONETKA_ERRORS_EN['notSizeMin'];
+  if (msg.includes('9 cyfr')) return 'Phone number must contain exactly 9 digits.';
+
+  if (msg) return msg;
+  return 'Package details validation error occurred. Please contact customer support for assistance.';
+}
+
 function translateFurgonetkaError(message: string): string {
   let cleanMsg = message || '';
 
@@ -486,15 +505,7 @@ function translateFurgonetkaError(message: string): string {
     if (jsonMatch && jsonMatch[1]) {
       const errList = JSON.parse(jsonMatch[1]);
       if (Array.isArray(errList) && errList.length > 0) {
-        const translatedList = errList.map((e: any) => {
-          if (e.code && FURGONETKA_ERRORS_EN[e.code]) {
-            return FURGONETKA_ERRORS_EN[e.code];
-          }
-          if (e.message && FURGONETKA_ERRORS_EN[e.message]) {
-            return FURGONETKA_ERRORS_EN[e.message];
-          }
-          return 'Package details validation error occurred.';
-        });
+        const translatedList = Array.from(new Set(errList.map(translateSingleError)));
         return translatedList.join(' ');
       }
     }
