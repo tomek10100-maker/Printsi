@@ -192,16 +192,18 @@ export async function POST(req: Request) {
     const parcel = calculateParcel(parsedDims, weightGrams * item.quantity);
 
     // 10. Format Furgonetka POST /packages payload
-    // Helper function to sanitize phone numbers for Furgonetka (must be exactly 9 digits in PL)
+    // Helper function to sanitize phone numbers for Furgonetka (requires + prefix and country code e.g. +48500600700)
     const sanitizePhone = (phone: string, defaultPhone: string): string => {
-      const digits = (phone || '').replace(/\D/g, '');
+      const raw = (phone || '').trim();
+      if (raw.startsWith('+') && raw.replace(/\D/g, '').length >= 9) {
+        return `+${raw.replace(/\D/g, '')}`;
+      }
+      const digits = raw.replace(/\D/g, '');
       if (digits.length >= 9) {
-        return digits.slice(-9); // Take the last 9 digits (handles +48 / 48 prefixes)
+        const last9 = digits.slice(-9);
+        return `+48${last9}`;
       }
-      if (digits.length > 0) {
-        return digits.padEnd(9, '0'); // Pad with 0s if fewer than 9 digits
-      }
-      return defaultPhone;
+      return `+48${defaultPhone}`;
     };
 
     // Helper function to sanitize names for Furgonetka (only letters and spaces, at least 2 words, each word >= 2 letters)
@@ -484,6 +486,7 @@ function translateSingleError(e: any): string {
 
   if (code && FURGONETKA_ERRORS_EN[code]) return FURGONETKA_ERRORS_EN[code];
 
+  if (msg.includes('Numer kierunkowy') || msg.includes('kierunkowy') || msg.includes('poprzedzony +')) return 'Phone number requires an international country code prefix (e.g. +48).';
   if (msg.includes('regulamin') || code.includes('terms')) return FURGONETKA_ERRORS_EN['terms_and_conditions_not_valid'];
   if (msg.includes('poprawny punkt') || code.includes('invalidPointName') || path.includes('point')) return FURGONETKA_ERRORS_EN['invalidPointName'];
   if (msg.includes('pełnych kilogramach') || code.includes('packageWeightFullKg') || path.includes('weight')) return FURGONETKA_ERRORS_EN['packageWeightFullKg'];
@@ -518,6 +521,7 @@ function translateFurgonetkaError(message: string): string {
     }
   }
 
+  if (cleanMsg.includes('Numer kierunkowy') || cleanMsg.includes('kierunkowy') || cleanMsg.includes('poprzedzony +')) return 'Phone number requires an international country code prefix (e.g. +48).';
   if (cleanMsg.includes('regulamin')) return FURGONETKA_ERRORS_EN['terms_and_conditions_not_valid'];
   if (cleanMsg.includes('składać się tylko z liter')) return FURGONETKA_ERRORS_EN['notAlpha'];
   if (cleanMsg.includes('za krótkie')) return FURGONETKA_ERRORS_EN['notSizeMin'];
