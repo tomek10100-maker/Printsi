@@ -286,19 +286,29 @@ function CheckoutInner() {
       if (!user) { router.push('/login'); return; }
       setUser(user);
 
+      let savedLocal: any = null;
+      try {
+        const rawSaved = localStorage.getItem('printsi_delivery_defaults');
+        if (rawSaved) savedLocal = JSON.parse(rawSaved);
+      } catch (e) { }
+
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      if (profile) {
-        const rawCountry = profile.country || 'PL';
+      if (profile || savedLocal) {
+        const rawCountry = profile?.country || savedLocal?.country || 'PL';
         const countryCode = rawCountry.length === 2 ? rawCountry.toUpperCase() : (countryNameToCode(rawCountry) || 'PL');
         setFormData({
-          fullName: profile.full_name || '',
+          fullName: profile?.full_name || savedLocal?.fullName || '',
           email: user.email || '',
-          phone: profile.phone || '',
-          address: profile.address || '',
-          city: profile.city || '',
-          zip: profile.zip_code || '',
+          phone: profile?.phone || savedLocal?.phone || '',
+          address: profile?.address || savedLocal?.address || '',
+          city: profile?.city || savedLocal?.city || '',
+          zip: profile?.zip_code || savedLocal?.zip || '',
           country: countryCode,
         });
+
+        if (savedLocal?.selectedPoint) {
+          setSelectedPoint(savedLocal.selectedPoint);
+        }
       }
 
       // Fetch offer details (weight, category, dimensions) for cart items
@@ -377,6 +387,31 @@ function CheckoutInner() {
     isSubmittingRef.current = true;
     setLoading(true);
     const currentRate = rates?.[currency] || 1;
+
+    // Auto-save phone number & delivery details to user profile & localStorage
+    try {
+      if (user && formData.phone) {
+        await supabase.from('profiles').update({
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          zip_code: formData.zip,
+          country: formData.country,
+        }).eq('id', user.id);
+      }
+      localStorage.setItem('printsi_delivery_defaults', JSON.stringify({
+        fullName: formData.fullName,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        zip: formData.zip,
+        country: formData.country,
+        selectedPoint: selectedPoint || null,
+        selectedShippingId: selectedShipping?.id || null
+      }));
+    } catch (err) {
+      console.warn("Failed to auto-save delivery defaults:", err);
+    }
 
     try {
       if (paymentMethod === 'balance') {

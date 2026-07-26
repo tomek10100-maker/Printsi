@@ -1111,7 +1111,7 @@ function MessagesInner() {
 
         const isFixedPriceJob = !activeChatData.offers?.is_negotiable && (activeChatData.offers?.price > 0);
         const systemText = isFixedPriceJob
-            ? `🖨️ The printer has accepted your job for ${formatPrice(finalPrice)}! Proceed to payment below.`
+            ? `🖨️ The printer has accepted your job for ${formatPrice(finalPrice)}! Click "PAY & CHECKOUT" in the top bar to complete payment.`
             : `🖨️ The printer has reviewed your 3D file and submitted a price proposal of ${formatPrice(finalPrice)}. Accept the proposal above to proceed with payment and printing.`;
 
         // System message explaining the proposal / acceptance
