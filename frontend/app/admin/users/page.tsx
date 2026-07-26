@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Users, Search, Plus, Minus, Loader2, X, Check, ExternalLink } from 'lucide-react';
+import { getAdminToken } from '../../lib/getAdminToken';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -152,9 +153,10 @@ export default function AdminUsersPage() {
   const [balanceUser, setBalanceUser] = useState<any>(null);
 
   const fetchUsers = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setToken(session?.access_token || '');
-    const res = await fetch('/api/admin/users', { headers: { Authorization: `Bearer ${session?.access_token}` } });
+    const adminToken = await getAdminToken();
+    if (!adminToken) { setLoading(false); return; }
+    setToken(adminToken);
+    const res = await fetch('/api/admin/users', { headers: { Authorization: `Bearer ${adminToken}` } });
     const data = await res.json();
     setUsers(data.users || []);
     setLoading(false);

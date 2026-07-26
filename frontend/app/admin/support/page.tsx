@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { LifeBuoy, Search, Loader2, ChevronDown } from 'lucide-react';
+import { getAdminToken } from '../../lib/getAdminToken';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,9 +35,10 @@ export default function AdminSupportPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const fetchTickets = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setToken(session?.access_token || '');
-    const res = await fetch('/api/admin/support', { headers: { Authorization: `Bearer ${session?.access_token}` } });
+    const adminToken = await getAdminToken();
+    if (!adminToken) { setLoading(false); return; }
+    setToken(adminToken);
+    const res = await fetch('/api/admin/support', { headers: { Authorization: `Bearer ${adminToken}` } });
     const data = await res.json();
     setTickets(data.tickets || []);
     setLoading(false);

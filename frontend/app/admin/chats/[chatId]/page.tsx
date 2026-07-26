@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { ArrowLeft, Loader2, Package, MessageSquare, User } from 'lucide-react';
 import Link from 'next/link';
+import { getAdminToken } from '../../../lib/getAdminToken';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,9 +40,10 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
 
   useEffect(() => {
     const fetchChat = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = await getAdminToken();
+      if (!token) { setLoading(false); return; }
       const res = await fetch(`/api/admin/chats/${chatId}`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       setChat(data.chat);

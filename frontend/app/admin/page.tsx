@@ -7,6 +7,7 @@ import {
   Users, Package, ShoppingBag, CreditCard, Clock, TrendingUp,
   ArrowUpRight, MessageSquare, AlertCircle, Loader2
 } from 'lucide-react';
+import { getAdminToken } from '../lib/getAdminToken';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -83,9 +84,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = await getAdminToken();
+      if (!token) { setLoading(false); return; }
       const res = await fetch('/api/admin/stats', {
-        headers: { Authorization: `Bearer ${session?.access_token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       setStats(data);

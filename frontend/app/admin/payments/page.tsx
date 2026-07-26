@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { CreditCard, Loader2, Check, X, Clock, Filter } from 'lucide-react';
+import { getAdminToken } from '../../lib/getAdminToken';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,9 +36,10 @@ export default function AdminPaymentsPage() {
   const [processing, setProcessing] = useState<string | null>(null);
 
   const fetchPayouts = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setToken(session?.access_token || '');
-    const res = await fetch('/api/admin/payouts', { headers: { Authorization: `Bearer ${session?.access_token}` } });
+    const adminToken = await getAdminToken();
+    if (!adminToken) { setLoading(false); return; }
+    setToken(adminToken);
+    const res = await fetch('/api/admin/payouts', { headers: { Authorization: `Bearer ${adminToken}` } });
     const data = await res.json();
     setPayouts(data.payouts || []);
     setLoading(false);

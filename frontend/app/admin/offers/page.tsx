@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Package, Search, Eye, EyeOff, Trash2, Loader2, ExternalLink } from 'lucide-react';
 
+import { getAdminToken } from '../../lib/getAdminToken';
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -23,9 +25,10 @@ export default function AdminOffersPage() {
   const [token, setToken] = useState('');
 
   const fetchOffers = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setToken(session?.access_token || '');
-    const res = await fetch('/api/admin/offers', { headers: { Authorization: `Bearer ${session?.access_token}` } });
+    const adminToken = await getAdminToken();
+    if (!adminToken) { setLoading(false); return; }
+    setToken(adminToken);
+    const res = await fetch('/api/admin/offers', { headers: { Authorization: `Bearer ${adminToken}` } });
     const data = await res.json();
     setOffers(data.offers || []);
     setLoading(false);

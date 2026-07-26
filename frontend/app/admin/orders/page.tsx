@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { ShoppingBag, Search, Loader2 } from 'lucide-react';
+import { getAdminToken } from '../../lib/getAdminToken';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,8 +42,9 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${session?.access_token}` } });
+      const token = await getAdminToken();
+      if (!token) { setLoading(false); return; }
+      const res = await fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       setOrders(data.orders || []);
       setLoading(false);
