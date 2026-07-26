@@ -125,7 +125,7 @@ function MessagesInner() {
         id, created_at, updated_at, order_id,
         buyer_id, seller_id,
         offer_id,
-        offers ( id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants, is_negotiable )
+        offers ( id, user_id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants, is_negotiable )
       `)
             .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
             .order('updated_at', { ascending: false });
@@ -253,7 +253,7 @@ function MessagesInner() {
                 setActiveChatId(existing.id);
             } else {
                 const { data: otherProf } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', otherUserId).single();
-                const { data: offerData } = await supabase.from('offers').select('id, title, image_urls, category, price, material, color, color_name, dimensions, weight, custom_instructions, color_variants, is_negotiable').eq('id', paramOfferId).single();
+                const { data: offerData } = await supabase.from('offers').select('id, user_id, title, image_urls, category, price, material, color, color_name, dimensions, weight, custom_instructions, color_variants, is_negotiable').eq('id', paramOfferId).single();
 
                 if (otherProf && offerData) {
                     const draftChat = {
@@ -1629,16 +1629,17 @@ function MessagesInner() {
         const status = (orderItem.status || 'pending').toLowerCase();
         const isDigital = chatData?.offers?.category === 'digital';
         const isJob = chatData?.offers?.category === 'job';
-        const jobPosterId = chatData?.offers?.user_id || chatData?.seller_id;
+        const jobPosterId = chatData?.offers?.user_id;
 
         // For Job Offers: Printer = not job poster, Customer = job poster
         // For Physical/Digital Offers: Printer/Seller = seller_id, Customer/Buyer = buyer_id
-        const isPrinter = isJob
-            ? (String(currentUser.id) !== String(jobPosterId))
-            : (String(currentUser.id) === String(chatData?.seller_id));
         const isCustomer = isJob
-            ? (String(currentUser.id) === String(jobPosterId))
-            : (String(currentUser.id) === String(chatData?.buyer_id));
+            ? (jobPosterId ? String(currentUser.id) === String(jobPosterId) : String(currentUser.id) === String(chatData?.seller_id))
+            : String(currentUser.id) === String(chatData?.buyer_id);
+
+        const isPrinter = isJob
+            ? (jobPosterId ? String(currentUser.id) !== String(jobPosterId) : String(currentUser.id) === String(chatData?.buyer_id))
+            : String(currentUser.id) === String(chatData?.seller_id);
 
         const showShipCard = status === 'pending' && isPrinter;
         const showWaitCard = status === 'pending' && isCustomer;
@@ -1992,15 +1993,15 @@ function MessagesInner() {
                                 {(showJobProposalBanner || (activeChatData?.offers?.category === 'job')) && activeChatData && (() => {
                                     const isJobOffer = activeChatData.offers?.category === 'job';
                                     const isFixedPriceJob = isJobOffer && !activeChatData.offers?.is_negotiable && (activeChatData.offers?.price > 0);
-                                    const jobPosterId = activeChatData.offers?.user_id || activeChatData.seller_id;
-
-                                    const isPrinter = isJobOffer
-                                        ? String(currentUser?.id) !== String(jobPosterId)
-                                        : String(currentUser?.id) === String(activeChatData.seller_id);
+                                    const jobPosterId = activeChatData.offers?.user_id;
 
                                     const isCustomer = isJobOffer
-                                        ? String(currentUser?.id) === String(jobPosterId)
+                                        ? (jobPosterId ? String(currentUser?.id) === String(jobPosterId) : String(currentUser?.id) === String(activeChatData.seller_id))
                                         : String(currentUser?.id) === String(activeChatData.buyer_id);
+
+                                    const isPrinter = isJobOffer
+                                        ? (jobPosterId ? String(currentUser?.id) !== String(jobPosterId) : String(currentUser?.id) === String(activeChatData.buyer_id))
+                                        : String(currentUser?.id) === String(activeChatData.seller_id);
                                     
                                     // Find latest proposal message if any
                                     const latestProposalMsg = messages.slice().reverse().find(m => m.content.startsWith('[PROPOSAL]'));
