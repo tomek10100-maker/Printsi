@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { ArrowLeft, Loader2, Package, MessageSquare, User } from 'lucide-react';
 import Link from 'next/link';
@@ -29,7 +29,10 @@ function parseProposal(content: string) {
   } catch { return null; }
 }
 
-export default function AdminChatDetailPage({ params }: { params: { chatId: string } }) {
+export default function AdminChatDetailPage({ params }: { params: Promise<{ chatId: string }> }) {
+  const resolvedParams = use(params);
+  const chatId = resolvedParams.chatId;
+
   const [chat, setChat] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +40,7 @@ export default function AdminChatDetailPage({ params }: { params: { chatId: stri
   useEffect(() => {
     const fetchChat = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/admin/chats/${params.chatId}`, {
+      const res = await fetch(`/api/admin/chats/${chatId}`, {
         headers: { Authorization: `Bearer ${session?.access_token}` }
       });
       const data = await res.json();
@@ -46,7 +49,7 @@ export default function AdminChatDetailPage({ params }: { params: { chatId: stri
       setLoading(false);
     };
     fetchChat();
-  }, [params.chatId]);
+  }, [chatId]);
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
   if (!chat) return <div style={{ color: '#f87171' }} className="text-center py-16 font-bold">Chat not found</div>;
@@ -64,7 +67,7 @@ export default function AdminChatDetailPage({ params }: { params: { chatId: stri
           <h1 style={{ color: '#f1f5f9' }} className="text-xl font-black tracking-tight flex items-center gap-2">
             <MessageSquare size={18} className="text-purple-400" /> Conversation
           </h1>
-          <p style={{ color: '#475569', fontSize: '11px' }} className="font-bold">{params.chatId}</p>
+          <p style={{ color: '#475569', fontSize: '11px' }} className="font-bold">{chatId}</p>
         </div>
       </div>
 

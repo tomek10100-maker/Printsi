@@ -3,13 +3,13 @@ import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../../lib/adminAuth
 
 export async function GET(
   req: Request,
-  { params }: { params: { chatId: string } }
+  context: { params: Promise<{ chatId: string }> }
 ) {
   const adminId = await verifyAdmin(req);
   if (!adminId) return FORBIDDEN();
 
   try {
-    const { chatId } = params;
+    const { chatId } = await context.params;
 
     const [{ data: chat, error: chatError }, { data: messages, error: msgError }] = await Promise.all([
       supabaseAdmin
