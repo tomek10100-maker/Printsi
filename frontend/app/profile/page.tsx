@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   Settings, MapPin, Link as LinkIcon, Calendar, Loader2, Home, LogOut,
   CreditCard, Bell, Package, ChevronRight, ShoppingBag, Plus, Trash2, Eye, Edit,
-  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers, CheckCircle, User, Lock, Handshake
+  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers, CheckCircle, User, Lock, Handshake, Shield
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -403,6 +403,15 @@ export default function ProfilePage() {
             <Link href="/settings" className="px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:border-blue-500 hover:text-blue-600 transition-all flex items-center gap-2 shadow-sm">
               <Settings size={18} /> Edit Profile
             </Link>
+            {profile?.roles?.includes('admin') && (
+              <Link
+                href="/admin"
+                className="px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all border-2"
+                style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d1b69)', borderColor: 'rgba(59,130,246,0.5)', color: '#93c5fd' }}
+              >
+                <Shield size={18} /> Admin Panel
+              </Link>
+            )}
             <button onClick={handleLogout} className="px-6 py-3 bg-gray-900 text-white border-2 border-gray-900 rounded-xl font-bold hover:bg-red-600 hover:border-red-600 transition-all flex items-center gap-2 shadow-lg">
               <LogOut size={18} /> Log Out
             </button>
