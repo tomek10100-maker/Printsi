@@ -105,13 +105,17 @@ export async function POST(req: Request) {
     }
 
     // 4. Verify Authorization/Roles
-    // In all cases (jobs & physical products), item.seller_id is the Printer/Maker who ships, and order.buyer_id is the Customer who receives
-    const senderId = item.seller_id;
-    const receiverId = order.buyer_id;
+    // The user clicking ship must be a participant in this order.
+    // The shipping user is the sender (their profile address is used as pickup address).
+    const isSeller = String(user.id) === String(item.seller_id);
+    const isBuyer = String(user.id) === String(order.buyer_id);
 
-    if (String(user.id) !== String(senderId)) {
-      return NextResponse.json({ success: false, error: 'Forbidden: You are not the sender of this order' }, { status: 403 });
+    if (!isSeller && !isBuyer) {
+      return NextResponse.json({ success: false, error: 'Forbidden: You are not a participant of this order' }, { status: 403 });
     }
+
+    const senderId = user.id;
+    const receiverId = isSeller ? order.buyer_id : item.seller_id;
 
     // 5. Fetch Sender Profile (for pickup address)
     const { data: senderProfile, error: senderError } = await supabase
