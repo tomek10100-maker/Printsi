@@ -1,23 +1,20 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../lib/adminAuth';
+import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthEmailMap } from '../../../lib/adminAuth';
 
 export async function GET(req: Request) {
   const adminId = await verifyAdmin(req);
   if (!adminId) return FORBIDDEN();
 
   try {
-    const [{ data: payouts, error }, { data: { users: authUsers } }] = await Promise.all([
+    const [{ data: payouts, error }, emailMap] = await Promise.all([
       supabaseAdmin
         .from('payouts')
         .select('id, amount, status, created_at, user_id, profiles!payouts_user_id_fkey(full_name, avatar_url, payout_iban, payout_recipient_name)')
         .order('created_at', { ascending: false }),
-      supabaseAdmin.auth.admin.listUsers(),
+      getAuthEmailMap(),
     ]);
 
     if (error) throw error;
-
-    const emailMap: Record<string, string> = {};
-    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
 
     const enriched = (payouts || []).map((p: any) => ({
       ...p,

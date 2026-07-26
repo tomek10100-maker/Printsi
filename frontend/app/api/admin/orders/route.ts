@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../lib/adminAuth';
+import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthEmailMap } from '../../../lib/adminAuth';
 
 export async function GET(req: Request) {
   const adminId = await verifyAdmin(req);
@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   try {
     const [
       { data: orders, error },
-      { data: { users: authUsers } },
+      emailMap,
     ] = await Promise.all([
       supabaseAdmin
         .from('orders')
@@ -23,13 +23,10 @@ export async function GET(req: Request) {
           profiles!orders_buyer_id_fkey(full_name, avatar_url)
         `)
         .order('created_at', { ascending: false }),
-      supabaseAdmin.auth.admin.listUsers(),
+      getAuthEmailMap(),
     ]);
 
     if (error) throw error;
-
-    const emailMap: Record<string, string> = {};
-    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
 
     // Fetch order items for each order to get seller info and statuses
     const orderIds = (orders || []).map(o => o.id);

@@ -36,3 +36,18 @@ export const UNAUTHORIZED = () =>
 
 export const FORBIDDEN = () =>
   NextResponse.json({ error: 'Forbidden — admin access only' }, { status: 403 });
+
+export async function getAuthEmailMap(): Promise<Record<string, string>> {
+  const emailMap: Record<string, string> = {};
+  try {
+    const res = await supabaseAdmin.auth.admin.listUsers();
+    if (res?.data?.users) {
+      res.data.users.forEach((u: any) => {
+        if (u.id && u.email) emailMap[u.id] = u.email;
+      });
+    }
+  } catch (err) {
+    console.warn('getAuthEmailMap failed:', err);
+  }
+  return emailMap;
+}

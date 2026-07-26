@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../lib/adminAuth';
+import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthEmailMap } from '../../../lib/adminAuth';
 
 export async function GET(req: Request) {
   const adminId = await verifyAdmin(req);
@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   try {
     const [
       { data: chats, error },
-      { data: { users: authUsers } },
+      emailMap,
     ] = await Promise.all([
       supabaseAdmin
         .from('chats')
@@ -27,13 +27,10 @@ export async function GET(req: Request) {
           offers(title, category, price, image_urls)
         `)
         .order('updated_at', { ascending: false }),
-      supabaseAdmin.auth.admin.listUsers(),
+      getAuthEmailMap(),
     ]);
 
     if (error) throw error;
-
-    const emailMap: Record<string, string> = {};
-    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
 
     // Get message counts per chat
     const chatIds = (chats || []).map(c => c.id);

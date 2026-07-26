@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../../lib/adminAuth';
+import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthEmailMap } from '../../../../lib/adminAuth';
 
 export async function GET(
   req: Request,
@@ -14,7 +14,7 @@ export async function GET(
     const [
       { data: chat, error: chatError },
       { data: messages, error: msgError },
-      { data: { users: authUsers } },
+      emailMap,
     ] = await Promise.all([
       supabaseAdmin
         .from('chats')
@@ -31,14 +31,11 @@ export async function GET(
         .select('id, content, message_type, is_read, created_at, sender_id, profiles!messages_sender_id_fkey(full_name, avatar_url)')
         .eq('chat_id', chatId)
         .order('created_at', { ascending: true }),
-      supabaseAdmin.auth.admin.listUsers(),
+      getAuthEmailMap(),
     ]);
 
     if (chatError) throw chatError;
     if (msgError) throw msgError;
-
-    const emailMap: Record<string, string> = {};
-    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
 
     const enrichedChat = chat ? {
       ...chat,

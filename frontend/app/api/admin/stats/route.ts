@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../lib/adminAuth';
+import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthEmailMap } from '../../../lib/adminAuth';
 
 export async function GET(req: Request) {
   const adminId = await verifyAdmin(req);
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
       { data: pendingPayoutsData },
       { data: recentUsers },
       { data: recentOrders },
-      { data: { users: authUsers } },
+      emailMap,
     ] = await Promise.all([
       supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('offers').select('*', { count: 'exact', head: true }).eq('is_active', true),
@@ -25,11 +25,8 @@ export async function GET(req: Request) {
       supabaseAdmin.from('payouts').select('amount').eq('status', 'pending').gt('amount', 0),
       supabaseAdmin.from('profiles').select('id, full_name, roles, avatar_url, created_at').order('created_at', { ascending: false }).limit(5),
       supabaseAdmin.from('orders').select('id, total_amount, status, created_at, buyer_id, profiles!orders_buyer_id_fkey(full_name)').order('created_at', { ascending: false }).limit(10),
-      supabaseAdmin.auth.admin.listUsers(),
+      getAuthEmailMap(),
     ]);
-
-    const emailMap: Record<string, string> = {};
-    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
 
     const enrichedUsers = (recentUsers || []).map(u => ({ ...u, email: emailMap[u.id] || '' }));
     const enrichedOrders = (recentOrders || []).map((o: any) => ({
