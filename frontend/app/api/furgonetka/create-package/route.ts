@@ -105,8 +105,9 @@ export async function POST(req: Request) {
     }
 
     // 4. Verify Authorization/Roles
-    const senderId = isJob ? order.buyer_id : item.seller_id;
-    const receiverId = isJob ? item.seller_id : order.buyer_id;
+    // In all cases (jobs & physical products), item.seller_id is the Printer/Maker who ships, and order.buyer_id is the Customer who receives
+    const senderId = item.seller_id;
+    const receiverId = order.buyer_id;
 
     if (String(user.id) !== String(senderId)) {
       return NextResponse.json({ success: false, error: 'Forbidden: You are not the sender of this order' }, { status: 403 });
