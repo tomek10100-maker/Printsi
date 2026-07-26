@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -1368,22 +1368,28 @@ function MessagesInner() {
     };
 
     const handleBuyCustomOffer = (parsedData: any) => {
-        if (!activeChatData || !parsedData.custom_offer_id) return;
+        if (!activeChatData) return;
 
         const isJobOffer = activeChatData.offers?.category === 'job';
+        const targetOfferId = parsedData?.custom_offer_id || activeChatData.offer_id;
+        if (!targetOfferId) return;
 
         addItem({
-            id: parsedData.custom_offer_id,
+            id: targetOfferId,
             title: isJobOffer ? `Print Job: ${activeChatData.offers?.title}` : `Custom: ${activeChatData.offers?.title}`,
-            price: parsedData.price,
+            price: Number(parsedData?.price || activeChatData.offers?.price),
             image_url: activeChatData.offers?.image_urls?.[0] || null,
             seller_id: isJobOffer ? activeChatData.buyer_id : activeChatData.seller_id,
-            stock: parsedData.quantity,
+            stock: Number(parsedData?.quantity || 1),
             is_custom: true,
-            category: isJobOffer ? 'job' : (activeChatData.offers?.category || 'physical')
-        }, parsedData.quantity || 1);
+            category: isJobOffer ? 'job' : (activeChatData.offers?.category || 'physical'),
+            material: parsedData?.material || activeChatData.offers?.material,
+            color: parsedData?.color || activeChatData.offers?.color,
+            dimensions: parsedData?.dimensions || activeChatData.offers?.dimensions
+        }, Number(parsedData?.quantity || 1));
 
-        router.push('/cart');
+        // Skip cart page — navigate directly to checkout form!
+        router.push('/checkout');
     };
 
     const handleArchiveChat = async (chatId: string, currentlyArchived: boolean) => {
@@ -1968,8 +1974,22 @@ function MessagesInner() {
                                 </div>
                             )}
                             <div className="shrink-0 border-b border-gray-200 bg-white relative z-20 shadow-sm">
-                                {(showJobProposalBanner || (activeChatData?.offers?.category === 'job' && !activeChatData.order_id)) && activeChatData && (() => {
-                                    const isFixedPriceJob = !activeChatData.offers?.is_negotiable && (activeChatData.offers?.price > 0);
+                                {(showJobProposalBanner || (activeChatData?.offers?.category === 'job')) && activeChatData && (() => {
+                                    const isJobOffer = activeChatData.offers?.category === 'job';
+                                    const isFixedPriceJob = isJobOffer && !activeChatData.offers?.is_negotiable && (activeChatData.offers?.price > 0);
+                                    const isPrinter = currentUser?.id === activeChatData.buyer_id;
+                                    const isCustomer = currentUser?.id === activeChatData.seller_id;
+                                    
+                                    // Find latest proposal message if any
+                                    const latestProposalMsg = messages.slice().reverse().find(m => m.content.startsWith('[PROPOSAL]'));
+                                    const latestProposalData = latestProposalMsg ? (() => {
+                                        try { return JSON.parse(latestProposalMsg.content.substring(10)); } catch { return null; }
+                                    })() : null;
+
+                                    const hasProposal = !!latestProposalData && (latestProposalData.status === 'pending' || latestProposalData.status === 'accepted');
+                                    const isOrderPaid = !!activeChatData.order_id || latestProposalData?.status === 'accepted';
+                                    const proposalPrice = latestProposalData?.price || activeChatData.offers?.price;
+
                                     return (
                                         <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white transition-all duration-300">
                                             {/* Top Compact Bar (Always visible, ~32px tall) */}
@@ -1996,7 +2016,7 @@ function MessagesInner() {
                                                             </span>
                                                         )}
                                                         <span className="font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-400/20 px-1.5 py-0.5 rounded text-[10px] shrink-0">
-                                                            {isFixedPriceJob ? `${formatPrice(activeChatData.offers.price)} (Fixed)` : 'Get Proposals'}
+                                                            {isFixedPriceJob ? `${formatPrice(proposalPrice)} (Fixed)` : `${formatPrice(proposalPrice)}`}
                                                         </span>
                                                         {activeChatData.offers?.dimensions && (
                                                             <span className="text-slate-400 text-[10px] truncate hidden md:inline">• {activeChatData.offers.dimensions}</span>
@@ -2005,25 +2025,54 @@ function MessagesInner() {
                                                 </div>
 
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    {currentUser?.id === activeChatData.buyer_id ? (
-                                                        isFixedPriceJob ? (
-                                                            <button
-                                                                onClick={() => handleSendJobProposal(activeChatData.offers.price)}
-                                                                disabled={sendingJobProposal}
-                                                                className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-md active:scale-95 disabled:opacity-50"
-                                                            >
-                                                                {sendingJobProposal ? <Loader2 size={12} className="animate-spin" /> : <><Check size={12} /> Accept Job ({formatPrice(activeChatData.offers.price)})</>}
-                                                            </button>
+                                                    {/* STATE 1: Order Paid */}
+                                                    {isOrderPaid ? (
+                                                        isPrinter ? (
+                                                            <Link href="/profile?tab=orders" className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-md">
+                                                                <Package size={12} /> Payment Secured — Ready to Print
+                                                            </Link>
                                                         ) : (
-                                                            <span className="text-[9px] font-black uppercase text-amber-300 bg-amber-500/20 border border-amber-400/20 px-2 py-0.5 rounded-full tracking-wider hidden sm:inline">
-                                                                Proposal Required
+                                                            <span className="text-[9px] font-black uppercase text-emerald-300 bg-emerald-500/20 border border-emerald-400/20 px-2 py-0.5 rounded-full tracking-wider">
+                                                                📦 Paid & In Production
                                                             </span>
                                                         )
+                                                    ) : hasProposal ? (
+                                                        /* STATE 2: Printer has accepted/proposed, waiting for Customer payment */
+                                                        isPrinter ? (
+                                                            <span className="text-[9px] font-black uppercase text-amber-300 bg-amber-500/20 border border-amber-400/20 px-2.5 py-1 rounded-lg tracking-wider flex items-center gap-1">
+                                                                <Clock size={11} /> Awaiting Customer Payment
+                                                            </span>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleAcceptProposal(latestProposalMsg!.id, latestProposalData)}
+                                                                className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-md active:scale-95"
+                                                            >
+                                                                <CreditCard size={12} /> Pay & Checkout ({formatPrice(proposalPrice)})
+                                                            </button>
+                                                        )
                                                     ) : (
-                                                        <span className="text-[9px] font-black uppercase text-blue-300 bg-blue-500/20 border border-blue-400/20 px-2 py-0.5 rounded-full tracking-wider animate-pulse">
-                                                            Awaiting Printer
-                                                        </span>
+                                                        /* STATE 3: Initial (Printer hasn't accepted yet) */
+                                                        isPrinter ? (
+                                                            isFixedPriceJob ? (
+                                                                <button
+                                                                    onClick={() => handleSendJobProposal(activeChatData.offers.price)}
+                                                                    disabled={sendingJobProposal}
+                                                                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-md active:scale-95 disabled:opacity-50"
+                                                                >
+                                                                    {sendingJobProposal ? <Loader2 size={12} className="animate-spin" /> : <><Check size={12} /> Accept Job ({formatPrice(activeChatData.offers.price)})</>}
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[9px] font-black uppercase text-amber-300 bg-amber-500/20 border border-amber-400/20 px-2 py-0.5 rounded-full tracking-wider hidden sm:inline">
+                                                                    Proposal Required
+                                                                </span>
+                                                            )
+                                                        ) : (
+                                                            <span className="text-[9px] font-black uppercase text-blue-300 bg-blue-500/20 border border-blue-400/20 px-2 py-0.5 rounded-full tracking-wider animate-pulse">
+                                                                Awaiting Printer
+                                                            </span>
+                                                        )
                                                     )}
+
                                                     <button
                                                         onClick={() => setIsJobDetailsExpanded(!isJobDetailsExpanded)}
                                                         className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all border border-white/10"
@@ -2039,58 +2088,96 @@ function MessagesInner() {
                                                     <div className="flex flex-col md:flex-row items-center justify-between gap-3">
                                                         <div>
                                                             <p className="text-[9px] font-black uppercase tracking-[0.15em] text-blue-300">
-                                                                {currentUser?.id === activeChatData.buyer_id ? 'Job Fulfillment' : 'Your Job Details'}
+                                                                {isPrinter ? 'Printer Fulfillment' : 'Customer Job Status'}
                                                             </p>
                                                             <p className="text-xs font-bold text-white">
-                                                                {currentUser?.id === activeChatData.buyer_id 
-                                                                    ? (isFixedPriceJob 
-                                                                        ? `Fixed Price Job: ${formatPrice(activeChatData.offers.price)}. Click Accept to start fulfillment.` 
-                                                                        : 'Propose your price to print this item.') 
-                                                                    : 'The printer is reviewing your requirements.'}
+                                                                {isOrderPaid ? (
+                                                                    isPrinter 
+                                                                        ? `Payment confirmed! You have 4 days to print & ship "${activeChatData.offers?.title}". Generate shipping label when ready.`
+                                                                        : `Your print job for "${activeChatData.offers?.title}" is paid and in production! The printer will ship within 4 days.`
+                                                                ) : hasProposal ? (
+                                                                    isPrinter 
+                                                                        ? `You accepted this job for ${formatPrice(proposalPrice)}. We are waiting for the customer to complete payment.`
+                                                                        : `The printer accepted your job for ${formatPrice(proposalPrice)}! Complete payment below to start production.`
+                                                                ) : (
+                                                                    isPrinter 
+                                                                        ? (isFixedPriceJob 
+                                                                            ? `Fixed Price Job: ${formatPrice(activeChatData.offers.price)}. Click Accept to accept this job.` 
+                                                                            : 'Propose your price to print this item.') 
+                                                                        : 'The printer is reviewing your 3D file and requirements.'
+                                                                )}
                                                             </p>
                                                         </div>
 
-                                                        {currentUser?.id === activeChatData.buyer_id && (
-                                                            <div className="flex items-center gap-2 w-full md:w-auto">
-                                                                {isFixedPriceJob ? (
-                                                                    <button 
-                                                                        onClick={() => handleSendJobProposal(activeChatData.offers.price)}
-                                                                        disabled={sendingJobProposal}
-                                                                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg active:scale-95 disabled:opacity-50"
+                                                        {/* Action buttons inside expanded drawer */}
+                                                        <div className="flex items-center gap-2 w-full md:w-auto">
+                                                            {isOrderPaid ? (
+                                                                isPrinter && (
+                                                                    <Link 
+                                                                        href="/profile?tab=orders"
+                                                                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg active:scale-95"
                                                                     >
-                                                                        {sendingJobProposal ? <Loader2 size={14} className="animate-spin" /> : <><Check size={14} /> Accept & Print for {formatPrice(activeChatData.offers.price)}</>}
-                                                                    </button>
-                                                                ) : (
-                                                                    <div className="flex items-center gap-2 w-full md:w-auto">
-                                                                        <div className="relative flex-1 md:w-36">
-                                                                            <input 
-                                                                                type="number" 
-                                                                                placeholder="Price" 
-                                                                                value={jobProposalPrice} 
-                                                                                onChange={e => setJobProposalPrice(e.target.value)} 
-                                                                                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-xs font-black text-white placeholder:text-blue-200/50 focus:outline-none focus:bg-white/20 shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                                            />
-                                                                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-blue-300 uppercase tracking-widest pointer-events-none">{currency}</span>
-                                                                        </div>
-                                                                        <button 
-                                                                            onClick={() => handleSendJobProposal()}
-                                                                            disabled={!jobProposalPrice || sendingJobProposal}
-                                                                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50"
+                                                                        <Truck size={14} /> Generate Shipping Label (Furgonetka)
+                                                                    </Link>
+                                                                )
+                                                            ) : hasProposal ? (
+                                                                isCustomer ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <button
+                                                                            onClick={() => handleAcceptProposal(latestProposalMsg!.id, latestProposalData)}
+                                                                            className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg active:scale-95"
                                                                         >
-                                                                            {sendingJobProposal ? <Loader2 size={13} className="animate-spin" /> : <><Send size={13} /> Send Proposal</>}
+                                                                            <CreditCard size={14} /> Pay & Checkout ({formatPrice(proposalPrice)})
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleRejectProposal(latestProposalMsg!.id, latestProposalData)}
+                                                                            className="px-3 py-2 bg-rose-500/20 text-rose-100 hover:bg-rose-500/40 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                                                                        >
+                                                                            <XCircle size={13} /> Cancel Job
                                                                         </button>
                                                                     </div>
-                                                                )}
-                                                                <div className="w-px h-6 bg-white/20 mx-1 hidden md:block" />
-                                                                <button 
-                                                                    onClick={handleDeclineJobChat}
-                                                                    className="px-3 py-1.5 bg-red-500/20 text-red-100 hover:bg-red-500/40 rounded-lg transition-all text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 group whitespace-nowrap"
-                                                                    title="Pass on this job"
-                                                                >
-                                                                    <XCircle size={13} className="group-hover:rotate-90 transition-transform" /> I Can't Print This
-                                                                </button>
-                                                            </div>
-                                                        )}
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={() => handleWithdrawProposal(latestProposalMsg!.id, latestProposalData)}
+                                                                        className="px-3 py-2 bg-rose-500/20 text-rose-100 hover:bg-rose-500/40 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                                                                    >
+                                                                        <XCircle size={13} /> Withdraw Offer
+                                                                    </button>
+                                                                )
+                                                            ) : (
+                                                                isPrinter && (
+                                                                    isFixedPriceJob ? (
+                                                                        <button 
+                                                                            onClick={() => handleSendJobProposal(activeChatData.offers.price)}
+                                                                            disabled={sendingJobProposal}
+                                                                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg active:scale-95 disabled:opacity-50"
+                                                                        >
+                                                                            {sendingJobProposal ? <Loader2 size={14} className="animate-spin" /> : <><Check size={14} /> Accept & Print for {formatPrice(activeChatData.offers.price)}</>}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <div className="flex items-center gap-2 w-full md:w-auto">
+                                                                            <div className="relative flex-1 md:w-36">
+                                                                                <input 
+                                                                                    type="number" 
+                                                                                    placeholder="Price" 
+                                                                                    value={jobProposalPrice} 
+                                                                                    onChange={e => setJobProposalPrice(e.target.value)} 
+                                                                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-xs font-black text-white placeholder:text-blue-200/50 focus:outline-none focus:bg-white/20 shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                                />
+                                                                                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-blue-300 uppercase tracking-widest pointer-events-none">{currency}</span>
+                                                                            </div>
+                                                                            <button 
+                                                                                onClick={() => handleSendJobProposal()}
+                                                                                disabled={!jobProposalPrice || sendingJobProposal}
+                                                                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50"
+                                                                            >
+                                                                                {sendingJobProposal ? <Loader2 size={13} className="animate-spin" /> : <><Send size={13} /> Send Proposal</>}
+                                                                            </button>
+                                                                        </div>
+                                                                    )
+                                                                )
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     
                                                     <div className="bg-black/30 rounded-xl p-2.5 border border-white/10 flex flex-wrap gap-x-5 gap-y-2 text-xs">
