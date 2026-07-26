@@ -21,7 +21,7 @@ const supabase = createClient(
 function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, currency, rates } = useCurrency();
   const { theme } = useTheme();
 
   const [profile, setProfile] = useState<any>(null);
@@ -247,7 +247,7 @@ function BillingContent() {
                     <Sparkles size={24} />
                   </div>
                   <p className="text-[11px] uppercase font-black tracking-[0.2em] mb-2 text-white/70">Available Balance</p>
-                  <p className="text-3xl md:text-xl lg:text-2xl xl:text-4xl font-black tracking-tighter text-white text-center w-full leading-none">{formatPrice(Math.max(0, netBalance))}</p>
+                  <p className="text-3xl md:text-xl lg:text-2xl xl:text-4xl font-black tracking-tighter text-white text-center w-full leading-none">{formatPrice(netBalanceEur)}</p>
                 </div>
                 <div className="relative z-10 flex items-center gap-4">
                   <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
