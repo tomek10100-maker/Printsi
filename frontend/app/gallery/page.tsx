@@ -684,7 +684,12 @@ function MarketplaceContent() {
                         ) : (
                           offer.material && <span className="text-[9px] font-black uppercase text-purple-600 tracking-tighter bg-purple-50 px-1.5 py-0.5 rounded-sm">{offer.material}</span>
                         )}
-                        <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1.5 py-0.5 rounded-sm">{itemWeight}</span>
+                        {offer.category !== 'job' && itemWeight && (
+                          <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter bg-amber-50 px-1.5 py-0.5 rounded-sm">{itemWeight}</span>
+                        )}
+                        {offer.category === 'job' && (
+                          <span className="text-[9px] font-black uppercase text-blue-600 tracking-tighter bg-blue-50 px-1.5 py-0.5 rounded-sm">QTY: {offer.stock || 1} pcs</span>
+                        )}
                       </div>
                     );
                   })()}

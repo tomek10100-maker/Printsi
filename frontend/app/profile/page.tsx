@@ -624,16 +624,23 @@ export default function ProfilePage() {
 
                                  {/* More Stats Row */}
                                  {offer.category !== 'digital' && (
-                                   <>
+                                   <div className="grid grid-cols-2 gap-2 col-span-2">
                                      <div className="bg-purple-50/50 p-2.5 rounded-2xl border border-purple-50 flex flex-col justify-center">
                                        <span className="block text-[8px] font-black uppercase text-purple-400 tracking-widest mb-0.5">Material</span>
                                        <span className="block font-black text-purple-900 text-xs truncate capitalize">{offer.material || 'Mixed'}</span>
                                      </div>
-                                     <div className="bg-amber-50/50 p-2.5 rounded-2xl border border-amber-50 flex flex-col justify-center">
-                                       <span className="block text-[8px] font-black uppercase text-amber-400 tracking-widest mb-0.5">Net Weight</span>
-                                       <span className="block font-black text-amber-900 text-xs">{displayWeight}</span>
-                                     </div>
-                                   </>
+                                     {offer.category === 'job' ? (
+                                       <div className="bg-blue-50/50 p-2.5 rounded-2xl border border-blue-50 flex flex-col justify-center">
+                                         <span className="block text-[8px] font-black uppercase text-blue-400 tracking-widest mb-0.5">Quantity Requested</span>
+                                         <span className="block font-black text-blue-900 text-xs">{offer.stock || 1} pcs</span>
+                                       </div>
+                                     ) : (
+                                       <div className="bg-amber-50/50 p-2.5 rounded-2xl border border-amber-50 flex flex-col justify-center">
+                                         <span className="block text-[8px] font-black uppercase text-amber-400 tracking-widest mb-0.5">Net Weight</span>
+                                         <span className="block font-black text-amber-900 text-xs">{displayWeight}</span>
+                                       </div>
+                                     )}
+                                   </div>
                                  )}
                                 </div>
                               </div>

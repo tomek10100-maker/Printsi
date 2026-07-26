@@ -414,7 +414,7 @@ export default function OfferDetailsPage() {
                           );
                         })}
                       </div>
-                    ) : (currentWeight ? (
+                    ) : (currentWeight && !isJob ? (
                       <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center text-[11px] font-bold">
                         <span className="text-gray-400 uppercase tracking-widest">Total Material:</span>
                         <span className="text-blue-600 font-black">{currentWeight}</span>
@@ -435,7 +435,15 @@ export default function OfferDetailsPage() {
                     </div>
                   </div>
                 )}
-                {currentWeight && (
+                {isJob ? (
+                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Box size={16} className="text-blue-400" />
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity Requested</span>
+                    </div>
+                    <span className="text-2xl font-black text-gray-900 truncate block">{offer.stock || 1} pcs</span>
+                  </div>
+                ) : currentWeight ? (
                   <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
                       <Layers size={16} className="text-blue-400" />
@@ -443,7 +451,7 @@ export default function OfferDetailsPage() {
                     </div>
                     <span className="text-2xl font-black text-gray-900 truncate block">{currentWeight}</span>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {offer.custom_instructions && (

@@ -842,11 +842,18 @@ export default function AddOfferPage() {
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {category !== 'digital' && category !== 'job' && (
-                        <div className="relative">
-                          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs pointer-events-none">QTY</span>
-                          <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} onWheel={(e) => e.currentTarget.blur()} required title="Please fill out this field"
-                            className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
+                      {category !== 'digital' && (
+                        <div className="space-y-1.5 mb-4">
+                          <label className="text-[11px] font-black uppercase text-gray-400 tracking-widest block">
+                            {category === 'job' ? 'Quantity Needed (pcs)' : 'Quantity Available (QTY)'}
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs pointer-events-none">
+                              {category === 'job' ? 'PCS' : 'QTY'}
+                            </span>
+                            <input type="number" placeholder="1" min="1" value={manualStock} onChange={e => setManualStock(e.target.value)} onWheel={(e) => e.currentTarget.blur()} required title="Please fill out this field"
+                              className="w-full p-4 pl-16 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
+                          </div>
                         </div>
                       )}
                       {category === 'job' && (
