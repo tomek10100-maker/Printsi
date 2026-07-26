@@ -6,20 +6,31 @@ export async function GET(req: Request) {
   if (!adminId) return FORBIDDEN();
 
   try {
-    const [{ data: payouts, error }, emailMap] = await Promise.all([
+    const [
+      { data: payouts, error: payoutsErr },
+      { data: profiles },
+      emailMap,
+    ] = await Promise.all([
       supabaseAdmin
         .from('payouts')
-        .select('id, amount, status, created_at, user_id, profiles!payouts_user_id_fkey(full_name, avatar_url, payout_iban, payout_recipient_name)')
+        .select('id, amount, status, created_at, user_id')
         .order('created_at', { ascending: false }),
+      supabaseAdmin.from('profiles').select('id, full_name, avatar_url, payout_iban, payout_recipient_name'),
       getAuthEmailMap(),
     ]);
 
-    if (error) throw error;
+    if (payoutsErr) throw payoutsErr;
 
-    const enriched = (payouts || []).map((p: any) => ({
-      ...p,
-      profiles: p.profiles ? { ...p.profiles, email: emailMap[p.user_id] || '' } : null,
-    }));
+    const profileMap: Record<string, any> = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+    const enriched = (payouts || []).map((p: any) => {
+      const prof = profileMap[p.user_id];
+      return {
+        ...p,
+        profiles: prof ? { ...prof, email: emailMap[p.user_id] || '' } : null,
+      };
+    });
 
     return NextResponse.json({ payouts: enriched });
   } catch (error: any) {

@@ -7,7 +7,8 @@ export async function GET(req: Request) {
 
   try {
     const [
-      { data: orders, error },
+      { data: orders, error: ordersErr },
+      { data: profiles },
       emailMap,
     ] = await Promise.all([
       supabaseAdmin
@@ -19,38 +20,45 @@ export async function GET(req: Request) {
           status,
           stripe_payment_intent_id,
           created_at,
-          buyer_id,
-          profiles!orders_buyer_id_fkey(full_name, avatar_url)
+          buyer_id
         `)
         .order('created_at', { ascending: false }),
+      supabaseAdmin.from('profiles').select('id, full_name, avatar_url'),
       getAuthEmailMap(),
     ]);
 
-    if (error) throw error;
+    if (ordersErr) throw ordersErr;
+
+    const profileMap: Record<string, any> = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p; });
 
     // Fetch order items for each order to get seller info and statuses
     const orderIds = (orders || []).map(o => o.id);
     const { data: items } = orderIds.length > 0
       ? await supabaseAdmin
           .from('order_items')
-          .select('order_id, seller_id, status, price_at_purchase, quantity, offer_id, profiles!order_items_seller_id_fkey(full_name)')
+          .select('order_id, seller_id, status, price_at_purchase, quantity, offer_id')
           .in('order_id', orderIds)
       : { data: [] };
 
     const itemsByOrder: Record<string, any[]> = {};
     (items || []).forEach((item: any) => {
       if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
+      const sellerProf = profileMap[item.seller_id];
       itemsByOrder[item.order_id].push({
         ...item,
-        profiles: item.profiles ? { ...item.profiles, email: emailMap[item.seller_id] || '' } : null,
+        profiles: sellerProf ? { ...sellerProf, email: emailMap[item.seller_id] || '' } : null,
       });
     });
 
-    const enriched = (orders || []).map((order: any) => ({
-      ...order,
-      profiles: order.profiles ? { ...order.profiles, email: emailMap[order.buyer_id] || '' } : null,
-      items: itemsByOrder[order.id] || [],
-    }));
+    const enriched = (orders || []).map((order: any) => {
+      const buyerProf = profileMap[order.buyer_id];
+      return {
+        ...order,
+        profiles: buyerProf ? { ...buyerProf, email: emailMap[order.buyer_id] || '' } : null,
+        items: itemsByOrder[order.id] || [],
+      };
+    });
 
     return NextResponse.json({ orders: enriched });
   } catch (error: any) {

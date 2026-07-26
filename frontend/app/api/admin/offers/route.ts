@@ -6,20 +6,31 @@ export async function GET(req: Request) {
   if (!adminId) return FORBIDDEN();
 
   try {
-    const [{ data: offers, error }, emailMap] = await Promise.all([
+    const [
+      { data: offers, error: offersErr },
+      { data: profiles },
+      emailMap,
+    ] = await Promise.all([
       supabaseAdmin
         .from('offers')
-        .select('id, title, category, price, stock, is_active, is_custom, is_negotiable, image_urls, created_at, user_id, profiles!offers_user_id_fkey(full_name, avatar_url)')
+        .select('id, title, category, price, stock, is_active, is_custom, is_negotiable, image_urls, created_at, user_id')
         .order('created_at', { ascending: false }),
+      supabaseAdmin.from('profiles').select('id, full_name, avatar_url'),
       getAuthEmailMap(),
     ]);
 
-    if (error) throw error;
+    if (offersErr) throw offersErr;
 
-    const enriched = (offers || []).map((o: any) => ({
-      ...o,
-      profiles: o.profiles ? { ...o.profiles, email: emailMap[o.user_id] || '' } : null,
-    }));
+    const profileMap: Record<string, any> = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+    const enriched = (offers || []).map((o: any) => {
+      const prof = profileMap[o.user_id];
+      return {
+        ...o,
+        profiles: prof ? { ...prof, email: emailMap[o.user_id] || '' } : null,
+      };
+    });
 
     return NextResponse.json({ offers: enriched });
   } catch (error: any) {
