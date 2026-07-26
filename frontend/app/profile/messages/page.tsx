@@ -1205,8 +1205,16 @@ function MessagesInner() {
     };
 
     const handleAcceptProposal = async (msgId: string, parsedData: any) => {
-        if (!activeChatData || !activeChatData.offers || activeChatData.seller_id !== currentUser?.id) {
-            console.error("Accept failed: Missing chat data or unauthorized", { activeChatData, sellerId: activeChatData?.seller_id, userId: currentUser?.id });
+        if (!activeChatData || !activeChatData.offers) return;
+
+        const isJobOffer = activeChatData.offers?.category === 'job';
+        const jobPosterId = activeChatData.offers?.user_id || activeChatData.seller_id;
+        const isAuthorizedToAccept = isJobOffer
+            ? currentUser?.id === jobPosterId
+            : currentUser?.id === activeChatData.seller_id || currentUser?.id === activeChatData.buyer_id;
+
+        if (!isAuthorizedToAccept) {
+            console.error("Accept failed: Missing chat data or unauthorized", { activeChatData, userId: currentUser?.id });
             return;
         }
 
@@ -1214,8 +1222,6 @@ function MessagesInner() {
             alert("Error: Proposal lacks a valid price!");
             return;
         }
-
-        const isJobOffer = activeChatData.offers?.category === 'job';
 
         try {
             const basePayload = {
@@ -1371,6 +1377,11 @@ function MessagesInner() {
         if (!activeChatData) return;
 
         const isJobOffer = activeChatData.offers?.category === 'job';
+        const jobPosterId = activeChatData.offers?.user_id || activeChatData.seller_id;
+        const printerUserId = isJobOffer
+            ? (activeChatData.buyer_id === jobPosterId ? activeChatData.seller_id : activeChatData.buyer_id)
+            : activeChatData.seller_id;
+
         const targetOfferId = parsedData?.custom_offer_id || activeChatData.offer_id;
         if (!targetOfferId) return;
 
@@ -1379,7 +1390,7 @@ function MessagesInner() {
             title: isJobOffer ? `Print Job: ${activeChatData.offers?.title}` : `Custom: ${activeChatData.offers?.title}`,
             price: Number(parsedData?.price || activeChatData.offers?.price),
             image_url: activeChatData.offers?.image_urls?.[0] || null,
-            seller_id: isJobOffer ? activeChatData.buyer_id : activeChatData.seller_id,
+            seller_id: printerUserId,
             stock: Number(parsedData?.quantity || 1),
             is_custom: true,
             category: isJobOffer ? 'job' : (activeChatData.offers?.category || 'physical'),
@@ -1616,15 +1627,23 @@ function MessagesInner() {
     const renderActionCard = (orderItem: any, chatData: any) => {
         if (!orderItem || !currentUser) return null;
         const status = (orderItem.status || 'pending').toLowerCase();
-        const isSeller = String(currentUser.id) === String(chatData?.seller_id);
-        const isBuyer = String(currentUser.id) === String(chatData?.buyer_id);
         const isDigital = chatData?.offers?.category === 'digital';
         const isJob = chatData?.offers?.category === 'job';
+        const jobPosterId = chatData?.offers?.user_id || chatData?.seller_id;
 
-        // For job offers: printer = buyer_id, job poster = seller_id
-        // So for jobs, the BUYER (printer) ships, and the SELLER (job poster) waits
-        const showShipCard = isJob ? (status === 'pending' && isBuyer) : (status === 'pending' && isSeller);
-        const showWaitCard = isJob ? (status === 'pending' && isSeller) : (status === 'pending' && isBuyer);
+        // For Job Offers: Printer = not job poster, Customer = job poster
+        // For Physical/Digital Offers: Printer/Seller = seller_id, Customer/Buyer = buyer_id
+        const isPrinter = isJob
+            ? (String(currentUser.id) !== String(jobPosterId))
+            : (String(currentUser.id) === String(chatData?.seller_id));
+        const isCustomer = isJob
+            ? (String(currentUser.id) === String(jobPosterId))
+            : (String(currentUser.id) === String(chatData?.buyer_id));
+
+        const showShipCard = status === 'pending' && isPrinter;
+        const showWaitCard = status === 'pending' && isCustomer;
+        const showConfirmDelivery = status === 'shipped' && isCustomer;
+        const showShippedWait = status === 'shipped' && isPrinter;
 
         if (showShipCard) {
             return (
@@ -1694,10 +1713,6 @@ function MessagesInner() {
             );
         }
 
-        // For shipped status with jobs: buyer (printer) waits, seller (job poster) confirms
-        const showConfirmDelivery = isJob ? (status === 'shipped' && isSeller) : (status === 'shipped' && isBuyer);
-        const showShippedWait = isJob ? (status === 'shipped' && isBuyer) : (status === 'shipped' && isSeller);
-
         if (showConfirmDelivery) {
             return (
                 <div className="flex flex-col gap-2 my-4">
@@ -1747,7 +1762,7 @@ function MessagesInner() {
                                 {isJob ? '📦 Item shipped! Waiting for the customer to confirm delivery...'
                                     : isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
                             </p>
-                            {isSeller && orderItem.label_url && (
+                            {isPrinter && orderItem.label_url && (
                                 <button
                                     onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
                                     className="mt-3 px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 mx-auto transition-all shadow-sm"
@@ -1804,8 +1819,8 @@ function MessagesInner() {
             return (
                 <div className="flex justify-center my-2 px-4 w-full">
                     <div className="w-full max-w-md">
-                        {/* Seller cancel button — available at pending OR shipped */}
-                        {isSeller && ['pending', 'shipped'].includes(status) && (
+                        {/* Printer cancel button — available at pending OR shipped */}
+                        {isPrinter && ['pending', 'shipped'].includes(status) && (
                             <button
                                 onClick={() => openCancelModal('seller')}
                                 className="w-full mt-2 py-2.5 border-2 border-dashed border-red-200 rounded-xl text-xs font-black uppercase tracking-wider text-red-400 hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
@@ -1813,8 +1828,8 @@ function MessagesInner() {
                                 <Ban size={13} /> Cancel Order
                             </button>
                         )}
-                        {/* Buyer cancel request — only at pending (not after shipped) */}
-                        {isBuyer && status === 'pending' && (
+                        {/* Customer cancel request — only at pending (not after shipped) */}
+                        {isCustomer && status === 'pending' && (
                             <button
                                 onClick={() => openCancelModal('buyer')}
                                 className="w-full mt-2 py-2.5 border-2 border-dashed border-orange-200 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition-all flex items-center justify-center gap-2"
@@ -1977,8 +1992,15 @@ function MessagesInner() {
                                 {(showJobProposalBanner || (activeChatData?.offers?.category === 'job')) && activeChatData && (() => {
                                     const isJobOffer = activeChatData.offers?.category === 'job';
                                     const isFixedPriceJob = isJobOffer && !activeChatData.offers?.is_negotiable && (activeChatData.offers?.price > 0);
-                                    const isPrinter = currentUser?.id === activeChatData.buyer_id;
-                                    const isCustomer = currentUser?.id === activeChatData.seller_id;
+                                    const jobPosterId = activeChatData.offers?.user_id || activeChatData.seller_id;
+
+                                    const isPrinter = isJobOffer
+                                        ? String(currentUser?.id) !== String(jobPosterId)
+                                        : String(currentUser?.id) === String(activeChatData.seller_id);
+
+                                    const isCustomer = isJobOffer
+                                        ? String(currentUser?.id) === String(jobPosterId)
+                                        : String(currentUser?.id) === String(activeChatData.buyer_id);
                                     
                                     // Find latest proposal message if any
                                     const latestProposalMsg = messages.slice().reverse().find(m => m.content.startsWith('[PROPOSAL]'));
