@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthEmailMap } from '../../../lib/adminAuth';
+import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthUserMap } from '../../../lib/adminAuth';
 
 export async function GET(req: Request) {
   const adminId = await verifyAdmin(req);
   if (!adminId) return FORBIDDEN();
 
   try {
-    const [{ data: profiles, error }, emailMap] = await Promise.all([
+    const [{ data: profiles, error }, userMap] = await Promise.all([
       supabaseAdmin
         .from('profiles')
-        .select('id, full_name, roles, avatar_url, country, currency, created_at, onboarding_complete, stripe_account_id')
-        .order('created_at', { ascending: false }),
-      getAuthEmailMap(),
+        .select('id, full_name, roles, avatar_url, country, currency, onboarding_complete, stripe_account_id'),
+      getAuthUserMap(),
     ]);
 
     if (error) throw error;
@@ -56,7 +55,8 @@ export async function GET(req: Request) {
 
     const enriched = (profiles || []).map(p => ({
       ...p,
-      email: emailMap[p.id] || '',
+      email: userMap[p.id]?.email || '',
+      created_at: userMap[p.id]?.createdAt || null,
       balance: Math.max(0, balanceMap[p.id] || 0),
       totalEarned: earnedMap[p.id] || 0,
     }));

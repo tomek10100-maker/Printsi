@@ -63,3 +63,23 @@ export async function getAuthEmailMap(): Promise<Record<string, string>> {
   }
   return emailMap;
 }
+
+export async function getAuthUserMap(): Promise<Record<string, { email: string; createdAt: string }>> {
+  const userMap: Record<string, { email: string; createdAt: string }> = {};
+  try {
+    const res = await supabaseAdmin.auth.admin.listUsers();
+    if (res?.data?.users) {
+      res.data.users.forEach((u: any) => {
+        if (u.id) {
+          userMap[u.id] = {
+            email: u.email || '',
+            createdAt: u.created_at || '',
+          };
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('getAuthUserMap failed:', err);
+  }
+  return userMap;
+}

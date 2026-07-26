@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       supabaseAdmin.from('orders').select('total_amount'),
       supabaseAdmin.from('payouts').select('*', { count: 'exact', head: true }).eq('status', 'pending').gt('amount', 0),
       supabaseAdmin.from('payouts').select('amount').eq('status', 'pending').gt('amount', 0),
-      supabaseAdmin.from('profiles').select('id, full_name, roles, avatar_url, created_at').order('created_at', { ascending: false }).limit(5),
+      supabaseAdmin.from('profiles').select('id, full_name, roles, avatar_url').limit(5),
       supabaseAdmin.from('orders').select('id, total_amount, status, created_at, buyer_id').order('created_at', { ascending: false }).limit(10),
       supabaseAdmin.from('profiles').select('id, full_name'),
       getAuthEmailMap(),
