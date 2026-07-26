@@ -47,11 +47,11 @@ type ColorVariant = {
 };
 
 const BASIC_COLORS: Record<string, string> = {
-  black: '#000000', white: '#ffffff', red: '#ff0000', green: '#008000', blue: '#0000ff',
-  yellow: '#ffff00', cyan: '#00ffff', magenta: '#ff00ff', gray: '#808080', grey: '#808080',
-  orange: '#ffa500', brown: '#a52a2a', pink: '#ffc0cb', purple: '#800080',
-  navy: '#000080', lime: '#00ff00', maroon: '#800000', olive: '#808000', teal: '#008080',
-  silver: '#c0c0c0', gold: '#ffd700'
+  black: '#1a1a1a', white: '#ffffff', red: '#ef4444', green: '#10b981', blue: '#3b82f6',
+  yellow: '#f59e0b', cyan: '#06b6d4', magenta: '#ec4899', gray: '#64748b', grey: '#64748b',
+  orange: '#f97316', brown: '#a52a2a', pink: '#f472b6', purple: '#8b5cf6',
+  navy: '#1e3a8a', lime: '#84cc16', maroon: '#991b1b', olive: '#65a30d', teal: '#0d9488',
+  silver: '#cbd5e1', gold: '#eab308'
 };
 
 type DimensionEntry = { id: string; label: string; value: string };
@@ -935,9 +935,9 @@ export default function AddOfferPage() {
                                  <button
                                    key={name}
                                    type="button"
-                                   title={name}
-                                   onClick={() => { setManualColor(name); setManualColorHex(hex); }}
-                                   className={`w-7 h-7 rounded-full transition-transform shadow-sm ${manualColor === name ? 'scale-125 border-[3px] border-blue-600 shadow-md z-10 relative' : 'border-2 border-black/5 hover:scale-110'}`}
+                                   title={name.charAt(0).toUpperCase() + name.slice(1)}
+                                   onClick={() => { setManualColor(name.charAt(0).toUpperCase() + name.slice(1)); setManualColorHex(hex); }}
+                                   className={`w-7 h-7 rounded-full transition-all shadow-sm ${manualColor?.toLowerCase() === name ? 'scale-125 border-[3px] border-blue-600 shadow-md z-10 relative' : 'border-2 border-black/5 hover:scale-110'}`}
                                    style={{ backgroundColor: hex }}
                                  />
                               ))}
@@ -945,13 +945,14 @@ export default function AddOfferPage() {
                             
                             <div className="flex flex-col sm:flex-row items-center gap-3">
                                <div className="flex-1 w-full relative">
-                                 <input type="text" placeholder="Custom color name (e.g. Neon Yellow)" value={manualColor === 'Any' ? '' : manualColor} onChange={e => setManualColor(e.target.value)} className="w-full p-4 bg-white border-2 border-gray-100 rounded-2xl font-bold text-gray-900 outline-none focus:border-blue-600 transition-all shadow-sm" />
+                                 <input type="text" placeholder="Custom color name (e.g. Ocean Blue)" value={manualColor === 'Any' ? '' : manualColor} onChange={e => setManualColor(e.target.value)} className="w-full p-4 bg-white border-2 border-gray-100 rounded-2xl font-bold text-gray-900 outline-none focus:border-blue-600 transition-all shadow-sm" />
                                </div>
-                               <div className="shrink-0 relative overflow-hidden rounded-2xl w-full sm:w-28 h-14 border-2 border-blue-200 hover:border-blue-500 p-1 flex items-center justify-center bg-white shadow-sm transition-all cursor-pointer group" title="Click to pick color">
+                               <div className="shrink-0 relative overflow-hidden rounded-2xl w-full sm:w-36 h-14 border-2 border-blue-100 hover:border-blue-500 p-1 flex items-center justify-center bg-white shadow-sm transition-all cursor-pointer group" title="Click to pick custom color">
                                   <input type="color" value={manualColorHex} onChange={e => setManualColorHex(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Click to pick color" />
-                                  <div className="w-full h-full rounded-xl pointer-events-none border border-black/10 flex items-center justify-center text-white font-bold" style={{ backgroundColor: manualColorHex }}>
-                                    <span className="bg-black/50 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider backdrop-blur-xs flex items-center gap-1 group-hover:scale-105 transition-transform">
-                                      🎨 Pick Color
+                                  <div className="w-full h-full rounded-xl pointer-events-none border border-black/10 flex items-center justify-center text-white font-bold gap-2 px-3 shadow-inner" style={{ backgroundColor: manualColorHex }}>
+                                    <Palette size={14} className="drop-shadow-sm" />
+                                    <span className="text-[10px] font-black uppercase tracking-wider drop-shadow-sm truncate">
+                                      {manualColorHex.toUpperCase()}
                                     </span>
                                   </div>
                                </div>

@@ -47,11 +47,11 @@ function hexToName(hex: string): string {
 }
 
 const BASIC_COLORS: Record<string, string> = {
-  black: '#000000', white: '#ffffff', red: '#ff0000', green: '#008000', blue: '#0000ff',
-  yellow: '#ffff00', cyan: '#00ffff', magenta: '#ff00ff', gray: '#808080', grey: '#808080',
-  orange: '#ffa500', brown: '#a52a2a', pink: '#ffc0cb', purple: '#800080',
-  navy: '#000080', lime: '#00ff00', maroon: '#800000', olive: '#808000', teal: '#008080',
-  silver: '#c0c0c0', gold: '#ffd700'
+  black: '#1a1a1a', white: '#ffffff', red: '#ef4444', green: '#10b981', blue: '#3b82f6',
+  yellow: '#f59e0b', cyan: '#06b6d4', magenta: '#ec4899', gray: '#64748b', grey: '#64748b',
+  orange: '#f97316', brown: '#a52a2a', pink: '#f472b6', purple: '#8b5cf6',
+  navy: '#1e3a8a', lime: '#84cc16', maroon: '#991b1b', olive: '#65a30d', teal: '#0d9488',
+  silver: '#cbd5e1', gold: '#eab308'
 };
 
 function isLight(hex: string): boolean {

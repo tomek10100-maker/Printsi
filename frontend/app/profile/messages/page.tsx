@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -94,6 +94,7 @@ function MessagesInner() {
     const [showJobProposalBanner, setShowJobProposalBanner] = useState(false);
     const [jobProposalPrice, setJobProposalPrice] = useState('');
     const [sendingJobProposal, setSendingJobProposal] = useState(false);
+    const [isJobDetailsExpanded, setIsJobDetailsExpanded] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +125,7 @@ function MessagesInner() {
         id, created_at, updated_at, order_id,
         buyer_id, seller_id,
         offer_id,
-        offers ( id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants )
+        offers ( id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants, is_negotiable )
       `)
             .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
             .order('updated_at', { ascending: false });
@@ -1035,14 +1036,22 @@ function MessagesInner() {
     };
 
     // ── JOB FULFILLMENT: Quick Price Proposal ──
-    const handleSendJobProposal = async () => {
-        if (!currentUser || !activeChatData || !jobProposalPrice) return;
-        setSendingJobProposal(true);
+    const handleSendJobProposal = async (overridePriceEUR?: number) => {
+        if (!currentUser || !activeChatData) return;
 
-        let finalPrice = parseFloat(jobProposalPrice);
-        if (currency !== 'EUR' && rates && rates[currency]) {
-            finalPrice = finalPrice / rates[currency];
+        let finalPrice = 0;
+        if (overridePriceEUR !== undefined) {
+            finalPrice = overridePriceEUR;
+        } else {
+            if (!jobProposalPrice) return;
+            finalPrice = parseFloat(jobProposalPrice);
+            if (currency !== 'EUR' && rates && rates[currency]) {
+                finalPrice = finalPrice / rates[currency];
+            }
         }
+        if (isNaN(finalPrice) || finalPrice <= 0) return;
+
+        setSendingJobProposal(true);
 
         const payload: any = {
             price: finalPrice,
@@ -1907,101 +1916,172 @@ function MessagesInner() {
                                     </div>
                                 </div>
                             )}
-                            <div className="shrink-0 max-h-[35vh] overflow-y-auto custom-scrollbar border-b border-gray-100 bg-white relative z-20 shadow-sm">
-                                {(showJobProposalBanner || (activeChatData?.offers?.category === 'job' && !activeChatData.order_id)) && activeChatData && (
-                                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5 flex flex-col gap-4 animate-in slide-in-from-top duration-500 relative z-20">
-                                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3 w-full md:w-auto">
-                                            <div className="bg-white/20 p-2 rounded-xl">
-                                                <Printer className="text-white" size={20} />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">
-                                                    {currentUser?.id === activeChatData.buyer_id ? 'Job Fulfillment' : 'Your Job Details'}
-                                                </p>
-                                                <p className="text-sm font-bold text-white">
-                                                    {currentUser?.id === activeChatData.buyer_id 
-                                                        ? 'Propose your price to print this item.' 
-                                                        : 'The printer is reviewing your requirements.'}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {currentUser?.id === activeChatData.buyer_id ? (
-                                            <div className="flex items-center gap-2 w-full md:w-auto">
-                                                <div className="relative flex-1 md:w-40">
-                                                    <input 
-                                                        type="number" 
-                                                        placeholder="Price" 
-                                                        value={jobProposalPrice} 
-                                                        onChange={e => setJobProposalPrice(e.target.value)} 
-                                                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm font-black text-white placeholder:text-blue-200/50 focus:outline-none focus:bg-white/20 shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                    />
-                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-blue-300 uppercase tracking-widest pointer-events-none">{currency}</span>
+                            <div className="shrink-0 border-b border-gray-200 bg-white relative z-20 shadow-sm">
+                                {(showJobProposalBanner || (activeChatData?.offers?.category === 'job' && !activeChatData.order_id)) && activeChatData && (() => {
+                                    const isFixedPriceJob = !activeChatData.offers?.is_negotiable && (activeChatData.offers?.price > 0);
+                                    return (
+                                        <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white transition-all duration-300">
+                                            {/* Top Compact Bar (Always visible, ~32px tall) */}
+                                            <div className="px-3.5 py-1.5 flex items-center justify-between gap-2 text-xs">
+                                                <div className="flex items-center gap-2 overflow-hidden min-w-0">
+                                                    <div className="bg-blue-500/20 p-1 rounded text-blue-400 shrink-0">
+                                                        <Printer size={13} />
+                                                    </div>
+                                                    <span className="font-black uppercase tracking-wider text-[9px] text-blue-400 shrink-0">
+                                                        Job Specs:
+                                                    </span>
+                                                    <div className="flex items-center gap-1.5 truncate text-[11px] font-medium text-slate-200">
+                                                        {activeChatData.offers?.material && (
+                                                            <span className="font-bold text-white bg-blue-600/30 border border-blue-400/20 px-1.5 py-0.5 rounded text-[10px]">
+                                                                {activeChatData.offers.material}
+                                                            </span>
+                                                        )}
+                                                        {activeChatData.offers?.color && (
+                                                            <span className="flex items-center gap-1 shrink-0">
+                                                                <span className="w-2.5 h-2.5 rounded-full border border-white/40 shadow-xs" style={{ backgroundColor: (activeChatData.offers.color === '#0000ff' || activeChatData.offers.color === '#0000FF') ? '#3b82f6' : activeChatData.offers.color }} />
+                                                                <span className="text-slate-300 text-[10px] hidden sm:inline">
+                                                                    {(activeChatData.offers.color === '#0000ff' || activeChatData.offers.color === '#0000FF') ? 'Ocean Blue' : activeChatData.offers.color}
+                                                                </span>
+                                                            </span>
+                                                        )}
+                                                        <span className="font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-400/20 px-1.5 py-0.5 rounded text-[10px] shrink-0">
+                                                            {isFixedPriceJob ? `${formatPrice(activeChatData.offers.price)} (Fixed)` : 'Get Proposals'}
+                                                        </span>
+                                                        {activeChatData.offers?.dimensions && (
+                                                            <span className="text-slate-400 text-[10px] truncate hidden md:inline">• {activeChatData.offers.dimensions}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <button 
-                                                    onClick={handleSendJobProposal}
-                                                    disabled={!jobProposalPrice || sendingJobProposal}
-                                                    className="bg-white text-blue-600 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center gap-2 shadow-xl hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
-                                                >
-                                                    {sendingJobProposal ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Send Proposal
-                                                </button>
-                                                <div className="w-px h-8 bg-white/20 mx-2 hidden md:block" />
-                                                <button 
-                                                    onClick={handleDeclineJobChat}
-                                                    className="px-4 py-2 bg-red-500/20 text-red-100 hover:bg-red-500/40 rounded-xl transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2 group whitespace-nowrap"
-                                                    title="Pass on this job"
-                                                >
-                                                    <XCircle size={14} className="group-hover:rotate-90 transition-transform" /> I Can't Print This
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="bg-white/10 border border-white/10 rounded-2xl px-5 py-2.5 flex items-center gap-3 animate-pulse">
-                                                <div className="w-2 h-2 bg-blue-400 rounded-full" />
-                                                <span className="text-[10px] font-black uppercase text-blue-100 tracking-wider">Awaiting printer response</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="bg-black/20 rounded-2xl p-4 border border-white/10 flex flex-wrap gap-x-6 gap-y-4">
-                                        {activeChatData.offers?.material && (
-                                            <div className="flex flex-col">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><Palette size={10} /> Material</span>
-                                                <span className="text-sm font-bold text-white">{activeChatData.offers.material}</span>
-                                            </div>
-                                        )}
-                                        {activeChatData.offers?.color && (
-                                            <div className="flex flex-col">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><Palette size={10} /> Color</span>
-                                                <span className="text-sm font-bold text-white flex items-center gap-2">
-                                                    {activeChatData.offers.color && (
-                                                        <span className="w-3 h-3 rounded-full border border-white/30" style={{backgroundColor: activeChatData.offers.color}} />
+
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {currentUser?.id === activeChatData.buyer_id ? (
+                                                        isFixedPriceJob ? (
+                                                            <button
+                                                                onClick={() => handleSendJobProposal(activeChatData.offers.price)}
+                                                                disabled={sendingJobProposal}
+                                                                className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-md active:scale-95 disabled:opacity-50"
+                                                            >
+                                                                {sendingJobProposal ? <Loader2 size={12} className="animate-spin" /> : <><Check size={12} /> Accept Job ({formatPrice(activeChatData.offers.price)})</>}
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[9px] font-black uppercase text-amber-300 bg-amber-500/20 border border-amber-400/20 px-2 py-0.5 rounded-full tracking-wider hidden sm:inline">
+                                                                Proposal Required
+                                                            </span>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-[9px] font-black uppercase text-blue-300 bg-blue-500/20 border border-blue-400/20 px-2 py-0.5 rounded-full tracking-wider animate-pulse">
+                                                            Awaiting Printer
+                                                        </span>
                                                     )}
-                                                    {activeChatData.offers.color}
-                                                </span>
+                                                    <button
+                                                        onClick={() => setIsJobDetailsExpanded(!isJobDetailsExpanded)}
+                                                        className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all border border-white/10"
+                                                    >
+                                                        {isJobDetailsExpanded ? 'Hide' : 'Details'} {isJobDetailsExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                                    </button>
+                                                </div>
                                             </div>
-                                        )}
-                                        {activeChatData.offers?.dimensions && (
-                                            <div className="flex flex-col">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><Ruler size={10} /> Dimensions</span>
-                                                <span className="text-sm font-bold text-white max-w-[200px] truncate">{activeChatData.offers.dimensions}</span>
-                                            </div>
-                                        )}
-                                        {activeChatData.offers?.weight && (
-                                             <div className="flex flex-col">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><Package size={10} /> Est. Weight</span>
-                                                <span className="text-sm font-bold text-white">{activeChatData.offers.weight}</span>
-                                            </div>
-                                        )}
-                                         {activeChatData.offers?.custom_instructions && (
-                                             <div className="flex flex-col w-full md:flex-1 md:min-w-[250px] md:border-l md:border-white/10 md:pl-6 pt-3 md:pt-0 border-t border-white/10 md:border-t-0">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1 flex items-center gap-1"><MessageSquare size={10} /> Technical Notes</span>
-                                                <p className="text-sm font-medium text-white/90 italic leading-snug line-clamp-3">{activeChatData.offers.custom_instructions}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                    </div>
-                                )}
+
+                                            {/* Expanded Content Panel (Shown when toggle clicked) */}
+                                            {isJobDetailsExpanded && (
+                                                <div className="px-4 py-3 border-t border-white/10 flex flex-col gap-3 bg-gradient-to-b from-blue-950/40 to-slate-900 animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-blue-300">
+                                                                {currentUser?.id === activeChatData.buyer_id ? 'Job Fulfillment' : 'Your Job Details'}
+                                                            </p>
+                                                            <p className="text-xs font-bold text-white">
+                                                                {currentUser?.id === activeChatData.buyer_id 
+                                                                    ? (isFixedPriceJob 
+                                                                        ? `Fixed Price Job: ${formatPrice(activeChatData.offers.price)}. Click Accept to start fulfillment.` 
+                                                                        : 'Propose your price to print this item.') 
+                                                                    : 'The printer is reviewing your requirements.'}
+                                                            </p>
+                                                        </div>
+
+                                                        {currentUser?.id === activeChatData.buyer_id && (
+                                                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                                                {isFixedPriceJob ? (
+                                                                    <button 
+                                                                        onClick={() => handleSendJobProposal(activeChatData.offers.price)}
+                                                                        disabled={sendingJobProposal}
+                                                                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg active:scale-95 disabled:opacity-50"
+                                                                    >
+                                                                        {sendingJobProposal ? <Loader2 size={14} className="animate-spin" /> : <><Check size={14} /> Accept & Print for {formatPrice(activeChatData.offers.price)}</>}
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="flex items-center gap-2 w-full md:w-auto">
+                                                                        <div className="relative flex-1 md:w-36">
+                                                                            <input 
+                                                                                type="number" 
+                                                                                placeholder="Price" 
+                                                                                value={jobProposalPrice} 
+                                                                                onChange={e => setJobProposalPrice(e.target.value)} 
+                                                                                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-xs font-black text-white placeholder:text-blue-200/50 focus:outline-none focus:bg-white/20 shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                            />
+                                                                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-blue-300 uppercase tracking-widest pointer-events-none">{currency}</span>
+                                                                        </div>
+                                                                        <button 
+                                                                            onClick={() => handleSendJobProposal()}
+                                                                            disabled={!jobProposalPrice || sendingJobProposal}
+                                                                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50"
+                                                                        >
+                                                                            {sendingJobProposal ? <Loader2 size={13} className="animate-spin" /> : <><Send size={13} /> Send Proposal</>}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                                <div className="w-px h-6 bg-white/20 mx-1 hidden md:block" />
+                                                                <button 
+                                                                    onClick={handleDeclineJobChat}
+                                                                    className="px-3 py-1.5 bg-red-500/20 text-red-100 hover:bg-red-500/40 rounded-lg transition-all text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 group whitespace-nowrap"
+                                                                    title="Pass on this job"
+                                                                >
+                                                                    <XCircle size={13} className="group-hover:rotate-90 transition-transform" /> I Can't Print This
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <div className="bg-black/30 rounded-xl p-2.5 border border-white/10 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+                                                        {activeChatData.offers?.material && (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest text-blue-300 mb-0.5 flex items-center gap-1"><Palette size={9} /> Material</span>
+                                                                <span className="text-xs font-bold text-white">{activeChatData.offers.material}</span>
+                                                            </div>
+                                                        )}
+                                                        {activeChatData.offers?.color && (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest text-blue-300 mb-0.5 flex items-center gap-1"><Palette size={9} /> Color</span>
+                                                                <span className="text-xs font-bold text-white flex items-center gap-2">
+                                                                    <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{backgroundColor: (activeChatData.offers.color === '#0000ff' || activeChatData.offers.color === '#0000FF') ? '#3b82f6' : activeChatData.offers.color}} />
+                                                                    {(activeChatData.offers.color === '#0000ff' || activeChatData.offers.color === '#0000FF') ? 'Ocean Blue' : activeChatData.offers.color}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {activeChatData.offers?.dimensions && (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest text-blue-300 mb-0.5 flex items-center gap-1"><Ruler size={9} /> Dimensions</span>
+                                                                <span className="text-xs font-bold text-white max-w-[200px] truncate">{activeChatData.offers.dimensions}</span>
+                                                            </div>
+                                                        )}
+                                                        {activeChatData.offers?.weight && (
+                                                             <div className="flex flex-col">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest text-blue-300 mb-0.5 flex items-center gap-1"><Package size={9} /> Est. Weight</span>
+                                                                <span className="text-xs font-bold text-white">{activeChatData.offers.weight}</span>
+                                                            </div>
+                                                        )}
+                                                         {activeChatData.offers?.custom_instructions && (
+                                                             <div className="flex flex-col w-full md:flex-1 md:min-w-[200px] md:border-l md:border-white/10 md:pl-4 pt-1.5 md:pt-0 border-t border-white/10 md:border-t-0">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest text-blue-300 mb-0.5 flex items-center gap-1"><MessageSquare size={9} /> Technical Notes</span>
+                                                                <p className="text-xs font-medium text-white/90 italic leading-tight">{activeChatData.offers.custom_instructions}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {showDisputeModal && activeChatData && (
