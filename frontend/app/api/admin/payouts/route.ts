@@ -6,13 +6,25 @@ export async function GET(req: Request) {
   if (!adminId) return FORBIDDEN();
 
   try {
-    const { data: payouts, error } = await supabaseAdmin
-      .from('payouts')
-      .select('id, amount, status, created_at, user_id, profiles!payouts_user_id_fkey(full_name, email, avatar_url, payout_iban, payout_recipient_name)')
-      .order('created_at', { ascending: false });
+    const [{ data: payouts, error }, { data: { users: authUsers } }] = await Promise.all([
+      supabaseAdmin
+        .from('payouts')
+        .select('id, amount, status, created_at, user_id, profiles!payouts_user_id_fkey(full_name, avatar_url, payout_iban, payout_recipient_name)')
+        .order('created_at', { ascending: false }),
+      supabaseAdmin.auth.admin.listUsers(),
+    ]);
 
     if (error) throw error;
-    return NextResponse.json({ payouts: payouts || [] });
+
+    const emailMap: Record<string, string> = {};
+    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
+
+    const enriched = (payouts || []).map((p: any) => ({
+      ...p,
+      profiles: p.profiles ? { ...p.profiles, email: emailMap[p.user_id] || '' } : null,
+    }));
+
+    return NextResponse.json({ payouts: enriched });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -11,13 +11,17 @@ export async function GET(
   try {
     const { chatId } = await context.params;
 
-    const [{ data: chat, error: chatError }, { data: messages, error: msgError }] = await Promise.all([
+    const [
+      { data: chat, error: chatError },
+      { data: messages, error: msgError },
+      { data: { users: authUsers } },
+    ] = await Promise.all([
       supabaseAdmin
         .from('chats')
         .select(`
-          id, created_at, updated_at, archived_at, completed_at, offer_id, order_id,
-          buyer:profiles!chats_buyer_id_fkey(id, full_name, email, avatar_url),
-          seller:profiles!chats_seller_id_fkey(id, full_name, email, avatar_url),
+          id, created_at, updated_at, archived_at, completed_at, offer_id, order_id, buyer_id, seller_id,
+          buyer:profiles!chats_buyer_id_fkey(id, full_name, avatar_url),
+          seller:profiles!chats_seller_id_fkey(id, full_name, avatar_url),
           offers(id, title, category, price, image_urls)
         `)
         .eq('id', chatId)
@@ -27,12 +31,22 @@ export async function GET(
         .select('id, content, message_type, is_read, created_at, sender_id, profiles!messages_sender_id_fkey(full_name, avatar_url)')
         .eq('chat_id', chatId)
         .order('created_at', { ascending: true }),
+      supabaseAdmin.auth.admin.listUsers(),
     ]);
 
     if (chatError) throw chatError;
     if (msgError) throw msgError;
 
-    return NextResponse.json({ chat, messages: messages || [] });
+    const emailMap: Record<string, string> = {};
+    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
+
+    const enrichedChat = chat ? {
+      ...chat,
+      buyer: chat.buyer ? { ...chat.buyer, email: emailMap[chat.buyer_id] || '' } : null,
+      seller: chat.seller ? { ...chat.seller, email: emailMap[chat.seller_id] || '' } : null,
+    } : null;
+
+    return NextResponse.json({ chat: enrichedChat, messages: messages || [] });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

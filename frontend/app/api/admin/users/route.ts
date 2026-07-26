@@ -6,12 +6,18 @@ export async function GET(req: Request) {
   if (!adminId) return FORBIDDEN();
 
   try {
-    const { data: profiles, error } = await supabaseAdmin
-      .from('profiles')
-      .select('id, full_name, email, roles, avatar_url, country, currency, created_at, onboarding_complete, stripe_account_id')
-      .order('created_at', { ascending: false });
+    const [{ data: profiles, error }, { data: { users: authUsers } }] = await Promise.all([
+      supabaseAdmin
+        .from('profiles')
+        .select('id, full_name, roles, avatar_url, country, currency, created_at, onboarding_complete, stripe_account_id')
+        .order('created_at', { ascending: false }),
+      supabaseAdmin.auth.admin.listUsers(),
+    ]);
 
     if (error) throw error;
+
+    const emailMap: Record<string, string> = {};
+    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
 
     // Compute balance for every user
     const [
@@ -53,6 +59,7 @@ export async function GET(req: Request) {
 
     const enriched = (profiles || []).map(p => ({
       ...p,
+      email: emailMap[p.id] || '',
       balance: Math.max(0, balanceMap[p.id] || 0),
       totalEarned: earnedMap[p.id] || 0,
     }));

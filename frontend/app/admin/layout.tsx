@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, email, avatar_url, roles')
+        .select('full_name, avatar_url, roles')
         .eq('id', user.id)
         .single();
 
@@ -48,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
 
-      setAdmin(profile);
+      setAdmin({ ...profile, email: user.email });
       setLoading(false);
     };
     checkAdmin();

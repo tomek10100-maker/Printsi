@@ -6,25 +6,34 @@ export async function GET(req: Request) {
   if (!adminId) return FORBIDDEN();
 
   try {
-    const { data: chats, error } = await supabaseAdmin
-      .from('chats')
-      .select(`
-        id,
-        created_at,
-        updated_at,
-        archived_at,
-        completed_at,
-        offer_id,
-        order_id,
-        buyer_id,
-        seller_id,
-        buyer:profiles!chats_buyer_id_fkey(full_name, email, avatar_url),
-        seller:profiles!chats_seller_id_fkey(full_name, email, avatar_url),
-        offers(title, category, price, image_urls)
-      `)
-      .order('updated_at', { ascending: false });
+    const [
+      { data: chats, error },
+      { data: { users: authUsers } },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from('chats')
+        .select(`
+          id,
+          created_at,
+          updated_at,
+          archived_at,
+          completed_at,
+          offer_id,
+          order_id,
+          buyer_id,
+          seller_id,
+          buyer:profiles!chats_buyer_id_fkey(full_name, avatar_url),
+          seller:profiles!chats_seller_id_fkey(full_name, avatar_url),
+          offers(title, category, price, image_urls)
+        `)
+        .order('updated_at', { ascending: false }),
+      supabaseAdmin.auth.admin.listUsers(),
+    ]);
 
     if (error) throw error;
+
+    const emailMap: Record<string, string> = {};
+    (authUsers || []).forEach(u => { emailMap[u.id] = u.email || ''; });
 
     // Get message counts per chat
     const chatIds = (chats || []).map(c => c.id);
@@ -40,8 +49,10 @@ export async function GET(req: Request) {
       countByChat[m.chat_id] = (countByChat[m.chat_id] || 0) + 1;
     });
 
-    const enriched = (chats || []).map(chat => ({
+    const enriched = (chats || []).map((chat: any) => ({
       ...chat,
+      buyer: chat.buyer ? { ...chat.buyer, email: emailMap[chat.buyer_id] || '' } : null,
+      seller: chat.seller ? { ...chat.seller, email: emailMap[chat.seller_id] || '' } : null,
       messageCount: countByChat[chat.id] || 0,
     }));
 
