@@ -151,14 +151,24 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [token, setToken] = useState('');
   const [balanceUser, setBalanceUser] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     const adminToken = await getAdminToken();
-    if (!adminToken) { setLoading(false); return; }
+    if (!adminToken) { setErrorMsg('No admin session token available'); setLoading(false); return; }
     setToken(adminToken);
-    const res = await fetch('/api/admin/users', { headers: { Authorization: `Bearer ${adminToken}` } });
-    const data = await res.json();
-    setUsers(data.users || []);
+    try {
+      const res = await fetch('/api/admin/users', { headers: { Authorization: `Bearer ${adminToken}` } });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setErrorMsg(data.error || `Server returned HTTP ${res.status}`);
+      } else {
+        setUsers(data.users || []);
+        setErrorMsg(null);
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || 'Fetch error');
+    }
     setLoading(false);
   };
 
@@ -174,6 +184,11 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
+      {errorMsg && (
+        <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }} className="p-4 rounded-2xl font-bold text-sm">
+          ⚠️ API Error: {errorMsg}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 style={{ color: '#f1f5f9' }} className="text-2xl font-black tracking-tight flex items-center gap-2">

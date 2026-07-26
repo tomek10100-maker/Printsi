@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 export const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  serviceKey
 );
 
 /**
@@ -18,15 +20,25 @@ export async function verifyAdmin(req: Request): Promise<string | null> {
   if (!token || token === 'undefined' || token === 'null') return null;
 
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user) return null;
+  if (error || !user) {
+    console.warn('verifyAdmin: auth.getUser failed:', error?.message);
+    return null;
+  }
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile, error: profErr } = await supabaseAdmin
     .from('profiles')
     .select('roles')
     .eq('id', user.id)
     .single();
 
-  if (!profile?.roles?.includes('admin')) return null;
+  if (profErr) {
+    console.warn('verifyAdmin: profile query failed:', profErr.message);
+  }
+
+  if (!profile?.roles?.includes('admin')) {
+    console.warn('verifyAdmin: roles missing admin:', profile?.roles);
+    return null;
+  }
 
   return user.id;
 }

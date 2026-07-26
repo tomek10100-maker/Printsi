@@ -23,14 +23,24 @@ export default function AdminOffersPage() {
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('all');
   const [token, setToken] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchOffers = async () => {
     const adminToken = await getAdminToken();
-    if (!adminToken) { setLoading(false); return; }
+    if (!adminToken) { setErrorMsg('No admin session token available'); setLoading(false); return; }
     setToken(adminToken);
-    const res = await fetch('/api/admin/offers', { headers: { Authorization: `Bearer ${adminToken}` } });
-    const data = await res.json();
-    setOffers(data.offers || []);
+    try {
+      const res = await fetch('/api/admin/offers', { headers: { Authorization: `Bearer ${adminToken}` } });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setErrorMsg(data.error || `Server returned HTTP ${res.status}`);
+      } else {
+        setOffers(data.offers || []);
+        setErrorMsg(null);
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || 'Fetch error');
+    }
     setLoading(false);
   };
 
@@ -72,6 +82,11 @@ export default function AdminOffersPage() {
 
   return (
     <div className="space-y-6">
+      {errorMsg && (
+        <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }} className="p-4 rounded-2xl font-bold text-sm">
+          ⚠️ API Error: {errorMsg}
+        </div>
+      )}
       <div>
         <h1 style={{ color: '#f1f5f9' }} className="text-2xl font-black tracking-tight flex items-center gap-2">
           <Package size={22} className="text-purple-400" /> Listings
