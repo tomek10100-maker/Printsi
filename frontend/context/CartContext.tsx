@@ -19,6 +19,8 @@ export type CartItem = {
   variant_layers?: { filament_id: string; grams: string | number; color_hex?: string; color_name?: string }[];
   category: string;
   material?: string;  // Typ materiału (ABS, PLA itp.)
+  color?: string;     // Kolor przedmiotu
+  dimensions?: string;// Wymiary
   weight?: string;    // Waga netto (np. "109g"), dla multi-color suma z layers
 };
 
