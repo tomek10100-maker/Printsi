@@ -541,19 +541,23 @@ export default function EditOfferPage() {
               {category === 'job' && (
                 <div className="space-y-3 p-5 bg-indigo-50/30 rounded-3xl border border-indigo-100/50">
                   <div className="flex items-center gap-2 mb-1">
-                    <MessageCircle size={14} className="text-indigo-500" />
-                    <SectionLabel label="Custom Model Adjustments" />
+                    <Settings2 size={16} className="text-blue-500" />
+                    <span className="text-[11px] font-black uppercase text-blue-600 tracking-widest">Functional Requirements & Custom Adjustments</span>
                   </div>
                   <textarea 
-                    placeholder="E.g. I need to change the diameter of the internal hole to 10mm, or increase the shell thickness for more durability..." 
+                    placeholder="e.g. Explain how your part works: Is this a mechanical load-bearing component requiring extra wall shells (4+) or dense infill (40%+)? Will it face outdoor UV, heat or chemical stress (PETG/ABS required)? Specify critical mounting hole dimensions or clearance tolerances for seamless assembly..." 
                     value={customInstructions} 
                     onChange={e => setCustomInstructions(e.target.value)} 
                     rows={3} 
                     className="w-full p-4 bg-white border border-indigo-100 rounded-2xl font-medium text-xs outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 transition-all resize-none shadow-sm placeholder:italic" 
                   />
-                  <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest leading-relaxed px-1">
-                    * The service provider will review these instructions and can adjust the final proposal based on complexity.
-                  </p>
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 border border-blue-200/60 p-3 rounded-xl flex items-start gap-2 mt-1 shadow-xs">
+                    <Zap size={14} className="text-blue-600 mt-0.5 shrink-0" />
+                    <p className="text-[10px] text-slate-700 font-semibold leading-relaxed">
+                      <span className="font-black text-blue-700 uppercase tracking-wider block text-[9px] mb-0.5">Engineering Tip</span>
+                      Describing your model's function helps the 3D maker optimize layer orientation, structural infill, and material selection for maximum durability.
+                    </p>
+                  </div>
                 </div>
               )}
 
