@@ -243,8 +243,9 @@ function MessagesInner() {
         if ((paramSellerId || paramBuyerId) && paramOfferId && userId) {
             const otherUserId = paramSellerId || paramBuyerId;
             const existing = filteredChats.find(c =>
-                ((c.seller_id === paramSellerId && c.buyer_id === userId) || (c.buyer_id === paramBuyerId && c.seller_id === userId)) &&
-                c.offer_id === paramOfferId &&
+                ((String(c.seller_id) === String(otherUserId) && String(c.buyer_id) === String(userId)) || 
+                 (String(c.buyer_id) === String(otherUserId) && String(c.seller_id) === String(userId))) &&
+                String(c.offer_id) === String(paramOfferId) &&
                 !c.order_id
             );
 
@@ -252,7 +253,7 @@ function MessagesInner() {
                 setActiveChatId(existing.id);
             } else {
                 const { data: otherProf } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', otherUserId).single();
-                const { data: offerData } = await supabase.from('offers').select('id, title, image_urls, category, price, material, color, color_name, dimensions, weight, custom_instructions, color_variants').eq('id', paramOfferId).single();
+                const { data: offerData } = await supabase.from('offers').select('id, title, image_urls, category, price, material, color, color_name, dimensions, weight, custom_instructions, color_variants, is_negotiable').eq('id', paramOfferId).single();
 
                 if (otherProf && offerData) {
                     const draftChat = {
@@ -276,6 +277,13 @@ function MessagesInner() {
 
         if (initialChatId && filteredChats.some(c => c.id === initialChatId)) {
             setActiveChatId(initialChatId);
+        } else if (paramOfferId) {
+            const existing = filteredChats.find(c => String(c.offer_id) === String(paramOfferId) && !c.order_id);
+            if (existing) {
+                setActiveChatId(existing.id);
+            } else {
+                setActiveChatId('draft');
+            }
         } else if (!initialChatId && !paramSellerId && !paramBuyerId && filteredChats.length > 0) {
             setActiveChatId(filteredChats[0].id);
         }
@@ -320,38 +328,87 @@ function MessagesInner() {
         }, 100);
     };
 
+    const ensureActiveChatExists = async (): Promise<string | null> => {
+        if (!currentUser || !activeChatData) return null;
+
+        if (activeChatId && activeChatId !== 'draft') {
+            return activeChatId;
+        }
+
+        const draft = chats.find(c => c.id === 'draft') || activeChatData;
+        const otherUserId = searchParams?.get('seller_id') || searchParams?.get('buyer_id') || draft.otherUser?.id;
+        const offerId = searchParams?.get('offer_id') || draft.offer_id;
+
+        if (!offerId || !otherUserId) {
+            console.error("Cannot create chat: missing offer_id or otherUserId", { offerId, otherUserId });
+            return null;
+        }
+
+        const buyerId = draft.buyer_id || currentUser.id;
+        const sellerId = draft.seller_id || otherUserId;
+
+        // Check if chat already exists for this exact offer_id in DB
+        const { data: existing } = await supabase
+            .from('chats')
+            .select('id')
+            .or(`and(buyer_id.eq.${buyerId},seller_id.eq.${sellerId}),and(buyer_id.eq.${sellerId},seller_id.eq.${buyerId})`)
+            .eq('offer_id', offerId)
+            .is('order_id', null)
+            .limit(1);
+
+        if (existing && existing.length > 0) {
+            const realId = existing[0].id;
+            setActiveChatId(realId);
+            router.replace(`/profile/messages?chat=${realId}`);
+            return realId;
+        }
+
+        // Create new chat in Supabase
+        const { data: newChat, error: chatErr } = await supabase
+            .from('chats')
+            .insert({
+                buyer_id: buyerId,
+                seller_id: sellerId,
+                offer_id: offerId
+            })
+            .select('id')
+            .single();
+
+        if (chatErr || !newChat) {
+            console.error("Error creating chat:", chatErr);
+            // Retry lookup in case of constraint / race condition
+            const { data: retry } = await supabase
+                .from('chats')
+                .select('id')
+                .or(`and(buyer_id.eq.${buyerId},seller_id.eq.${sellerId}),and(buyer_id.eq.${sellerId},seller_id.eq.${buyerId})`)
+                .eq('offer_id', offerId)
+                .is('order_id', null)
+                .limit(1);
+
+            if (retry && retry.length > 0) {
+                const realId = retry[0].id;
+                setActiveChatId(realId);
+                router.replace(`/profile/messages?chat=${realId}`);
+                return realId;
+            }
+            alert("Failed to start chat session.");
+            return null;
+        }
+
+        setActiveChatId(newChat.id);
+        router.replace(`/profile/messages?chat=${newChat.id}`);
+        return newChat.id;
+    };
+
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || !activeChatId || !currentUser) return;
 
         const content = newMessage.trim();
         setNewMessage('');
-        let currentActiveId = activeChatId;
 
-        if (currentActiveId === 'draft') {
-            const draft = chats.find(c => c.id === 'draft');
-            if (!draft) return;
-
-            const { data: newChat, error: chatErr } = await supabase
-                .from('chats')
-                .insert({
-                    buyer_id: currentUser.id,
-                    seller_id: draft.seller_id,
-                    offer_id: draft.offer_id
-                })
-                .select('id')
-                .single();
-
-            if (chatErr || !newChat) {
-                console.error("Error creating chat:", chatErr);
-                alert("Failed to start chat session.");
-                return;
-            }
-
-            currentActiveId = newChat.id;
-            setActiveChatId(currentActiveId);
-            router.replace(`/profile/messages?chat=${currentActiveId}`);
-        }
+        const currentActiveId = await ensureActiveChatExists();
+        if (!currentActiveId) return;
 
         const tempMsg = {
             id: 'temp-' + Date.now(),
@@ -850,42 +907,8 @@ function MessagesInner() {
     const sendProposal = async () => {
         if (!activeChatId || !currentUser || !activeChatData) return;
 
-        let currentActiveId = activeChatId;
-
-        // If it's a draft, create the chat before sending proposal
-        if (currentActiveId === 'draft') {
-            const { data: newChat, error: chatErr } = await supabase
-                .from('chats')
-                .insert({
-                    buyer_id: currentUser.id,
-                    seller_id: activeChatData.seller_id,
-                    offer_id: activeChatData.offer_id
-                })
-                .select('id')
-                .single();
-
-            if (chatErr || !newChat) {
-                // Fallback: Może czat już istnieje (np. konflikt constraintu) więc próbujemy go pobrać
-                const { data: existingChat } = await supabase.from('chats')
-                    .select('id')
-                    .eq('buyer_id', currentUser.id)
-                    .eq('seller_id', activeChatData.seller_id)
-                    .eq('offer_id', activeChatData.offer_id)
-                    .single();
-
-                if (existingChat) {
-                    currentActiveId = existingChat.id;
-                } else {
-                    console.error("Error creating chat for proposal:", chatErr);
-                    alert(`Failed to create chat session: ${chatErr?.message || JSON.stringify(chatErr)}`);
-                    return;
-                }
-            } else {
-                currentActiveId = newChat.id;
-            }
-            setActiveChatId(currentActiveId);
-            router.replace(`/profile/messages?chat=${currentActiveId}`);
-        }
+        const currentActiveId = await ensureActiveChatExists();
+        if (!currentActiveId) return;
 
         let finalPrice = parseFloat(proposalPrice);
         if (currency !== 'EUR' && rates && rates[currency]) {
@@ -1053,6 +1076,12 @@ function MessagesInner() {
 
         setSendingJobProposal(true);
 
+        const currentActiveId = await ensureActiveChatExists();
+        if (!currentActiveId) {
+            setSendingJobProposal(false);
+            return;
+        }
+
         const payload: any = {
             price: finalPrice,
             quantity: 1,
@@ -1065,7 +1094,7 @@ function MessagesInner() {
 
         const tempMsg = {
             id: 'temp-' + Date.now(),
-            chat_id: activeChatId,
+            chat_id: currentActiveId,
             sender_id: currentUser.id,
             content: content,
             message_type: 'user',
@@ -1075,40 +1104,53 @@ function MessagesInner() {
         scrollToBottom();
 
         await supabase.from('messages').insert({
-            chat_id: activeChatId,
+            chat_id: currentActiveId,
             sender_id: currentUser.id,
             content: content,
         });
 
-        // System message explaining the proposal
+        const isFixedPriceJob = !activeChatData.offers?.is_negotiable && (activeChatData.offers?.price > 0);
+        const systemText = isFixedPriceJob
+            ? `🖨️ The printer has accepted your job for ${formatPrice(finalPrice)}! Proceed to payment below.`
+            : `🖨️ The printer has reviewed your 3D file and submitted a price proposal of ${formatPrice(finalPrice)}. Accept the proposal above to proceed with payment and printing.`;
+
+        // System message explaining the proposal / acceptance
         await supabase.from('messages').insert({
-            chat_id: activeChatId,
+            chat_id: currentActiveId,
             sender_id: currentUser.id,
-            content: `🖨️ The printer has reviewed your 3D file and submitted a price proposal of ${formatPrice(finalPrice)}. Accept the proposal above to proceed with payment and printing.`,
+            content: systemText,
             message_type: 'system',
         });
 
-        // Notify the job poster
-        try {
-            await supabase.from('notifications').insert({
-                user_id: activeChatData.seller_id,
-                title: '💰 New price proposal for your print job!',
-                message: `A printer has proposed ${formatPrice(finalPrice)} to print "${activeChatData.offers?.title}". Open chat to review and accept.`,
-                type: 'job',
-                sender_id: currentUser.id,
-                offer_id: activeChatData.offer_id,
-                is_read: false,
-            });
-        } catch (e) {
-            console.error('Notification failed:', e);
+        // Determine recipient (the job poster / customer)
+        const recipientId = activeChatData.buyer_id === currentUser.id 
+            ? activeChatData.seller_id 
+            : (activeChatData.seller_id === currentUser.id ? activeChatData.buyer_id : (activeChatData.otherUser?.id || activeChatData.seller_id));
+
+        if (recipientId && recipientId !== currentUser.id) {
+            try {
+                await supabase.from('notifications').insert({
+                    user_id: recipientId,
+                    title: isFixedPriceJob ? '✅ Job Accepted by Printer!' : '💰 New price proposal for your print job!',
+                    message: isFixedPriceJob
+                        ? `A printer accepted your job "${activeChatData.offers?.title}" for ${formatPrice(finalPrice)}. Open chat to complete payment!`
+                        : `A printer proposed ${formatPrice(finalPrice)} to print "${activeChatData.offers?.title}". Open chat to review and accept.`,
+                    type: 'job',
+                    sender_id: currentUser.id,
+                    offer_id: activeChatData.offer_id,
+                    is_read: false,
+                });
+            } catch (e) {
+                console.error('Notification failed:', e);
+            }
         }
 
-        // Trigger email
+        // Trigger email notification to recipient
         fetch('/api/order/negotiation-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                chatId: activeChatId,
+                chatId: currentActiveId,
                 senderId: currentUser.id,
                 type: 'new_offer',
                 price: formatPrice(finalPrice),
@@ -1119,34 +1161,43 @@ function MessagesInner() {
         setShowJobProposalBanner(false);
         setJobProposalPrice('');
         setSendingJobProposal(false);
-        loadMessages(activeChatId!);
+        loadMessages(currentActiveId);
         loadChats(currentUser.id);
     };
 
     const handleDeclineJobChat = async () => {
         if (!currentUser || !activeChatData) return;
 
+        const currentActiveId = await ensureActiveChatExists();
+        if (!currentActiveId) return;
+
         // Send a system message in the chat
         await supabase.from('messages').insert({
-            chat_id: activeChatId,
+            chat_id: currentActiveId,
             sender_id: currentUser.id,
             content: `❌ The printer reviewed the 3D file but cannot fulfill this print job. The job remains open for other printers.`,
             message_type: 'system',
         });
 
-        // Notify the job poster
-        try {
-            await supabase.from('notifications').insert({
-                user_id: activeChatData.seller_id,
-                title: '❌ A printer passed on your job',
-                message: `A printer reviewed "${activeChatData.offers?.title}" but cannot fulfill it. Don't worry — other printers can still pick it up!`,
-                type: 'job',
-                sender_id: currentUser.id,
-                offer_id: activeChatData.offer_id,
-                is_read: false,
-            });
-        } catch (e) {
-            console.error('Decline notification failed:', e);
+        // Determine recipient (the job poster)
+        const recipientId = activeChatData.buyer_id === currentUser.id 
+            ? activeChatData.seller_id 
+            : (activeChatData.seller_id === currentUser.id ? activeChatData.buyer_id : (activeChatData.otherUser?.id || activeChatData.seller_id));
+
+        if (recipientId && recipientId !== currentUser.id) {
+            try {
+                await supabase.from('notifications').insert({
+                    user_id: recipientId,
+                    title: '❌ A printer passed on your job',
+                    message: `A printer reviewed "${activeChatData.offers?.title}" but cannot fulfill it. Don't worry — other printers can still pick it up!`,
+                    type: 'job',
+                    sender_id: currentUser.id,
+                    offer_id: activeChatData.offer_id,
+                    is_read: false,
+                });
+            } catch (e) {
+                console.error('Decline notification failed:', e);
+            }
         }
 
         setShowJobProposalBanner(false);
