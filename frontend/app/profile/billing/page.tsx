@@ -136,17 +136,28 @@ function BillingContent() {
     const rawInput = Number(payoutAmount);
     if (!rawInput || rawInput <= 0) { setMessage({ type: 'error', text: 'Please enter a valid amount' }); return; }
 
-    const amountInEur = currency !== 'EUR' && rates && rates[currency]
+    const balanceEur = Math.max(0, stats.earned - stats.spent - stats.withdrawn);
+    if (balanceEur < 0.01) {
+      setMessage({ type: 'error', text: 'Insufficient balance' });
+      return;
+    }
+
+    let amountInEur = currency !== 'EUR' && rates && rates[currency]
       ? Math.round((rawInput / rates[currency]) * 100) / 100
       : rawInput;
 
-    const balanceEur = stats.earned - stats.spent - stats.withdrawn;
-    if (amountInEur > balanceEur + 0.05) { setMessage({ type: 'error', text: 'Insufficient balance' }); return; }
+    // If remaining balance difference is tiny (<= 0.02 EUR) or requested amount exceeds balance, withdraw full balance
+    if (Math.abs(balanceEur - amountInEur) <= 0.02 || amountInEur > balanceEur) {
+      amountInEur = balanceEur;
+    }
 
-    const finalEurAmount = Math.min(amountInEur, balanceEur);
+    if (amountInEur < 0.01) {
+      setMessage({ type: 'error', text: 'Amount is too small to withdraw (minimum €0.01 EUR)' });
+      return;
+    }
 
     setIsProcessing(true);
-    const { error } = await supabase.from('payouts').insert({ user_id: profile.id, amount: finalEurAmount, status: 'pending' });
+    const { error } = await supabase.from('payouts').insert({ user_id: profile.id, amount: amountInEur, status: 'pending' });
     if (error) setMessage({ type: 'error', text: 'Request failed: ' + error.message });
     else { setMessage({ type: 'success', text: 'Payout request submitted!' }); setPayoutAmount(''); fetchData(); }
     setIsProcessing(false);
