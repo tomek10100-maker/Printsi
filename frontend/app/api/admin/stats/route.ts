@@ -19,7 +19,7 @@ export async function GET(req: Request) {
       emailMap,
     ] = await Promise.all([
       supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
-      supabaseAdmin.from('offers').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      supabaseAdmin.from('offers').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('orders').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('orders').select('total_amount'),
       supabaseAdmin.from('payouts').select('*', { count: 'exact', head: true }).eq('status', 'pending').gt('amount', 0),

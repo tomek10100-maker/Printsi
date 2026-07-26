@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     ] = await Promise.all([
       supabaseAdmin
         .from('offers')
-        .select('id, title, category, price, stock, is_active, is_custom, is_negotiable, image_urls, created_at, user_id')
+        .select('id, title, category, price, stock, is_custom, is_negotiable, image_urls, created_at, user_id')
         .order('created_at', { ascending: false }),
       supabaseAdmin.from('profiles').select('id, full_name, avatar_url'),
       getAuthEmailMap(),
@@ -28,6 +28,7 @@ export async function GET(req: Request) {
       const prof = profileMap[o.user_id];
       return {
         ...o,
+        is_active: o.stock === null || o.stock === undefined || o.stock > 0,
         profiles: prof ? { ...prof, email: emailMap[o.user_id] || '' } : null,
       };
     });
@@ -46,9 +47,10 @@ export async function PATCH(req: Request) {
     const { offerId, is_active } = await req.json();
     if (!offerId) return NextResponse.json({ error: 'offerId required' }, { status: 400 });
 
+    const newStock = is_active ? 10 : 0;
     const { error } = await supabaseAdmin
       .from('offers')
-      .update({ is_active })
+      .update({ stock: newStock })
       .eq('id', offerId);
 
     if (error) throw error;
@@ -71,18 +73,17 @@ export async function DELETE(req: Request) {
     
     const { error } = await supabaseAdmin.from('offers').delete().eq('id', offerId);
     if (error) {
-      // If it has order history, archive instead
+      // If it has order history, archive by setting stock to 0
       if (error.code === '23503') {
         const { error: archiveError } = await supabaseAdmin
           .from('offers')
-          .update({ is_active: false })
+          .update({ stock: 0 })
           .eq('id', offerId);
         if (archiveError) throw archiveError;
         return NextResponse.json({ success: true, action: 'archived' });
       }
       throw error;
     }
-
     return NextResponse.json({ success: true, action: 'deleted' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
