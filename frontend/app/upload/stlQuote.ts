@@ -69,7 +69,7 @@ export type QuoteResult = {
 };
 
 /**
- * Robust volume calculation centered at local bounding box origin with strict bounding caps
+ * Robust volume calculation centered at local bounding box origin
  */
 function calculateMeshVolumeCm3(
   rawVertices: [number, number, number][],
@@ -78,11 +78,11 @@ function calculateMeshVolumeCm3(
 ): number {
   if (rawVertices.length === 0 || rawTriangles.length === 0) return 0;
 
-  // 1. Sanitize vertices (remove NaNs, Infinities, and extreme coordinate outliers)
+  // 1. Sanitize vertices (remove NaNs, Infinities)
   const vertices: [number, number, number][] = [];
   for (let i = 0; i < rawVertices.length; i++) {
     const [x, y, z] = rawVertices[i];
-    if (isFinite(x) && isFinite(y) && isFinite(z) && Math.abs(x) < 50000 && Math.abs(y) < 50000 && Math.abs(z) < 50000) {
+    if (isFinite(x) && isFinite(y) && isFinite(z)) {
       vertices.push([x * unitScaleMultiplier, y * unitScaleMultiplier, z * unitScaleMultiplier]);
     } else {
       vertices.push([0, 0, 0]);
@@ -111,21 +111,15 @@ function calculateMeshVolumeCm3(
     return 0;
   }
 
-  // Auto unit & dimension normalization (prevent extreme meter/micrometer scale issues)
+  // Unit normalization: model exported in meters (max dimension < 2.0 mm) -> scale to mm
   let maxDim = Math.max(dx, dy, dz);
   let normalizeScale = 1.0;
-
   if (maxDim < 2.0) {
-    // Model in meters: scale up to mm
     normalizeScale = 1000.0;
-  } else if (maxDim > 500.0) {
-    // Model dimensions abnormally huge (>500mm): normalize to standard 150mm print bed size
-    normalizeScale = 150.0 / maxDim;
+    dx *= normalizeScale;
+    dy *= normalizeScale;
+    dz *= normalizeScale;
   }
-
-  dx *= normalizeScale;
-  dy *= normalizeScale;
-  dz *= normalizeScale;
 
   const boxVolumeMm3 = dx * dy * dz;
   const boxVolumeCm3 = boxVolumeMm3 / 1000.0;
@@ -151,9 +145,9 @@ function calculateMeshVolumeCm3(
   let meshVolumeMm3 = Math.abs(signedVolume) / 6.0;
   let meshVolumeCm3 = meshVolumeMm3 / 1000.0;
 
-  // 4. Strict physical bounding caps (mesh volume MUST be between 5% and 65% of bounding box)
-  if (meshVolumeCm3 <= 0 || meshVolumeCm3 > boxVolumeCm3 * 0.65 || !isFinite(meshVolumeCm3)) {
-    meshVolumeCm3 = boxVolumeCm3 * 0.45;
+  // Physical bounding caps (mesh volume MUST be between 5% and 85% of bounding box)
+  if (meshVolumeCm3 <= 0 || meshVolumeCm3 > boxVolumeCm3 * 0.85 || !isFinite(meshVolumeCm3)) {
+    meshVolumeCm3 = boxVolumeCm3 * 0.50;
   }
 
   return meshVolumeCm3;
