@@ -318,6 +318,41 @@ export default function AddOfferPage() {
     }
   }, []);
 
+  // ─── QUOT3D WIDGET INTEGRATION ──────────────────────────────────────────────
+  const [quot3DLoaded, setQuot3DLoaded] = useState(false);
+
+  useEffect(() => {
+    if (category === 'job') {
+      const existingScript = document.querySelector('script[src="https://cdn.get-quot3d.com/widget.js"]');
+      
+      const initWidget = () => {
+        if ((window as any).Quot3DWidget) {
+          try {
+            (window as any).Quot3DWidget.init({
+              apiKey: "2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38",
+              containerId: "quot3d-widget"
+            });
+            setQuot3DLoaded(true);
+          } catch (e) {
+            console.warn('Quot3D init error:', e);
+          }
+        }
+      };
+
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.get-quot3d.com/widget.js';
+        script.async = true;
+        script.onload = () => {
+          setTimeout(initWidget, 150);
+        };
+        document.body.appendChild(script);
+      } else {
+        setTimeout(initWidget, 150);
+      }
+    }
+  }, [category]);
+
   // Re-fetch quote whenever STL/3MF file, material, scale, or quantity changes (job category only)
   useEffect(() => {
     if (category === 'job' && projectFile) {
@@ -1015,6 +1050,26 @@ export default function AddOfferPage() {
                     )}
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
+
+                  {/* ── QUOT3D OFFICIAL WIDGET CONTAINER ── */}
+                  {category === 'job' && (
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Calculator size={16} className="text-blue-600" />
+                          <span className="text-xs font-black uppercase text-gray-900 tracking-wider">
+                            Quot3D Slicer & Instant Estimator
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                          Official Widget
+                        </span>
+                      </div>
+                      <div className="w-full min-h-[420px] rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-md p-2">
+                        <div id="quot3d-widget" className="w-full min-h-[400px]"></div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* ── INSTANT QUOTE PANEL (job + attached 3D file) ── */}
                   {category === 'job' && projectFile && (
