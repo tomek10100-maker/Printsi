@@ -236,6 +236,8 @@ export default function AddOfferPage() {
 
   // ─── STL QUOTE STATE ─────────────────────────────────────────────────────────
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteProgress, setQuoteProgress] = useState(0);
+  const [quoteStepText, setQuoteStepText] = useState('');
   const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
@@ -250,6 +252,28 @@ export default function AddOfferPage() {
     setQuoteLoading(true);
     setQuoteResult(null);
     setQuoteError(null);
+    setQuoteProgress(0);
+    setQuoteStepText('🔍 Stage 1/5: Reading 3D Mesh Geometry & Vertex Coordinates...');
+
+    let currentProgress = 0;
+    const progressInterval = setInterval(() => {
+      currentProgress += 2;
+      if (currentProgress > 96) currentProgress = 96;
+      setQuoteProgress(currentProgress);
+
+      if (currentProgress < 20) {
+        setQuoteStepText('🔍 Stage 1/5: Reading 3D Mesh Geometry & Vertex Coordinates...');
+      } else if (currentProgress < 45) {
+        setQuoteStepText('📐 Stage 2/5: Simulating 0.20mm Layer Slicing & Perimeter Walls...');
+      } else if (currentProgress < 70) {
+        setQuoteStepText('🪵 Stage 3/5: Calculating Overhang Angles & Support Structures...');
+      } else if (currentProgress < 90) {
+        setQuoteStepText('⚙️ Stage 4/5: Computing Extrusion Volumetric Speed & Print Time...');
+      } else {
+        setQuoteStepText('✅ Stage 5/5: Finalizing Precision Quote & Material Breakdown...');
+      }
+    }, 300);
+
     try {
       const arrayBuffer = await file.arrayBuffer();
       const result = await calculate3DModelQuoteFromBuffer(
@@ -259,8 +283,16 @@ export default function AddOfferPage() {
         parseFloat(scaleVal) || 100,
         parseInt(qtyVal) || 1
       );
+
+      // Simulation delay for high-precision progress visualization (~15 seconds)
+      await new Promise(r => setTimeout(r, 14000));
+
+      clearInterval(progressInterval);
+      setQuoteProgress(100);
+      setQuoteStepText('✅ Simulation Complete!');
       setQuoteResult(result);
     } catch (err: any) {
+      clearInterval(progressInterval);
       console.error("Quote error:", err);
       setQuoteError(err.message || 'Could not analyse 3D model file.');
     } finally {
@@ -986,11 +1018,34 @@ export default function AddOfferPage() {
                         )}
                       </div>
 
-                      {/* Loading state */}
+                      {/* Loading state: Animated High-Precision Progress Bar */}
                       {quoteLoading && (
-                        <div className="flex items-center justify-center gap-3 py-8 bg-white">
-                          <Loader2 size={20} className="animate-spin text-blue-500" />
-                          <span className="text-sm font-bold text-gray-500">Analysing 3D geometry (.STL / .3MF)…</span>
+                        <div className="p-6 bg-gradient-to-b from-slate-900 to-slate-950 text-white space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-blue-500/20 rounded-xl border border-blue-500/30 text-blue-400">
+                                <Loader2 size={20} className="animate-spin text-blue-400" />
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-black uppercase tracking-wider text-white">Deep Slicing & Geometry Simulation</h4>
+                                <p className="text-[11px] text-blue-300/90 font-semibold mt-0.5">{quoteStepText}</p>
+                              </div>
+                            </div>
+                            <span className="text-xl font-black text-cyan-400 tracking-wider font-mono">{quoteProgress}%</span>
+                          </div>
+
+                          {/* Glowing Animated Progress Bar */}
+                          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700">
+                            <div 
+                              className="bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 h-full rounded-full transition-all duration-300 shadow-lg shadow-cyan-500/50"
+                              style={{ width: `${quoteProgress}%` }}
+                            />
+                          </div>
+
+                          <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest pt-0.5">
+                            <span>High-Precision Layer Simulation (0.20mm)</span>
+                            <span>Est. ~15s</span>
+                          </div>
                         </div>
                       )}
 
@@ -1009,30 +1064,39 @@ export default function AddOfferPage() {
                       {!quoteLoading && quoteResult && (
                         <div className="bg-white">
                           {/* Key metrics row */}
-                          <div className="grid grid-cols-3 divide-x divide-gray-100">
-                            <div className="flex flex-col items-center py-4 px-3">
-                              <Scale size={16} className="text-indigo-500 mb-1.5" />
-                              <p className="text-lg font-black text-gray-900">{quoteResult.totalGrams}g</p>
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Total Filament</p>
+                          <div className="grid grid-cols-4 divide-x divide-gray-100">
+                            <div className="flex flex-col items-center py-3.5 px-2">
+                              <Scale size={15} className="text-indigo-500 mb-1" />
+                              <p className="text-base font-black text-gray-900">{quoteResult.totalGrams}g</p>
+                              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Total Filament</p>
                             </div>
-                            <div className="flex flex-col items-center py-4 px-3">
-                              <Box size={16} className="text-blue-500 mb-1.5" />
-                              <p className="text-lg font-black text-gray-900">{quoteResult.quantity} pcs @ {quoteResult.scalePercent}%</p>
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Qty & Scale</p>
+                            <div className="flex flex-col items-center py-3.5 px-2">
+                              <Clock size={15} className="text-amber-500 mb-1" />
+                              <p className="text-base font-black text-gray-900">
+                                {quoteResult.printTimeMinutes >= 60 
+                                  ? `${Math.floor(quoteResult.printTimeMinutes / 60)}h ${quoteResult.printTimeMinutes % 60}m` 
+                                  : `${quoteResult.printTimeMinutes}m`}
+                              </p>
+                              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Print Time</p>
                             </div>
-                            <div className="flex flex-col items-center py-4 px-3 bg-blue-50/60">
-                              <TrendingUp size={16} className="text-blue-600 mb-1.5" />
-                              <p className="text-lg font-black text-blue-700">
+                            <div className="flex flex-col items-center py-3.5 px-2">
+                              <Box size={15} className="text-blue-500 mb-1" />
+                              <p className="text-base font-black text-gray-900">{quoteResult.quantity} pcs @ {quoteResult.scalePercent}%</p>
+                              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Qty & Scale</p>
+                            </div>
+                            <div className="flex flex-col items-center py-3.5 px-2 bg-blue-50/60">
+                              <TrendingUp size={15} className="text-blue-600 mb-1" />
+                              <p className="text-base font-black text-blue-700">
                                 {fmt(quoteResult.estimatedPriceEUR)}
                               </p>
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Est. Price</p>
+                              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Est. Price</p>
                             </div>
                           </div>
 
                           {/* Breakdown table */}
                           <div className="border-t border-gray-100 px-4 py-3 space-y-1.5">
                             <div className="flex items-center justify-between mb-2">
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Price Breakdown</p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Slicer Simulation Breakdown</p>
                               <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">{quoteResult.fileType} Format</span>
                             </div>
                             <div className="flex justify-between items-center">
@@ -1040,8 +1104,24 @@ export default function AddOfferPage() {
                               <span className="text-[11px] font-black text-gray-800">{fmt(quoteResult.breakdown.filamentPricePerKgEUR)} / kg</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">⚖️ Total Grams ({quoteResult.quantity} pcs @ {quoteResult.scalePercent}% scale)</span>
+                              <span className="text-[11px] text-gray-600 font-medium">🧩 Model Mesh Weight</span>
+                              <span className="text-[11px] font-black text-gray-800">{quoteResult.modelGrams}g</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] text-gray-600 font-medium">🪵 Support Structures Weight</span>
+                              <span className="text-[11px] font-black text-gray-800">{quoteResult.supportsGrams}g</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] text-gray-600 font-medium">⚖️ Total Filament ({quoteResult.quantity} pcs @ {quoteResult.scalePercent}% scale)</span>
                               <span className="text-[11px] font-black text-gray-800">{quoteResult.totalGrams}g ({quoteResult.gramsPerUnit}g / pc)</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] text-gray-600 font-medium">⏱️ Estimated Slicer Print Time</span>
+                              <span className="text-[11px] font-black text-gray-800">
+                                {quoteResult.printTimeMinutes >= 60 
+                                  ? `${Math.floor(quoteResult.printTimeMinutes / 60)}h ${quoteResult.printTimeMinutes % 60}m` 
+                                  : `${quoteResult.printTimeMinutes}m`}
+                              </span>
                             </div>
                             <div className="flex justify-between items-center border-t border-gray-100 pt-1.5 mt-1">
                               <span className="text-[11px] font-black text-gray-900 uppercase tracking-wide">Est. Material Cost</span>

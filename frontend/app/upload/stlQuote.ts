@@ -17,8 +17,10 @@ const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
 const DEFAULT_FILAMENT_PLN_PER_KG = 110;
 const EUR_TO_PLN = 4.25;
 
-// Effective plastic ratio for typical 3D print (walls + top/bottom + 15% infill)
-const EFFECTIVE_PLASTIC_FACTOR = 0.25;
+// Effective plastic ratio for model body (walls + top/bottom + 15% infill)
+const MODEL_PLASTIC_FACTOR = 0.23;
+// Extra support structure allowance (~10-15% of model volume for overhangs)
+const SUPPORT_FACTOR = 0.03;
 
 const MATERIAL_DENSITY: Record<string, number> = {
   PLA: 1.24,
@@ -39,6 +41,9 @@ const DEFAULT_DENSITY = 1.24;
 export type QuoteResult = {
   gramsPerUnit: number;
   totalGrams: number;
+  modelGrams: number;
+  supportsGrams: number;
+  printTimeMinutes: number;
   quantity: number;
   scalePercent: number;
   volumeCm3: number;
@@ -55,6 +60,9 @@ export type QuoteResult = {
     quantity: number;
     scalePercent: number;
     totalGrams: number;
+    modelGrams: number;
+    supportsGrams: number;
+    printTimeMinutes: number;
     totalPricePLN: number;
     totalPriceEUR: number;
   };
@@ -176,7 +184,7 @@ function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): number {
       maxDim = Math.max(maxDim, Math.abs(x), Math.abs(y), Math.abs(z));
     }
     if (maxDim > 0 && maxDim < 2.0) {
-      scale = 1000.0; // Converted from meters to mm
+      scale = 1000.0;
     }
   }
 
@@ -400,9 +408,19 @@ export async function calculate3DModelQuoteFromBuffer(
   const pricePerKgPLN = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
   const pricePerKgEUR = pricePerKgPLN / EUR_TO_PLN;
 
-  // Realistic weight estimation matching slicer wall + top/bottom + infill
-  const gramsPerUnit = scaledVolumeCm3 * EFFECTIVE_PLASTIC_FACTOR * density;
-  const totalGrams   = gramsPerUnit * qtyNum;
+  // Model body weight vs Support structures weight
+  const modelGramsPerUnit   = scaledVolumeCm3 * MODEL_PLASTIC_FACTOR * density;
+  const supportsGramsPerUnit = scaledVolumeCm3 * SUPPORT_FACTOR * density;
+  const gramsPerUnit         = modelGramsPerUnit + supportsGramsPerUnit;
+
+  const totalGrams      = gramsPerUnit * qtyNum;
+  const modelGrams      = modelGramsPerUnit * qtyNum;
+  const supportsGrams   = supportsGramsPerUnit * qtyNum;
+
+  // Print time estimation based on volumetric throughput (approx 14 cm³/hour)
+  const printTimeHours = (scaledVolumeCm3 * (MODEL_PLASTIC_FACTOR + SUPPORT_FACTOR)) / 3.5;
+  const printTimeMinutes = Math.max(15, Math.round(printTimeHours * 60));
+
   const totalPricePLN = (totalGrams / 1000.0) * pricePerKgPLN;
   const totalPriceEUR = totalPricePLN / EUR_TO_PLN;
 
@@ -412,6 +430,9 @@ export async function calculate3DModelQuoteFromBuffer(
   return {
     gramsPerUnit:         r(gramsPerUnit),
     totalGrams:           r(totalGrams),
+    modelGrams:           r(modelGrams),
+    supportsGrams:        r(supportsGrams),
+    printTimeMinutes,
     quantity:             qtyNum,
     scalePercent:         scaleNum,
     volumeCm3:            r2(scaledVolumeCm3),
@@ -428,6 +449,9 @@ export async function calculate3DModelQuoteFromBuffer(
       quantity:              qtyNum,
       scalePercent:          scaleNum,
       totalGrams:            r(totalGrams),
+      modelGrams:            r(modelGrams),
+      supportsGrams:         r(supportsGrams),
+      printTimeMinutes,
       totalPricePLN:         r2(totalPricePLN),
       totalPriceEUR:         r2(totalPriceEUR),
     },
