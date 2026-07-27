@@ -242,6 +242,10 @@ export default function AddOfferPage() {
   const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
+  // ─── QUOT3D HIDDEN IFRAME RESULT ────────────────────────────────────────────
+  const [quot3dGrams, setQuot3dGrams] = useState<number | null>(null);
+  const [quot3dLoading, setQuot3dLoading] = useState(false);
+
   const fetchQuote = useCallback(async (file: File, mat: string, scaleVal: string, qtyVal: string) => {
     if (!file) return;
     const name = file.name.toLowerCase();
@@ -319,18 +323,26 @@ export default function AddOfferPage() {
     }
   }, []);
 
-  // ─── QUOT3D AUTO-RESIZE MESSAGE LISTENER ────────────────────────────────────
+  // ─── QUOT3D HIDDEN IFRAME MESSAGE LISTENER ──────────────────────────────────
   useEffect(() => {
-    const handleResizeMessage = (e: MessageEvent) => {
-      if (e.data && e.data.type === 'quot3d-resize') {
-        const iframe = document.querySelector('iframe[src*="get-quot3d.com/embed"]') as HTMLIFrameElement;
-        if (iframe && e.data.height) {
-          iframe.style.height = `${e.data.height}px`;
+    const handleQuot3DMessage = (e: MessageEvent) => {
+      if (!e.data) return;
+      // Catch weight/quote result from Quot3D iframe
+      if (e.data.type === 'quot3d-result' || e.data.type === 'quot3d-quote') {
+        const grams = e.data.grams ?? e.data.filamentWeight ?? e.data.weight ?? e.data.totalGrams;
+        if (grams && grams > 0) {
+          setQuot3dGrams(parseFloat(grams.toFixed(1)));
+          setQuot3dLoading(false);
         }
       }
+      // Also catch any price/weight summary payload
+      if (e.data.filamentUsed || e.data.filament_used) {
+        const g = parseFloat(e.data.filamentUsed || e.data.filament_used || '0');
+        if (g > 0) { setQuot3dGrams(parseFloat(g.toFixed(1))); setQuot3dLoading(false); }
+      }
     };
-    window.addEventListener('message', handleResizeMessage);
-    return () => window.removeEventListener('message', handleResizeMessage);
+    window.addEventListener('message', handleQuot3DMessage);
+    return () => window.removeEventListener('message', handleQuot3DMessage);
   }, []);
 
   // Re-fetch quote whenever STL/3MF file, material, scale, or quantity changes (job category only)
@@ -1031,27 +1043,67 @@ export default function AddOfferPage() {
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
 
-                  {/* ── TOMASZ QUOT3D OFFICIAL WIDGET (IFRAME EMBED) ── */}
+                  {/* ── QUOT3D HIDDEN IFRAME (runs in background, invisible) ── */}
                   {category === 'job' && (
-                    <div className="mt-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Calculator size={16} className="text-blue-600" />
-                          <span className="text-xs font-black uppercase text-gray-900 tracking-wider">
-                            Tomasz Quote Widget (Quot3D)
-                          </span>
+                    <iframe
+                      src={`https://get-quot3d.com/embed?key=${process.env.NEXT_PUBLIC_QUOT3D_API_KEY || '2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38'}`}
+                      title="Quot3D Background Slicer"
+                      style={{ position: 'absolute', width: 0, height: 0, border: 'none', opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}
+                      aria-hidden="true"
+                    />
+                  )}
+
+                  {/* ── QUOT3D RESULT CARD ── */}
+                  {category === 'job' && projectFile && (
+                    <div className="mt-3 rounded-2xl overflow-hidden border border-blue-100 shadow-md bg-white">
+                      {/* Header */}
+                      <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-slate-800 via-blue-900 to-slate-900">
+                        <Calculator size={14} className="text-blue-400" />
+                        <span className="text-[11px] font-black uppercase text-white tracking-[0.15em]">Automatic Weight Estimate</span>
+                        {quot3dLoading && <Loader2 size={13} className="animate-spin text-blue-300 ml-auto" />}
+                      </div>
+
+                      {quot3dGrams !== null ? (
+                        <div className="px-5 py-4 space-y-3">
+                          {/* Main weight result */}
+                          <div className="flex items-end gap-3">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Filament needed</span>
+                              <span className="text-3xl font-black text-gray-900">{quot3dGrams}<span className="text-lg text-gray-500 ml-1">g</span></span>
+                            </div>
+                            <div className="ml-auto flex flex-col items-end">
+                              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Est. material cost</span>
+                              <span className="text-xl font-black text-blue-700">
+                                {((quot3dGrams / 1000) * 105).toFixed(2)} zł
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-gray-400 font-medium pt-1 border-t border-gray-100">
+                            ⚠️ Szacunkowa waga filamentu — rzeczywista wycena zależy od materiału, ustawień druku i orientacji modelu.
+                          </div>
                         </div>
-                        <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
-                          Live Slicer Engine
-                        </span>
-                      </div>
-                      <div className="w-full rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-lg">
-                        <iframe
-                          src={`https://get-quot3d.com/embed?key=${process.env.NEXT_PUBLIC_QUOT3D_API_KEY || '2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38'}`}
-                          className="w-full min-h-[650px] border-0 rounded-2xl"
-                          title="Tomasz Widget"
-                        />
-                      </div>
+                      ) : quoteResult ? (
+                        <div className="px-5 py-4 space-y-3">
+                          <div className="flex items-end gap-3">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Filament needed</span>
+                              <span className="text-3xl font-black text-gray-900">{quoteResult.totalGrams}<span className="text-lg text-gray-500 ml-1">g</span></span>
+                            </div>
+                            <div className="ml-auto flex flex-col items-end">
+                              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Est. material cost</span>
+                              <span className="text-xl font-black text-blue-700">{fmt(quoteResult.estimatedPriceEUR)}</span>
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-gray-400 font-medium pt-1 border-t border-gray-100">
+                            ⚠️ Szacunkowa waga filamentu — rzeczywista wycena zależy od materiału, ustawień druku i orientacji modelu.
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-5 py-4 flex items-center gap-3">
+                          <Loader2 size={18} className="animate-spin text-blue-400 shrink-0" />
+                          <span className="text-xs text-gray-500 font-medium">Analizowanie geometrii modelu 3D...</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
