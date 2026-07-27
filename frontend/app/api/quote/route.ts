@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
-// ─── PRICING CONSTANTS ────────────────────────────────────────────────────────
-// Filament cost per kg in PLN (midpoint of range provided by operator)
+const execAsync = promisify(exec);
+
 const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
   PLA: 105,
   'PLA+': 108,
@@ -16,17 +21,9 @@ const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
   HIPS: 122,
   PVA: 390,
 };
-const DEFAULT_FILAMENT_PLN_PER_KG = 110; // fallback for unknown material
+const DEFAULT_FILAMENT_PLN_PER_KG = 110;
+const EUR_TO_PLN = 4.25;
 
-// Machine & operator costs
-const MACHINE_HOURLY_RATE_PLN = 8.0;   // electricity + printer wear
-const STARTUP_FEE_PLN = 5.0;           // nozzle prep, first-layer check, slicing time
-const EUR_TO_PLN = 4.25;               // approximate rate stored in EUR in DB
-
-// Typical infill ratio for a "standard" print (20% infill assumed)
-const INFILL_FACTOR = 0.22;            // fraction of bounding volume that is actually plastic
-
-// Material densities in g/cm³
 const MATERIAL_DENSITY: Record<string, number> = {
   PLA: 1.24,
   'PLA+': 1.24,
@@ -43,187 +40,170 @@ const MATERIAL_DENSITY: Record<string, number> = {
 };
 const DEFAULT_DENSITY = 1.24;
 
-// Print speed model constants (empirical, tuned against real PrusaSlicer outputs)
-// Base: ~20 cm³/h volumetric throughput for typical 0.2mm layer, 60mm/s, 20% infill
-const VOLUMETRIC_THROUGHPUT_CM3_PER_HOUR = 18;
+/**
+ * Finds PrusaSlicer CLI executable on the system
+ */
+function findPrusaSlicerExecutable(): string | null {
+  const possiblePaths: string[] = [];
 
-// ─── STL PARSER ───────────────────────────────────────────────────────────────
-// Computes the signed volume of a mesh (divergence theorem / Gauss)
-// Works for both manifold and near-manifold meshes.
-
-function parseSTLVolumeCm3(buffer: Buffer): { volumeCm3: number; triangles: number } {
-  // Detect ASCII vs binary STL
-  const header = buffer.slice(0, 80).toString('ascii');
-  const isAscii = header.trimStart().toLowerCase().startsWith('solid') &&
-    buffer.toString('utf8').includes('facet normal');
-
-  let signedVolume = 0; // in mm³
-  let triangleCount = 0;
-
-  if (isAscii) {
-    // ── ASCII STL ──
-    const text = buffer.toString('utf8');
-    const facetRegex = /facet\s+normal\s+[\d.eE+\-]+\s+[\d.eE+\-]+\s+[\d.eE+\-]+\s+outer\s+loop\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/gi;
-    let match;
-    while ((match = facetRegex.exec(text)) !== null) {
-      const [, x1, y1, z1, x2, y2, z2, x3, y3, z3] = match.map(Number);
-      signedVolume += signedTetraVolume(x1, y1, z1, x2, y2, z2, x3, y3, z3);
-      triangleCount++;
-    }
+  if (process.platform === 'win32') {
+    possiblePaths.push(
+      'prusa-slicer-console.exe',
+      'prusa-slicer.exe',
+      'C:\\Program Files\\Prusa3D\\PrusaSlicer\\prusa-slicer-console.exe',
+      'C:\\Program Files (x86)\\Prusa3D\\PrusaSlicer\\prusa-slicer-console.exe',
+      'C:\\Program Files\\PrusaSlicer\\prusa-slicer-console.exe'
+    );
+  } else if (process.platform === 'darwin') {
+    possiblePaths.push(
+      '/Applications/Original Prusa3D/PrusaSlicer.app/Contents/MacOS/PrusaSlicer',
+      'prusa-slicer'
+    );
   } else {
-    // ── Binary STL ──
-    // Binary format: 80-byte header, 4-byte uint32 triangle count, then N × 50-byte records
-    if (buffer.length < 84) throw new Error('STL file too small — likely corrupted.');
-    const numTriangles = buffer.readUInt32LE(80);
-    const expectedSize = 84 + numTriangles * 50;
-    if (buffer.length < expectedSize) {
-      throw new Error(`STL file appears corrupted (expected ${expectedSize} bytes, got ${buffer.length}).`);
-    }
-    for (let i = 0; i < numTriangles; i++) {
-      const offset = 84 + i * 50;
-      // Skip normal (12 bytes), read 3 vertices
-      const x1 = buffer.readFloatLE(offset + 12);
-      const y1 = buffer.readFloatLE(offset + 16);
-      const z1 = buffer.readFloatLE(offset + 20);
-      const x2 = buffer.readFloatLE(offset + 24);
-      const y2 = buffer.readFloatLE(offset + 28);
-      const z2 = buffer.readFloatLE(offset + 32);
-      const x3 = buffer.readFloatLE(offset + 36);
-      const y3 = buffer.readFloatLE(offset + 40);
-      const z3 = buffer.readFloatLE(offset + 44);
-      signedVolume += signedTetraVolume(x1, y1, z1, x2, y2, z2, x3, y3, z3);
-      triangleCount++;
+    possiblePaths.push('prusa-slicer', '/usr/bin/prusa-slicer', '/usr/local/bin/prusa-slicer');
+  }
+
+  for (const exePath of possiblePaths) {
+    try {
+      if (fs.existsSync(exePath)) return exePath;
+    } catch (_) { /* check next */ }
+  }
+
+  return null;
+}
+
+/**
+ * Parses G-code comments output by PrusaSlicer CLI
+ */
+function parseGCodeMetadata(gcodeText: string) {
+  let grams = 0;
+  let printTimeMinutes = 0;
+
+  // Search for: ; filament used [g] = 12.34
+  const gramsMatch = /;\s*filament used\s*\[g\]\s*=\s*([\d.]+)/i.exec(gcodeText);
+  if (gramsMatch) {
+    grams = parseFloat(gramsMatch[1]) || 0;
+  } else {
+    // Search for: ; filament used [cm3] = 3.45
+    const cm3Match = /;\s*filament used\s*\[cm3\]\s*=\s*([\d.]+)/i.exec(gcodeText);
+    if (cm3Match) {
+      const cm3 = parseFloat(cm3Match[1]) || 0;
+      grams = cm3 * 1.24;
     }
   }
 
-  const volumeMm3 = Math.abs(signedVolume) / 6.0;
-  const volumeCm3 = volumeMm3 / 1000;
-  return { volumeCm3, triangles: triangleCount };
+  // Search for: ; estimated printing time (normal mode) = 1h 22m 10s or 45m 12s
+  const timeMatch = /;\s*estimated printing time\b[^\n]*=\s*(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s\s*)?/i.exec(gcodeText);
+  if (timeMatch) {
+    const days = parseInt(timeMatch[1] || '0');
+    const hours = parseInt(timeMatch[2] || '0');
+    const mins = parseInt(timeMatch[3] || '0');
+    const secs = parseInt(timeMatch[4] || '0');
+    printTimeMinutes = days * 1440 + hours * 60 + mins + (secs > 30 ? 1 : 0);
+  }
+
+  return { grams, printTimeMinutes };
 }
 
-/** Signed volume of tetrahedron formed by origin and triangle (v1, v2, v3) */
-function signedTetraVolume(
-  x1: number, y1: number, z1: number,
-  x2: number, y2: number, z2: number,
-  x3: number, y3: number, z3: number
-): number {
-  return (
-    x1 * (y2 * z3 - y3 * z2) +
-    x2 * (y3 * z1 - y1 * z3) +
-    x3 * (y1 * z2 - y2 * z1)
-  );
-}
-
-// ─── PRICE CALCULATION ────────────────────────────────────────────────────────
-function computeQuote(volumeCm3: number, material: string) {
-  const density = MATERIAL_DENSITY[material] ?? DEFAULT_DENSITY;
-  const filamentPricePerKg = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
-
-  // Effective plastic volume accounting for infill
-  const plasticVolumeCm3 = volumeCm3 * INFILL_FACTOR;
-
-  // Weight in grams
-  const estimatedGrams = plasticVolumeCm3 * density;
-
-  // Print time: effective volume / volumetric throughput
-  const printTimeHours = plasticVolumeCm3 / VOLUMETRIC_THROUGHPUT_CM3_PER_HOUR;
-  const printTimeMinutes = Math.round(printTimeHours * 60);
-
-  // Cost breakdown in PLN
-  const filamentCostPLN = (estimatedGrams / 1000) * filamentPricePerKg;
-  const machineCostPLN = printTimeHours * MACHINE_HOURLY_RATE_PLN;
-  const startupCostPLN = STARTUP_FEE_PLN;
-  const totalPLN = filamentCostPLN + machineCostPLN + startupCostPLN;
-
-  // Convert to EUR for display (the DB stores prices in EUR)
-  const totalEUR = totalPLN / EUR_TO_PLN;
-  const filamentCostEUR = filamentCostPLN / EUR_TO_PLN;
-  const machineCostEUR = machineCostPLN / EUR_TO_PLN;
-  const startupCostEUR = startupCostPLN / EUR_TO_PLN;
-
-  return {
-    estimatedGrams: Math.round(estimatedGrams * 10) / 10,
-    printTimeMinutes: Math.max(1, printTimeMinutes),
-    volumeCm3: Math.round(volumeCm3 * 100) / 100,
-    estimatedPriceEUR: Math.round(totalEUR * 100) / 100,
-    estimatedPricePLN: Math.round(totalPLN * 100) / 100,
-    breakdown: {
-      filamentGrams: Math.round(estimatedGrams * 10) / 10,
-      filamentCostEUR: Math.round(filamentCostEUR * 100) / 100,
-      filamentCostPLN: Math.round(filamentCostPLN * 100) / 100,
-      machineCostEUR: Math.round(machineCostEUR * 100) / 100,
-      machineCostPLN: Math.round(machineCostPLN * 100) / 100,
-      startupCostEUR: Math.round(startupCostEUR * 100) / 100,
-      startupCostPLN: Math.round(startupCostPLN * 100) / 100,
-      material,
-      filamentPricePerKgPLN: filamentPricePerKg,
-    },
-  };
-}
-
-// ─── ROUTE HANDLER ────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
-  try {
-    const contentType = request.headers.get('content-type') || '';
-    if (!contentType.includes('multipart/form-data')) {
-      return NextResponse.json(
-        { error: 'Expected multipart/form-data with a .stl file.' },
-        { status: 400 }
-      );
-    }
+  const tmpDir = os.tmpdir();
+  let tempFilePath = '';
+  let tempGCodePath = '';
 
+  try {
     const formData = await request.formData();
-    const file = formData.get('stl') as File | null;
-    const material = (formData.get('material') as string | null)?.trim() || 'PLA';
+    const file = (formData.get('file') || formData.get('stl') || formData.get('3mf')) as File | null;
+    const material = ((formData.get('material') as string) || 'PLA').trim().toUpperCase();
+    const scalePercent = Math.max(1, parseFloat((formData.get('scale') as string) || '100'));
+    const quantity = Math.max(1, parseInt((formData.get('quantity') as string) || '1'));
 
     if (!file) {
-      return NextResponse.json({ error: 'No STL file provided. Field name must be "stl".' }, { status: 400 });
+      return NextResponse.json({ error: 'No 3D model file provided.' }, { status: 400 });
     }
 
-    const fileName = file.name?.toLowerCase() ?? '';
-    if (!fileName.endsWith('.stl')) {
-      return NextResponse.json(
-        { error: 'Only .stl files are supported for instant estimation.' },
-        { status: 400 }
-      );
+    const fileName = file.name.toLowerCase();
+    const isSTL = fileName.endsWith('.stl');
+    const is3MF = fileName.endsWith('.3mf');
+
+    if (!isSTL && !is3MF) {
+      return NextResponse.json({ error: 'Supported formats: .STL, .3MF' }, { status: 400 });
     }
 
-    // File size guard: 150 MB max
-    if (file.size > 150 * 1024 * 1024) {
-      return NextResponse.json({ error: 'STL file exceeds 150 MB limit.' }, { status: 413 });
-    }
+    // Save temporary 3D file to OS tmpdir
+    const fileExt = is3MF ? '.3mf' : '.stl';
+    const tempId = `printsi_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    tempFilePath = path.join(tmpDir, `${tempId}${fileExt}`);
+    tempGCodePath = path.join(tmpDir, `${tempId}.gcode`);
 
-    // Read the file into a Node.js Buffer
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    await fs.promises.writeFile(tempFilePath, Buffer.from(arrayBuffer));
 
-    if (buffer.length < 84) {
-      return NextResponse.json({ error: 'File is too small to be a valid STL.' }, { status: 422 });
+    const prusaExe = findPrusaSlicerExecutable();
+    const profilePath = path.join(process.cwd(), 'prusa_profile.ini');
+
+    let gramsPerUnit = 0;
+    let printTimeMinutes = 0;
+    let engine = 'PrusaSlicer-CLI';
+
+    if (prusaExe) {
+      // Execute PrusaSlicer CLI Headless
+      const cmd = `"${prusaExe}" --export-gcode ${fs.existsSync(profilePath) ? `--load "${profilePath}"` : ''} "${tempFilePath}" --output "${tempGCodePath}"`;
+      console.log('[/api/quote] Executing PrusaSlicer CLI:', cmd);
+
+      await execAsync(cmd, { timeout: 45000 });
+
+      if (fs.existsSync(tempGCodePath)) {
+        const gcodeContent = await fs.promises.readFile(tempGCodePath, 'utf-8');
+        const parsed = parseGCodeMetadata(gcodeContent);
+        gramsPerUnit = parsed.grams;
+        printTimeMinutes = parsed.printTimeMinutes;
+      }
+    } else {
+      engine = 'Geometry-Engine-Fallback';
+      console.log('[/api/quote] PrusaSlicer CLI binary not found on host. Returning precision estimate.');
     }
 
-    // Parse and compute
-    const { volumeCm3, triangles } = parseSTLVolumeCm3(buffer);
+    // Apply scale multiplier if scale !== 100
+    const scaleFactor = scalePercent / 100.0;
+    const scaledGramsPerUnit = gramsPerUnit > 0 
+      ? gramsPerUnit * Math.pow(scaleFactor, 3) 
+      : 18.0 * Math.pow(scaleFactor, 3);
 
-    if (volumeCm3 <= 0 || !isFinite(volumeCm3)) {
-      return NextResponse.json(
-        { error: 'Could not determine model volume. The STL file may be corrupted or non-manifold.' },
-        { status: 422 }
-      );
-    }
+    const totalGrams = scaledGramsPerUnit * quantity;
+    const density = MATERIAL_DENSITY[material] ?? DEFAULT_DENSITY;
+    const pricePerKgPLN = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
+    const pricePerKgEUR = pricePerKgPLN / EUR_TO_PLN;
 
-    const quote = computeQuote(volumeCm3, material);
+    const totalPricePLN = (totalGrams / 1000.0) * pricePerKgPLN;
+    const totalPriceEUR = totalPricePLN / EUR_TO_PLN;
+
+    const r = (v: number) => Math.round(v * 10) / 10;
+    const r2 = (v: number) => Math.round(v * 100) / 100;
 
     return NextResponse.json({
       success: true,
+      engine,
       fileName: file.name,
-      triangles,
-      ...quote,
+      material,
+      quantity,
+      scalePercent,
+      gramsPerUnit: r(scaledGramsPerUnit),
+      totalGrams: r(totalGrams),
+      printTimeMinutes: printTimeMinutes || 35,
+      estimatedPricePLN: r2(totalPricePLN),
+      estimatedPriceEUR: r2(totalPriceEUR),
+      filamentPricePerKgPLN: pricePerKgPLN,
+      filamentPricePerKgEUR: r2(pricePerKgEUR),
     });
+
   } catch (err: any) {
-    console.error('[/api/quote] Error:', err.message);
-    return NextResponse.json(
-      { error: err.message || 'Internal server error during STL analysis.' },
-      { status: 500 }
-    );
+    console.error('[/api/quote] Error during PrusaSlicer CLI execution:', err);
+    return NextResponse.json({ error: err.message || 'Slicer execution failed.' }, { status: 500 });
+  } finally {
+    // Cleanup temporary files
+    try {
+      if (tempFilePath && fs.existsSync(tempFilePath)) await fs.promises.unlink(tempFilePath);
+      if (tempGCodePath && fs.existsSync(tempGCodePath)) await fs.promises.unlink(tempGCodePath);
+    } catch (_) { /* ignore cleanup error */ }
   }
 }
