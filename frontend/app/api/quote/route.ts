@@ -6,6 +6,9 @@ import * as path from 'path';
 import * as os from 'os';
 import { calculate3DModelQuoteFromBuffer } from '../../upload/stlQuote';
 
+// Allow up to 30s execution for Vercel Serverless Function
+export const maxDuration = 30;
+
 const execAsync = promisify(exec);
 
 const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
