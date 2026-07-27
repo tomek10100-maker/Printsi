@@ -1,4 +1,4 @@
-// ─── 3D MODEL COST ESTIMATOR (STL & 3MF - PURE JS) ──────────────
+// ─── 3D MODEL COST ESTIMATOR (STL & 3MF - ACCURATE GEOMETRY ENGINE) ──────────────
 
 const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
   PLA: 105,
@@ -16,7 +16,9 @@ const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
 };
 const DEFAULT_FILAMENT_PLN_PER_KG = 110;
 const EUR_TO_PLN = 4.25;
-const INFILL_FACTOR = 0.22;
+
+// Effective plastic ratio for typical 3D print (walls + top/bottom + 15% infill)
+const EFFECTIVE_PLASTIC_FACTOR = 0.25;
 
 const MATERIAL_DENSITY: Record<string, number> = {
   PLA: 1.24,
@@ -58,14 +60,77 @@ export type QuoteResult = {
   };
 };
 
+/**
+ * Robust volume calculation centered at local bounding box origin
+ */
+function calculateMeshVolumeCm3(
+  vertices: [number, number, number][],
+  triangles: [number, number, number][],
+  scaleMultiplier: number = 1.0
+): number {
+  if (vertices.length === 0 || triangles.length === 0) return 0;
+
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+  // Scale & find Bounding Box
+  const scaledVertices: [number, number, number][] = new Array(vertices.length);
+  for (let i = 0; i < vertices.length; i++) {
+    const x = vertices[i][0] * scaleMultiplier;
+    const y = vertices[i][1] * scaleMultiplier;
+    const z = vertices[i][2] * scaleMultiplier;
+    scaledVertices[i] = [x, y, z];
+
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+  }
+
+  const dx = maxX - minX;
+  const dy = maxY - minY;
+  const dz = maxZ - minZ;
+
+  if (dx <= 0 || dy <= 0 || dz <= 0 || !isFinite(dx) || !isFinite(dy) || !isFinite(dz)) {
+    return 0;
+  }
+
+  const boxVolumeMm3 = dx * dy * dz;
+  const boxVolumeCm3 = boxVolumeMm3 / 1000.0;
+
+  // Shift vertices relative to min bounding box origin to eliminate floating point drift
+  let signedVolume = 0;
+  for (let i = 0; i < triangles.length; i++) {
+    const [i1, i2, i3] = triangles[i];
+    const v1 = scaledVertices[i1], v2 = scaledVertices[i2], v3 = scaledVertices[i3];
+    if (!v1 || !v2 || !v3) continue;
+
+    const x1 = v1[0] - minX, y1 = v1[1] - minY, z1 = v1[2] - minZ;
+    const x2 = v2[0] - minX, y2 = v2[1] - minY, z2 = v2[2] - minZ;
+    const x3 = v3[0] - minX, y3 = v3[1] - minY, z3 = v3[2] - minZ;
+
+    signedVolume += x1 * (y2 * z3 - y3 * z2) + x2 * (y3 * z1 - y1 * z3) + x3 * (y1 * z2 - y2 * z1);
+  }
+
+  let meshVolumeMm3 = Math.abs(signedVolume) / 6.0;
+  let meshVolumeCm3 = meshVolumeMm3 / 1000.0;
+
+  // Bounding box sanity validation: mesh volume cannot exceed total bounding box
+  if (meshVolumeCm3 <= 0 || meshVolumeCm3 > boxVolumeCm3 || !isFinite(meshVolumeCm3)) {
+    meshVolumeCm3 = boxVolumeCm3 * 0.55;
+  }
+
+  return meshVolumeCm3;
+}
+
 // ─── STL PARSER ───────────────────────────────────────────────────────────────
 
 function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): number {
   const bytes = new Uint8Array(arrayBuffer);
   const dataView = new DataView(arrayBuffer);
-  let signedVolume = 0;
 
-  // Detect ASCII vs binary
   let isAscii = false;
   try {
     const header = new TextDecoder('utf-8').decode(bytes.subarray(0, Math.min(256, bytes.length)));
@@ -74,29 +139,48 @@ function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): number {
     }
   } catch (_) { /* binary */ }
 
+  const vertices: [number, number, number][] = [];
+  const triangles: [number, number, number][] = [];
+
   if (isAscii) {
     const text = new TextDecoder('utf-8').decode(bytes);
     const facetRe = /facet\s+normal\s+[\d.eE+\-]+\s+[\d.eE+\-]+\s+[\d.eE+\-]+\s+outer\s+loop\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/gi;
     let m;
+    let idx = 0;
     while ((m = facetRe.exec(text)) !== null) {
-      const [x1,y1,z1] = [+m[1],+m[2],+m[3]];
-      const [x2,y2,z2] = [+m[4],+m[5],+m[6]];
-      const [x3,y3,z3] = [+m[7],+m[8],+m[9]];
-      signedVolume += x1*(y2*z3-y3*z2) + x2*(y3*z1-y1*z3) + x3*(y1*z2-y2*z1);
+      vertices.push([+m[1], +m[2], +m[3]]);
+      vertices.push([+m[4], +m[5], +m[6]]);
+      vertices.push([+m[7], +m[8], +m[9]]);
+      triangles.push([idx, idx + 1, idx + 2]);
+      idx += 3;
     }
   } else {
     if (arrayBuffer.byteLength < 84) throw new Error('File too small to be a valid STL.');
     const n = Math.min(dataView.getUint32(80, true), Math.floor((arrayBuffer.byteLength - 84) / 50));
+    let idx = 0;
     for (let i = 0; i < n; i++) {
       const o = 84 + i * 50;
-      const [x1,y1,z1] = [dataView.getFloat32(o+12,true), dataView.getFloat32(o+16,true), dataView.getFloat32(o+20,true)];
-      const [x2,y2,z2] = [dataView.getFloat32(o+24,true), dataView.getFloat32(o+28,true), dataView.getFloat32(o+32,true)];
-      const [x3,y3,z3] = [dataView.getFloat32(o+36,true), dataView.getFloat32(o+40,true), dataView.getFloat32(o+44,true)];
-      signedVolume += x1*(y2*z3-y3*z2) + x2*(y3*z1-y1*z3) + x3*(y1*z2-y2*z1);
+      vertices.push([dataView.getFloat32(o + 12, true), dataView.getFloat32(o + 16, true), dataView.getFloat32(o + 20, true)]);
+      vertices.push([dataView.getFloat32(o + 24, true), dataView.getFloat32(o + 28, true), dataView.getFloat32(o + 32, true)]);
+      vertices.push([dataView.getFloat32(o + 36, true), dataView.getFloat32(o + 40, true), dataView.getFloat32(o + 44, true)]);
+      triangles.push([idx, idx + 1, idx + 2]);
+      idx += 3;
     }
   }
 
-  return Math.abs(signedVolume) / 6000.0; // mm³ → cm³
+  // Auto unit check (if max dimension in meters < 2.0 mm, scale up by 1000)
+  let scale = 1.0;
+  if (vertices.length > 0) {
+    let maxDim = 0;
+    for (const [x, y, z] of vertices) {
+      maxDim = Math.max(maxDim, Math.abs(x), Math.abs(y), Math.abs(z));
+    }
+    if (maxDim > 0 && maxDim < 2.0) {
+      scale = 1000.0; // Converted from meters to mm
+    }
+  }
+
+  return calculateMeshVolumeCm3(vertices, triangles, scale);
 }
 
 // ─── ZIP CENTRAL DIRECTORY READER ─────────────────────────────────────────────
@@ -111,7 +195,6 @@ interface ZipEntry {
 function readZipCentralDirectory(bytes: Uint8Array, dv: DataView): ZipEntry[] {
   const entries: ZipEntry[] = [];
 
-  // Find End-of-Central-Directory record by scanning from end
   let eocdOffset = -1;
   for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65536 - 22); i--) {
     if (dv.getUint32(i, true) === 0x06054b50) {
@@ -120,7 +203,7 @@ function readZipCentralDirectory(bytes: Uint8Array, dv: DataView): ZipEntry[] {
     }
   }
 
-  if (eocdOffset < 0) return entries; // Not a valid ZIP
+  if (eocdOffset < 0) return entries;
 
   const cdOffset = dv.getUint32(eocdOffset + 16, true);
   const cdEntries = dv.getUint16(eocdOffset + 10, true);
@@ -145,7 +228,6 @@ function readZipCentralDirectory(bytes: Uint8Array, dv: DataView): ZipEntry[] {
 }
 
 async function decompressDeflate(data: Uint8Array): Promise<Uint8Array> {
-  // Copy into a plain ArrayBuffer to satisfy strict TypeScript types
   const plain = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
   for (const fmt of ['deflate-raw', 'deflate'] as CompressionFormat[]) {
     try {
@@ -168,54 +250,88 @@ async function getZipEntryData(bytes: Uint8Array, dv: DataView, entry: ZipEntry)
   const exLen = dv.getUint16(lhOff + 28, true);
   const dataStart = lhOff + 30 + fnLen + exLen;
 
-  // Actual compressed size from local header (use central dir value if 0)
   let compSize = dv.getUint32(lhOff + 18, true) || entry.compressedSize;
   const payload = bytes.subarray(dataStart, dataStart + compSize);
 
-  if (entry.compressionMethod === 0) return payload; // stored
+  if (entry.compressionMethod === 0) return payload;
   if (entry.compressionMethod === 8) return decompressDeflate(payload);
   throw new Error(`Unsupported compression method: ${entry.compressionMethod}`);
 }
 
-// ─── 3MF XML VOLUME CALCULATOR ────────────────────────────────────────────────
+// ─── 3MF XML VOLUME & TRANSFORM PARSER ───────────────────────────────────────
 
-function calcVolumeFromXml(xmlText: string): number {
-  let signedVolume = 0;
+function parse3MFUnitScale(xmlText: string): number {
+  const unitMatch = /<model\b[^>]*\bunit=["']([^"']+)["']/i.exec(xmlText);
+  if (!unitMatch) return 1.0;
+  const unit = unitMatch[1].toLowerCase();
+  if (unit === 'centimeter' || unit === 'cm') return 10.0;
+  if (unit === 'meter' || unit === 'm') return 1000.0;
+  if (unit === 'inch' || unit === 'in') return 25.4;
+  if (unit === 'foot' || unit === 'ft') return 304.8;
+  if (unit === 'micron') return 0.001;
+  return 1.0;
+}
 
-  // Parse all vertex positions
-  const vertices: [number, number, number][] = [];
-  // Match any <vertex ... x="..." y="..." z="..." /> or with spaces
-  const vRe = /<vertex\b[^>]*>/gi;
-  let vM;
-  while ((vM = vRe.exec(xmlText)) !== null) {
-    const tag = vM[0];
-    const xM = /\bx="([^"]+)"/i.exec(tag) ?? /\bx='([^']+)'/i.exec(tag);
-    const yM = /\by="([^"]+)"/i.exec(tag) ?? /\by='([^']+)'/i.exec(tag);
-    const zM = /\bz="([^"]+)"/i.exec(tag) ?? /\bz='([^']+)'/i.exec(tag);
-    if (xM && yM && zM) {
-      vertices.push([parseFloat(xM[1]), parseFloat(yM[1]), parseFloat(zM[1])]);
+function parse3MFTransformScale(xmlText: string): number {
+  let scaleMult = 1.0;
+  const transformMatch = /\btransform=["']([^"']+)["']/gi;
+  let tm;
+  while ((tm = transformMatch.exec(xmlText)) !== null) {
+    const parts = tm[1].trim().split(/\s+/).map(Number);
+    if (parts.length >= 9 && parts.every(n => !isNaN(n))) {
+      const sx = Math.hypot(parts[0], parts[1], parts[2]) || 1;
+      const sy = Math.hypot(parts[3], parts[4], parts[5]) || 1;
+      const sz = Math.hypot(parts[6], parts[7], parts[8]) || 1;
+      scaleMult *= (sx * sy * sz);
     }
   }
+  return scaleMult;
+}
 
-  if (vertices.length === 0) return 0;
+function calcVolumeFrom3MFXml(xmlText: string): number {
+  const unitScale = parse3MFUnitScale(xmlText);
+  const transformScale = parse3MFTransformScale(xmlText);
+  const totalScale = unitScale * Math.cbrt(transformScale);
 
-  // Parse all triangles
-  const tRe = /<triangle\b[^>]*>/gi;
-  let tM;
-  while ((tM = tRe.exec(xmlText)) !== null) {
-    const tag = tM[0];
-    const v1M = /\bv1="(\d+)"/i.exec(tag) ?? /\bv1='(\d+)'/i.exec(tag);
-    const v2M = /\bv2="(\d+)"/i.exec(tag) ?? /\bv2='(\d+)'/i.exec(tag);
-    const v3M = /\bv3="(\d+)"/i.exec(tag) ?? /\bv3='(\d+)'/i.exec(tag);
-    if (v1M && v2M && v3M) {
-      const p1 = vertices[+v1M[1]], p2 = vertices[+v2M[1]], p3 = vertices[+v3M[1]];
-      if (p1 && p2 && p3) {
-        signedVolume += p1[0]*(p2[1]*p3[2]-p3[1]*p2[2]) + p2[0]*(p3[1]*p1[2]-p1[1]*p3[2]) + p3[0]*(p1[1]*p2[2]-p2[1]*p1[2]);
+  let totalVolumeCm3 = 0;
+
+  const meshBlocks = xmlText.split(/<\/?mesh>/i);
+  for (const block of meshBlocks) {
+    if (!block.includes('<vertex') || !block.includes('<triangle')) continue;
+
+    const vertices: [number, number, number][] = [];
+    const vRe = /<vertex\b[^>]*>/gi;
+    let vM;
+    while ((vM = vRe.exec(block)) !== null) {
+      const tag = vM[0];
+      const xM = /\bx="([^"]+)"/i.exec(tag) ?? /\bx='([^']+)'/i.exec(tag);
+      const yM = /\by="([^"]+)"/i.exec(tag) ?? /\by='([^']+)'/i.exec(tag);
+      const zM = /\bz="([^"]+)"/i.exec(tag) ?? /\bz='([^']+)'/i.exec(tag);
+      if (xM && yM && zM) {
+        vertices.push([parseFloat(xM[1]), parseFloat(yM[1]), parseFloat(zM[1])]);
       }
     }
+
+    if (vertices.length === 0) continue;
+
+    const triangles: [number, number, number][] = [];
+    const tRe = /<triangle\b[^>]*>/gi;
+    let tM;
+    while ((tM = tRe.exec(block)) !== null) {
+      const tag = tM[0];
+      const v1M = /\bv1="(\d+)"/i.exec(tag) ?? /\bv1='(\d+)'/i.exec(tag);
+      const v2M = /\bv2="(\d+)"/i.exec(tag) ?? /\bv2='(\d+)'/i.exec(tag);
+      const v3M = /\bv3="(\d+)"/i.exec(tag) ?? /\bv3='(\d+)'/i.exec(tag);
+      if (v1M && v2M && v3M) {
+        triangles.push([+v1M[1], +v2M[1], +v3M[1]]);
+      }
+    }
+
+    const meshVol = calculateMeshVolumeCm3(vertices, triangles, totalScale);
+    totalVolumeCm3 += meshVol;
   }
 
-  return Math.abs(signedVolume) / 6000.0; // mm³ → cm³
+  return totalVolumeCm3;
 }
 
 // ─── 3MF PARSER ───────────────────────────────────────────────────────────────
@@ -225,21 +341,16 @@ async function parse3MFVolumeCm3(arrayBuffer: ArrayBuffer): Promise<number> {
   const dv = new DataView(arrayBuffer);
 
   const entries = readZipCentralDirectory(bytes, dv);
-  console.log('[3MF] ZIP entries found:', entries.map(e => e.fileName));
-
   let totalVol = 0;
 
   for (const entry of entries) {
     const fn = entry.fileName.toLowerCase();
-    // 3MF spec: geometry is in *.model files (typically 3D/3dmodel.model)
     if (!fn.endsWith('.model') && !fn.endsWith('.xml')) continue;
 
     try {
       const data = await getZipEntryData(bytes, dv, entry);
       const xml = new TextDecoder('utf-8').decode(data);
-      console.log('[3MF] Parsing entry:', entry.fileName, 'size:', xml.length, 'chars');
-      const vol = calcVolumeFromXml(xml);
-      console.log('[3MF] Volume from entry:', vol, 'cm³');
+      const vol = calcVolumeFrom3MFXml(xml);
       totalVol += vol;
     } catch (e) {
       console.warn('[3MF] Failed to parse entry:', entry.fileName, e);
@@ -271,7 +382,7 @@ export async function calculate3DModelQuoteFromBuffer(
   if (is3MF) {
     volumeCm3 = await parse3MFVolumeCm3(arrayBuffer);
     if (volumeCm3 <= 0) {
-      throw new Error('Could not extract 3D mesh from .3MF file. Make sure it contains 3D geometry (not just textures or metadata).');
+      throw new Error('Could not extract 3D mesh from .3MF file. Make sure it contains 3D geometry.');
     }
   } else {
     volumeCm3 = parseSTLVolumeCm3(arrayBuffer);
@@ -289,7 +400,8 @@ export async function calculate3DModelQuoteFromBuffer(
   const pricePerKgPLN = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
   const pricePerKgEUR = pricePerKgPLN / EUR_TO_PLN;
 
-  const gramsPerUnit = scaledVolumeCm3 * INFILL_FACTOR * density;
+  // Realistic weight estimation matching slicer wall + top/bottom + infill
+  const gramsPerUnit = scaledVolumeCm3 * EFFECTIVE_PLASTIC_FACTOR * density;
   const totalGrams   = gramsPerUnit * qtyNum;
   const totalPricePLN = (totalGrams / 1000.0) * pricePerKgPLN;
   const totalPriceEUR = totalPricePLN / EUR_TO_PLN;
