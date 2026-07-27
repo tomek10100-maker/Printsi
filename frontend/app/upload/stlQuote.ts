@@ -108,8 +108,8 @@ function calculateMeshVolumeCm3(
   const boxVolumeMm3 = dx * dy * dz;
   const boxVolumeCm3 = boxVolumeMm3 / 1000.0;
 
-  // Shift vertices relative to min bounding box origin and accumulate positive triangle volumes
-  let sumTetraVolume = 0;
+  // Shift vertices relative to min bounding box origin to eliminate floating point drift
+  let signedVolume = 0;
   for (let i = 0; i < triangles.length; i++) {
     const [i1, i2, i3] = triangles[i];
     const v1 = scaledVertices[i1], v2 = scaledVertices[i2], v3 = scaledVertices[i3];
@@ -119,11 +119,10 @@ function calculateMeshVolumeCm3(
     const x2 = v2[0] - minX, y2 = v2[1] - minY, z2 = v2[2] - minZ;
     const x3 = v3[0] - minX, y3 = v3[1] - minY, z3 = v3[2] - minZ;
 
-    const tetraVol = x1 * (y2 * z3 - y3 * z2) + x2 * (y3 * z1 - y1 * z3) + x3 * (y1 * z2 - y2 * z1);
-    sumTetraVolume += Math.abs(tetraVol);
+    signedVolume += x1 * (y2 * z3 - y3 * z2) + x2 * (y3 * z1 - y1 * z3) + x3 * (y1 * z2 - y2 * z1);
   }
 
-  let meshVolumeMm3 = sumTetraVolume / 6.0;
+  let meshVolumeMm3 = Math.abs(signedVolume) / 6.0;
   let meshVolumeCm3 = meshVolumeMm3 / 1000.0;
 
   // Bounding box sanity validation: mesh volume cannot exceed total bounding box
