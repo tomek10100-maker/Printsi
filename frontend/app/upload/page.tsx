@@ -1043,7 +1043,7 @@ export default function AddOfferPage() {
                           </div>
 
                           <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest pt-0.5">
-                            <span>High-Precision Layer Simulation (0.20mm)</span>
+                            <span>0.4mm Nozzle · 30% Infill Grid (0.20mm Layers)</span>
                             <span>Est. ~15s</span>
                           </div>
                         </div>
@@ -1081,7 +1081,7 @@ export default function AddOfferPage() {
                             </div>
                             <div className="flex flex-col items-center py-3.5 px-2">
                               <Box size={15} className="text-blue-500 mb-1" />
-                              <p className="text-base font-black text-gray-900">{quoteResult.quantity} pcs @ {quoteResult.scalePercent}%</p>
+                              <p className="text-base font-black text-gray-900">{quoteResult.quantity} pcs · {quoteResult.scalePercent}% scale</p>
                               <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Qty & Scale</p>
                             </div>
                             <div className="flex flex-col items-center py-3.5 px-2 bg-blue-50/60">
@@ -1096,7 +1096,7 @@ export default function AddOfferPage() {
                           {/* Breakdown table */}
                           <div className="border-t border-gray-100 px-4 py-3 space-y-1.5">
                             <div className="flex items-center justify-between mb-2">
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Slicer Simulation Breakdown</p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Slicer Simulation Breakdown (0.4mm Nozzle / 30% Infill)</p>
                               <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">{quoteResult.fileType} Format</span>
                             </div>
                             <div className="flex justify-between items-center">
@@ -1112,7 +1112,7 @@ export default function AddOfferPage() {
                               <span className="text-[11px] font-black text-gray-800">{quoteResult.supportsGrams}g</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">⚖️ Total Filament ({quoteResult.quantity} pcs @ {quoteResult.scalePercent}% scale)</span>
+                              <span className="text-[11px] text-gray-600 font-medium">⚖️ Total Filament ({quoteResult.quantity} pcs · {quoteResult.scalePercent}% scale)</span>
                               <span className="text-[11px] font-black text-gray-800">{quoteResult.totalGrams}g ({quoteResult.gramsPerUnit}g / pc)</span>
                             </div>
                             <div className="flex justify-between items-center">
