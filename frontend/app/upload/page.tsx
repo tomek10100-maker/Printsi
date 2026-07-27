@@ -182,7 +182,17 @@ export default function AddOfferPage() {
   const [user, setUser] = useState<any>(null);
   const { currency, rates, formatPrice } = useCurrency();
 
-  const [category, setCategory] = useState<'job' | 'digital' | 'physical'>('digital');
+  const [category, setCategory] = useState<'job' | 'digital' | 'physical' | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const typeParam = params.get('type') || params.get('category');
+      if (typeParam === 'job' || typeParam === 'digital' || typeParam === 'physical') {
+        setCategory(typeParam);
+      }
+    }
+  }, []);
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [pricingMode, setPricingMode] = useState<'auto' | 'manual'>('auto');
 
@@ -650,21 +660,200 @@ export default function AddOfferPage() {
 
   const fmt = (eur: number) => toLocalDisplay(eur, currency, rates);
 
+  // ─── LANDING CHOICE SCREEN (when no category is selected) ────────────────────
+  if (category === null) {
+    return (
+      <main className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center text-gray-900 font-sans">
+        <div className="max-w-4xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 relative">
+          <Link href="/" className="absolute top-6 right-6 p-2 z-10 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-all">
+            <X size={20} />
+          </Link>
+
+          {/* Hero Header */}
+          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 p-8 md:p-10 text-white relative overflow-hidden">
+            <div className="relative z-10 max-w-2xl">
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20 mb-3 inline-block">
+                Printsi Marketplace & Printing Hub
+              </span>
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wide">What would you like to create?</h1>
+              <p className="text-blue-200/80 mt-2 text-sm font-medium leading-relaxed">
+                Select an option below to get started. Order a custom 3D print, list physical products, or publish digital CAD models.
+              </p>
+            </div>
+          </div>
+
+          {/* 3 Main Selection Cards */}
+          <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Card 1: Print Request */}
+            <div 
+              onClick={() => { setCategory('job'); setPreviewImages([]); }}
+              className="group relative bg-gradient-to-b from-blue-50/50 to-indigo-50/30 border-2 border-blue-200 hover:border-blue-500 rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:shadow-blue-100 cursor-pointer"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                    <Printer size={24} />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-blue-600 bg-blue-100 px-2.5 py-1 rounded-full">
+                    Popular
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-gray-900 uppercase tracking-wide mb-2 group-hover:text-blue-600 transition-colors">
+                  Order 3D Print
+                </h3>
+                <p className="text-xs text-gray-600 font-medium leading-relaxed mb-4">
+                  Upload your 3D model (.STL, .3MF), get an instant price estimate, and receive offers from local 3D print makers.
+                </p>
+                <ul className="space-y-2 text-[11px] text-gray-500 font-semibold mb-6">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-blue-500 shrink-0" />
+                    <span>Instant cost & material estimator</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-blue-500 shrink-0" />
+                    <span>InPost / Furgonetka shipping</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-blue-500 shrink-0" />
+                    <span>Escrow buyer protection</span>
+                  </li>
+                </ul>
+              </div>
+              <button type="button" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all">
+                Request a Print →
+              </button>
+            </div>
+
+            {/* Card 2: Physical Item */}
+            <div 
+              onClick={() => { setCategory('physical'); setPreviewImages([]); }}
+              className="group relative bg-gradient-to-b from-emerald-50/50 to-teal-50/30 border-2 border-emerald-200 hover:border-emerald-500 rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:shadow-emerald-100 cursor-pointer"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                    <Box size={24} />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full">
+                    Makers
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-gray-900 uppercase tracking-wide mb-2 group-hover:text-emerald-600 transition-colors">
+                  Sell Physical 3D Item
+                </h3>
+                <p className="text-xs text-gray-600 font-medium leading-relaxed mb-4">
+                  List pre-printed physical items, replacement parts, or custom 3D products directly for buyers.
+                </p>
+                <ul className="space-y-2 text-[11px] text-gray-500 font-semibold mb-6">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+                    <span>Material & color options</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+                    <span>Direct physical delivery</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+                    <span>Instant payouts</span>
+                  </li>
+                </ul>
+              </div>
+              <button type="button" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all">
+                List Physical Product →
+              </button>
+            </div>
+
+            {/* Card 3: Digital File */}
+            <div 
+              onClick={() => {
+                if (!userRoles.includes('designer')) {
+                  setFormError('CAD Designer role required. You can enable designer role in your profile settings.');
+                }
+                setCategory('digital');
+                setPreviewImages([]);
+              }}
+              className="group relative bg-gradient-to-b from-purple-50/50 to-orange-50/30 border-2 border-purple-200 hover:border-purple-500 rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:shadow-purple-100 cursor-pointer"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform">
+                    <Layers size={24} />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-purple-600 bg-purple-100 px-2.5 py-1 rounded-full">
+                    Designers
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-gray-900 uppercase tracking-wide mb-2 group-hover:text-purple-600 transition-colors">
+                  Sell Digital 3D File
+                </h3>
+                <p className="text-xs text-gray-600 font-medium leading-relaxed mb-4">
+                  Upload 3D model files (.STL, .3MF, .STEP) and earn royalties whenever users download your designs.
+                </p>
+                <ul className="space-y-2 text-[11px] text-gray-500 font-semibold mb-6">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-purple-500 shrink-0" />
+                    <span>Instant file delivery</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-purple-500 shrink-0" />
+                    <span>Copyright protection</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle size={14} className="text-purple-500 shrink-0" />
+                    <span>CAD Designer royalty</span>
+                  </li>
+                </ul>
+              </div>
+              <button type="button" className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all">
+                Publish 3D Design →
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // ─── STEP-BY-STEP CREATION FORM ──────────────────────────────────────────────
   return (
     <main className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center text-gray-900 font-sans">
-      <div className="max-w-3xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+      <div className="max-w-3xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 relative">
         <Link href="/" className="absolute top-6 right-6 p-2 z-10 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all">
           <X size={24} />
         </Link>
-        <div className="bg-gray-900 p-8 text-white">
-          <h1 className="text-3xl font-black uppercase tracking-wide">Create Listing</h1>
-          <p className="text-gray-400 mt-1 text-sm font-medium">Configure your new offer step by step.</p>
+
+        {/* Top Header with Category Change Button */}
+        <div className="bg-gray-900 p-8 text-white flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-md border border-blue-500/20">
+                {category === 'job' && '🖨️ Order 3D Print'}
+                {category === 'physical' && '📦 Physical Product'}
+                {category === 'digital' && '📐 Digital 3D Model'}
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-wide">
+              {category === 'job' && 'Custom 3D Print Request'}
+              {category === 'physical' && 'List Physical 3D Item'}
+              {category === 'digital' && 'Publish Digital 3D Model'}
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCategory(null)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-black uppercase tracking-wider text-blue-300 hover:text-white transition-all shrink-0"
+          >
+            ← Change Category
+          </button>
         </div>
 
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-10">
 
-            {/* 1. TYPE */}
+            {/* 1. TYPE SELECTOR (compact inside form) */}
             <section className="space-y-4">
               <SectionLabel step="1" label="Listing Type" />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -690,15 +879,12 @@ export default function AddOfferPage() {
                   return (
                     <button key={key} type="button" disabled={disabled}
                       onClick={() => { if (!disabled) { setCategory(key); setPreviewImages([]); } }}
-                      className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all relative ${disabled ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed' : active ? ac[c] : `border-gray-200 text-gray-500 ${hc[c]}`}`}>
-                      <Icon size={32} />
-                      <span className={`font-black uppercase text-sm ${disabled ? 'mb-4' : ''}`}>{label}</span>
+                      className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all relative ${disabled ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed' : active ? ac[c] : `border-gray-200 text-gray-500 ${hc[c]}`}`}>
+                      <Icon size={26} />
+                      <span className={`font-black uppercase text-xs ${disabled ? 'mb-4' : ''}`}>{label}</span>
                       {disabled && (
-                        <div className="absolute bottom-3 left-0 right-0 text-center flex flex-col items-center gap-0.5">
-                          <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">{roleLabel} role required</span>
-                          <Link href="/settings" className="text-[8px] font-black text-blue-500/80 hover:text-blue-600 underline transition-colors uppercase tracking-tight">
-                            Change in Profile Settings
-                          </Link>
+                        <div className="absolute bottom-2 left-0 right-0 text-center flex flex-col items-center gap-0.5">
+                          <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest">{roleLabel} role required</span>
                         </div>
                       )}
                     </button>
