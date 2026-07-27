@@ -1,4 +1,4 @@
-// ─── STL QUOTE CALCULATOR (PURE JS - BROWSER & NODE COMPATIBLE) ──────────────
+// ─── 3D MODEL COST ESTIMATOR (STL & 3MF - PURE JS) ──────────────
 
 const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
   PLA: 105,
@@ -15,12 +15,8 @@ const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
   PVA: 390,
 };
 const DEFAULT_FILAMENT_PLN_PER_KG = 110;
-
-const MACHINE_HOURLY_RATE_PLN = 8.0;
-const STARTUP_FEE_PLN = 5.0;
 const EUR_TO_PLN = 4.25;
-const INFILL_FACTOR = 0.22;
-const VOLUMETRIC_THROUGHPUT_CM3_PER_HOUR = 18;
+const INFILL_FACTOR = 0.22; // 22% typical infill
 
 const MATERIAL_DENSITY: Record<string, number> = {
   PLA: 1.24,
@@ -39,33 +35,34 @@ const MATERIAL_DENSITY: Record<string, number> = {
 const DEFAULT_DENSITY = 1.24;
 
 export type QuoteResult = {
-  estimatedGrams: number;
-  printTimeMinutes: number;
+  gramsPerUnit: number;
+  totalGrams: number;
+  quantity: number;
+  scalePercent: number;
   volumeCm3: number;
   estimatedPriceEUR: number;
   estimatedPricePLN: number;
+  fileType: 'STL' | '3MF';
   breakdown: {
-    filamentGrams: number;
-    filamentCostEUR: number;
-    filamentCostPLN: number;
-    machineCostEUR: number;
-    machineCostPLN: number;
-    startupCostEUR: number;
-    startupCostPLN: number;
     material: string;
     filamentPricePerKgPLN: number;
+    pricePerGramPLN: number;
+    gramsPerUnit: number;
+    quantity: number;
+    scalePercent: number;
+    totalGrams: number;
+    totalPricePLN: number;
+    totalPriceEUR: number;
   };
 };
 
-export function calculateSTLQuoteFromBuffer(arrayBuffer: ArrayBuffer, fileName: string, material: string): QuoteResult {
-  if (arrayBuffer.byteLength < 84) {
-    throw new Error('File is too small to be a valid 3D STL file.');
-  }
-
-  const dataView = new DataView(arrayBuffer);
+/**
+ * Calculates model volume from binary or ASCII STL
+ */
+function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): { volumeCm3: number; triangles: number } {
   const bytes = new Uint8Array(arrayBuffer);
+  const dataView = new DataView(arrayBuffer);
 
-  // Check ASCII vs Binary safely (UTF-8 handles ASCII)
   let isAscii = false;
   try {
     const headerStr = new TextDecoder('utf-8').decode(bytes.subarray(0, Math.min(80, bytes.length)));
@@ -83,7 +80,7 @@ export function calculateSTLQuoteFromBuffer(arrayBuffer: ArrayBuffer, fileName: 
   let triangleCount = 0;
 
   if (isAscii) {
-    const text = new TextDecoder('utf8').decode(bytes);
+    const text = new TextDecoder('utf-8').decode(bytes);
     const facetRegex = /facet\s+normal\s+[\d.eE+\-]+\s+[\d.eE+\-]+\s+[\d.eE+\-]+\s+outer\s+loop\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/gi;
     let match;
     while ((match = facetRegex.exec(text)) !== null) {
@@ -94,10 +91,11 @@ export function calculateSTLQuoteFromBuffer(arrayBuffer: ArrayBuffer, fileName: 
       triangleCount++;
     }
   } else {
+    if (arrayBuffer.byteLength < 84) throw new Error('File too small to be a valid STL.');
     const numTriangles = dataView.getUint32(80, true);
     const maxPossibleTriangles = Math.floor((arrayBuffer.byteLength - 84) / 50);
     const totalTris = Math.min(numTriangles, maxPossibleTriangles);
-    
+
     for (let i = 0; i < totalTris; i++) {
       const offset = 84 + i * 50;
       const x1 = dataView.getFloat32(offset + 12, true);
@@ -115,47 +113,152 @@ export function calculateSTLQuoteFromBuffer(arrayBuffer: ArrayBuffer, fileName: 
   }
 
   const volumeMm3 = Math.abs(signedVolume) / 6.0;
-  const volumeCm3 = volumeMm3 / 1000.0;
+  return { volumeCm3: volumeMm3 / 1000.0, triangles: triangleCount };
+}
+
+/**
+ * Calculates model volume from 3MF ZIP archive
+ */
+async function parse3MFVolumeCm3(arrayBuffer: ArrayBuffer): Promise<{ volumeCm3: number; triangles: number }> {
+  const bytes = new Uint8Array(arrayBuffer);
+  const dataView = new DataView(arrayBuffer);
+  let offset = 0;
+  let modelXmlText = '';
+
+  while (offset < bytes.length - 30) {
+    if (dataView.getUint32(offset, true) !== 0x04034b50) {
+      offset++;
+      continue;
+    }
+    const compression = dataView.getUint16(offset + 8, true);
+    const compSize = dataView.getUint32(offset + 18, true);
+    const fileNameLen = dataView.getUint16(offset + 26, true);
+    const extraLen = dataView.getUint16(offset + 28, true);
+    const fileName = new TextDecoder('utf-8').decode(bytes.subarray(offset + 30, offset + 30 + fileNameLen));
+
+    const payloadStart = offset + 30 + fileNameLen + extraLen;
+
+    if (fileName.toLowerCase().endsWith('.model') || fileName.toLowerCase().includes('3dmodel')) {
+      const payloadBytes = bytes.subarray(payloadStart, payloadStart + compSize);
+      if (compression === 0) {
+        modelXmlText = new TextDecoder('utf-8').decode(payloadBytes);
+      } else if (compression === 8 && typeof DecompressStream !== 'undefined') {
+        try {
+          const ds = new DecompressStream('deflate-raw');
+          const writer = ds.writable.getWriter();
+          writer.write(payloadBytes);
+          writer.close();
+          const decompressedBuffer = await new Response(ds.readable).arrayBuffer();
+          modelXmlText = new TextDecoder('utf-8').decode(decompressedBuffer);
+        } catch (e) {
+          console.warn("3MF decompression failed:", e);
+        }
+      }
+      if (modelXmlText) break;
+    }
+    offset = payloadStart + compSize;
+  }
+
+  if (!modelXmlText) {
+    throw new Error('Could not read 3D geometry from .3MF package.');
+  }
+
+  const vertices: Array<[number, number, number]> = [];
+  const vertexRegex = /<vertex\s+x=["']([\d.eE+\-]+)["']\s+y=["']([\d.eE+\-]+)["']\s+z=["']([\d.eE+\-]+)["']/gi;
+  let vMatch;
+  while ((vMatch = vertexRegex.exec(modelXmlText)) !== null) {
+    vertices.push([parseFloat(vMatch[1]), parseFloat(vMatch[2]), parseFloat(vMatch[3])]);
+  }
+
+  if (vertices.length === 0) {
+    throw new Error('No 3D vertices found in .3MF file.');
+  }
+
+  let signedVolume = 0;
+  let triangleCount = 0;
+  const triangleRegex = /<triangle\s+v1=["'](\d+)["']\s+v2=["'](\d+)["']\s+v3=["'](\d+)["']/gi;
+  let tMatch;
+  while ((tMatch = triangleRegex.exec(modelXmlText)) !== null) {
+    const v1Idx = parseInt(tMatch[1]), v2Idx = parseInt(tMatch[2]), v3Idx = parseInt(tMatch[3]);
+    const p1 = vertices[v1Idx], p2 = vertices[v2Idx], p3 = vertices[v3Idx];
+    if (p1 && p2 && p3) {
+      signedVolume += (p1[0] * (p2[1] * p3[2] - p3[1] * p2[2]) + p2[0] * (p3[1] * p1[2] - p1[1] * p3[2]) + p3[0] * (p1[1] * p2[2] - p2[1] * p1[2]));
+      triangleCount++;
+    }
+  }
+
+  const volumeMm3 = Math.abs(signedVolume) / 6.0;
+  return { volumeCm3: volumeMm3 / 1000.0, triangles: triangleCount };
+}
+
+export async function calculate3DModelQuoteFromBuffer(
+  arrayBuffer: ArrayBuffer,
+  fileName: string,
+  material: string,
+  scalePercentInput: number | string = 100,
+  quantityInput: number | string = 1
+): Promise<QuoteResult> {
+  const lowerName = fileName.toLowerCase();
+  const is3MF = lowerName.endsWith('.3mf');
+  const isSTL = lowerName.endsWith('.stl');
+
+  if (!isSTL && !is3MF) {
+    throw new Error('Instant estimation supports .STL and .3MF files.');
+  }
+
+  let volumeCm3 = 0;
+
+  if (is3MF) {
+    const res = await parse3MFVolumeCm3(arrayBuffer);
+    volumeCm3 = res.volumeCm3;
+  } else {
+    const res = parseSTLVolumeCm3(arrayBuffer);
+    volumeCm3 = res.volumeCm3;
+  }
 
   if (volumeCm3 <= 0 || !isFinite(volumeCm3)) {
-    throw new Error('Could not calculate STL model volume. File may be empty or corrupted.');
+    throw new Error('Could not calculate 3D model volume. File may be empty or corrupted.');
   }
+
+  const scaleNum = parseFloat(String(scalePercentInput)) || 100;
+  const qtyNum = Math.max(1, parseInt(String(quantityInput)) || 1);
+  const scaleFactor = Math.max(0.01, scaleNum / 100.0);
+
+  // Scaled 3D volume (cube of scale factor)
+  const scaledVolumeCm3 = volumeCm3 * (scaleFactor * scaleFactor * scaleFactor);
 
   const density = MATERIAL_DENSITY[material] ?? DEFAULT_DENSITY;
   const filamentPricePerKg = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
+  const pricePerGramPLN = filamentPricePerKg / 1000.0;
 
-  const plasticVolumeCm3 = volumeCm3 * INFILL_FACTOR;
-  const estimatedGrams = plasticVolumeCm3 * density;
+  // Grams per single unit (with 22% infill)
+  const plasticVolumePerUnitCm3 = scaledVolumeCm3 * INFILL_FACTOR;
+  const gramsPerUnit = plasticVolumePerUnitCm3 * density;
+  const totalGrams = gramsPerUnit * qtyNum;
 
-  const printTimeHours = plasticVolumeCm3 / VOLUMETRIC_THROUGHPUT_CM3_PER_HOUR;
-  const printTimeMinutes = Math.round(printTimeHours * 60);
-
-  const filamentCostPLN = (estimatedGrams / 1000) * filamentPricePerKg;
-  const machineCostPLN = printTimeHours * MACHINE_HOURLY_RATE_PLN;
-  const startupCostPLN = STARTUP_FEE_PLN;
-  const totalPLN = filamentCostPLN + machineCostPLN + startupCostPLN;
-
-  const totalEUR = totalPLN / EUR_TO_PLN;
-  const filamentCostEUR = filamentCostPLN / EUR_TO_PLN;
-  const machineCostEUR = machineCostPLN / EUR_TO_PLN;
-  const startupCostEUR = startupCostPLN / EUR_TO_PLN;
+  // Simple direct formula: Total Grams * Price Per Gram
+  const totalPricePLN = totalGrams * pricePerGramPLN;
+  const totalPriceEUR = totalPricePLN / EUR_TO_PLN;
 
   return {
-    estimatedGrams: Math.round(estimatedGrams * 10) / 10,
-    printTimeMinutes: Math.max(1, printTimeMinutes),
-    volumeCm3: Math.round(volumeCm3 * 100) / 100,
-    estimatedPriceEUR: Math.round(totalEUR * 100) / 100,
-    estimatedPricePLN: Math.round(totalPLN * 100) / 100,
+    gramsPerUnit: Math.round(gramsPerUnit * 10) / 10,
+    totalGrams: Math.round(totalGrams * 10) / 10,
+    quantity: qtyNum,
+    scalePercent: scaleNum,
+    volumeCm3: Math.round(scaledVolumeCm3 * 100) / 100,
+    estimatedPriceEUR: Math.round(totalPriceEUR * 100) / 100,
+    estimatedPricePLN: Math.round(totalPricePLN * 100) / 100,
+    fileType: is3MF ? '3MF' : 'STL',
     breakdown: {
-      filamentGrams: Math.round(estimatedGrams * 10) / 10,
-      filamentCostEUR: Math.round(filamentCostEUR * 100) / 100,
-      filamentCostPLN: Math.round(filamentCostPLN * 100) / 100,
-      machineCostEUR: Math.round(machineCostEUR * 100) / 100,
-      machineCostPLN: Math.round(machineCostPLN * 100) / 100,
-      startupCostEUR: Math.round(startupCostEUR * 100) / 100,
-      startupCostPLN: Math.round(startupCostPLN * 100) / 100,
       material: material || 'PLA',
       filamentPricePerKgPLN: filamentPricePerKg,
+      pricePerGramPLN: Math.round(pricePerGramPLN * 1000) / 1000,
+      gramsPerUnit: Math.round(gramsPerUnit * 10) / 10,
+      quantity: qtyNum,
+      scalePercent: scaleNum,
+      totalGrams: Math.round(totalGrams * 10) / 10,
+      totalPricePLN: Math.round(totalPricePLN * 100) / 100,
+      totalPriceEUR: Math.round(totalPriceEUR * 100) / 100,
     },
   };
 }

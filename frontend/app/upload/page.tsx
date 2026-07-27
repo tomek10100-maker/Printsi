@@ -12,7 +12,7 @@ import {
   TrendingUp, Info, RefreshCw
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
-import { calculateSTLQuoteFromBuffer, QuoteResult } from './stlQuote';
+import { calculate3DModelQuoteFromBuffer, QuoteResult } from './stlQuote';
 
 const BUCKET_NAME = 'printsi-files1';
 const supabase = createClient(
@@ -247,11 +247,12 @@ export default function AddOfferPage() {
   const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
-  const fetchQuote = useCallback(async (file: File, mat: string) => {
+  const fetchQuote = useCallback(async (file: File, mat: string, scaleVal: string, qtyVal: string) => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.stl')) {
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.stl') && !name.endsWith('.3mf')) {
       setQuoteResult(null);
-      setQuoteError('Instant automatic price estimate is optimized for .STL files.');
+      setQuoteError('Instant estimation supports .STL and .3MF files.');
       return;
     }
     setQuoteLoading(true);
@@ -259,25 +260,31 @@ export default function AddOfferPage() {
     setQuoteError(null);
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const result = calculateSTLQuoteFromBuffer(arrayBuffer, file.name, mat || 'PLA');
+      const result = await calculate3DModelQuoteFromBuffer(
+        arrayBuffer,
+        file.name,
+        mat || 'PLA',
+        parseFloat(scaleVal) || 100,
+        parseInt(qtyVal) || 1
+      );
       setQuoteResult(result);
     } catch (err: any) {
       console.error("Quote error:", err);
-      setQuoteError(err.message || 'Could not analyse STL file.');
+      setQuoteError(err.message || 'Could not analyse 3D model file.');
     } finally {
       setQuoteLoading(false);
     }
   }, []);
 
-  // Re-fetch quote whenever STL file or material changes (job category only)
+  // Re-fetch quote whenever STL/3MF file, material, scale, or quantity changes (job category only)
   useEffect(() => {
     if (category === 'job' && projectFile) {
-      fetchQuote(projectFile, manualMaterial || 'PLA');
+      fetchQuote(projectFile, manualMaterial || 'PLA', printScale || '100', manualStock || '1');
     } else if (category !== 'job') {
       setQuoteResult(null);
       setQuoteError(null);
     }
-  }, [projectFile, manualMaterial, category, fetchQuote]);
+  }, [projectFile, manualMaterial, printScale, manualStock, category, fetchQuote]);
 
   useEffect(() => {
     if (formError) {
@@ -781,7 +788,7 @@ export default function AddOfferPage() {
                   }`}>
                     <FileText className={`mb-3 transition-colors ${projectFile ? 'text-green-600' : 'text-gray-400 group-hover:text-blue-500'}`} size={32} />
                     <span className="text-xs font-black uppercase text-gray-600">
-                      {projectFile ? projectFile.name : 'Upload 3D File (.STL)'}
+                      {projectFile ? projectFile.name : 'Upload 3D File (.STL, .3MF)'}
                     </span>
                     {projectFile && (
                       <span className="text-[10px] text-green-600 font-bold mt-1">
@@ -803,7 +810,7 @@ export default function AddOfferPage() {
                         {projectFile && !quoteLoading && (
                           <button
                             type="button"
-                            onClick={() => fetchQuote(projectFile, manualMaterial || 'PLA')}
+                            onClick={() => fetchQuote(projectFile, manualMaterial || 'PLA', printScale || '100', manualStock || '1')}
                             className="flex items-center gap-1.5 text-[10px] font-black text-blue-300 hover:text-white transition-colors"
                           >
                             <RefreshCw size={11} /> Recalculate
@@ -815,7 +822,7 @@ export default function AddOfferPage() {
                       {quoteLoading && (
                         <div className="flex items-center justify-center gap-3 py-8 bg-white">
                           <Loader2 size={20} className="animate-spin text-blue-500" />
-                          <span className="text-sm font-bold text-gray-500">Analysing STL geometry…</span>
+                          <span className="text-sm font-bold text-gray-500">Analysing 3D geometry (.STL / .3MF)…</span>
                         </div>
                       )}
 
@@ -824,7 +831,7 @@ export default function AddOfferPage() {
                         <div className="p-4 bg-red-50 flex items-start gap-3">
                           <AlertTriangle size={16} className="text-red-500 mt-0.5 shrink-0" />
                           <div>
-                            <p className="text-xs font-black text-red-700 uppercase tracking-wide">Analysis Failed</p>
+                            <p className="text-xs font-black text-red-700 uppercase tracking-wide">Analysis Notice</p>
                             <p className="text-[11px] text-red-600 font-medium mt-0.5">{quoteError}</p>
                           </div>
                         </div>
@@ -837,17 +844,13 @@ export default function AddOfferPage() {
                           <div className="grid grid-cols-3 divide-x divide-gray-100">
                             <div className="flex flex-col items-center py-4 px-3">
                               <Scale size={16} className="text-indigo-500 mb-1.5" />
-                              <p className="text-lg font-black text-gray-900">{quoteResult.estimatedGrams}g</p>
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Filament</p>
+                              <p className="text-lg font-black text-gray-900">{quoteResult.totalGrams}g</p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Total Filament</p>
                             </div>
                             <div className="flex flex-col items-center py-4 px-3">
-                              <Clock size={16} className="text-blue-500 mb-1.5" />
-                              <p className="text-lg font-black text-gray-900">
-                                {quoteResult.printTimeMinutes >= 60
-                                  ? `${Math.floor(quoteResult.printTimeMinutes / 60)}h ${quoteResult.printTimeMinutes % 60}m`
-                                  : `${quoteResult.printTimeMinutes}m`}
-                              </p>
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Print Time</p>
+                              <Box size={16} className="text-blue-500 mb-1.5" />
+                              <p className="text-lg font-black text-gray-900">{quoteResult.quantity} pcs @ {quoteResult.scalePercent}%</p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Qty & Scale</p>
                             </div>
                             <div className="flex flex-col items-center py-4 px-3 bg-blue-50/60">
                               <TrendingUp size={16} className="text-blue-600 mb-1.5" />
@@ -862,40 +865,37 @@ export default function AddOfferPage() {
 
                           {/* Breakdown table */}
                           <div className="border-t border-gray-100 px-4 py-3 space-y-1.5">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Price Breakdown</p>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">🧵 Filament ({quoteResult.breakdown.material} · {quoteResult.breakdown.filamentGrams}g)</span>
-                              <span className="text-[11px] font-black text-gray-800">{quoteResult.breakdown.filamentCostPLN.toFixed(2)} PLN</span>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Price Breakdown</p>
+                              <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">{quoteResult.fileType} Format</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">🖨️ Machine time ({quoteResult.printTimeMinutes >= 60 ? `${Math.floor(quoteResult.printTimeMinutes / 60)}h ${quoteResult.printTimeMinutes % 60}m` : `${quoteResult.printTimeMinutes}m`})</span>
-                              <span className="text-[11px] font-black text-gray-800">{quoteResult.breakdown.machineCostPLN.toFixed(2)} PLN</span>
+                              <span className="text-[11px] text-gray-600 font-medium">🧵 Material ({quoteResult.breakdown.material})</span>
+                              <span className="text-[11px] font-black text-gray-800">{quoteResult.breakdown.filamentPricePerKgPLN} PLN/kg ({quoteResult.breakdown.pricePerGramPLN.toFixed(3)} PLN/g)</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">⚙️ Setup & preparation</span>
-                              <span className="text-[11px] font-black text-gray-800">{quoteResult.breakdown.startupCostPLN.toFixed(2)} PLN</span>
+                              <span className="text-[11px] text-gray-600 font-medium">⚖️ Total Grams ({quoteResult.quantity} pcs @ {quoteResult.scalePercent}% scale)</span>
+                              <span className="text-[11px] font-black text-gray-800">{quoteResult.totalGrams}g ({quoteResult.gramsPerUnit}g / pc)</span>
                             </div>
                             <div className="flex justify-between items-center border-t border-gray-100 pt-1.5 mt-1">
-                              <span className="text-[11px] font-black text-gray-900 uppercase tracking-wide">Total estimate</span>
-                              <span className="text-[13px] font-black text-blue-700">{quoteResult.estimatedPricePLN.toFixed(2)} PLN</span>
+                              <span className="text-[11px] font-black text-gray-900 uppercase tracking-wide">Est. Material Cost</span>
+                              <span className="text-[13px] font-black text-blue-700">{quoteResult.estimatedPricePLN.toFixed(2)} PLN ({fmt(quoteResult.estimatedPriceEUR)})</span>
                             </div>
                           </div>
 
-                          {/* Disclaimer */}
+                          {/* Comprehensive Disclaimer */}
                           <div className="mx-4 mb-4 mt-1 bg-amber-50 border border-amber-200/80 rounded-xl p-3 flex items-start gap-2.5">
-                            <Info size={13} className="text-amber-600 mt-0.5 shrink-0" />
-                            <p className="text-[10px] text-amber-800 font-semibold leading-relaxed">
-                              <span className="font-black block uppercase text-[9px] tracking-wider text-amber-700 mb-0.5">Indicative Estimate Only</span>
-                              The final price offered by the printer may differ due to required support structures, nozzle changes between colors, print orientation, post-processing, and printer-specific settings. Use this figure as a rough guide when setting your budget.
-                            </p>
+                            <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
+                            <div className="text-[10px] text-amber-900 font-semibold leading-relaxed space-y-1">
+                              <span className="font-black block uppercase text-[9px] tracking-wider text-amber-800">Rough Material Estimate Only</span>
+                              <p>This price is an indicative preview calculated directly from model volume, scale ({quoteResult.scalePercent}%), quantity ({quoteResult.quantity} pcs), and material density ({quoteResult.breakdown.material} @ {quoteResult.breakdown.filamentPricePerKgPLN} PLN/kg).</p>
+                              <div className="pt-0.5 space-y-0.5 text-amber-800 font-medium">
+                                <p>• <strong>Shipping fees:</strong> Not included (selected during final order placement).</p>
+                                <p>• <strong>Supports & orientation:</strong> Additional material may be required for support structures, purge towers, or dense infill.</p>
+                                <p>• <strong>Final proposal:</strong> 3D printers will review your project requirements and confirm their binding offer.</p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Prompt: select material first */}
-                      {!quoteLoading && !quoteResult && !quoteError && projectFile?.name?.toLowerCase().endsWith('.stl') && !manualMaterial && (
-                        <div className="p-4 bg-white text-center">
-                          <p className="text-xs text-gray-500 font-bold">↓ Select a material below to get an instant estimate</p>
                         </div>
                       )}
                     </div>
