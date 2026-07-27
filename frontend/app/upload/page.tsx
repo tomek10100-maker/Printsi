@@ -245,6 +245,7 @@ export default function AddOfferPage() {
   // ─── QUOT3D HIDDEN IFRAME RESULT ────────────────────────────────────────────
   const [quot3dGrams, setQuot3dGrams] = useState<number | null>(null);
   const [quot3dLoading, setQuot3dLoading] = useState(false);
+  const quot3dIframeRef = useRef<HTMLIFrameElement>(null);
 
   const fetchQuote = useCallback(async (file: File, mat: string, scaleVal: string, qtyVal: string) => {
     if (!file) return;
@@ -327,23 +328,64 @@ export default function AddOfferPage() {
   useEffect(() => {
     const handleQuot3DMessage = (e: MessageEvent) => {
       if (!e.data) return;
-      // Catch weight/quote result from Quot3D iframe
-      if (e.data.type === 'quot3d-result' || e.data.type === 'quot3d-quote') {
-        const grams = e.data.grams ?? e.data.filamentWeight ?? e.data.weight ?? e.data.totalGrams;
-        if (grams && grams > 0) {
-          setQuot3dGrams(parseFloat(grams.toFixed(1)));
+      // Log all messages from quot3d for debugging
+      if (e.origin.includes('get-quot3d.com') || e.origin.includes('quot3d')) {
+        console.log('[Quot3D postMessage]', e.data);
+      }
+      // Catch weight/quote result from Quot3D iframe - try every known field name
+      const raw = e.data;
+      const grams =
+        raw.grams ?? raw.filamentWeight ?? raw.weight ?? raw.totalGrams ??
+        raw.filament_used ?? raw.filamentUsed ?? raw.filamentGrams ??
+        raw.result?.grams ?? raw.quote?.grams ?? raw.data?.grams;
+      if (grams && parseFloat(grams) > 0) {
+        setQuot3dGrams(parseFloat(parseFloat(grams).toFixed(1)));
+        setQuot3dLoading(false);
+        return;
+      }
+      if (raw.type === 'quot3d-result' || raw.type === 'quot3d-quote' || raw.type === 'quote') {
+        const g2 = raw.grams ?? raw.weight ?? raw.filamentWeight;
+        if (g2 && parseFloat(g2) > 0) {
+          setQuot3dGrams(parseFloat(parseFloat(g2).toFixed(1)));
           setQuot3dLoading(false);
         }
-      }
-      // Also catch any price/weight summary payload
-      if (e.data.filamentUsed || e.data.filament_used) {
-        const g = parseFloat(e.data.filamentUsed || e.data.filament_used || '0');
-        if (g > 0) { setQuot3dGrams(parseFloat(g.toFixed(1))); setQuot3dLoading(false); }
       }
     };
     window.addEventListener('message', handleQuot3DMessage);
     return () => window.removeEventListener('message', handleQuot3DMessage);
   }, []);
+
+  // ─── SEND FILE TO QUOT3D WIDGET VIA POSTMESSAGE ────────────────────────────
+  useEffect(() => {
+    if (!projectFile || category !== 'job') return;
+    setQuot3dGrams(null);
+    setQuot3dLoading(true);
+
+    const sendFileToWidget = async () => {
+      try {
+        const arrayBuffer = await projectFile.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const iframeEl = quot3dIframeRef.current;
+        if (iframeEl && iframeEl.contentWindow) {
+          // Try postMessage after iframe is ready
+          const sendMsg = () => iframeEl.contentWindow?.postMessage({
+            type: 'quot3d-file',
+            fileName: projectFile.name,
+            fileSize: projectFile.size,
+            fileBase64: base64,
+            mimeType: 'application/octet-stream',
+          }, '*');
+          // Send immediately and again after 2s in case iframe is still loading
+          sendMsg();
+          setTimeout(sendMsg, 2000);
+          setTimeout(sendMsg, 4000);
+        }
+      } catch (err) {
+        console.warn('[Quot3D] Failed to send file to widget:', err);
+      }
+    };
+    sendFileToWidget();
+  }, [projectFile, category]);
 
   // Re-fetch quote whenever STL/3MF file, material, scale, or quantity changes (job category only)
   useEffect(() => {
@@ -1043,12 +1085,21 @@ export default function AddOfferPage() {
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
 
-                  {/* ── QUOT3D HIDDEN IFRAME (runs in background, invisible) ── */}
+                  {/* ── QUOT3D WIDGET: off-screen, fully rendered, invisible to user ── */}
                   {category === 'job' && (
                     <iframe
+                      ref={quot3dIframeRef}
                       src={`https://get-quot3d.com/embed?key=${process.env.NEXT_PUBLIC_QUOT3D_API_KEY || '2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38'}`}
                       title="Quot3D Background Slicer"
-                      style={{ position: 'absolute', width: 0, height: 0, border: 'none', opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}
+                      style={{
+                        position: 'fixed',
+                        left: '-9999px',
+                        top: '-9999px',
+                        width: '900px',
+                        height: '700px',
+                        border: 'none',
+                        visibility: 'hidden',
+                      }}
                       aria-hidden="true"
                     />
                   )}
