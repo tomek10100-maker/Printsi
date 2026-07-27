@@ -837,9 +837,7 @@ export default function AddOfferPage() {
                             <div className="flex flex-col items-center py-4 px-3 bg-blue-50/60">
                               <TrendingUp size={16} className="text-blue-600 mb-1.5" />
                               <p className="text-lg font-black text-blue-700">
-                                {currency === 'PLN'
-                                  ? `${quoteResult.estimatedPricePLN.toFixed(2)} PLN`
-                                  : fmt(quoteResult.estimatedPriceEUR)}
+                                {fmt(quoteResult.estimatedPriceEUR)}
                               </p>
                               <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Est. Price</p>
                             </div>
@@ -853,7 +851,7 @@ export default function AddOfferPage() {
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-[11px] text-gray-600 font-medium">🧵 Material ({quoteResult.breakdown.material})</span>
-                              <span className="text-[11px] font-black text-gray-800">{quoteResult.breakdown.filamentPricePerKgPLN} PLN/kg ({quoteResult.breakdown.pricePerGramPLN.toFixed(3)} PLN/g)</span>
+                              <span className="text-[11px] font-black text-gray-800">{fmt(quoteResult.breakdown.filamentPricePerKgEUR)} / kg</span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-[11px] text-gray-600 font-medium">⚖️ Total Grams ({quoteResult.quantity} pcs @ {quoteResult.scalePercent}% scale)</span>
@@ -861,7 +859,7 @@ export default function AddOfferPage() {
                             </div>
                             <div className="flex justify-between items-center border-t border-gray-100 pt-1.5 mt-1">
                               <span className="text-[11px] font-black text-gray-900 uppercase tracking-wide">Est. Material Cost</span>
-                              <span className="text-[13px] font-black text-blue-700">{quoteResult.estimatedPricePLN.toFixed(2)} PLN ({fmt(quoteResult.estimatedPriceEUR)})</span>
+                              <span className="text-[13px] font-black text-blue-700">{fmt(quoteResult.estimatedPriceEUR)}</span>
                             </div>
                           </div>
 
@@ -870,7 +868,7 @@ export default function AddOfferPage() {
                             <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
                             <div className="text-[10px] text-amber-900 font-semibold leading-relaxed space-y-1">
                               <span className="font-black block uppercase text-[9px] tracking-wider text-amber-800">Rough Material Estimate Only</span>
-                              <p>This price is an indicative preview calculated directly from model volume, scale ({quoteResult.scalePercent}%), quantity ({quoteResult.quantity} pcs), and material density ({quoteResult.breakdown.material} @ {quoteResult.breakdown.filamentPricePerKgPLN} PLN/kg).</p>
+                              <p>This price is an indicative preview calculated directly from model volume, scale ({quoteResult.scalePercent}%), quantity ({quoteResult.quantity} pcs), and material density ({quoteResult.breakdown.material} @ {fmt(quoteResult.breakdown.filamentPricePerKgEUR)} / kg).</p>
                               <div className="pt-0.5 space-y-0.5 text-amber-800 font-medium">
                                 <p>• <strong>Shipping fees:</strong> Not included (selected during final order placement).</p>
                                 <p>• <strong>Supports & orientation:</strong> Additional material may be required for support structures, purge towers, or dense infill.</p>
