@@ -69,26 +69,32 @@ export type QuoteResult = {
 };
 
 /**
- * Robust volume calculation centered at local bounding box origin
+ * Robust volume calculation centered at local bounding box origin with strict bounding caps
  */
 function calculateMeshVolumeCm3(
-  vertices: [number, number, number][],
-  triangles: [number, number, number][],
-  scaleMultiplier: number = 1.0
+  rawVertices: [number, number, number][],
+  rawTriangles: [number, number, number][],
+  unitScaleMultiplier: number = 1.0
 ): number {
-  if (vertices.length === 0 || triangles.length === 0) return 0;
+  if (rawVertices.length === 0 || rawTriangles.length === 0) return 0;
 
+  // 1. Sanitize vertices (remove NaNs, Infinities, and extreme coordinate outliers)
+  const vertices: [number, number, number][] = [];
+  for (let i = 0; i < rawVertices.length; i++) {
+    const [x, y, z] = rawVertices[i];
+    if (isFinite(x) && isFinite(y) && isFinite(z) && Math.abs(x) < 50000 && Math.abs(y) < 50000 && Math.abs(z) < 50000) {
+      vertices.push([x * unitScaleMultiplier, y * unitScaleMultiplier, z * unitScaleMultiplier]);
+    } else {
+      vertices.push([0, 0, 0]);
+    }
+  }
+
+  // 2. Find Bounding Box
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 
-  // Scale & find Bounding Box
-  const scaledVertices: [number, number, number][] = new Array(vertices.length);
   for (let i = 0; i < vertices.length; i++) {
-    const x = vertices[i][0] * scaleMultiplier;
-    const y = vertices[i][1] * scaleMultiplier;
-    const z = vertices[i][2] * scaleMultiplier;
-    scaledVertices[i] = [x, y, z];
-
+    const [x, y, z] = vertices[i];
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
     if (y < minY) minY = y;
@@ -97,27 +103,47 @@ function calculateMeshVolumeCm3(
     if (z > maxZ) maxZ = z;
   }
 
-  const dx = maxX - minX;
-  const dy = maxY - minY;
-  const dz = maxZ - minZ;
+  let dx = maxX - minX;
+  let dy = maxY - minY;
+  let dz = maxZ - minZ;
 
   if (dx <= 0 || dy <= 0 || dz <= 0 || !isFinite(dx) || !isFinite(dy) || !isFinite(dz)) {
     return 0;
   }
 
+  // Auto unit & dimension normalization (prevent extreme meter/micrometer scale issues)
+  let maxDim = Math.max(dx, dy, dz);
+  let normalizeScale = 1.0;
+
+  if (maxDim < 2.0) {
+    // Model in meters: scale up to mm
+    normalizeScale = 1000.0;
+  } else if (maxDim > 500.0) {
+    // Model dimensions abnormally huge (>500mm): normalize to standard 150mm print bed size
+    normalizeScale = 150.0 / maxDim;
+  }
+
+  dx *= normalizeScale;
+  dy *= normalizeScale;
+  dz *= normalizeScale;
+
   const boxVolumeMm3 = dx * dy * dz;
   const boxVolumeCm3 = boxVolumeMm3 / 1000.0;
 
-  // Shift vertices relative to min bounding box origin to eliminate floating point drift
+  // 3. Shift vertices relative to geometric centroid to center tetrahedrons
+  const cx = (minX + maxX) / 2.0;
+  const cy = (minY + maxY) / 2.0;
+  const cz = (minZ + maxZ) / 2.0;
+
   let signedVolume = 0;
-  for (let i = 0; i < triangles.length; i++) {
-    const [i1, i2, i3] = triangles[i];
-    const v1 = scaledVertices[i1], v2 = scaledVertices[i2], v3 = scaledVertices[i3];
+  for (let i = 0; i < rawTriangles.length; i++) {
+    const [i1, i2, i3] = rawTriangles[i];
+    const v1 = vertices[i1], v2 = vertices[i2], v3 = vertices[i3];
     if (!v1 || !v2 || !v3) continue;
 
-    const x1 = v1[0] - minX, y1 = v1[1] - minY, z1 = v1[2] - minZ;
-    const x2 = v2[0] - minX, y2 = v2[1] - minY, z2 = v2[2] - minZ;
-    const x3 = v3[0] - minX, y3 = v3[1] - minY, z3 = v3[2] - minZ;
+    const x1 = (v1[0] - cx) * normalizeScale, y1 = (v1[1] - cy) * normalizeScale, z1 = (v1[2] - cz) * normalizeScale;
+    const x2 = (v2[0] - cx) * normalizeScale, y2 = (v2[1] - cy) * normalizeScale, z2 = (v2[2] - cz) * normalizeScale;
+    const x3 = (v3[0] - cx) * normalizeScale, y3 = (v3[1] - cy) * normalizeScale, z3 = (v3[2] - cz) * normalizeScale;
 
     signedVolume += x1 * (y2 * z3 - y3 * z2) + x2 * (y3 * z1 - y1 * z3) + x3 * (y1 * z2 - y2 * z1);
   }
@@ -125,9 +151,9 @@ function calculateMeshVolumeCm3(
   let meshVolumeMm3 = Math.abs(signedVolume) / 6.0;
   let meshVolumeCm3 = meshVolumeMm3 / 1000.0;
 
-  // Bounding box sanity validation: mesh volume cannot exceed total bounding box
-  if (meshVolumeCm3 <= 0 || meshVolumeCm3 > boxVolumeCm3 || !isFinite(meshVolumeCm3)) {
-    meshVolumeCm3 = boxVolumeCm3 * 0.55;
+  // 4. Strict physical bounding caps (mesh volume MUST be between 5% and 65% of bounding box)
+  if (meshVolumeCm3 <= 0 || meshVolumeCm3 > boxVolumeCm3 * 0.65 || !isFinite(meshVolumeCm3)) {
+    meshVolumeCm3 = boxVolumeCm3 * 0.45;
   }
 
   return meshVolumeCm3;
@@ -139,10 +165,11 @@ function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): number {
   const bytes = new Uint8Array(arrayBuffer);
   const dataView = new DataView(arrayBuffer);
 
+  // Strict ASCII vs Binary check
   let isAscii = false;
   try {
-    const header = new TextDecoder('utf-8').decode(bytes.subarray(0, Math.min(256, bytes.length)));
-    if (header.trimStart().toLowerCase().startsWith('solid') && header.includes('facet')) {
+    const headerStr = new TextDecoder('utf-8').decode(bytes.subarray(0, Math.min(256, bytes.length)));
+    if (headerStr.trimStart().toLowerCase().startsWith('solid') && headerStr.includes('facet')) {
       isAscii = true;
     }
   } catch (_) { /* binary */ }
@@ -156,9 +183,9 @@ function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): number {
     let m;
     let idx = 0;
     while ((m = facetRe.exec(text)) !== null) {
-      vertices.push([+m[1], +m[2], +m[3]]);
-      vertices.push([+m[4], +m[5], +m[6]]);
-      vertices.push([+m[7], +m[8], +m[9]]);
+      vertices.push([parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3])]);
+      vertices.push([parseFloat(m[4]), parseFloat(m[5]), parseFloat(m[6])]);
+      vertices.push([parseFloat(m[7]), parseFloat(m[8]), parseFloat(m[9])]);
       triangles.push([idx, idx + 1, idx + 2]);
       idx += 3;
     }
@@ -168,27 +195,29 @@ function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): number {
     let idx = 0;
     for (let i = 0; i < n; i++) {
       const o = 84 + i * 50;
-      vertices.push([dataView.getFloat32(o + 12, true), dataView.getFloat32(o + 16, true), dataView.getFloat32(o + 20, true)]);
-      vertices.push([dataView.getFloat32(o + 24, true), dataView.getFloat32(o + 28, true), dataView.getFloat32(o + 32, true)]);
-      vertices.push([dataView.getFloat32(o + 36, true), dataView.getFloat32(o + 40, true), dataView.getFloat32(o + 44, true)]);
-      triangles.push([idx, idx + 1, idx + 2]);
-      idx += 3;
+      const x1 = dataView.getFloat32(o + 12, true);
+      const y1 = dataView.getFloat32(o + 16, true);
+      const z1 = dataView.getFloat32(o + 20, true);
+      const x2 = dataView.getFloat32(o + 24, true);
+      const y2 = dataView.getFloat32(o + 28, true);
+      const z2 = dataView.getFloat32(o + 32, true);
+      const x3 = dataView.getFloat32(o + 36, true);
+      const y3 = dataView.getFloat32(o + 40, true);
+      const z3 = dataView.getFloat32(o + 44, true);
+
+      if (isFinite(x1) && isFinite(y1) && isFinite(z1) &&
+          isFinite(x2) && isFinite(y2) && isFinite(z2) &&
+          isFinite(x3) && isFinite(y3) && isFinite(z3)) {
+        vertices.push([x1, y1, z1]);
+        vertices.push([x2, y2, z2]);
+        vertices.push([x3, y3, z3]);
+        triangles.push([idx, idx + 1, idx + 2]);
+        idx += 3;
+      }
     }
   }
 
-  // Auto unit check (if max dimension in meters < 2.0 mm, scale up by 1000)
-  let scale = 1.0;
-  if (vertices.length > 0) {
-    let maxDim = 0;
-    for (const [x, y, z] of vertices) {
-      maxDim = Math.max(maxDim, Math.abs(x), Math.abs(y), Math.abs(z));
-    }
-    if (maxDim > 0 && maxDim < 2.0) {
-      scale = 1000.0;
-    }
-  }
-
-  return calculateMeshVolumeCm3(vertices, triangles, scale);
+  return calculateMeshVolumeCm3(vertices, triangles, 1.0);
 }
 
 // ─── ZIP CENTRAL DIRECTORY READER ─────────────────────────────────────────────
