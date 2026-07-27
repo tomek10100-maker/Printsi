@@ -101,21 +101,30 @@ body {
   scrollbar-color: rgba(59, 130, 246, 0.4) rgba(15, 23, 42, 0.4);
 }
 
-/* ── QUOT3D WIDGET CUSTOMIZATION (Hide Price and Print Time) ── */
+/* ── QUOT3D WIDGET CUSTOMIZATION (Hide Price and Print Time, Keep Weight Only) ── */
 #quot3d-widget .quot3d-price,
 #quot3d-widget .quot3d-total-price,
 #quot3d-widget .quot3d-cost,
 #quot3d-widget [class*="price"],
 #quot3d-widget [class*="cost"],
 #quot3d-widget [class*="Price"],
-#quot3d-widget [class*="Cost"] {
+#quot3d-widget [class*="Cost"],
+#quot3d-widget [class*="quote-box"],
+#quot3d-widget [class*="quote-header"],
+#quot3d-widget [class*="total-quote"],
+#quot3d-widget [class*="breakdown"],
+#quot3d-widget [class*="summary-price"],
+#quot3d-widget [class*="min-order"],
+#quot3d-widget [class*="minimum-order"],
+#quot3d-widget [class*="lead-time"],
+#quot3d-widget [class*="business-days"] {
   display: none !important;
 }
 
 #quot3d-widget .quot3d-print-time,
 #quot3d-widget .quot3d-time,
-#quot3d-widget [class*="time"],
-#quot3d-widget [class*="Time"],
+#quot3d-widget [class*="print-time"],
+#quot3d-widget [class*="PrintTime"],
 #quot3d-widget [class*="duration"] {
   display: none !important;
 }
