@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Script from 'next/script';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -1065,158 +1066,25 @@ export default function AddOfferPage() {
                           Official Widget
                         </span>
                       </div>
-                      <div className="w-full min-h-[420px] rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-md p-2">
-                        <div id="quot3d-widget" className="w-full min-h-[400px]"></div>
+                      <div className="w-full min-h-[500px] rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-md p-2">
+                        <div id="quot3d-widget" className="w-full min-h-[480px]"></div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* ── INSTANT QUOTE PANEL (job + attached 3D file) ── */}
-                  {category === 'job' && projectFile && (
-                    <div className="relative overflow-hidden rounded-2xl border border-blue-200/60 shadow-lg shadow-blue-100/40">
-                      {/* Header bar */}
-                      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-800 via-blue-900 to-slate-900">
-                        <div className="flex items-center gap-2">
-                          <Calculator size={15} className="text-blue-400" />
-                          <span className="text-[11px] font-black uppercase text-white tracking-[0.15em]">Instant Cost Estimate</span>
-                        </div>
-                        {projectFile && !quoteLoading && (
-                          <button
-                            type="button"
-                            onClick={() => fetchQuote(projectFile, manualMaterial || 'PLA', printScale || '100', manualStock || '1')}
-                            className="flex items-center gap-1.5 text-[10px] font-black text-blue-300 hover:text-white transition-colors"
-                          >
-                            <RefreshCw size={11} /> Recalculate
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Loading state: Animated High-Precision Progress Bar */}
-                      {quoteLoading && (
-                        <div className="p-6 bg-gradient-to-b from-slate-900 to-slate-950 text-white space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-blue-500/20 rounded-xl border border-blue-500/30 text-blue-400">
-                                <Loader2 size={20} className="animate-spin text-blue-400" />
-                              </div>
-                              <div>
-                                <h4 className="text-xs font-black uppercase tracking-wider text-white">Deep Slicing & Geometry Simulation</h4>
-                                <p className="text-[11px] text-blue-300/90 font-semibold mt-0.5">{quoteStepText}</p>
-                              </div>
-                            </div>
-                            <span className="text-xl font-black text-cyan-400 tracking-wider font-mono">{quoteProgress}%</span>
-                          </div>
-
-                          {/* Glowing Animated Progress Bar */}
-                          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700">
-                            <div 
-                              className="bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 h-full rounded-full transition-all duration-300 shadow-lg shadow-cyan-500/50"
-                              style={{ width: `${quoteProgress}%` }}
-                            />
-                          </div>
-
-                          <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest pt-0.5">
-                            <span>0.4mm Nozzle · 2 Walls · 3 Top/Bottom Layers · 30% Infill</span>
-                            <span>Est. ~15s</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Error state */}
-                      {!quoteLoading && quoteError && (
-                        <div className="p-4 bg-red-50 flex items-start gap-3">
-                          <AlertTriangle size={16} className="text-red-500 mt-0.5 shrink-0" />
-                          <div>
-                            <p className="text-xs font-black text-red-700 uppercase tracking-wide">Analysis Notice</p>
-                            <p className="text-[11px] text-red-600 font-medium mt-0.5">{quoteError}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Results state */}
-                      {!quoteLoading && quoteResult && (
-                        <div className="bg-white">
-                          {/* Key metrics row */}
-                          <div className="grid grid-cols-4 divide-x divide-gray-100">
-                            <div className="flex flex-col items-center py-3.5 px-2">
-                              <Scale size={15} className="text-indigo-500 mb-1" />
-                              <p className="text-base font-black text-gray-900">{quoteResult.totalGrams}g</p>
-                              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Total Filament</p>
-                            </div>
-                            <div className="flex flex-col items-center py-3.5 px-2">
-                              <Clock size={15} className="text-amber-500 mb-1" />
-                              <p className="text-base font-black text-gray-900">
-                                {quoteResult.printTimeMinutes >= 60 
-                                  ? `${Math.floor(quoteResult.printTimeMinutes / 60)}h ${quoteResult.printTimeMinutes % 60}m` 
-                                  : `${quoteResult.printTimeMinutes}m`}
-                              </p>
-                              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Print Time</p>
-                            </div>
-                            <div className="flex flex-col items-center py-3.5 px-2">
-                              <Box size={15} className="text-blue-500 mb-1" />
-                              <p className="text-base font-black text-gray-900">{quoteResult.quantity} pcs · {quoteResult.scalePercent}% scale</p>
-                              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Qty & Scale</p>
-                            </div>
-                            <div className="flex flex-col items-center py-3.5 px-2 bg-blue-50/60">
-                              <TrendingUp size={15} className="text-blue-600 mb-1" />
-                              <p className="text-base font-black text-blue-700">
-                                {fmt(quoteResult.estimatedPriceEUR)}
-                              </p>
-                              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Est. Price</p>
-                            </div>
-                          </div>
-
-                          {/* Breakdown table */}
-                          <div className="border-t border-gray-100 px-4 py-3 space-y-1.5">
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Slicer Breakdown (0.4mm Nozzle / 2 Walls / 3 Top-Bottom Layers / 30% Infill)</p>
-                              <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">{quoteResult.fileType} Format</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">🧵 Material ({quoteResult.breakdown.material})</span>
-                              <span className="text-[11px] font-black text-gray-800">{fmt(quoteResult.breakdown.filamentPricePerKgEUR)} / kg</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">🧩 Model Mesh Weight</span>
-                              <span className="text-[11px] font-black text-gray-800">{quoteResult.modelGrams}g</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">🪵 Support Structures Weight</span>
-                              <span className="text-[11px] font-black text-gray-800">{quoteResult.supportsGrams}g</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">⚖️ Total Filament ({quoteResult.quantity} pcs · {quoteResult.scalePercent}% scale)</span>
-                              <span className="text-[11px] font-black text-gray-800">{quoteResult.totalGrams}g ({quoteResult.gramsPerUnit}g / pc)</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[11px] text-gray-600 font-medium">⏱️ Estimated Slicer Print Time</span>
-                              <span className="text-[11px] font-black text-gray-800">
-                                {quoteResult.printTimeMinutes >= 60 
-                                  ? `${Math.floor(quoteResult.printTimeMinutes / 60)}h ${quoteResult.printTimeMinutes % 60}m` 
-                                  : `${quoteResult.printTimeMinutes}m`}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center border-t border-gray-100 pt-1.5 mt-1">
-                              <span className="text-[11px] font-black text-gray-900 uppercase tracking-wide">Est. Material Cost</span>
-                              <span className="text-[13px] font-black text-blue-700">{fmt(quoteResult.estimatedPriceEUR)}</span>
-                            </div>
-                          </div>
-
-                          {/* Comprehensive Disclaimer */}
-                          <div className="mx-4 mb-4 mt-1 bg-amber-50 border border-amber-200/80 rounded-xl p-3 flex items-start gap-2.5">
-                            <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
-                            <div className="text-[10px] text-amber-900 font-semibold leading-relaxed space-y-1">
-                              <span className="font-black block uppercase text-[9px] tracking-wider text-amber-800">Rough Material Estimate Only</span>
-                              <p>This price is an indicative preview calculated directly from model volume, scale ({quoteResult.scalePercent}%), quantity ({quoteResult.quantity} pcs), and material density ({quoteResult.breakdown.material} @ {fmt(quoteResult.breakdown.filamentPricePerKgEUR)} / kg).</p>
-                              <div className="pt-0.5 space-y-0.5 text-amber-800 font-medium">
-                                <p>• <strong>Shipping fees:</strong> Not included (selected during final order placement).</p>
-                                <p>• <strong>Supports & orientation:</strong> Additional material may be required for support structures, purge towers, or dense infill.</p>
-                                <p>• <strong>Final proposal:</strong> 3D printers will review your project requirements and confirm their binding offer.</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      <Script
+                        src="https://cdn.get-quot3d.com/widget.js"
+                        strategy="afterInteractive"
+                        onLoad={() => {
+                          if ((window as any).Quot3DWidget) {
+                            try {
+                              (window as any).Quot3DWidget.init({
+                                apiKey: "2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38",
+                                containerId: "quot3d-widget"
+                              });
+                            } catch (e) {
+                              console.warn('Quot3D init error:', e);
+                            }
+                          }
+                        }}
+                      />
                     </div>
                   )}
                 </div>
