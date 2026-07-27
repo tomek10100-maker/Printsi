@@ -1047,7 +1047,7 @@ export default function AddOfferPage() {
                       </div>
                       <div className="w-full rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-lg">
                         <iframe
-                          src="https://get-quot3d.com/embed?key=2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38"
+                          src={`https://get-quot3d.com/embed?key=${process.env.NEXT_PUBLIC_QUOT3D_API_KEY || '2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38'}`}
                           className="w-full min-h-[650px] border-0 rounded-2xl"
                           title="Tomasz Widget"
                         />
