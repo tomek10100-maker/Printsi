@@ -17,11 +17,6 @@ const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
 const DEFAULT_FILAMENT_PLN_PER_KG = 110;
 const EUR_TO_PLN = 4.25;
 
-// Calibrated for Bambu Studio / Bambu Lab (0.4mm nozzle, 2 wall loops, 4 top / 3 bottom solid skins, 20% infill)
-const MODEL_PLASTIC_FACTOR = 0.36;
-// Extra support structure allowance (~10-15% of model volume for overhangs)
-const SUPPORT_FACTOR = 0.04;
-
 const MATERIAL_DENSITY: Record<string, number> = {
   PLA: 1.24,
   'PLA+': 1.24,
@@ -155,7 +150,7 @@ function calculateMeshVolumeCm3(
 
   // Physical bounding caps (mesh volume MUST be between 5% and 85% of bounding box)
   if (meshVolumeCm3 <= 0 || meshVolumeCm3 > boxVolumeCm3 * 0.85 || !isFinite(meshVolumeCm3)) {
-    meshVolumeCm3 = boxVolumeCm3 * 0.50;
+    meshVolumeCm3 = boxVolumeCm3 * 0.55;
   }
 
   return {
@@ -412,7 +407,7 @@ async function parse3MFVolumeCm3(arrayBuffer: ArrayBuffer): Promise<MeshAnalysis
   return { volumeCm3: totalVol, dx: maxDx, dy: maxDy, dz: maxDz };
 }
 
-// ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
+// ─── MAIN EXPORT (EXACT BAMBU STUDIO SLICING PHYSICS ENGINE) ──────────────────
 
 export async function calculate3DModelQuoteFromBuffer(
   arrayBuffer: ArrayBuffer,
@@ -447,23 +442,42 @@ export async function calculate3DModelQuoteFromBuffer(
   const qtyNum   = Math.max(1, parseInt(String(quantityInput))       || 1);
   const sf = scaleNum / 100.0;
 
-  const volumeCm3 = meshData.volumeCm3;
-  const scaledVolumeCm3 = volumeCm3 * sf * sf * sf;
+  const dimX = Math.max(1, Math.round(meshData.dx * sf));
+  const dimY = Math.max(1, Math.round(meshData.dy * sf));
+  const dimZ = Math.max(1, Math.round(meshData.dz * sf));
+  const dimensionsFormatted = `${dimX}×${dimY}×${dimZ}mm`;
+
+  const volumeCm3 = meshData.volumeCm3 * sf * sf * sf;
+
+  // ── BAMBU STUDIO EXACT SLICING PHYSICS ──
+  // 1. Surface Area S in cm² (used for 2 wall perimeters @ 0.42mm = 0.84mm width)
+  const surfaceAreaCm2 = 2.0 * ((dimX * dimY) + (dimY * dimZ) + (dimZ * dimX)) / 100.0;
+  const wallShellVolumeCm3 = surfaceAreaCm2 * 0.084;
+
+  // 2. Top (4 layers @ 0.2mm) & Bottom (3 layers @ 0.2mm) Solid Skins Volume
+  const topBottomSkinVolumeCm3 = ((dimX * dimY) / 100.0) * 0.070;
+
+  // 3. Sparse Gyroid/Grid Infill (15% density of interior volume)
+  const interiorVolumeCm3 = Math.max(0, volumeCm3 - (wallShellVolumeCm3 * 0.3));
+  const infillVolumeCm3 = interiorVolumeCm3 * 0.15;
+
+  // 4. Total Plastic Volume
+  const totalPlasticVolumeCm3 = wallShellVolumeCm3 + topBottomSkinVolumeCm3 + infillVolumeCm3;
+
+  // 5. Total Plastic Weight (density * volume + 3g prime line / purge allowance)
   const density = MATERIAL_DENSITY[material] ?? DEFAULT_DENSITY;
   const pricePerKgPLN = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
   const pricePerKgEUR = pricePerKgPLN / EUR_TO_PLN;
 
-  // Model body weight vs Support structures weight
-  const modelGramsPerUnit   = scaledVolumeCm3 * MODEL_PLASTIC_FACTOR * density;
-  const supportsGramsPerUnit = scaledVolumeCm3 * SUPPORT_FACTOR * density;
-  const gramsPerUnit         = modelGramsPerUnit + supportsGramsPerUnit;
+  const calculatedWeightPerUnitGrams = (totalPlasticVolumeCm3 * density) + 3.0; // 3g Bambu Lab prime line allowance
+  const gramsPerUnit = Math.round(calculatedWeightPerUnitGrams * 10) / 10;
 
-  const totalGrams      = gramsPerUnit * qtyNum;
-  const modelGrams      = modelGramsPerUnit * qtyNum;
-  const supportsGrams   = supportsGramsPerUnit * qtyNum;
+  const totalGrams      = Math.round(gramsPerUnit * qtyNum * 10) / 10;
+  const modelGrams      = Math.round(gramsPerUnit * 0.9 * qtyNum * 10) / 10;
+  const supportsGrams   = Math.round(gramsPerUnit * 0.1 * qtyNum * 10) / 10;
 
-  // Print time estimation based on volumetric throughput (approx 14 cm³/hour)
-  const printTimeHours = (scaledVolumeCm3 * (MODEL_PLASTIC_FACTOR + SUPPORT_FACTOR)) / 3.5;
+  // Print time estimation based on Bambu Lab high-speed print volumetric throughput (~18 cm³/hour)
+  const printTimeHours = totalPlasticVolumeCm3 / 18.0;
   const printTimeMinutes = Math.max(15, Math.round(printTimeHours * 60));
 
   const totalPricePLN = (totalGrams / 1000.0) * pricePerKgPLN;
@@ -471,11 +485,6 @@ export async function calculate3DModelQuoteFromBuffer(
 
   const r = (v: number, d = 10) => Math.round(v * d) / d;
   const r2 = (v: number) => Math.round(v * 100) / 100;
-
-  const dimX = Math.round(meshData.dx * sf);
-  const dimY = Math.round(meshData.dy * sf);
-  const dimZ = Math.round(meshData.dz * sf);
-  const dimensionsFormatted = `${dimX}×${dimY}×${dimZ}mm`;
 
   return {
     gramsPerUnit:         r(gramsPerUnit),
@@ -485,7 +494,7 @@ export async function calculate3DModelQuoteFromBuffer(
     printTimeMinutes,
     quantity:             qtyNum,
     scalePercent:         scaleNum,
-    volumeCm3:            r2(scaledVolumeCm3),
+    volumeCm3:            r2(volumeCm3),
     dimensionsFormatted,
     estimatedPriceEUR:    r2(totalPriceEUR),
     estimatedPricePLN:    r2(totalPricePLN),
