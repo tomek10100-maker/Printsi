@@ -106,6 +106,53 @@ function parseGCodeMetadata(gcodeText: string) {
   return { grams, printTimeMinutes };
 }
 
+/**
+ * Optional OctoPrint REST API slicing integration
+ */
+async function getQuoteFromOctoPrint(fileBuffer: Buffer, fileName: string) {
+  const octoUrl = process.env.OCTOPRINT_URL?.replace(/\/$/, '');
+  const apiKey = process.env.OCTOPRINT_API_KEY;
+  if (!octoUrl || !apiKey) return null;
+
+  try {
+    const formData = new FormData();
+    const blob = new Blob([plainBuffer(fileBuffer)], { type: 'application/octet-stream' });
+    formData.append('file', blob, fileName);
+    formData.append('select', 'false');
+    formData.append('print', 'false');
+
+    const res = await fetch(`${octoUrl}/api/files/local`, {
+      method: 'POST',
+      headers: {
+        'X-Api-Key': apiKey,
+      },
+      body: formData,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const gcodeData = data.gcodeAnalysis || data.file?.gcodeAnalysis;
+      if (gcodeData && gcodeData.filament) {
+        const tool0 = (gcodeData.filament.tool0 || Object.values(gcodeData.filament)[0]) as any;
+        const volumeCm3 = tool0?.volume || 0;
+        const printTimeSec = gcodeData.estimatedPrintTime || 0;
+        return {
+          grams: volumeCm3 * 1.24,
+          printTimeMinutes: Math.round(printTimeSec / 60),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[/api/quote] OctoPrint API call failed:', err);
+  }
+
+  return null;
+}
+
+function plainBuffer(buf: Buffer): ArrayBuffer {
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+}
+
 export async function POST(request: Request) {
   const tmpDir = os.tmpdir();
   let tempFilePath = '';
@@ -137,27 +184,37 @@ export async function POST(request: Request) {
     tempGCodePath = path.join(tmpDir, `${tempId}.gcode`);
 
     const arrayBuffer = await file.arrayBuffer();
-    await fs.promises.writeFile(tempFilePath, Buffer.from(arrayBuffer));
-
-    const prusaExe = findPrusaSlicerExecutable();
-    const profilePath = path.join(process.cwd(), 'prusa_profile.ini');
+    const fileBuffer = Buffer.from(arrayBuffer);
+    await fs.promises.writeFile(tempFilePath, fileBuffer);
 
     let gramsPerUnit = 0;
     let printTimeMinutes = 0;
-    let engine = 'PrusaSlicer-CLI';
+    let engine = 'OctoPrint-API';
 
-    if (prusaExe) {
-      // Execute PrusaSlicer CLI Headless
-      const cmd = `"${prusaExe}" --export-gcode ${fs.existsSync(profilePath) ? `--load "${profilePath}"` : ''} "${tempFilePath}" --output "${tempGCodePath}"`;
-      console.log('[/api/quote] Executing PrusaSlicer CLI:', cmd);
+    // 1. Try OctoPrint API if configured in .env.local
+    const octoResult = await getQuoteFromOctoPrint(fileBuffer, file.name);
+    if (octoResult && octoResult.grams > 0) {
+      gramsPerUnit = octoResult.grams;
+      printTimeMinutes = octoResult.printTimeMinutes;
+      console.log('[/api/quote] Quote calculated via OctoPrint API:', gramsPerUnit, 'g');
+    } else {
+      // 2. Try PrusaSlicer CLI Headless
+      engine = 'PrusaSlicer-CLI';
+      const prusaExe = findPrusaSlicerExecutable();
+      const profilePath = path.join(process.cwd(), 'prusa_profile.ini');
 
-      await execAsync(cmd, { timeout: 45000 });
+      if (prusaExe) {
+        const cmd = `"${prusaExe}" --export-gcode ${fs.existsSync(profilePath) ? `--load "${profilePath}"` : ''} "${tempFilePath}" --output "${tempGCodePath}"`;
+        console.log('[/api/quote] Executing PrusaSlicer CLI:', cmd);
 
-      if (fs.existsSync(tempGCodePath)) {
-        const gcodeContent = await fs.promises.readFile(tempGCodePath, 'utf-8');
-        const parsed = parseGCodeMetadata(gcodeContent);
-        gramsPerUnit = parsed.grams;
-        printTimeMinutes = parsed.printTimeMinutes;
+        await execAsync(cmd, { timeout: 45000 });
+
+        if (fs.existsSync(tempGCodePath)) {
+          const gcodeContent = await fs.promises.readFile(tempGCodePath, 'utf-8');
+          const parsed = parseGCodeMetadata(gcodeContent);
+          gramsPerUnit = parsed.grams;
+          printTimeMinutes = parsed.printTimeMinutes;
+        }
       }
     }
 
