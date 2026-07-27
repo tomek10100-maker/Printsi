@@ -324,11 +324,11 @@ export default function AddOfferPage() {
     }
   }, []);
 
-  // ─── QUOT3D DOM MUTATION OBSERVER (HIDE PRICE & TIME, LEAVE WEIGHT ONLY) ───
+  // ─── QUOT3D DOM MUTATION OBSERVER (SHOW ONLY METRICS BAR: SIZE, WEIGHT, TIME) ───
   useEffect(() => {
     if (category !== 'job') return;
 
-    const hidePriceElements = () => {
+    const showOnlyMetricsBar = () => {
       const widgetContainer = document.getElementById('quot3d-widget');
       if (!widgetContainer) return;
 
@@ -337,15 +337,24 @@ export default function AddOfferPage() {
         const htmlEl = el as HTMLElement;
         const text = (htmlEl.textContent || '').trim();
 
-        // 1. Hide big blue "Your Quote" / Price card
+        // 1. Hide Top Wizard & Headers
+        if (
+          text.includes('Get an Instant Quote') ||
+          text.includes('Powered by Quot3D') ||
+          (text.includes('Upload') && text.includes('Configure') && text.includes('Quote'))
+        ) {
+          htmlEl.style.setProperty('display', 'none', 'important');
+        }
+
+        // 2. Hide Main Price Card ("Your Quote", €10,00)
         if (text.startsWith('Your Quote') || text.includes('Ready in') || /^€\s*\d+/.test(text) || /^\$\s*\d+/.test(text)) {
           const cardWrapper = htmlEl.closest('div');
-          if (cardWrapper && cardWrapper !== widgetContainer) {
+          if (cardWrapper && cardWrapper !== widgetContainer && !cardWrapper.textContent?.includes('Weight')) {
             cardWrapper.style.setProperty('display', 'none', 'important');
           }
         }
 
-        // 2. Hide price breakdown rows (Material price, Print Time price, Minimum Order)
+        // 3. Hide Breakdown Table & Price Rows (Material, Print Time cost, Minimum Order)
         if (
           text.includes('Minimum Order') ||
           (text.startsWith('Material') && (text.includes('€') || text.includes('$'))) ||
@@ -354,27 +363,26 @@ export default function AddOfferPage() {
           htmlEl.style.setProperty('display', 'none', 'important');
         }
 
-        // 3. Hide Time metric box at bottom (keep Size & Weight boxes)
-        if (text.startsWith('Time') && (text.includes('0.') || text.includes('1.') || text.includes('h') || text.includes('m')) && !text.includes('Weight') && !text.includes('Size')) {
-          const boxWrapper = htmlEl.closest('div');
-          if (boxWrapper && boxWrapper !== widgetContainer) {
-            boxWrapper.style.setProperty('display', 'none', 'important');
-          }
+        // 4. Hide Disclaimer text at bottom
+        if (text.includes('Quote is based on the orientation') || text.includes('affect the final price')) {
+          htmlEl.style.setProperty('display', 'none', 'important');
+        }
+
+        // 5. Hide Action Buttons ("Confirm & Submit", "Modify")
+        if (text.includes('Confirm & Submit') || text.includes('Modify') || text.includes('← Modify')) {
+          htmlEl.style.setProperty('display', 'none', 'important');
         }
       });
     };
 
-    const observer = new MutationObserver(() => {
-      hidePriceElements();
-    });
-
+    const observer = new MutationObserver(showOnlyMetricsBar);
     const targetNode = document.getElementById('quot3d-widget');
     if (targetNode) {
       observer.observe(targetNode, { childList: true, subtree: true, characterData: true });
-      hidePriceElements();
+      showOnlyMetricsBar();
     }
 
-    const interval = setInterval(hidePriceElements, 500);
+    const interval = setInterval(showOnlyMetricsBar, 300);
 
     return () => {
       observer.disconnect();
