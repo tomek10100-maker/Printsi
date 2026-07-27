@@ -8,7 +8,8 @@ import {
   Loader2, FileText, Image as ImageIcon, Box, Layers, Printer,
   X, Trash2, ChevronDown, EyeOff, Calculator, Zap, Settings2,
   Wrench, Plus, Minus, Palette, ChevronUp, Ruler, AlertTriangle,
-  Tag, MessageCircle, Handshake, CheckCircle
+  Tag, MessageCircle, Handshake, CheckCircle, Clock, Scale,
+  TrendingUp, Info, RefreshCw
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 
@@ -220,6 +221,60 @@ export default function AddOfferPage() {
 
   const [formError, setFormError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // ─── STL QUOTE STATE ─────────────────────────────────────────────────────────
+  type QuoteResult = {
+    estimatedGrams: number;
+    printTimeMinutes: number;
+    volumeCm3: number;
+    estimatedPriceEUR: number;
+    estimatedPricePLN: number;
+    breakdown: {
+      filamentGrams: number;
+      filamentCostEUR: number;
+      filamentCostPLN: number;
+      machineCostEUR: number;
+      machineCostPLN: number;
+      startupCostEUR: number;
+      startupCostPLN: number;
+      material: string;
+      filamentPricePerKgPLN: number;
+    };
+  };
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
+  const fetchQuote = useCallback(async (file: File, mat: string) => {
+    if (!file || !file.name.toLowerCase().endsWith('.stl')) return;
+    setQuoteLoading(true);
+    setQuoteResult(null);
+    setQuoteError(null);
+    try {
+      const fd = new FormData();
+      fd.append('stl', file);
+      fd.append('material', mat || 'PLA');
+      const res = await fetch('/api/quote', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Quote failed');
+      setQuoteResult(data);
+    } catch (err: any) {
+      setQuoteError(err.message || 'Could not analyse STL file.');
+    } finally {
+      setQuoteLoading(false);
+    }
+  }, []);
+
+  // Re-fetch quote whenever STL file or material changes (job category only)
+  useEffect(() => {
+    if (category === 'job' && projectFile && projectFile.name.toLowerCase().endsWith('.stl')) {
+      fetchQuote(projectFile, manualMaterial || 'PLA');
+    } else if (category !== 'job') {
+      setQuoteResult(null);
+      setQuoteError(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectFile, manualMaterial, category]);
 
   useEffect(() => {
     if (formError) {
@@ -714,11 +769,132 @@ export default function AddOfferPage() {
             <section className="space-y-4">
               <SectionLabel step="3" label="Attachments" />
               {(category === 'digital' || category === 'job') && (
-                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
-                  <FileText className={`mb-3 ${projectFile ? 'text-green-600' : 'text-gray-400 group-hover:text-blue-500'}`} size={32} />
-                  <span className="text-xs font-black uppercase text-gray-500">{projectFile ? projectFile.name : 'Upload 3D File (.STL)'}</span>
-                  <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
-                </label>
+                <div className="space-y-3">
+                  <label className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-all group ${
+                    projectFile ? 'border-green-400 bg-green-50 hover:bg-green-100' : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
+                  }`}>
+                    <FileText className={`mb-3 transition-colors ${projectFile ? 'text-green-600' : 'text-gray-400 group-hover:text-blue-500'}`} size={32} />
+                    <span className="text-xs font-black uppercase text-gray-600">
+                      {projectFile ? projectFile.name : 'Upload 3D File (.STL)'}
+                    </span>
+                    {projectFile && (
+                      <span className="text-[10px] text-green-600 font-bold mt-1">
+                        {(projectFile.size / 1024 / 1024).toFixed(2)} MB · Click to replace
+                      </span>
+                    )}
+                    <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
+                  </label>
+
+                  {/* ── INSTANT QUOTE PANEL (job + STL only) ── */}
+                  {category === 'job' && (projectFile?.name?.toLowerCase().endsWith('.stl') || quoteLoading || quoteResult || quoteError) && (
+                    <div className="relative overflow-hidden rounded-2xl border border-blue-200/60 shadow-lg shadow-blue-100/40">
+                      {/* Header bar */}
+                      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-800 via-blue-900 to-slate-900">
+                        <div className="flex items-center gap-2">
+                          <Calculator size={15} className="text-blue-400" />
+                          <span className="text-[11px] font-black uppercase text-white tracking-[0.15em]">Instant Cost Estimate</span>
+                        </div>
+                        {projectFile && !quoteLoading && (
+                          <button
+                            type="button"
+                            onClick={() => fetchQuote(projectFile, manualMaterial || 'PLA')}
+                            className="flex items-center gap-1.5 text-[10px] font-black text-blue-300 hover:text-white transition-colors"
+                          >
+                            <RefreshCw size={11} /> Recalculate
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Loading state */}
+                      {quoteLoading && (
+                        <div className="flex items-center justify-center gap-3 py-8 bg-white">
+                          <Loader2 size={20} className="animate-spin text-blue-500" />
+                          <span className="text-sm font-bold text-gray-500">Analysing STL geometry…</span>
+                        </div>
+                      )}
+
+                      {/* Error state */}
+                      {!quoteLoading && quoteError && (
+                        <div className="p-4 bg-red-50 flex items-start gap-3">
+                          <AlertTriangle size={16} className="text-red-500 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-xs font-black text-red-700 uppercase tracking-wide">Analysis Failed</p>
+                            <p className="text-[11px] text-red-600 font-medium mt-0.5">{quoteError}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Results state */}
+                      {!quoteLoading && quoteResult && (
+                        <div className="bg-white">
+                          {/* Key metrics row */}
+                          <div className="grid grid-cols-3 divide-x divide-gray-100">
+                            <div className="flex flex-col items-center py-4 px-3">
+                              <Scale size={16} className="text-indigo-500 mb-1.5" />
+                              <p className="text-lg font-black text-gray-900">{quoteResult.estimatedGrams}g</p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Filament</p>
+                            </div>
+                            <div className="flex flex-col items-center py-4 px-3">
+                              <Clock size={16} className="text-blue-500 mb-1.5" />
+                              <p className="text-lg font-black text-gray-900">
+                                {quoteResult.printTimeMinutes >= 60
+                                  ? `${Math.floor(quoteResult.printTimeMinutes / 60)}h ${quoteResult.printTimeMinutes % 60}m`
+                                  : `${quoteResult.printTimeMinutes}m`}
+                              </p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Print Time</p>
+                            </div>
+                            <div className="flex flex-col items-center py-4 px-3 bg-blue-50/60">
+                              <TrendingUp size={16} className="text-blue-600 mb-1.5" />
+                              <p className="text-lg font-black text-blue-700">
+                                {currency === 'PLN'
+                                  ? `${quoteResult.estimatedPricePLN.toFixed(2)} PLN`
+                                  : fmt(quoteResult.estimatedPriceEUR)}
+                              </p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">Est. Price</p>
+                            </div>
+                          </div>
+
+                          {/* Breakdown table */}
+                          <div className="border-t border-gray-100 px-4 py-3 space-y-1.5">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Price Breakdown</p>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] text-gray-600 font-medium">🧵 Filament ({quoteResult.breakdown.material} · {quoteResult.breakdown.filamentGrams}g)</span>
+                              <span className="text-[11px] font-black text-gray-800">{quoteResult.breakdown.filamentCostPLN.toFixed(2)} PLN</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] text-gray-600 font-medium">🖨️ Machine time ({quoteResult.printTimeMinutes >= 60 ? `${Math.floor(quoteResult.printTimeMinutes / 60)}h ${quoteResult.printTimeMinutes % 60}m` : `${quoteResult.printTimeMinutes}m`})</span>
+                              <span className="text-[11px] font-black text-gray-800">{quoteResult.breakdown.machineCostPLN.toFixed(2)} PLN</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[11px] text-gray-600 font-medium">⚙️ Setup & preparation</span>
+                              <span className="text-[11px] font-black text-gray-800">{quoteResult.breakdown.startupCostPLN.toFixed(2)} PLN</span>
+                            </div>
+                            <div className="flex justify-between items-center border-t border-gray-100 pt-1.5 mt-1">
+                              <span className="text-[11px] font-black text-gray-900 uppercase tracking-wide">Total estimate</span>
+                              <span className="text-[13px] font-black text-blue-700">{quoteResult.estimatedPricePLN.toFixed(2)} PLN</span>
+                            </div>
+                          </div>
+
+                          {/* Disclaimer */}
+                          <div className="mx-4 mb-4 mt-1 bg-amber-50 border border-amber-200/80 rounded-xl p-3 flex items-start gap-2.5">
+                            <Info size={13} className="text-amber-600 mt-0.5 shrink-0" />
+                            <p className="text-[10px] text-amber-800 font-semibold leading-relaxed">
+                              <span className="font-black block uppercase text-[9px] tracking-wider text-amber-700 mb-0.5">Indicative Estimate Only</span>
+                              The final price offered by the printer may differ due to required support structures, nozzle changes between colors, print orientation, post-processing, and printer-specific settings. Use this figure as a rough guide when setting your budget.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Prompt: select material first */}
+                      {!quoteLoading && !quoteResult && !quoteError && projectFile?.name?.toLowerCase().endsWith('.stl') && !manualMaterial && (
+                        <div className="p-4 bg-white text-center">
+                          <p className="text-xs text-gray-500 font-bold">↓ Select a material below to get an instant estimate</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
                 <ImageIcon className="mb-3 text-gray-400 group-hover:text-blue-500" size={32} />
