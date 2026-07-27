@@ -248,7 +248,12 @@ export default function AddOfferPage() {
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
   const fetchQuote = useCallback(async (file: File, mat: string) => {
-    if (!file || !file.name.toLowerCase().endsWith('.stl')) return;
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.stl')) {
+      setQuoteResult(null);
+      setQuoteError('Instant automatic price estimate is optimized for .STL files.');
+      return;
+    }
     setQuoteLoading(true);
     setQuoteResult(null);
     setQuoteError(null);
@@ -257,6 +262,7 @@ export default function AddOfferPage() {
       const result = calculateSTLQuoteFromBuffer(arrayBuffer, file.name, mat || 'PLA');
       setQuoteResult(result);
     } catch (err: any) {
+      console.error("Quote error:", err);
       setQuoteError(err.message || 'Could not analyse STL file.');
     } finally {
       setQuoteLoading(false);
@@ -265,14 +271,13 @@ export default function AddOfferPage() {
 
   // Re-fetch quote whenever STL file or material changes (job category only)
   useEffect(() => {
-    if (category === 'job' && projectFile && projectFile.name.toLowerCase().endsWith('.stl')) {
+    if (category === 'job' && projectFile) {
       fetchQuote(projectFile, manualMaterial || 'PLA');
     } else if (category !== 'job') {
       setQuoteResult(null);
       setQuoteError(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectFile, manualMaterial, category]);
+  }, [projectFile, manualMaterial, category, fetchQuote]);
 
   useEffect(() => {
     if (formError) {
@@ -786,8 +791,8 @@ export default function AddOfferPage() {
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
 
-                  {/* ── INSTANT QUOTE PANEL (job + STL only) ── */}
-                  {category === 'job' && (projectFile?.name?.toLowerCase().endsWith('.stl') || quoteLoading || quoteResult || quoteError) && (
+                  {/* ── INSTANT QUOTE PANEL (job + attached 3D file) ── */}
+                  {category === 'job' && projectFile && (
                     <div className="relative overflow-hidden rounded-2xl border border-blue-200/60 shadow-lg shadow-blue-100/40">
                       {/* Header bar */}
                       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-800 via-blue-900 to-slate-900">

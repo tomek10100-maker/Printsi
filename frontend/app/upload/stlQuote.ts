@@ -65,14 +65,18 @@ export function calculateSTLQuoteFromBuffer(arrayBuffer: ArrayBuffer, fileName: 
   const dataView = new DataView(arrayBuffer);
   const bytes = new Uint8Array(arrayBuffer);
 
-  // Check ASCII vs Binary
+  // Check ASCII vs Binary safely (UTF-8 handles ASCII)
   let isAscii = false;
-  const headerStr = new TextDecoder('ascii').decode(bytes.subarray(0, Math.min(80, bytes.length)));
-  if (headerStr.trimStart().toLowerCase().startsWith('solid')) {
-    const sample = new TextDecoder('utf8').decode(bytes.subarray(0, Math.min(bytes.length, 2000)));
-    if (sample.includes('facet') || sample.includes('FACET') || sample.includes('vertex')) {
-      isAscii = true;
+  try {
+    const headerStr = new TextDecoder('utf-8').decode(bytes.subarray(0, Math.min(80, bytes.length)));
+    if (headerStr.trimStart().toLowerCase().startsWith('solid')) {
+      const sample = new TextDecoder('utf-8').decode(bytes.subarray(0, Math.min(bytes.length, 2000)));
+      if (sample.includes('facet') || sample.includes('FACET') || sample.includes('vertex')) {
+        isAscii = true;
+      }
     }
+  } catch (e) {
+    isAscii = false;
   }
 
   let signedVolume = 0;
