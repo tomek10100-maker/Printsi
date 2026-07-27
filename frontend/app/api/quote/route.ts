@@ -144,6 +144,8 @@ export async function POST(request: Request) {
 
     let gramsPerUnit = 0;
     let printTimeMinutes = 0;
+    let engine = 'PrusaSlicer-CLI';
+
     if (prusaExe) {
       // Execute PrusaSlicer CLI Headless
       const cmd = `"${prusaExe}" --export-gcode ${fs.existsSync(profilePath) ? `--load "${profilePath}"` : ''} "${tempFilePath}" --output "${tempGCodePath}"`;
@@ -169,8 +171,6 @@ export async function POST(request: Request) {
         engine,
         fileName: file.name,
         material,
-        quantity,
-        scalePercent,
         ...geomQuote
       });
     }
