@@ -1,20 +1,18 @@
-// ─── 3D MODEL COST ESTIMATOR (STL & 3MF - ACCURATE GEOMETRY ENGINE) ──────────────
+// ─── 3D MODEL COST ESTIMATOR & PARCEL ADAPTER (EXACT BAMBU PHYSICS ENGINE) ──────────────
 
-const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
-  PLA: 105,
-  'PLA+': 108,
-  PETG: 117,
-  ABS: 112,
-  ASA: 145,
-  TPU: 162,
-  'PLA-CF': 205,
-  'PETG-CF': 205,
-  PA: 255,
-  PC: 270,
-  HIPS: 122,
-  PVA: 390,
+const PRICE_PER_GRAM_PLN: Record<string, number> = {
+  PLA: 0.11,
+  'PLA+': 0.12,
+  PETG: 0.12,
+  ABS: 0.11,
+  ASA: 0.15,
+  TPU: 0.175,
+  PA: 0.28,
+  PC: 0.27,
+  RESIN: 0.20,
+  OTHER: 0.22,
 };
-const DEFAULT_FILAMENT_PLN_PER_KG = 110;
+const DEFAULT_PRICE_PER_GRAM_PLN = 0.12;
 const EUR_TO_PLN = 4.25;
 
 const MATERIAL_DENSITY: Record<string, number> = {
@@ -30,6 +28,8 @@ const MATERIAL_DENSITY: Record<string, number> = {
   PC: 1.20,
   HIPS: 1.04,
   PVA: 1.23,
+  RESIN: 1.18,
+  OTHER: 1.20,
 };
 const DEFAULT_DENSITY = 1.24;
 
@@ -43,21 +43,29 @@ export type QuoteResult = {
   scalePercent: number;
   volumeCm3: number;
   dimensionsFormatted: string;
+  parcelDimensionsFormatted: string;
+  parcelBoxMm: { x: number; y: number; z: number };
   estimatedPriceEUR: number;
   estimatedPricePLN: number;
-  filamentPricePerKgEUR: number;
-  filamentPricePerKgPLN: number;
+  pricePerGramPLN: number;
+  pricePerGramEUR: number;
   fileType: 'STL' | '3MF';
   breakdown: {
     material: string;
-    filamentPricePerKgPLN: number;
-    filamentPricePerKgEUR: number;
+    pricePerGramPLN: number;
+    pricePerGramEUR: number;
+    rawMaterialCostPLN: number;
+    rawMaterialCostEUR: number;
+    supportsCostPLN: number;
+    supportsCostEUR: number;
+    machineWearCostPLN: number;
+    machineWearCostEUR: number;
+    energyPostProcessingCostPLN: number;
+    energyPostProcessingCostEUR: number;
     gramsPerUnit: number;
     quantity: number;
     scalePercent: number;
     totalGrams: number;
-    modelGrams: number;
-    supportsGrams: number;
     printTimeMinutes: number;
     totalPricePLN: number;
     totalPriceEUR: number;
@@ -407,7 +415,7 @@ async function parse3MFVolumeCm3(arrayBuffer: ArrayBuffer): Promise<MeshAnalysis
   return { volumeCm3: totalVol, dx: maxDx, dy: maxDy, dz: maxDz };
 }
 
-// ─── MAIN EXPORT (EXACT BAMBU STUDIO SLICING PHYSICS ENGINE) ──────────────────
+// ─── MAIN EXPORT (MULTI-FACTOR PRICING ENGINE & PARCEL ADAPTER) ──────────────
 
 export async function calculate3DModelQuoteFromBuffer(
   arrayBuffer: ArrayBuffer,
@@ -447,6 +455,12 @@ export async function calculate3DModelQuoteFromBuffer(
   const dimZ = Math.max(1, Math.round(meshData.dz * sf));
   const dimensionsFormatted = `${dimX}×${dimY}×${dimZ}mm`;
 
+  // 📦 Parcel box adaptation (+15mm padding per side for safe packaging)
+  const parcelX = dimX + 30;
+  const parcelY = dimY + 30;
+  const parcelZ = dimZ + 30;
+  const parcelDimensionsFormatted = `${parcelX}×${parcelY}×${parcelZ}mm`;
+
   const volumeCm3 = meshData.volumeCm3 * sf * sf * sf;
 
   // ── BAMBU STUDIO CALIBRATED SLICING PHYSICS ──
@@ -468,9 +482,10 @@ export async function calculate3DModelQuoteFromBuffer(
   const totalPlasticVolumeCm3 = wallShellVolumeCm3 + topBottomSkinVolumeCm3 + infillVolumeCm3;
 
   // 5. Total Plastic Weight (density * volume + 1.5g prime line allowance)
-  const density = MATERIAL_DENSITY[material] ?? DEFAULT_DENSITY;
-  const pricePerKgPLN = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
-  const pricePerKgEUR = pricePerKgPLN / EUR_TO_PLN;
+  const matKey = (material || 'PLA').toUpperCase();
+  const density = MATERIAL_DENSITY[matKey] ?? DEFAULT_DENSITY;
+  const pricePerGramPLN = PRICE_PER_GRAM_PLN[matKey] ?? DEFAULT_PRICE_PER_GRAM_PLN;
+  const pricePerGramEUR = pricePerGramPLN / EUR_TO_PLN;
 
   const calculatedWeightPerUnitGrams = (totalPlasticVolumeCm3 * density) + 1.5;
   const gramsPerUnit = Math.round(calculatedWeightPerUnitGrams * 10) / 10;
@@ -479,12 +494,30 @@ export async function calculate3DModelQuoteFromBuffer(
   const modelGrams      = Math.round(gramsPerUnit * 0.9 * qtyNum * 10) / 10;
   const supportsGrams   = Math.round(gramsPerUnit * 0.1 * qtyNum * 10) / 10;
 
+  // ── MULTI-FACTOR INSTANT PRICE CALCULATOR ──
+  // A. Raw Plastic Material Cost
+  const rawMaterialCostPLN = totalGrams * pricePerGramPLN;
+  const rawMaterialCostEUR = rawMaterialCostPLN / EUR_TO_PLN;
+
+  // B. Support Structures & Overhang Allowance (+10%)
+  const supportsCostPLN = rawMaterialCostPLN * 0.10;
+  const supportsCostEUR = supportsCostPLN / EUR_TO_PLN;
+
+  // C. Printer Machine Operating & Wear Fee (15.00 PLN flat fee per job)
+  const machineWearCostPLN = 15.00;
+  const machineWearCostEUR = machineWearCostPLN / EUR_TO_PLN;
+
+  // D. Energy & Post-Processing Cleaning Fee (10.00 PLN flat fee per job)
+  const energyPostProcessingCostPLN = 10.00;
+  const energyPostProcessingCostEUR = energyPostProcessingCostPLN / EUR_TO_PLN;
+
+  // Total Job Price
+  const totalPricePLN = rawMaterialCostPLN + supportsCostPLN + machineWearCostPLN + energyPostProcessingCostPLN;
+  const totalPriceEUR = totalPricePLN / EUR_TO_PLN;
+
   // Print time estimation based on Bambu Lab high-speed print volumetric throughput (~18 cm³/hour)
   const printTimeHours = totalPlasticVolumeCm3 / 18.0;
   const printTimeMinutes = Math.max(15, Math.round(printTimeHours * 60));
-
-  const totalPricePLN = (totalGrams / 1000.0) * pricePerKgPLN;
-  const totalPriceEUR = totalPricePLN / EUR_TO_PLN;
 
   const r = (v: number, d = 10) => Math.round(v * d) / d;
   const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -499,21 +532,29 @@ export async function calculate3DModelQuoteFromBuffer(
     scalePercent:         scaleNum,
     volumeCm3:            r2(volumeCm3),
     dimensionsFormatted,
+    parcelDimensionsFormatted,
+    parcelBoxMm: { x: parcelX, y: parcelY, z: parcelZ },
     estimatedPriceEUR:    r2(totalPriceEUR),
     estimatedPricePLN:    r2(totalPricePLN),
-    filamentPricePerKgEUR: r2(pricePerKgEUR),
-    filamentPricePerKgPLN: pricePerKgPLN,
+    pricePerGramPLN,
+    pricePerGramEUR:      r2(pricePerGramEUR),
     fileType: is3MF ? '3MF' : 'STL',
     breakdown: {
       material:              material || 'PLA',
-      filamentPricePerKgPLN: pricePerKgPLN,
-      filamentPricePerKgEUR: r2(pricePerKgEUR),
+      pricePerGramPLN,
+      pricePerGramEUR:       r2(pricePerGramEUR),
+      rawMaterialCostPLN:    r2(rawMaterialCostPLN),
+      rawMaterialCostEUR:    r2(rawMaterialCostEUR),
+      supportsCostPLN:       r2(supportsCostPLN),
+      supportsCostEUR:       r2(supportsCostEUR),
+      machineWearCostPLN:    r2(machineWearCostPLN),
+      machineWearCostEUR:    r2(machineWearCostEUR),
+      energyPostProcessingCostPLN: r2(energyPostProcessingCostPLN),
+      energyPostProcessingCostEUR: r2(energyPostProcessingCostEUR),
       gramsPerUnit:          r(gramsPerUnit),
       quantity:              qtyNum,
       scalePercent:          scaleNum,
       totalGrams:            r(totalGrams),
-      modelGrams:            r(modelGrams),
-      supportsGrams:         r(supportsGrams),
       printTimeMinutes,
       totalPricePLN:         r2(totalPricePLN),
       totalPriceEUR:         r2(totalPriceEUR),

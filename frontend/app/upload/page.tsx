@@ -759,17 +759,22 @@ export default function AddOfferPage() {
         }
       } else {
         // Digital or Job
-        dbPrice = isNegotiable ? 0 : manualPriceEUR!;
+        if (category === 'job' && quoteResult) {
+          dbPrice = isNegotiable ? 0 : quoteResult.estimatedPriceEUR;
+          dbWeight = quoteResult.totalGrams.toString();
+        } else {
+          dbPrice = isNegotiable ? 0 : manualPriceEUR!;
+          dbWeight = manualWeight || null;
+        }
         dbMaterial = manualMaterial === 'Other' ? customMaterialName : (manualMaterial || null);
         dbColor = manualColorHex || null;
         dbColorName = manualColor || null;
-        dbWeight = manualWeight || null;
         dbStock = category === 'digital' ? 999999 : (parseInt(manualStock) || 1);
       }
 
       // Try insert with color_variants, fall back without if column missing
       const finalDimensions = category === 'job' 
-        ? `Scale: ${printScale || '100'}%` 
+        ? (quoteResult ? `${quoteResult.dimensionsFormatted} (Parcel Box: ${quoteResult.parcelDimensionsFormatted})` : `Scale: ${printScale || '100'}%`)
         : (category === 'physical' ? serializeDimensions() || null : null);
       const basePayload = {
         title, description, price: dbPrice, category,
@@ -1151,30 +1156,106 @@ export default function AddOfferPage() {
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
 
-                  {/* ── CLEAN AUTOMATIC MODEL METRICS BAR (SIZE & WEIGHT ONLY) ── */}
+                  {/* ── 3D MODEL SPECS & INSTANT PRICE BREAKDOWN CARD (100% ENGLISH) ── */}
                   {category === 'job' && projectFile && (
-                    <div className="mt-3 bg-slate-900 text-white rounded-2xl p-4 shadow-lg border border-slate-800 space-y-2">
+                    <div className="mt-4 space-y-3">
                       {quoteLoading ? (
-                        <div className="flex items-center gap-3 py-1">
+                        <div className="flex items-center gap-3 p-4 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-md">
                           <Loader2 size={18} className="animate-spin text-blue-400 shrink-0" />
-                          <span className="text-xs font-semibold text-slate-300">Analizowanie wymiarów i wagi modelu 3D...</span>
+                          <span className="text-xs font-semibold text-slate-300">Analyzing 3D geometry & parcel sizing...</span>
                         </div>
                       ) : quoteResult ? (
-                        <div className="grid grid-cols-2 divide-x divide-slate-800">
-                          {/* Size box */}
-                          <div className="flex flex-col items-center justify-center px-3 py-1">
-                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Size</span>
-                            <span className="text-base font-black text-white font-mono">{quoteResult.dimensionsFormatted}</span>
+                        <div className="space-y-3">
+                          {/* Specs Bar (3 Columns: Model Size, Recommended Parcel Box, Weight) */}
+                          <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-xl border border-slate-800">
+                            <div className="grid grid-cols-3 divide-x divide-slate-800">
+                              {/* Model Dimensions */}
+                              <div className="flex flex-col items-center justify-center px-2 text-center">
+                                <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Model Size</span>
+                                <span className="text-sm font-black text-white font-mono">{quoteResult.dimensionsFormatted}</span>
+                              </div>
+
+                              {/* Recommended Parcel Box */}
+                              <div className="flex flex-col items-center justify-center px-2 text-center">
+                                <span className="text-[9px] font-black uppercase text-blue-400 tracking-widest mb-1">📦 Box Size</span>
+                                <span className="text-sm font-black text-blue-300 font-mono">{quoteResult.parcelDimensionsFormatted}</span>
+                              </div>
+
+                              {/* Net Weight */}
+                              <div className="flex flex-col items-center justify-center px-2 text-center">
+                                <span className="text-[9px] font-black uppercase text-emerald-400 tracking-widest mb-1">Net Weight</span>
+                                <span className="text-sm font-black text-emerald-300 font-mono">{quoteResult.totalGrams}g</span>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Weight box */}
-                          <div className="flex flex-col items-center justify-center px-3 py-1">
-                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Weight</span>
-                            <span className="text-base font-black text-blue-400 font-mono">{quoteResult.totalGrams}g</span>
+                          {/* Detailed Price Quote Card (Localized Currency & Full English) */}
+                          <div className="bg-white rounded-2xl border-2 border-blue-100 shadow-lg overflow-hidden">
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white">
+                              <div className="flex items-center gap-2">
+                                <Calculator size={16} className="text-blue-400" />
+                                <span className="text-xs font-black uppercase tracking-wider">Instant Estimated Quote</span>
+                              </div>
+                              <span className="text-[9px] font-black uppercase text-blue-400 bg-blue-950/80 px-2.5 py-0.5 rounded-full border border-blue-800">
+                                Live Engine
+                              </span>
+                            </div>
+
+                            {/* Main Total Price */}
+                            <div className="px-5 py-4 bg-blue-50/50 border-b border-blue-100 flex items-center justify-between">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Estimated Total</span>
+                                <span className="text-2xl font-black text-blue-900">
+                                  {currency === 'PLN'
+                                    ? `${quoteResult.breakdown.totalPricePLN.toFixed(2)} PLN`
+                                    : currency === 'USD'
+                                    ? `$${(quoteResult.estimatedPriceEUR * 1.08).toFixed(2)}`
+                                    : `€${quoteResult.estimatedPriceEUR.toFixed(2)}`}
+                                </span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Est. Production Time</span>
+                                <span className="text-xs font-bold text-gray-700">~{Math.ceil(quoteResult.printTimeMinutes / 60)}h</span>
+                              </div>
+                            </div>
+
+                            {/* Detailed Cost Breakdown Items */}
+                            <div className="px-5 py-3 text-xs space-y-2 font-medium text-gray-600 bg-white">
+                              <div className="flex items-center justify-between">
+                                <span>🧵 Raw Plastic Material ({quoteResult.totalGrams}g @ {currency === 'PLN' ? `${quoteResult.breakdown.pricePerGramPLN} PLN/g` : `€${quoteResult.breakdown.pricePerGramEUR}/g`})</span>
+                                <span className="font-bold text-gray-800">
+                                  {currency === 'PLN' ? `${quoteResult.breakdown.rawMaterialCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.rawMaterialCostEUR.toFixed(2)}`}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-gray-500">
+                                <span>🏗️ Support Structures & Overhang Allowance (+10%)</span>
+                                <span className="font-semibold">
+                                  {currency === 'PLN' ? `${quoteResult.breakdown.supportsCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.supportsCostEUR.toFixed(2)}`}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-gray-500">
+                                <span>🖨️ Printer Machine Operating & Wear Fee</span>
+                                <span className="font-semibold">
+                                  {currency === 'PLN' ? `${quoteResult.breakdown.machineWearCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.machineWearCostEUR.toFixed(2)}`}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-gray-500">
+                                <span>⚡ Energy & Post-Processing Cleaning Fee</span>
+                                <span className="font-semibold">
+                                  {currency === 'PLN' ? `${quoteResult.breakdown.energyPostProcessingCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.energyPostProcessingCostEUR.toFixed(2)}`}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Disclaimer Footer */}
+                            <div className="px-4 py-2.5 bg-slate-50 border-t border-gray-100 text-[10px] text-gray-500 font-medium leading-tight">
+                              ⚠️ <strong>Note:</strong> Quote is based on automated geometry slicing including material weight, supports, machine wear, and energy fees. Final offer may be adjusted by maker based on print orientation and custom preferences.
+                            </div>
                           </div>
                         </div>
                       ) : quoteError ? (
-                        <div className="text-xs text-red-400 font-semibold">{quoteError}</div>
+                        <div className="p-3 bg-red-50 border border-red-200 text-xs text-red-600 font-semibold rounded-xl">{quoteError}</div>
                       ) : null}
                     </div>
                   )}
