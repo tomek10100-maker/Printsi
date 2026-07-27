@@ -225,24 +225,6 @@ export default function AddOfferPage() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
   // ─── STL QUOTE STATE ─────────────────────────────────────────────────────────
-  type QuoteResult = {
-    estimatedGrams: number;
-    printTimeMinutes: number;
-    volumeCm3: number;
-    estimatedPriceEUR: number;
-    estimatedPricePLN: number;
-    breakdown: {
-      filamentGrams: number;
-      filamentCostEUR: number;
-      filamentCostPLN: number;
-      machineCostEUR: number;
-      machineCostPLN: number;
-      startupCostEUR: number;
-      startupCostPLN: number;
-      material: string;
-      filamentPricePerKgPLN: number;
-    };
-  };
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);

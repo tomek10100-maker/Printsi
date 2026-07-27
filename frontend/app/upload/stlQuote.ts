@@ -142,9 +142,9 @@ async function parse3MFVolumeCm3(arrayBuffer: ArrayBuffer): Promise<{ volumeCm3:
       const payloadBytes = bytes.subarray(payloadStart, payloadStart + compSize);
       if (compression === 0) {
         modelXmlText = new TextDecoder('utf-8').decode(payloadBytes);
-      } else if (compression === 8 && typeof DecompressStream !== 'undefined') {
+      } else if (compression === 8 && typeof DecompressionStream !== 'undefined') {
         try {
-          const ds = new DecompressStream('deflate-raw');
+          const ds = new DecompressionStream('deflate-raw');
           const writer = ds.writable.getWriter();
           writer.write(payloadBytes);
           writer.close();
