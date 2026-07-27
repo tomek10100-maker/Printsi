@@ -1043,7 +1043,7 @@ export default function AddOfferPage() {
                           </div>
 
                           <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest pt-0.5">
-                            <span>0.4mm Nozzle · 30% Infill Grid (0.20mm Layers)</span>
+                            <span>0.4mm Nozzle · 2 Walls · 3 Top/Bottom Layers · 30% Infill</span>
                             <span>Est. ~15s</span>
                           </div>
                         </div>
@@ -1096,7 +1096,7 @@ export default function AddOfferPage() {
                           {/* Breakdown table */}
                           <div className="border-t border-gray-100 px-4 py-3 space-y-1.5">
                             <div className="flex items-center justify-between mb-2">
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Slicer Simulation Breakdown (0.4mm Nozzle / 30% Infill)</p>
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Slicer Breakdown (0.4mm Nozzle / 2 Walls / 3 Top-Bottom Layers / 30% Infill)</p>
                               <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">{quoteResult.fileType} Format</span>
                             </div>
                             <div className="flex justify-between items-center">

@@ -17,10 +17,10 @@ const FILAMENT_PRICE_PLN_PER_KG: Record<string, number> = {
 const DEFAULT_FILAMENT_PLN_PER_KG = 110;
 const EUR_TO_PLN = 4.25;
 
-// Calibrated for 0.4mm standard nozzle with 30% infill density + perimeter walls
-const MODEL_PLASTIC_FACTOR = 0.32;
+// Calibrated for 0.4mm nozzle, 2 perimeter walls, 3 top/bottom solid layers, and 30% infill grid
+const MODEL_PLASTIC_FACTOR = 0.27;
 // Extra support structure allowance (~10-15% of model volume for overhangs)
-const SUPPORT_FACTOR = 0.04;
+const SUPPORT_FACTOR = 0.03;
 
 const MATERIAL_DENSITY: Record<string, number> = {
   PLA: 1.24,
