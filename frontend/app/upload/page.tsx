@@ -319,40 +319,19 @@ export default function AddOfferPage() {
     }
   }, []);
 
-  // ─── QUOT3D WIDGET INTEGRATION ──────────────────────────────────────────────
-  const [quot3DLoaded, setQuot3DLoaded] = useState(false);
-
+  // ─── QUOT3D AUTO-RESIZE MESSAGE LISTENER ────────────────────────────────────
   useEffect(() => {
-    if (category === 'job') {
-      const existingScript = document.querySelector('script[src="https://cdn.get-quot3d.com/widget.js"]');
-      
-      const initWidget = () => {
-        if ((window as any).Quot3DWidget) {
-          try {
-            (window as any).Quot3DWidget.init({
-              apiKey: "2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38",
-              containerId: "quot3d-widget"
-            });
-            setQuot3DLoaded(true);
-          } catch (e) {
-            console.warn('Quot3D init error:', e);
-          }
+    const handleResizeMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'quot3d-resize') {
+        const iframe = document.querySelector('iframe[src*="get-quot3d.com/embed"]') as HTMLIFrameElement;
+        if (iframe && e.data.height) {
+          iframe.style.height = `${e.data.height}px`;
         }
-      };
-
-      if (!existingScript) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.get-quot3d.com/widget.js';
-        script.async = true;
-        script.onload = () => {
-          setTimeout(initWidget, 150);
-        };
-        document.body.appendChild(script);
-      } else {
-        setTimeout(initWidget, 150);
       }
-    }
-  }, [category]);
+    };
+    window.addEventListener('message', handleResizeMessage);
+    return () => window.removeEventListener('message', handleResizeMessage);
+  }, []);
 
   // Re-fetch quote whenever STL/3MF file, material, scale, or quantity changes (job category only)
   useEffect(() => {
@@ -1052,39 +1031,27 @@ export default function AddOfferPage() {
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
 
-                  {/* ── QUOT3D OFFICIAL WIDGET CONTAINER ── */}
+                  {/* ── TOMASZ QUOT3D OFFICIAL WIDGET (IFRAME EMBED) ── */}
                   {category === 'job' && (
                     <div className="mt-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Calculator size={16} className="text-blue-600" />
                           <span className="text-xs font-black uppercase text-gray-900 tracking-wider">
-                            Quot3D Slicer & Instant Estimator
+                            Tomasz Quote Widget (Quot3D)
                           </span>
                         </div>
                         <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
-                          Official Widget
+                          Live Slicer Engine
                         </span>
                       </div>
-                      <div className="w-full min-h-[500px] rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-md p-2">
-                        <div id="quot3d-widget" className="w-full min-h-[480px]"></div>
+                      <div className="w-full rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-lg">
+                        <iframe
+                          src="https://get-quot3d.com/embed?key=2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38"
+                          className="w-full min-h-[650px] border-0 rounded-2xl"
+                          title="Tomasz Widget"
+                        />
                       </div>
-                      <Script
-                        src="https://cdn.get-quot3d.com/widget.js"
-                        strategy="afterInteractive"
-                        onLoad={() => {
-                          if ((window as any).Quot3DWidget) {
-                            try {
-                              (window as any).Quot3DWidget.init({
-                                apiKey: "2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38",
-                                containerId: "quot3d-widget"
-                              });
-                            } catch (e) {
-                              console.warn('Quot3D init error:', e);
-                            }
-                          }
-                        }}
-                      />
                     </div>
                   )}
                 </div>
