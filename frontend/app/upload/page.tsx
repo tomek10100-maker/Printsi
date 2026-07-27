@@ -1085,76 +1085,44 @@ export default function AddOfferPage() {
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
 
-                  {/* ── QUOT3D WIDGET: off-screen, fully rendered, invisible to user ── */}
+                  {/* ── QUOT3D DOM SCRIPT WIDGET (CSS STYLED) ── */}
                   {category === 'job' && (
-                    <iframe
-                      ref={quot3dIframeRef}
-                      src={`https://get-quot3d.com/embed?key=${process.env.NEXT_PUBLIC_QUOT3D_API_KEY || '2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38'}`}
-                      title="Quot3D Background Slicer"
-                      style={{
-                        position: 'fixed',
-                        left: '-9999px',
-                        top: '-9999px',
-                        width: '900px',
-                        height: '700px',
-                        border: 'none',
-                        visibility: 'hidden',
-                      }}
-                      aria-hidden="true"
-                    />
-                  )}
-
-                  {/* ── QUOT3D RESULT CARD ── */}
-                  {category === 'job' && projectFile && (
-                    <div className="mt-3 rounded-2xl overflow-hidden border border-blue-100 shadow-md bg-white">
-                      {/* Header */}
-                      <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-slate-800 via-blue-900 to-slate-900">
-                        <Calculator size={14} className="text-blue-400" />
-                        <span className="text-[11px] font-black uppercase text-white tracking-[0.15em]">Automatic Weight Estimate</span>
-                        {quot3dLoading && <Loader2 size={13} className="animate-spin text-blue-300 ml-auto" />}
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Calculator size={16} className="text-blue-600" />
+                          <span className="text-xs font-black uppercase text-gray-900 tracking-wider">
+                            Quot3D Slicer & Weight Estimator
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                          Weight Only Mode
+                        </span>
+                      </div>
+                      
+                      <div className="w-full min-h-[500px] rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-lg p-3">
+                        <div id="quot3d-widget" className="w-full min-h-[480px]"></div>
                       </div>
 
-                      {quot3dGrams !== null ? (
-                        <div className="px-5 py-4 space-y-3">
-                          {/* Main weight result */}
-                          <div className="flex items-end gap-3">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Filament needed</span>
-                              <span className="text-3xl font-black text-gray-900">{quot3dGrams}<span className="text-lg text-gray-500 ml-1">g</span></span>
-                            </div>
-                            <div className="ml-auto flex flex-col items-end">
-                              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Est. material cost</span>
-                              <span className="text-xl font-black text-blue-700">
-                                {((quot3dGrams / 1000) * 105).toFixed(2)} zł
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-[10px] text-gray-400 font-medium pt-1 border-t border-gray-100">
-                            ⚠️ Szacunkowa waga filamentu — rzeczywista wycena zależy od materiału, ustawień druku i orientacji modelu.
-                          </div>
-                        </div>
-                      ) : quoteResult ? (
-                        <div className="px-5 py-4 space-y-3">
-                          <div className="flex items-end gap-3">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Filament needed</span>
-                              <span className="text-3xl font-black text-gray-900">{quoteResult.totalGrams}<span className="text-lg text-gray-500 ml-1">g</span></span>
-                            </div>
-                            <div className="ml-auto flex flex-col items-end">
-                              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Est. material cost</span>
-                              <span className="text-xl font-black text-blue-700">{fmt(quoteResult.estimatedPriceEUR)}</span>
-                            </div>
-                          </div>
-                          <div className="text-[10px] text-gray-400 font-medium pt-1 border-t border-gray-100">
-                            ⚠️ Szacunkowa waga filamentu — rzeczywista wycena zależy od materiału, ustawień druku i orientacji modelu.
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="px-5 py-4 flex items-center gap-3">
-                          <Loader2 size={18} className="animate-spin text-blue-400 shrink-0" />
-                          <span className="text-xs text-gray-500 font-medium">Analizowanie geometrii modelu 3D...</span>
-                        </div>
-                      )}
+                      <Script
+                        src="https://get-quot3d.com/widget.js"
+                        strategy="afterInteractive"
+                        onLoad={() => {
+                          if ((window as any).Quot3DWidget) {
+                            try {
+                              (window as any).Quot3DWidget.init({
+                                apiKey: process.env.NEXT_PUBLIC_QUOT3D_API_KEY || '2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38',
+                                containerId: 'quot3d-widget',
+                                apiUrl: 'https://api.get-quot3d.com',
+                                primaryColor: '#3b82f6',
+                                showPoweredBy: true,
+                              });
+                            } catch (e) {
+                              console.warn('Quot3D init error:', e);
+                            }
+                          }
+                        }}
+                      />
                     </div>
                   )}
                 </div>

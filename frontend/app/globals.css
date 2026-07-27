@@ -100,3 +100,22 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(59, 130, 246, 0.4) rgba(15, 23, 42, 0.4);
 }
+
+/* ── QUOT3D WIDGET CUSTOMIZATION (Hide Price and Print Time) ── */
+#quot3d-widget .quot3d-price,
+#quot3d-widget .quot3d-total-price,
+#quot3d-widget .quot3d-cost,
+#quot3d-widget [class*="price"],
+#quot3d-widget [class*="cost"],
+#quot3d-widget [class*="Price"],
+#quot3d-widget [class*="Cost"] {
+  display: none !important;
+}
+
+#quot3d-widget .quot3d-print-time,
+#quot3d-widget .quot3d-time,
+#quot3d-widget [class*="time"],
+#quot3d-widget [class*="Time"],
+#quot3d-widget [class*="duration"] {
+  display: none !important;
+}
