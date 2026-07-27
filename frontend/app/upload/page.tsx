@@ -12,6 +12,7 @@ import {
   TrendingUp, Info, RefreshCw
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
+import { calculateSTLQuoteFromBuffer, QuoteResult } from './stlQuote';
 
 const BUCKET_NAME = 'printsi-files1';
 const supabase = createClient(
@@ -211,6 +212,7 @@ export default function AddOfferPage() {
   const [manualMaterial, setManualMaterial] = useState('');
   const [customMaterialName, setCustomMaterialName] = useState('');
   const [customInstructions, setCustomInstructions] = useState('');
+  const [printScale, setPrintScale] = useState('100');
   const [isNegotiable, setIsNegotiable] = useState(false);
   const [manualColor, setManualColor] = useState('');
   const [manualColorHex, setManualColorHex] = useState('#888888');
@@ -251,13 +253,9 @@ export default function AddOfferPage() {
     setQuoteResult(null);
     setQuoteError(null);
     try {
-      const fd = new FormData();
-      fd.append('stl', file);
-      fd.append('material', mat || 'PLA');
-      const res = await fetch('/api/quote', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || 'Quote failed');
-      setQuoteResult(data);
+      const arrayBuffer = await file.arrayBuffer();
+      const result = calculateSTLQuoteFromBuffer(arrayBuffer, file.name, mat || 'PLA');
+      setQuoteResult(result);
     } catch (err: any) {
       setQuoteError(err.message || 'Could not analyse STL file.');
     } finally {
@@ -411,6 +409,7 @@ export default function AddOfferPage() {
     setManualMaterial('');
     setCustomMaterialName('');
     setCustomInstructions('');
+    setPrintScale('100');
     setIsNegotiable(false);
     setManualColor('');
     setManualColorHex('#888888');
@@ -580,7 +579,9 @@ export default function AddOfferPage() {
       }
 
       // Try insert with color_variants, fall back without if column missing
-      const finalDimensions = (category === 'physical' || category === 'job') ? serializeDimensions() || null : null;
+      const finalDimensions = category === 'job' 
+        ? `Scale: ${printScale || '100'}%` 
+        : (category === 'physical' ? serializeDimensions() || null : null);
       const basePayload = {
         title, description, price: dbPrice, category,
         material: dbMaterial, color: dbColor, color_name: dbColorName,
@@ -920,8 +921,43 @@ export default function AddOfferPage() {
             <section className="space-y-4">
               <SectionLabel step="4" label="Specs" />
 
-              {/* Dimensions block — shown for physical, digital & job */}
-              {(category === 'physical' || category === 'job' || category === 'digital') && (
+              {/* Job Request Scale input */}
+              {category === 'job' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Ruler size={14} className="text-gray-400" />
+                      <span className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Model Print Scale</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl flex items-start gap-3">
+                    <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                      <Ruler size={18} />
+                    </div>
+                    <p className="text-[11px] text-blue-800 font-medium leading-relaxed">
+                      <strong className="block uppercase tracking-wider text-[10px] mb-0.5">Scale Percentage</strong>
+                      Specify the print scale relative to your original 3D file (100% = standard size).
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={printScale}
+                      onChange={e => setPrintScale(e.target.value)}
+                      placeholder="100"
+                      className="w-full p-4 pr-16 bg-white border-2 border-blue-200 rounded-2xl font-black text-base outline-none focus:border-blue-600 transition-all shadow-sm"
+                    />
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-blue-600 font-black text-sm">%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Physical/Digital Dimensions block */}
+              {(category === 'physical' || category === 'digital') && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -934,38 +970,6 @@ export default function AddOfferPage() {
                     </button>
                   </div>
 
-                  <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl flex items-start gap-3">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
-                      <Ruler size={18} />
-                    </div>
-                    <p className="text-[11px] text-blue-800 font-medium leading-relaxed">
-                      {category === 'job' ? (
-                        <>
-                          <strong className="block uppercase tracking-wider text-[10px] mb-0.5">Specifications Matter</strong>
-                          Provide the exact dimensions of your model so printers can calculate material costs accurately and confirm it fits within their machine's build volume.
-                        </>
-                      ) : (
-                        <>
-                          <strong className="block uppercase tracking-wider text-[10px] mb-0.5">Scale Matters</strong>
-                          Provide dimensions that are important for the buyer or may be significant for the final product. Being precise helps buyers understand the scale and ensures a perfect fit.
-                        </>
-                      )}
-                    </p>
-                  </div>
-
-                  {category === 'job' && (
-                    <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start gap-3">
-                      <div className="p-2 bg-red-100 text-red-600 rounded-xl">
-                        <AlertTriangle size={18} />
-                      </div>
-                      <div className="flex-1">
-                        <strong className="block uppercase tracking-wider text-[10px] text-red-800 mb-0.5 font-black">Proportions Warning</strong>
-                        <p className="text-[11px] text-red-700 font-bold leading-relaxed">
-                          Carefully check your values. If the dimensions you provide do not match the original aspect ratio of your 3D file, the final print will be stretched or distorted to fit those measurements.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                   <div className="space-y-2">
                     {dimensionEntries.map((dim, idx) => (
                       <div key={dim.id} className="flex items-center gap-2">
