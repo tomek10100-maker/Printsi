@@ -1151,44 +1151,31 @@ export default function AddOfferPage() {
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
 
-                  {/* ── QUOT3D DOM SCRIPT WIDGET (CSS STYLED) ── */}
-                  {category === 'job' && (
-                    <div className="mt-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Calculator size={16} className="text-blue-600" />
-                          <span className="text-xs font-black uppercase text-gray-900 tracking-wider">
-                            Quot3D Slicer & Weight Estimator
-                          </span>
+                  {/* ── CLEAN AUTOMATIC MODEL METRICS BAR (SIZE & WEIGHT ONLY) ── */}
+                  {category === 'job' && projectFile && (
+                    <div className="mt-3 bg-slate-900 text-white rounded-2xl p-4 shadow-lg border border-slate-800 space-y-2">
+                      {quoteLoading ? (
+                        <div className="flex items-center gap-3 py-1">
+                          <Loader2 size={18} className="animate-spin text-blue-400 shrink-0" />
+                          <span className="text-xs font-semibold text-slate-300">Analizowanie wymiarów i wagi modelu 3D...</span>
                         </div>
-                        <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
-                          Weight Only Mode
-                        </span>
-                      </div>
-                      
-                      <div className="w-full min-h-[500px] rounded-2xl overflow-hidden border-2 border-blue-100 bg-white shadow-lg p-3">
-                        <div id="quot3d-widget" className="w-full min-h-[480px]"></div>
-                      </div>
+                      ) : quoteResult ? (
+                        <div className="grid grid-cols-2 divide-x divide-slate-800">
+                          {/* Size box */}
+                          <div className="flex flex-col items-center justify-center px-3 py-1">
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Size</span>
+                            <span className="text-base font-black text-white font-mono">{quoteResult.dimensionsFormatted}</span>
+                          </div>
 
-                      <Script
-                        src="https://get-quot3d.com/widget.js"
-                        strategy="afterInteractive"
-                        onLoad={() => {
-                          if ((window as any).Quot3DWidget) {
-                            try {
-                              (window as any).Quot3DWidget.init({
-                                apiKey: process.env.NEXT_PUBLIC_QUOT3D_API_KEY || '2d7cbf1c9ab2e3ab19390f36d273d40784a70d73c43c0572c14a94bb73f78e38',
-                                containerId: 'quot3d-widget',
-                                apiUrl: 'https://api.get-quot3d.com',
-                                primaryColor: '#3b82f6',
-                                showPoweredBy: true,
-                              });
-                            } catch (e) {
-                              console.warn('Quot3D init error:', e);
-                            }
-                          }
-                        }}
-                      />
+                          {/* Weight box */}
+                          <div className="flex flex-col items-center justify-center px-3 py-1">
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Weight</span>
+                            <span className="text-base font-black text-blue-400 font-mono">{quoteResult.totalGrams}g</span>
+                          </div>
+                        </div>
+                      ) : quoteError ? (
+                        <div className="text-xs text-red-400 font-semibold">{quoteError}</div>
+                      ) : null}
                     </div>
                   )}
                 </div>

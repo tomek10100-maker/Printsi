@@ -47,6 +47,7 @@ export type QuoteResult = {
   quantity: number;
   scalePercent: number;
   volumeCm3: number;
+  dimensionsFormatted: string;
   estimatedPriceEUR: number;
   estimatedPricePLN: number;
   filamentPricePerKgEUR: number;
@@ -68,15 +69,22 @@ export type QuoteResult = {
   };
 };
 
+type MeshAnalysisResult = {
+  volumeCm3: number;
+  dx: number;
+  dy: number;
+  dz: number;
+};
+
 /**
- * Robust volume calculation centered at local bounding box origin
+ * Robust volume & dimension calculation centered at local bounding box origin
  */
 function calculateMeshVolumeCm3(
   rawVertices: [number, number, number][],
   rawTriangles: [number, number, number][],
   unitScaleMultiplier: number = 1.0
-): number {
-  if (rawVertices.length === 0 || rawTriangles.length === 0) return 0;
+): MeshAnalysisResult {
+  if (rawVertices.length === 0 || rawTriangles.length === 0) return { volumeCm3: 0, dx: 0, dy: 0, dz: 0 };
 
   // 1. Sanitize vertices (remove NaNs, Infinities)
   const vertices: [number, number, number][] = [];
@@ -108,7 +116,7 @@ function calculateMeshVolumeCm3(
   let dz = maxZ - minZ;
 
   if (dx <= 0 || dy <= 0 || dz <= 0 || !isFinite(dx) || !isFinite(dy) || !isFinite(dz)) {
-    return 0;
+    return { volumeCm3: 0, dx: 0, dy: 0, dz: 0 };
   }
 
   // Unit normalization: model exported in meters (max dimension < 2.0 mm) -> scale to mm
@@ -150,12 +158,17 @@ function calculateMeshVolumeCm3(
     meshVolumeCm3 = boxVolumeCm3 * 0.50;
   }
 
-  return meshVolumeCm3;
+  return {
+    volumeCm3: meshVolumeCm3,
+    dx: Math.round(dx),
+    dy: Math.round(dy),
+    dz: Math.round(dz),
+  };
 }
 
 // ─── STL PARSER ───────────────────────────────────────────────────────────────
 
-function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): number {
+function parseSTLVolumeCm3(arrayBuffer: ArrayBuffer): MeshAnalysisResult {
   const bytes = new Uint8Array(arrayBuffer);
   const dataView = new DataView(arrayBuffer);
 
@@ -319,12 +332,13 @@ function parse3MFTransformScale(xmlText: string): number {
   return scaleMult;
 }
 
-function calcVolumeFrom3MFXml(xmlText: string): number {
+function calcVolumeFrom3MFXml(xmlText: string): MeshAnalysisResult {
   const unitScale = parse3MFUnitScale(xmlText);
   const transformScale = parse3MFTransformScale(xmlText);
   const totalScale = unitScale * Math.cbrt(transformScale);
 
   let totalVolumeCm3 = 0;
+  let maxDx = 0, maxDy = 0, maxDz = 0;
 
   const meshBlocks = xmlText.split(/<\/?mesh>/i);
   for (const block of meshBlocks) {
@@ -358,21 +372,25 @@ function calcVolumeFrom3MFXml(xmlText: string): number {
       }
     }
 
-    const meshVol = calculateMeshVolumeCm3(vertices, triangles, totalScale);
-    totalVolumeCm3 += meshVol;
+    const meshResult = calculateMeshVolumeCm3(vertices, triangles, totalScale);
+    totalVolumeCm3 += meshResult.volumeCm3;
+    maxDx = Math.max(maxDx, meshResult.dx);
+    maxDy = Math.max(maxDy, meshResult.dy);
+    maxDz = Math.max(maxDz, meshResult.dz);
   }
 
-  return totalVolumeCm3;
+  return { volumeCm3: totalVolumeCm3, dx: maxDx, dy: maxDy, dz: maxDz };
 }
 
 // ─── 3MF PARSER ───────────────────────────────────────────────────────────────
 
-async function parse3MFVolumeCm3(arrayBuffer: ArrayBuffer): Promise<number> {
+async function parse3MFVolumeCm3(arrayBuffer: ArrayBuffer): Promise<MeshAnalysisResult> {
   const bytes = new Uint8Array(arrayBuffer);
   const dv = new DataView(arrayBuffer);
 
   const entries = readZipCentralDirectory(bytes, dv);
   let totalVol = 0;
+  let maxDx = 0, maxDy = 0, maxDz = 0;
 
   for (const entry of entries) {
     const fn = entry.fileName.toLowerCase();
@@ -381,14 +399,17 @@ async function parse3MFVolumeCm3(arrayBuffer: ArrayBuffer): Promise<number> {
     try {
       const data = await getZipEntryData(bytes, dv, entry);
       const xml = new TextDecoder('utf-8').decode(data);
-      const vol = calcVolumeFrom3MFXml(xml);
-      totalVol += vol;
+      const res = calcVolumeFrom3MFXml(xml);
+      totalVol += res.volumeCm3;
+      maxDx = Math.max(maxDx, res.dx);
+      maxDy = Math.max(maxDy, res.dy);
+      maxDz = Math.max(maxDz, res.dz);
     } catch (e) {
       console.warn('[3MF] Failed to parse entry:', entry.fileName, e);
     }
   }
 
-  return totalVol;
+  return { volumeCm3: totalVol, dx: maxDx, dy: maxDy, dz: maxDz };
 }
 
 // ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
@@ -408,16 +429,16 @@ export async function calculate3DModelQuoteFromBuffer(
     throw new Error('Instant estimation supports .STL and .3MF files only.');
   }
 
-  let volumeCm3 = 0;
+  let meshData: MeshAnalysisResult = { volumeCm3: 0, dx: 0, dy: 0, dz: 0 };
 
   if (is3MF) {
-    volumeCm3 = await parse3MFVolumeCm3(arrayBuffer);
-    if (volumeCm3 <= 0) {
+    meshData = await parse3MFVolumeCm3(arrayBuffer);
+    if (meshData.volumeCm3 <= 0) {
       throw new Error('Could not extract 3D mesh from .3MF file. Make sure it contains 3D geometry.');
     }
   } else {
-    volumeCm3 = parseSTLVolumeCm3(arrayBuffer);
-    if (volumeCm3 <= 0 || !isFinite(volumeCm3)) {
+    meshData = parseSTLVolumeCm3(arrayBuffer);
+    if (meshData.volumeCm3 <= 0 || !isFinite(meshData.volumeCm3)) {
       throw new Error('Could not calculate STL model volume. File may be empty or corrupted.');
     }
   }
@@ -426,6 +447,7 @@ export async function calculate3DModelQuoteFromBuffer(
   const qtyNum   = Math.max(1, parseInt(String(quantityInput))       || 1);
   const sf = scaleNum / 100.0;
 
+  const volumeCm3 = meshData.volumeCm3;
   const scaledVolumeCm3 = volumeCm3 * sf * sf * sf;
   const density = MATERIAL_DENSITY[material] ?? DEFAULT_DENSITY;
   const pricePerKgPLN = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
@@ -450,6 +472,11 @@ export async function calculate3DModelQuoteFromBuffer(
   const r = (v: number, d = 10) => Math.round(v * d) / d;
   const r2 = (v: number) => Math.round(v * 100) / 100;
 
+  const dimX = Math.round(meshData.dx * sf);
+  const dimY = Math.round(meshData.dy * sf);
+  const dimZ = Math.round(meshData.dz * sf);
+  const dimensionsFormatted = `${dimX}×${dimY}×${dimZ}mm`;
+
   return {
     gramsPerUnit:         r(gramsPerUnit),
     totalGrams:           r(totalGrams),
@@ -459,6 +486,7 @@ export async function calculate3DModelQuoteFromBuffer(
     quantity:             qtyNum,
     scalePercent:         scaleNum,
     volumeCm3:            r2(scaledVolumeCm3),
+    dimensionsFormatted,
     estimatedPriceEUR:    r2(totalPriceEUR),
     estimatedPricePLN:    r2(totalPricePLN),
     filamentPricePerKgEUR: r2(pricePerKgEUR),
