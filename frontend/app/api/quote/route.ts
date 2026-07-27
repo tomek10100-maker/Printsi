@@ -4,6 +4,7 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { calculate3DModelQuoteFromBuffer } from '../../upload/stlQuote';
 
 const execAsync = promisify(exec);
 
@@ -143,8 +144,6 @@ export async function POST(request: Request) {
 
     let gramsPerUnit = 0;
     let printTimeMinutes = 0;
-    let engine = 'PrusaSlicer-CLI';
-
     if (prusaExe) {
       // Execute PrusaSlicer CLI Headless
       const cmd = `"${prusaExe}" --export-gcode ${fs.existsSync(profilePath) ? `--load "${profilePath}"` : ''} "${tempFilePath}" --output "${tempGCodePath}"`;
@@ -158,9 +157,22 @@ export async function POST(request: Request) {
         gramsPerUnit = parsed.grams;
         printTimeMinutes = parsed.printTimeMinutes;
       }
-    } else {
+    }
+
+    // If PrusaSlicer CLI is not installed or returned 0, run Server Geometry Engine
+    if (gramsPerUnit <= 0) {
       engine = 'Geometry-Engine-Fallback';
-      console.log('[/api/quote] PrusaSlicer CLI binary not found on host. Returning precision estimate.');
+      console.log('[/api/quote] PrusaSlicer CLI not installed/used. Running Server Geometry Engine.');
+      const geomQuote = await calculate3DModelQuoteFromBuffer(arrayBuffer, file.name, material, scalePercent, quantity);
+      return NextResponse.json({
+        success: true,
+        engine,
+        fileName: file.name,
+        material,
+        quantity,
+        scalePercent,
+        ...geomQuote
+      });
     }
 
     // Apply scale multiplier if scale !== 100

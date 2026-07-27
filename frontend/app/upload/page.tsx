@@ -275,21 +275,39 @@ export default function AddOfferPage() {
     }, 300);
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await calculate3DModelQuoteFromBuffer(
-        arrayBuffer,
-        file.name,
-        mat || 'PLA',
-        parseFloat(scaleVal) || 100,
-        parseInt(qtyVal) || 1
-      );
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('material', mat || 'PLA');
+      formData.append('scale', scaleVal || '100');
+      formData.append('quantity', qtyVal || '1');
 
-      // Simulation delay for high-precision progress visualization (~15 seconds)
-      await new Promise(r => setTimeout(r, 14000));
+      let result: QuoteResult;
+      try {
+        const apiRes = await fetch('/api/quote', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (apiRes.ok) {
+          result = await apiRes.json();
+        } else {
+          throw new Error('API route returned error status');
+        }
+      } catch (apiErr) {
+        console.warn('API quote endpoint unreachable or error, falling back to buffer calculation:', apiErr);
+        const arrayBuffer = await file.arrayBuffer();
+        result = await calculate3DModelQuoteFromBuffer(
+          arrayBuffer,
+          file.name,
+          mat || 'PLA',
+          parseFloat(scaleVal) || 100,
+          parseInt(qtyVal) || 1
+        );
+      }
 
       clearInterval(progressInterval);
       setQuoteProgress(100);
-      setQuoteStepText('✅ Simulation Complete!');
+      setQuoteStepText('✅ Slicing & Quote Complete!');
       setQuoteResult(result);
     } catch (err: any) {
       clearInterval(progressInterval);
