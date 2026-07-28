@@ -465,13 +465,13 @@ export async function calculate3DModelQuoteFromBuffer(
 
   const volumeCm3 = meshData.volumeCm3 * sf * sf * sf;
 
-  // ── BAMBU STUDIO CALIBRATED SLICING PHYSICS ──
+  // ── BAMBU STUDIO X1 CARBON (0.4mm NOZZLE / 0.20mm STANDARD) CALIBRATED SLICING PHYSICS ──
   const boxVolumeCm3 = (dimX * dimY * dimZ) / 1000.0;
   const compactnessRatio = Math.min(1.0, Math.max(0.15, volumeCm3 / (boxVolumeCm3 || 1.0)));
 
-  // 1. Surface Area S in cm² scaled by mesh compactness factor (2 wall perimeters)
+  // 1. Surface Area S in cm² scaled by mesh compactness factor (2 wall perimeters @ 0.42mm)
   const surfaceAreaCm2 = (2.0 * ((dimX * dimY) + (dimY * dimZ) + (dimZ * dimX)) / 100.0) * Math.sqrt(compactnessRatio);
-  const wallShellVolumeCm3 = surfaceAreaCm2 * 0.045;
+  const wallShellVolumeCm3 = surfaceAreaCm2 * 0.042;
 
   // 2. Top (4 layers @ 0.2mm) & Bottom (3 layers @ 0.2mm) Solid Skins Volume
   const topBottomSkinVolumeCm3 = ((dimX * dimY) / 100.0) * 0.040 * compactnessRatio;
@@ -489,7 +489,11 @@ export async function calculate3DModelQuoteFromBuffer(
   const pricePerGramPLN = PRICE_PER_GRAM_PLN[matKey] ?? DEFAULT_PRICE_PER_GRAM_PLN;
   const pricePerGramEUR = pricePerGramPLN / EUR_TO_PLN;
 
-  const calculatedWeightPerUnitGrams = (totalPlasticVolumeCm3 * density) + 1.5;
+  // Align with Bambu Studio 3MF / STL slicing math
+  const calculatedWeightPerUnitGrams = Math.max(
+    (volumeCm3 * density) + 1.5,
+    (totalPlasticVolumeCm3 * density) + 1.5
+  );
   const gramsPerUnit = Math.round(calculatedWeightPerUnitGrams * 10) / 10;
 
   const totalGrams      = Math.round(gramsPerUnit * qtyNum * 10) / 10;
@@ -535,7 +539,7 @@ export async function calculate3DModelQuoteFromBuffer(
     volumeCm3:            r2(volumeCm3),
     dimensionsFormatted,
     rawDimensionsFormatted: `${meshData.dx}×${meshData.dy}×${meshData.dz}mm`,
-    rawGrams:             r(((meshData.volumeCm3 * 0.36 + 1.5) * (MATERIAL_DENSITY['PLA'] || 1.24))),
+    rawGrams:             r(gramsPerUnit),
     parcelDimensionsFormatted,
     parcelBoxMm: { x: parcelX, y: parcelY, z: parcelZ },
     estimatedPriceEUR:    r2(totalPriceEUR),
