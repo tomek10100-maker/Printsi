@@ -1505,6 +1505,40 @@ function MessagesInner() {
         let disputeData: any = null;
         let cancelData: any = null;
         let cancelRequestData: any = null;
+        let adminResData: any = null;
+
+        if (messageType === 'admin_resolution' || (msg.content && msg.content.startsWith('{"action":'))) {
+            try { adminResData = JSON.parse(msg.content); } catch { }
+        }
+
+        if (adminResData) {
+            const isRefund = adminResData.action === 'refund_buyer';
+            const amountEUR = Number(adminResData.amountEUR || 0).toFixed(2);
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-6 px-4">
+                    <div className="w-full max-w-md bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 border-2 border-blue-500/40 rounded-3xl p-5 shadow-2xl text-center space-y-3 relative overflow-hidden animate-in zoom-in-95">
+                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500" />
+                        <div className="flex items-center justify-center gap-2 text-blue-400 font-black text-xs uppercase tracking-widest pt-1">
+                            <ShieldAlert size={18} className="text-blue-400 animate-pulse" /> OFFICIAL PLATFORM ADMINISTRATION DECISION
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-1.5">
+                            <p className="text-sm font-black text-white">
+                                {isRefund
+                                    ? `Decision: Full Item Refund of €${amountEUR} credited to Buyer (return shipping fees excluded).`
+                                    : `Decision: Dispute resolved in favor of Seller. €${amountEUR} payout released to Seller.`
+                                }
+                            </p>
+                            {adminResData.notes && (
+                                <p className="text-xs text-slate-300 italic font-medium pt-1">"{adminResData.notes}"</p>
+                            )}
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono block">
+                            {new Date(msg.created_at || adminResData.timestamp || Date.now()).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    </div>
+                </div>
+            );
+        }
 
         if (messageType === 'dispute_opened') {
             try { disputeData = JSON.parse(msg.content); } catch { }
@@ -1921,12 +1955,20 @@ function MessagesInner() {
                                         </h3>
                                         <p className={`text-xs truncate mt-0.5 ${chat.unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-blue-600 font-bold'}`}>{chat.offers?.title || 'Unknown Item'}</p>
                                         {chat.order_id && (
-                                            <span className={`inline-block mt-1.5 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${chat.orderItem?.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                            <span className={`inline-block mt-1.5 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${
+                                                chat.orderItem?.status === 'completed' || chat.orderItem?.status === 'transfer_completed' ? 'bg-emerald-100 text-emerald-700' :
                                                 chat.orderItem?.status === 'disputed' ? 'bg-red-100 text-red-700' :
-                                                    chat.orderItem?.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-amber-100 text-amber-700'
-                                                }`}>
-                                                {chat.orderItem?.status || 'pending'}
+                                                chat.orderItem?.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                                chat.orderItem?.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
+                                                'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {(() => {
+                                                    const st = chat.orderItem?.status;
+                                                    if (st === 'transfer_completed') return 'RESOLVED: PAID OUT';
+                                                    if (st === 'cancelled') return 'RESOLVED: REFUNDED';
+                                                    if (st === 'disputed') return 'DISPUTE IN REVIEW';
+                                                    return st || 'pending';
+                                                })()}
                                             </span>
                                         )}
                                         {chat.archived_at && chat.archived_by === 'auto' && (

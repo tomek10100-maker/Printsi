@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../../lib/adminAuth';
+import { sendDisputeResolutionEmail } from '../../../../lib/sendNotificationEmail';
 
 export async function POST(req: Request) {
   const adminId = await verifyAdmin(req);
@@ -128,6 +129,9 @@ export async function POST(req: Request) {
         });
       }
 
+      // Send email notifications
+      sendDisputeResolutionEmail(buyerId, sellerId, 'refund_buyer', itemAmountEUR, adminNotes).catch(() => {});
+
       return NextResponse.json({
         success: true,
         message: `Successfully refunded €${itemAmountEUR.toFixed(2)} to Buyer balance (excl. shipping).`,
@@ -178,6 +182,9 @@ export async function POST(req: Request) {
           message_type: 'admin_resolution',
         });
       }
+
+      // Send email notifications
+      sendDisputeResolutionEmail(buyerId, sellerId, 'payout_seller', itemAmountEUR, adminNotes).catch(() => {});
 
       return NextResponse.json({
         success: true,

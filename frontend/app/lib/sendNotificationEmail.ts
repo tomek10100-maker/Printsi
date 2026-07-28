@@ -434,3 +434,91 @@ export async function sendOfferRejectedEmail(recipientId: string, otherName: str
     console.error('❌ Failed to send offer rejected email:', err);
   }
 }
+
+/**
+ * Send "dispute resolved" email notification to both buyer and seller.
+ */
+export async function sendDisputeResolutionEmail(
+  buyerId: string,
+  sellerId: string,
+  action: 'refund_buyer' | 'payout_seller',
+  amountEUR: number,
+  adminNotes?: string
+) {
+  try {
+    const isRefund = action === 'refund_buyer';
+    const formattedAmount = `€${Number(amountEUR).toFixed(2)}`;
+
+    // 1. Send email to Buyer
+    const buyer = await getUserEmailInfo(buyerId);
+    if (buyer?.email) {
+      const buyerSubject = isRefund 
+        ? `🛡️ Dispute Resolved: Full Refund Credited (${formattedAmount})` 
+        : `🛡️ Dispute Resolved: Decision Update`;
+      
+      const buyerHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <span style="font-size: 10px; font-weight: 900; letter-spacing: 2px; color: #3b82f6; text-transform: uppercase; background: #eff6ff; padding: 4px 12px; border-radius: 99px;">Official Platform Decision</span>
+            <h2 style="color: #0f172a; margin-top: 10px; font-size: 20px;">Dispute Resolution Statement</h2>
+          </div>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6;">Hello <strong>${buyer.name}</strong>,</p>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+            Platform Administration has reviewed and finalized the dispute regarding your order item.
+          </p>
+          <div style="padding: 16px; background-color: ${isRefund ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${isRefund ? '#bbf7d0' : '#e2e8f0'}; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0; font-weight: 800; font-size: 14px; color: ${isRefund ? '#15803d' : '#0f172a'};">
+              ${isRefund 
+                ? `Result: Full item refund of ${formattedAmount} has been credited to your Printis Wallet balance (return shipping fees excluded).` 
+                : `Result: Dispute resolved in favor of the Seller.`
+              }
+            </p>
+            ${adminNotes ? `<p style="margin-top: 8px; font-size: 13px; color: #475569; font-style: italic;">"${adminNotes}"</p>` : ''}
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            Printis Platform Support · Official Dispute Mediation
+          </p>
+        </div>
+      `;
+
+      await sendEmail({ to: buyer.email, subject: buyerSubject, html: buyerHtml });
+    }
+
+    // 2. Send email to Seller
+    const seller = await getUserEmailInfo(sellerId);
+    if (seller?.email) {
+      const sellerSubject = !isRefund 
+        ? `🛡️ Dispute Resolved: Payout Released (${formattedAmount})` 
+        : `🛡️ Dispute Resolved: Decision Update`;
+
+      const sellerHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <span style="font-size: 10px; font-weight: 900; letter-spacing: 2px; color: #3b82f6; text-transform: uppercase; background: #eff6ff; padding: 4px 12px; border-radius: 99px;">Official Platform Decision</span>
+            <h2 style="color: #0f172a; margin-top: 10px; font-size: 20px;">Dispute Resolution Statement</h2>
+          </div>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6;">Hello <strong>${seller.name}</strong>,</p>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+            Platform Administration has reviewed and finalized the dispute for your order item.
+          </p>
+          <div style="padding: 16px; background-color: ${!isRefund ? '#f0fdf4' : '#fff1f2'}; border: 1px solid ${!isRefund ? '#bbf7d0' : '#fecdd3'}; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0; font-weight: 800; font-size: 14px; color: ${!isRefund ? '#15803d' : '#be123c'};">
+              ${!isRefund 
+                ? `Result: Dispute resolved in your favor! Funds of ${formattedAmount} have been released to your Printis Wallet balance.` 
+                : `Result: Dispute resolved with buyer refund.`
+              }
+            </p>
+            ${adminNotes ? `<p style="margin-top: 8px; font-size: 13px; color: #475569; font-style: italic;">"${adminNotes}"</p>` : ''}
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            Printis Platform Support · Official Dispute Mediation
+          </p>
+        </div>
+      `;
+
+      await sendEmail({ to: seller.email, subject: sellerSubject, html: sellerHtml });
+    }
+  } catch (err) {
+    console.error('❌ Failed to send dispute resolution emails:', err);
+  }
+}

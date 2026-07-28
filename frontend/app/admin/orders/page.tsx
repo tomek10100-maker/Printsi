@@ -190,7 +190,9 @@ export default function AdminOrdersPage() {
 
                           <div className="flex items-center gap-2">
                             <span style={{ background: sc.bg, color: sc.text, fontSize: '9px', padding: '2px 8px', borderRadius: 999 }} className="font-black uppercase tracking-widest whitespace-nowrap">
-                              {item.status}
+                              {item.status === 'transfer_completed' ? 'RESOLVED: PAID OUT' :
+                               item.status === 'cancelled' ? 'CANCELLED / REFUNDED' :
+                               item.status === 'disputed' ? 'DISPUTED' : item.status}
                             </span>
 
                             {/* Direct Admin Open Chat Button */}
