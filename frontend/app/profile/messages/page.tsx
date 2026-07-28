@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
+import { POPULAR_MATERIALS, getMaterialInfo } from '@/app/lib/materialHelpers';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -2596,13 +2597,49 @@ function MessagesInner() {
                                                                                     className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-blue-400 text-gray-900 transition-all"
                                                                                 />
                                                                             </div>
-                                                                            <input
-                                                                                type="text"
-                                                                                placeholder="Material type (PLA, PETG, ABS, Resin...)"
-                                                                                value={proposalMaterial}
-                                                                                onChange={e => setProposalMaterial(e.target.value)}
-                                                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-blue-400 text-gray-900 transition-all"
-                                                                            />
+                                                                            <div className="space-y-2 pt-1">
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Suggested Materials</span>
+                                                                                </div>
+                                                                                <div className="flex flex-wrap gap-1.5">
+                                                                                    {POPULAR_MATERIALS.map(mat => (
+                                                                                        <button
+                                                                                            key={mat.name}
+                                                                                            type="button"
+                                                                                            onClick={() => setProposalMaterial(mat.name)}
+                                                                                            className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${
+                                                                                                proposalMaterial.trim().toLowerCase() === mat.name.toLowerCase()
+                                                                                                    ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-400/30'
+                                                                                                    : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 shadow-xs'
+                                                                                            }`}
+                                                                                        >
+                                                                                            {mat.name}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+
+                                                                                <input
+                                                                                    type="text"
+                                                                                    placeholder="Material type (PLA, PETG, ABS, PA, Resin...)"
+                                                                                    value={proposalMaterial}
+                                                                                    onChange={e => setProposalMaterial(e.target.value)}
+                                                                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-blue-400 text-gray-900 transition-all"
+                                                                                />
+
+                                                                                {/* Material Info Preview Card */}
+                                                                                {(() => {
+                                                                                    const matInfo = getMaterialInfo(proposalMaterial);
+                                                                                    if (!matInfo) return null;
+                                                                                    return (
+                                                                                        <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-[10px] text-blue-900 space-y-0.5 animate-in fade-in">
+                                                                                            <span className="font-black text-blue-950 uppercase tracking-wider flex items-center gap-1">
+                                                                                                💡 {matInfo.fullName}
+                                                                                            </span>
+                                                                                            <p className="text-slate-600 leading-normal">{matInfo.desc}</p>
+                                                                                        </div>
+                                                                                    );
+                                                                                })()}
+                                                                            </div>
                                                                         </div>
                                                                     )}
                                                                 </>
@@ -2849,16 +2886,31 @@ function MessagesInner() {
                                                                                     </div>
                                                                                 </div>
                                                                             ) : (
-                                                                                <div className={`flex items-center justify-between p-2.5 rounded-xl border ${isMatChanged ? 'bg-amber-400/5 border-amber-400/20' : 'bg-white/5 border-white/10'}`}>
-                                                                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                                                                                        <Palette size={10} /> {pData.swappedLayers ? 'Multi-Layer' : 'Material Choice'}
-                                                                                    </span>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <div className={`w-3.5 h-3.5 rounded-full border shadow-inner shrink-0 ${isMatChanged ? 'border-amber-400' : 'border-white/20'}`} style={{ backgroundColor: pData.colorHex || activeChatData?.offers?.color || '#ccc' }} />
-                                                                                        <span className={`text-[10px] font-black ${isMatChanged ? 'text-amber-100' : 'text-slate-200'}`}>
-                                                                                            {pData.material || activeChatData?.offers?.material || 'Resin'} • {pData.color || activeChatData?.offers?.color || 'Original'}
+                                                                                <div className={`flex flex-col p-2.5 rounded-xl border space-y-1.5 ${isMatChanged ? 'bg-amber-400/5 border-amber-400/20' : 'bg-white/5 border-white/10'}`}>
+                                                                                    <div className="flex items-center justify-between">
+                                                                                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                                                                            <Palette size={10} /> {pData.swappedLayers ? 'Multi-Layer' : 'Material Choice'}
                                                                                         </span>
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <div className={`w-3.5 h-3.5 rounded-full border shadow-inner shrink-0 ${isMatChanged ? 'border-amber-400' : 'border-white/20'}`} style={{ backgroundColor: pData.colorHex || activeChatData?.offers?.color || '#ccc' }} />
+                                                                                            <span className={`text-[10px] font-black ${isMatChanged ? 'text-amber-100' : 'text-slate-200'}`}>
+                                                                                                {pData.material || activeChatData?.offers?.material || 'Resin'} • {pData.color || activeChatData?.offers?.color || 'Original'}
+                                                                                            </span>
+                                                                                        </div>
                                                                                     </div>
+
+                                                                                    {/* Material Explanation for Recipient */}
+                                                                                    {(() => {
+                                                                                        const matName = pData.material || activeChatData?.offers?.material;
+                                                                                        const matInfo = getMaterialInfo(matName);
+                                                                                        if (!matInfo) return null;
+                                                                                        return (
+                                                                                            <div className="mt-1.5 p-2 bg-slate-900/90 border border-slate-700/60 rounded-lg text-[9px] leading-normal text-slate-300">
+                                                                                                <span className="font-bold text-blue-300 uppercase tracking-wider block mb-0.5">💡 {matInfo.fullName}</span>
+                                                                                                <p className="text-slate-400 font-medium">{matInfo.desc}</p>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })()}
                                                                                 </div>
                                                                             )}
                                                                         </div>
