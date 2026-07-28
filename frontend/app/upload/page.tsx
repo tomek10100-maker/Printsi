@@ -1162,7 +1162,7 @@ export default function AddOfferPage() {
                       {quoteLoading ? (
                         <div className="flex items-center gap-3 py-1 justify-center">
                           <Loader2 size={16} className="animate-spin text-blue-400 shrink-0" />
-                          <span className="text-xs font-semibold text-slate-300">Reading raw 3D mesh dimensions & weight...</span>
+                          <span className="text-xs font-semibold text-slate-300">Analyzing 3D model dimensions and weight...</span>
                         </div>
                       ) : quoteResult ? (
                         <div className="grid grid-cols-2 divide-x divide-slate-800/80">
