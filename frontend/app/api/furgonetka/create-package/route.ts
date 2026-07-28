@@ -351,14 +351,20 @@ export async function POST(req: Request) {
       service_id: serviceId
     };
 
-    // For point-to-point carriers (InPost, Orlen): set both pickup.point and receiver.point
+    // 10. Configure Pickup/Receiver points ONLY if valid for this carrier
     if (pointToPoint) {
-      furgonetkaPayload.pickup.point = pickupPointCode;
+      if (pickupPointCode) {
+        furgonetkaPayload.pickup.point = pickupPointCode;
+      }
       if (selectedPoint?.code) {
         furgonetkaPayload.receiver.point = selectedPoint.code;
       }
-    } else if (selectedPoint?.code && selectedPoint?.courier && selectedPoint.courier.toLowerCase() === carrier.toLowerCase()) {
-      // Pickup service matching carrier — add receiver.point
+    } else if (
+      selectedPoint?.code && 
+      selectedPoint?.courier && 
+      selectedPoint.courier.toLowerCase() === carrier.toLowerCase()
+    ) {
+      // Only attach receiver.point if the courier matches
       furgonetkaPayload.receiver.point = selectedPoint.code;
     }
 
@@ -367,19 +373,30 @@ export async function POST(req: Request) {
     // 10.5 Proactively accept carrier regulations to prevent 409 terms_and_conditions_not_valid errors
     await furgonetkaClient.acceptRegulations();
 
-    // 11. Call Furgonetka API: Create Draft Package (with auto-acceptance & point fallback)
+    // 11. Call Furgonetka API: Create Draft Package (with auto-acceptance & point fallback to DPD Courier)
     let createRes: any;
     try {
       createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
     } catch (err: any) {
-      if (err.message && err.message.includes('terms_and_conditions_not_valid')) {
+      const errMsg = err.message || '';
+      console.warn('[CreatePackage Route] Initial Furgonetka package creation failed:', errMsg);
+
+      if (errMsg.includes('terms_and_conditions_not_valid')) {
         console.warn('[CreatePackage Route] Regulations not accepted. Attempting auto-acceptance...');
         await furgonetkaClient.acceptRegulations();
         createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
-      } else if (err.message && (err.message.includes('invalidPointName') || err.message.includes('poprawny punkt'))) {
-        console.warn('[CreatePackage Route] Invalid point code. Retrying without point code restriction...');
+      } else if (
+        errMsg.includes('invalidPointName') || 
+        errMsg.includes('poprawny punkt') || 
+        errMsg.includes('punkt') || 
+        errMsg.includes('Point') ||
+        errMsg.includes('nie istnieje')
+      ) {
+        console.warn('[CreatePackage Route] Pickup point code invalid or incompatible with carrier. Switching to DPD Door-to-Door Courier fallback...');
         if (furgonetkaPayload.receiver) delete furgonetkaPayload.receiver.point;
         if (furgonetkaPayload.pickup) delete furgonetkaPayload.pickup.point;
+        // Fall back to DPD Courier (Service ID: 11636590) to guarantee shipment success
+        furgonetkaPayload.service_id = 11636590;
         createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
       } else {
         throw err;
