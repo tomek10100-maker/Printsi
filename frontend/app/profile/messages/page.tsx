@@ -786,10 +786,17 @@ function MessagesInner() {
         ]);
 
         // Set seller filaments
+        let fetchedFilaments: any[] = [];
         if (filRes.status === 'fulfilled') {
-            try { const d = await filRes.value.json(); setSellerFilaments(d.filaments || []); }
-            catch { setSellerFilaments([]); }
-        } else { setSellerFilaments([]); }
+            try { 
+                const d = await filRes.value.json(); 
+                fetchedFilaments = d.filaments || [];
+            } catch { fetchedFilaments = []; }
+        }
+        setSellerFilaments(fetchedFilaments);
+        if (fetchedFilaments.length === 0 || activeChatData?.offers?.category === 'job') {
+            setShowCustomFilamentInput(true);
+        }
 
         // Build swappedLayers from data
         if (sourceData?.swappedLayers) {
@@ -2580,7 +2587,7 @@ function MessagesInner() {
                                                                     </div>
 
                                                                     {/* Custom filament input */}
-                                                                    {showCustomFilamentInput && (
+                                                                    {(showCustomFilamentInput || sellerFilaments.length === 0) && (
                                                                         <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1">
                                                                             <div className="flex gap-2">
                                                                                 <div className="relative shrink-0" title="Click to pick color">
