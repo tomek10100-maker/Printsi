@@ -280,18 +280,8 @@ export async function POST(req: Request) {
     let pickupCity = cleanCity.length > 1 ? cleanCity : 'Warszawa';
     let pickupStreet = cleanAddress.length > 2 ? cleanAddress : 'Borkowska 1';
 
-    // In sandbox, force a 100% valid Polish sender address to avoid any postal code / city mismatches or missing building number errors
-    if (process.env.FURGONETKA_ENV === 'sandbox') {
-      pickupPostcode = '02-222';
-      pickupCity = 'Warszawa';
-      pickupStreet = 'Borkowska 1';
-      if (receiverStreet && pickupStreet.toLowerCase() === receiverStreet.toLowerCase()) {
-        pickupStreet = 'Borkowska 2';
-      }
-    } else {
-      if (pickupStreet && !/\d/.test(pickupStreet)) {
-        pickupStreet = `${pickupStreet} 1`;
-      }
+    if (pickupStreet && !/\d/.test(pickupStreet)) {
+      pickupStreet = `${pickupStreet} 1`;
     }
 
     // Furgonetka/DHL limit: street max 60 characters
@@ -303,8 +293,6 @@ export async function POST(req: Request) {
     const pointToPoint = isPointToPoint(carrier);
 
     // For point-to-point carriers, get the seller's drop-off point.
-    // Use env var for the default pickup point (e.g. a nearby InPost/Orlen machine).
-    // In sandbox, use a known test point code.
     const sandboxPickupPoint = process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01';
     const productionPickupPoint = process.env.FURGONETKA_PICKUP_POINT || '';
     const pickupPointCode = process.env.FURGONETKA_ENV === 'sandbox'
@@ -373,7 +361,7 @@ export async function POST(req: Request) {
     // 10.5 Proactively accept carrier regulations to prevent 409 terms_and_conditions_not_valid errors
     await furgonetkaClient.acceptRegulations();
 
-    // 11. Call Furgonetka API: Create Draft Package (with auto-acceptance & point fallback to DPD Courier)
+    // 11. Call Furgonetka API: Create Draft Package (with auto-acceptance & point/carrier fallback to DPD Courier)
     let createRes: any;
     try {
       createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
@@ -390,9 +378,12 @@ export async function POST(req: Request) {
         errMsg.includes('poprawny punkt') || 
         errMsg.includes('punkt') || 
         errMsg.includes('Point') ||
-        errMsg.includes('nie istnieje')
+        errMsg.includes('nie istnieje') ||
+        errMsg.includes('kodu pocztowego') ||
+        errMsg.includes('nie obsługuje') ||
+        errMsg.includes('kod pocztowy')
       ) {
-        console.warn('[CreatePackage Route] Pickup point code invalid or incompatible with carrier. Switching to DPD Door-to-Door Courier fallback...');
+        console.warn('[CreatePackage Route] Carrier routing or pickup point code issue. Retrying with DPD Door-to-Door Courier fallback...');
         if (furgonetkaPayload.receiver) delete furgonetkaPayload.receiver.point;
         if (furgonetkaPayload.pickup) delete furgonetkaPayload.pickup.point;
         // Fall back to DPD Courier (Service ID: 11636590) to guarantee shipment success
