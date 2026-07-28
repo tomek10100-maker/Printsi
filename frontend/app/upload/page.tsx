@@ -1998,7 +1998,7 @@ export default function AddOfferPage() {
 
                 {/* Price Display */}
                 <div className="p-5 space-y-4">
-                  <div className="flex items-center justify-between gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
                     <div>
                       <span className="text-[10px] font-black uppercase text-blue-400 tracking-widest block mb-0.5">Calculated Estimate</span>
                       <span className="text-3xl font-black text-white font-mono">
@@ -2008,8 +2008,19 @@ export default function AddOfferPage() {
                           ? `$${(quoteResult.estimatedPriceEUR * 1.08).toFixed(2)}`
                           : `€${quoteResult.estimatedPriceEUR.toFixed(2)}`}
                       </span>
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-300 font-mono mt-1.5">
+                        <span className="bg-blue-900/60 text-blue-200 px-2.5 py-0.5 rounded-md border border-blue-700/50 font-bold">
+                          📐 {quoteResult.dimensionsFormatted}
+                        </span>
+                        <span className="bg-emerald-900/60 text-emerald-200 px-2.5 py-0.5 rounded-md border border-emerald-700/50 font-bold">
+                          ⚖️ {quoteResult.totalGrams}g
+                        </span>
+                        <span className="text-slate-400 text-[10px] font-medium">
+                          (Parcel Box: {quoteResult.parcelDimensionsFormatted})
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-300 bg-blue-900/40 px-3 py-1.5 rounded-lg border border-blue-500/30">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-300 bg-blue-900/40 px-3 py-1.5 rounded-lg border border-blue-500/30 shrink-0">
                       + Shipping Costs
                     </span>
                   </div>
