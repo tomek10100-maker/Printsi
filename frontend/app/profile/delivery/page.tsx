@@ -38,7 +38,7 @@ export default function DeliverySettingsPage() {
 
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('country, free_shipping_enabled, free_shipping_threshold, disabled_couriers')
+                .select('country, free_shipping_enabled, free_shipping_threshold')
                 .eq('id', user.id)
                 .single();
 
@@ -46,7 +46,6 @@ export default function DeliverySettingsPage() {
                 setShipFromCountry(profile.country || 'Poland');
                 setFreeShippingEnabled(profile.free_shipping_enabled || false);
                 setFreeShippingThreshold(profile.free_shipping_threshold?.toString() || '0');
-                setDisabledCouriers(profile.disabled_couriers || []);
             }
 
             setLoading(false);
@@ -83,8 +82,7 @@ export default function DeliverySettingsPage() {
                 country: shipFromCountry,
                 free_shipping_enabled: freeShippingEnabled,
                 free_shipping_threshold: parseFloat(freeShippingThreshold) || 0,
-                disabled_couriers: disabledCouriers,
-                updated_at: new Date() 
+                updated_at: new Date().toISOString()
             })
             .eq('id', user.id);
 
