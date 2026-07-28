@@ -43,6 +43,8 @@ export type QuoteResult = {
   scalePercent: number;
   volumeCm3: number;
   dimensionsFormatted: string;
+  rawDimensionsFormatted: string;
+  rawGrams: number;
   parcelDimensionsFormatted: string;
   parcelBoxMm: { x: number; y: number; z: number };
   estimatedPriceEUR: number;
@@ -532,6 +534,8 @@ export async function calculate3DModelQuoteFromBuffer(
     scalePercent:         scaleNum,
     volumeCm3:            r2(volumeCm3),
     dimensionsFormatted,
+    rawDimensionsFormatted: `${meshData.dx}×${meshData.dy}×${meshData.dz}mm`,
+    rawGrams:             r(((meshData.volumeCm3 * 0.36 + 1.5) * (MATERIAL_DENSITY['PLA'] || 1.24))),
     parcelDimensionsFormatted,
     parcelBoxMm: { x: parcelX, y: parcelY, z: parcelZ },
     estimatedPriceEUR:    r2(totalPriceEUR),
