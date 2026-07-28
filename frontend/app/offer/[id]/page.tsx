@@ -552,12 +552,12 @@ export default function OfferDetailsPage() {
 
           {/* QUANTITY & ACTIONS */}
           <div className="mt-auto space-y-6">
-            {!isDigital && !isOwner && !isOutOfStock && (
+            {!isDigital && !isJob && !isOwner && !isOutOfStock && (
               <div className="flex items-center justify-between p-5 bg-gray-50 rounded-[32px] border border-gray-100">
                  <div className="flex flex-col">
                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity</span>
                    <span className="text-[10px] font-bold text-blue-600">
-                     {offer.category === 'digital' ? <span className="text-xl leading-none">∞</span> : `${currentStock} pieces available`}
+                     {offer.category === 'digital' ? <span className="text-xl leading-none">∞</span> : `${currentStock} pcs`}
                    </span>
                  </div>
                  <div className="flex items-center gap-6 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
