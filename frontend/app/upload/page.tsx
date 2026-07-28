@@ -2026,33 +2026,7 @@ export default function AddOfferPage() {
                     </span>
                   </div>
 
-                  {/* Breakdown Items */}
-                  <div className="space-y-2 text-xs text-slate-300 font-medium pt-1">
-                    <div className="flex items-center justify-between">
-                      <span>🧵 Raw Material Plastic</span>
-                      <span className="font-bold text-white font-mono">
-                        {currency === 'PLN' ? `${quoteResult.breakdown.rawMaterialCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.rawMaterialCostEUR.toFixed(2)}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-400">
-                      <span>🏗️ Support Structures & Overhang Allowance (+10%)</span>
-                      <span className="font-semibold text-slate-300 font-mono">
-                        {currency === 'PLN' ? `${quoteResult.breakdown.supportsCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.supportsCostEUR.toFixed(2)}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-400">
-                      <span>🖨️ Printer Machine Operating & Amortization Fee</span>
-                      <span className="font-semibold text-slate-300 font-mono">
-                        {currency === 'PLN' ? `${quoteResult.breakdown.machineWearCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.machineWearCostEUR.toFixed(2)}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-400">
-                      <span>⚡ Energy Consumption & Surface Post-Processing Cleaning</span>
-                      <span className="font-semibold text-slate-300 font-mono">
-                        {currency === 'PLN' ? `${quoteResult.breakdown.energyPostProcessingCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.energyPostProcessingCostEUR.toFixed(2)}`}
-                      </span>
-                    </div>
-                  </div>
+
 
                   {/* Red Warning Notice Box */}
                   <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-300 leading-relaxed font-medium">
