@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
