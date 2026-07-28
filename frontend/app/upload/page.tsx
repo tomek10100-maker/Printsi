@@ -620,7 +620,7 @@ export default function AddOfferPage() {
     e.preventDefault();
     setFormError('');
     if (!title) { setFormError('Title is required.'); return; }
-    if (previewImages.length === 0) { setFormError('Please upload at least 1 photo.'); return; }
+    if (previewImages.length === 0 && category === 'physical') { setFormError('Please upload at least 1 photo for physical products.'); return; }
     if ((category === 'digital' || category === 'job') && !projectFile) { setFormError('3D File is required.'); return; }
     if (!user?.id) return;
 
@@ -1187,7 +1187,7 @@ export default function AddOfferPage() {
               )}
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
                 <ImageIcon className="mb-3 text-gray-400 group-hover:text-blue-500" size={32} />
-                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Required, Max 6)</span>
+                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Optional, Max 6)</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
               </label>
               {previewImages.length > 0 && (
@@ -2031,26 +2031,22 @@ export default function AddOfferPage() {
                   )}
                 </div>
 
-                {/* Price & Shipping Box Specs */}
+                {/* Price Display */}
                 <div className="p-5 space-y-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                  <div className="flex items-center justify-between gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
                     <div>
                       <span className="text-[10px] font-black uppercase text-blue-400 tracking-widest block mb-0.5">Calculated Estimate</span>
-                      <span className="text-2xl font-black text-white font-mono">
+                      <span className="text-3xl font-black text-white font-mono">
                         {currency === 'PLN'
                           ? `${quoteResult.breakdown.totalPricePLN.toFixed(2)} PLN`
                           : currency === 'USD'
                           ? `$${(quoteResult.estimatedPriceEUR * 1.08).toFixed(2)}`
                           : `€${quoteResult.estimatedPriceEUR.toFixed(2)}`}
                       </span>
-                      <span className="text-[10px] text-slate-400 block mt-0.5 font-medium">
-                        (Scaled Model: {quoteResult.dimensionsFormatted} · Box: {quoteResult.parcelDimensionsFormatted} · {quoteResult.totalGrams}g)
-                      </span>
                     </div>
-                    <div className="text-right sm:border-l sm:border-white/10 sm:pl-4">
-                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Est. Print Duration</span>
-                      <span className="text-sm font-black text-blue-300 font-mono">~{Math.ceil(quoteResult.printTimeMinutes / 60)} hours</span>
-                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-300 bg-blue-900/40 px-3 py-1.5 rounded-lg border border-blue-500/30">
+                      + Shipping Costs
+                    </span>
                   </div>
 
                   {/* Breakdown Items */}
@@ -2081,9 +2077,9 @@ export default function AddOfferPage() {
                     </div>
                   </div>
 
-                  {/* Explanation Hint */}
-                  <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[10px] text-blue-200 leading-relaxed font-medium">
-                    💡 <strong>Pricing Guide:</strong> The suggested estimate above includes raw material weight, support structures, printer amortization, power consumption, and cleaning. You can click "Use Suggested Price" or enter your own custom price.
+                  {/* Red Warning Notice Box */}
+                  <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-300 leading-relaxed font-medium">
+                    ⚠️ <strong className="text-red-400 font-bold">Important Notice:</strong> Production costs may vary depending on the specific 3D printer model, nozzle size, layer height, slicer settings, and maker material preferences. Price shown excludes delivery (+ shipping costs calculated at checkout).
                   </div>
                 </div>
               </div>
