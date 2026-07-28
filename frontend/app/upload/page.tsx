@@ -1011,26 +1011,27 @@ export default function AddOfferPage() {
   return (
     <main className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center text-gray-900 font-sans">
       <div className="max-w-3xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 relative">
-        <Link href="/" className="absolute top-6 right-6 p-2 z-10 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all">
-          <X size={24} />
-        </Link>
-
-        {/* Top Header with Category Change Button */}
-        <div className="bg-gray-900 p-8 text-white flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-wide">
+        {/* Top Header with Category Change Button & Close Button */}
+        <div className="bg-gray-900 p-6 md:p-8 text-white flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl md:text-3xl font-black uppercase tracking-wide truncate">
               {category === 'job' && 'Custom 3D Print Request'}
               {category === 'physical' && 'List Physical 3D Item'}
               {category === 'digital' && 'Publish Digital 3D Model'}
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setCategory(null)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-black uppercase tracking-wider text-blue-300 hover:text-white transition-all shrink-0"
-          >
-            ← Change Category
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setCategory(null)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-black uppercase tracking-wider text-blue-300 hover:text-white transition-all whitespace-nowrap"
+            >
+              ← Change Category
+            </button>
+            <Link href="/" className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all flex items-center justify-center">
+              <X size={20} />
+            </Link>
+          </div>
         </div>
 
         <div className="p-8">
