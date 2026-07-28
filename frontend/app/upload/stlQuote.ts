@@ -465,18 +465,18 @@ export async function calculate3DModelQuoteFromBuffer(
 
   const volumeCm3 = meshData.volumeCm3 * sf * sf * sf;
 
-  // ── BAMBU STUDIO X1 CARBON CALIBRATED SLICING PHYSICS ──
+  // ── BAMBU STUDIO X1 CARBON (0.4mm NOZZLE / 2 PERIMETERS / 4 TOP / 4 BOTTOM / 15% INFILL) ──
   const boxVolumeCm3 = (dimX * dimY * dimZ) / 1000.0;
-  const compactnessRatio = Math.min(1.0, Math.max(0.30, volumeCm3 / (boxVolumeCm3 || 1.0)));
+  const compactnessRatio = Math.min(1.0, Math.max(0.20, volumeCm3 / (boxVolumeCm3 || 1.0)));
 
-  // 1. Surface Area S in cm² scaled by mesh compactness factor (2 wall perimeters @ 0.42mm = 0.084 cm)
+  // 1. Surface Area S in cm² (2 wall perimeters @ 0.42mm = 0.084 cm wall shell thickness)
   const surfaceAreaCm2 = (2.0 * ((dimX * dimY) + (dimY * dimZ) + (dimZ * dimX)) / 100.0) * Math.sqrt(compactnessRatio);
-  const wallShellVolumeCm3 = surfaceAreaCm2 * 0.084 * 0.55;
+  const wallShellVolumeCm3 = surfaceAreaCm2 * 0.084;
 
-  // 2. Top (4 layers @ 0.2mm) & Bottom (3 layers @ 0.2mm) Solid Skins Volume
-  const topBottomSkinVolumeCm3 = ((dimX * dimY) / 100.0) * 0.040 * compactnessRatio;
+  // 2. Top (4 layers @ 0.2mm = 0.08cm) & Bottom (4 layers @ 0.2mm = 0.08cm) Solid Skins Volume
+  const topBottomSkinVolumeCm3 = ((dimX * dimY) / 100.0) * 0.080 * compactnessRatio;
 
-  // 3. Sparse Gyroid/Grid Infill (15% density of interior volume)
+  // 3. Sparse Gyroid Infill (15% density of interior volume)
   const interiorVolumeCm3 = Math.max(0, volumeCm3 - (wallShellVolumeCm3 * 0.5));
   const infillVolumeCm3 = interiorVolumeCm3 * 0.15;
 
@@ -489,8 +489,11 @@ export async function calculate3DModelQuoteFromBuffer(
   const pricePerGramPLN = PRICE_PER_GRAM_PLN[matKey] ?? DEFAULT_PRICE_PER_GRAM_PLN;
   const pricePerGramEUR = pricePerGramPLN / EUR_TO_PLN;
 
-  // Align with Bambu Studio 3MF / STL slicing math (2 walls, 4 top / 3 bottom, 15% infill)
-  const calculatedWeightPerUnitGrams = (totalPlasticVolumeCm3 * density) + 1.5;
+  // Align with Bambu Studio 3MF / STL slicing math
+  const calculatedWeightPerUnitGrams = Math.max(
+    (volumeCm3 * density) + 1.5,
+    (totalPlasticVolumeCm3 * density) + 1.5
+  );
   const gramsPerUnit = Math.round(calculatedWeightPerUnitGrams * 10) / 10;
 
   const totalGrams      = Math.round(gramsPerUnit * qtyNum * 10) / 10;
