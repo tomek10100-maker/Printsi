@@ -17,6 +17,12 @@ const COURIERS = [
     { id: 'DPD', name: 'DPD Pickup / Courier', icon: '🔴' },
     { id: 'DHL', name: 'DHL POP / Courier', icon: '🟡' },
     { id: 'Orlen', name: 'Orlen Paczka', icon: '🔴' },
+    { id: 'Poczta', name: 'Poczta Polska / Pocztex', icon: '📯' },
+    { id: 'UPS', name: 'UPS Access Point / Courier', icon: '🟤' },
+    { id: 'FedEx', name: 'FedEx Express / Courier', icon: '🟣' },
+    { id: 'GLS', name: 'GLS ParcelShop / Courier', icon: '🔵' },
+    { id: 'Geis', name: 'Geis Heavy & Cargo', icon: '🟢' },
+    { id: 'Ambro', name: 'Ambro Express Cargo', icon: '🚚' },
 ];
 
 export default function DeliverySettingsPage() {
