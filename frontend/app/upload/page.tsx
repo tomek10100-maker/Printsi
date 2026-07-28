@@ -1155,34 +1155,6 @@ export default function AddOfferPage() {
                     )}
                     <input type="file" className="hidden" accept=".stl,.obj,.3mf,.zip" onChange={e => setProjectFile(e.target.files?.[0] || null)} />
                   </label>
-
-                  {/* ── RAW UNTOUCHED 3D FILE METRICS BAR (SIZE & WEIGHT ONLY) ── */}
-                  {category === 'job' && projectFile && (
-                    <div className="mt-3 bg-[#0a0f1d] text-white rounded-2xl p-4 shadow-xl border border-slate-800/80">
-                      {quoteLoading ? (
-                        <div className="flex items-center gap-3 py-1 justify-center">
-                          <Loader2 size={16} className="animate-spin text-blue-400 shrink-0" />
-                          <span className="text-xs font-semibold text-slate-300">Analyzing 3D model dimensions and weight...</span>
-                        </div>
-                      ) : quoteResult ? (
-                        <div className="grid grid-cols-2 divide-x divide-slate-800/80">
-                          {/* Raw Size box */}
-                          <div className="flex flex-col items-center justify-center px-4 py-1 text-center">
-                            <span className="text-[10px] font-black uppercase text-blue-400 tracking-[0.2em] mb-1">SIZE</span>
-                            <span className="text-base font-black text-white font-mono tracking-tight">{quoteResult.rawDimensionsFormatted}</span>
-                          </div>
-
-                          {/* Raw Weight box */}
-                          <div className="flex flex-col items-center justify-center px-4 py-1 text-center">
-                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">WEIGHT</span>
-                            <span className="text-base font-black text-blue-400 font-mono tracking-tight">{quoteResult.rawGrams}g</span>
-                          </div>
-                        </div>
-                      ) : quoteError ? (
-                        <div className="text-xs text-red-400 font-semibold text-center py-1">{quoteError}</div>
-                      ) : null}
-                    </div>
-                  )}
                 </div>
               )}
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">

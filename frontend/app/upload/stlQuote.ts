@@ -489,11 +489,8 @@ export async function calculate3DModelQuoteFromBuffer(
   const pricePerGramPLN = PRICE_PER_GRAM_PLN[matKey] ?? DEFAULT_PRICE_PER_GRAM_PLN;
   const pricePerGramEUR = pricePerGramPLN / EUR_TO_PLN;
 
-  // Align with Bambu Studio 3MF / STL slicing math
-  const calculatedWeightPerUnitGrams = Math.max(
-    (volumeCm3 * density) + 1.5,
-    (totalPlasticVolumeCm3 * density) + 1.5
-  );
+  // Align with Bambu Studio 3MF / STL slicing math (2 walls, 4 top / 3 bottom, 15% infill)
+  const calculatedWeightPerUnitGrams = (totalPlasticVolumeCm3 * density) + 1.5;
   const gramsPerUnit = Math.round(calculatedWeightPerUnitGrams * 10) / 10;
 
   const totalGrams      = Math.round(gramsPerUnit * qtyNum * 10) / 10;
