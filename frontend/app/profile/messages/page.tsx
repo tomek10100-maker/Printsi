@@ -882,6 +882,7 @@ function MessagesInner() {
     const hasProposalChanges = (() => {
         if (!activeChatData?.offers) return false;
         const orig = editingProposalData || activeChatData.offers;
+        const isJob = activeChatData.offers?.category === 'job';
 
         let currentPriceNum = parseFloat(proposalPrice);
         let finalPrice = currentPriceNum;
@@ -890,10 +891,10 @@ function MessagesInner() {
         }
 
         const priceChanged = Math.abs(finalPrice - (orig.price || 0)) > 0.01;
-        const qtyChanged = parseInt(proposalQty) !== (orig.quantity || 1);
+        const qtyChanged = !isJob && parseInt(proposalQty) !== (orig.quantity || 1);
         const matChanged = proposalMaterial !== (orig.material || '');
         const colChanged = proposalColor !== (orig.color || '');
-        const scaleChanged = Math.abs(proposalScale - (orig.dimensionScale || 100)) > 0.1;
+        const scaleChanged = !isJob && Math.abs(proposalScale - (orig.dimensionScale || 100)) > 0.1;
         const swapsChanged = swappedLayers.some(sl => {
             const currentChoiceName = sl.swapped_filament_id
                 ? sellerFilaments.find(f => f.id === sl.swapped_filament_id)?.color_name
@@ -2348,17 +2349,14 @@ function MessagesInner() {
                                                     const sp = sd?.price !== undefined ? (currency !== 'EUR' && rates && rates[currency] ? sd.price * rates[currency] : sd.price) : 0;
                                                     const pDiff = Math.abs(parseFloat(proposalPrice || '0') - sp) > 0.01;
                                                     const qDiff = proposalQty !== (sd?.quantity?.toString() || '1');
+                                                    const isJob = activeChatData.offers?.category === 'job';
 
                                                     // Comprehensive change detection
-                                                    const hasMatChanges = activeChatData.offers?.category === 'physical' && (
+                                                    const hasMatChanges = (activeChatData.offers?.category === 'physical' || isJob) && (
                                                         swappedLayers.some(sl => {
                                                             const currentChoiceName = sl.swapped_filament_id
                                                                 ? sellerFilaments.find(f => f.id === sl.swapped_filament_id)?.color_name
                                                                 : (sl.showCustom ? sl.custom_color_name : '');
-
-                                                            // It's a change if:
-                                                            // 1. We picked a filament and its name is different from original
-                                                            // 2. We picked custom and its name is different from original AND not empty
                                                             return currentChoiceName && currentChoiceName !== sl.original_color_name;
                                                         }) ||
                                                         (proposalMaterial !== (sd?.material || '')) ||
@@ -2366,18 +2364,18 @@ function MessagesInner() {
                                                     );
 
                                                     const originalDims = parseDimensionsAdvanced(sd?.dimensions || activeChatData.offers?.dimensions || '');
-                                                    const hasDimChanges = proposalScale !== 100 || proposalDims.some((dim, idx) => {
+                                                    const hasDimChanges = !isJob && (proposalScale !== 100 || proposalDims.some((dim, idx) => {
                                                         const orig = originalDims[idx]?.originalValue || dim.originalValue;
                                                         return Math.abs(parseFloat(dim.currentValueStr || '0') - orig) > 0.01;
-                                                    });
+                                                    }));
 
                                                     const hasProposalChanges = pDiff || qDiff || hasMatChanges || hasDimChanges;
 
                                                     return (
-                                                        <div className="grid grid-cols-2 gap-4">
+                                                        <div className={`grid ${isJob ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                                                             <div>
                                                                 <div className="flex justify-between items-center mb-1">
-                                                                    <label className={`text-[9px] font-black uppercase ${pDiff ? 'text-blue-600' : 'text-gray-400'}`}>Price per item</label>
+                                                                    <label className={`text-[9px] font-black uppercase ${pDiff ? 'text-blue-600' : 'text-gray-400'}`}>Price</label>
                                                                     {activeChatData.offers && (
                                                                         <span className="text-[8px] font-bold text-blue-500/60 tracking-tight">Original: {formatPrice(activeChatData.offers.price)}</span>
                                                                     )}
@@ -2387,20 +2385,22 @@ function MessagesInner() {
                                                                     <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-black text-[10px] uppercase tracking-widest ${pDiff ? 'text-blue-600' : 'text-gray-400'}`}>{currency}</span>
                                                                 </div>
                                                             </div>
-                                                            <div>
-                                                                <div className="flex justify-between items-center mb-1">
-                                                                    <label className={`text-[9px] font-black uppercase ${qDiff ? 'text-blue-600' : 'text-gray-400'}`}>Quantity</label>
-                                                                    <span className="text-[8px] font-bold text-blue-500/60 tracking-tight">Original: 1</span>
+                                                            {!isJob && (
+                                                                <div>
+                                                                    <div className="flex justify-between items-center mb-1">
+                                                                        <label className={`text-[9px] font-black uppercase ${qDiff ? 'text-blue-600' : 'text-gray-400'}`}>Quantity</label>
+                                                                        <span className="text-[8px] font-bold text-blue-500/60 tracking-tight">Original: 1</span>
+                                                                    </div>
+                                                                    <input type="number" min="1" value={proposalQty} onChange={e => setProposalQty(e.target.value)} className={`w-full px-4 py-3 bg-white border ${qDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-900 shadow-sm`} />
                                                                 </div>
-                                                                <input type="number" min="1" value={proposalQty} onChange={e => setProposalQty(e.target.value)} className={`w-full px-4 py-3 bg-white border ${qDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-900 shadow-sm`} />
-                                                            </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })()}
                                             </div>
 
                                             {/* FILAMENT SELECTION / MULTI-COLOR SWAPPING */}
-                                            {activeChatData.offers?.category === 'physical' && (
+                                            {(activeChatData.offers?.category === 'physical' || activeChatData.offers?.category === 'job') && (
                                                 <div className="space-y-4">
                                                     <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Material & Color</span>
 
@@ -2611,33 +2611,36 @@ function MessagesInner() {
                                                     )}
                                                 </div>
                                             )}
-                                            <div>
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Dimensions</span>
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="text-[10px] font-black text-gray-500">Scale %:</span>
-                                                        <input type="number" step="1" value={proposalScale} onChange={e => handleScaleChange(e.target.value)} className="w-14 px-1 py-1 border rounded text-xs font-bold text-center" />
+
+                                            {activeChatData.offers?.category !== 'job' && (
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Dimensions</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-[10px] font-black text-gray-500">Scale %:</span>
+                                                            <input type="number" step="1" value={proposalScale} onChange={e => handleScaleChange(e.target.value)} className="w-14 px-1 py-1 border rounded text-xs font-bold text-center" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
+                                                        {(() => {
+                                                            const sd = editingProposalData || activeChatData.offers;
+                                                            const originalDims = parseDimensionsAdvanced(sd?.dimensions || activeChatData.offers?.dimensions || '');
+                                                            return proposalDims.map((dim, idx) => {
+                                                                const orig = originalDims[idx]?.originalValue || dim.originalValue;
+                                                                const isDimChanged = Math.abs(parseFloat(dim.currentValueStr || '0') - orig) > 0.01;
+                                                                return (
+                                                                    <div key={idx} className="flex items-center gap-2">
+                                                                        <span className={`w-20 text-[10px] font-black uppercase ${isDimChanged ? 'text-blue-600' : 'text-gray-500'} truncate`}>{dim.name}</span>
+                                                                        <input type="number" step="0.1" value={dim.currentValueStr} onChange={e => handleDimChange(idx, e.target.value)} className={`flex-1 px-3 py-2 border ${isDimChanged ? 'border-blue-400 ring-2 ring-blue-50 bg-white' : 'border-gray-200'} rounded-lg text-sm font-bold transition-all`} />
+                                                                        <span className="text-[10px] font-bold text-gray-400">{dim.unit}</span>
+                                                                    </div>
+                                                                );
+                                                            });
+                                                        })()}
                                                     </div>
                                                 </div>
-                                                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
-                                                    {(() => {
-                                                        const sd = editingProposalData || activeChatData.offers;
-                                                        const originalDims = parseDimensionsAdvanced(sd?.dimensions || activeChatData.offers?.dimensions || '');
-                                                        return proposalDims.map((dim, idx) => {
-                                                            const orig = originalDims[idx]?.originalValue || dim.originalValue;
-                                                            const isDimChanged = Math.abs(parseFloat(dim.currentValueStr || '0') - orig) > 0.01;
-                                                            return (
-                                                                <div key={idx} className="flex items-center gap-2">
-                                                                    <span className={`w-20 text-[10px] font-black uppercase ${isDimChanged ? 'text-blue-600' : 'text-gray-500'} truncate`}>{dim.name}</span>
-                                                                    <input type="number" step="0.1" value={dim.currentValueStr} onChange={e => handleDimChange(idx, e.target.value)} className={`flex-1 px-3 py-2 border ${isDimChanged ? 'border-blue-400 ring-2 ring-blue-50 bg-white' : 'border-gray-200'} rounded-lg text-sm font-bold transition-all`} />
-                                                                    <span className="text-[10px] font-bold text-gray-400">{dim.unit}</span>
-                                                                </div>
-                                                            );
-                                                        });
-                                                    })()}
-                                                </div>
-                                            </div>
-                                            <button onClick={sendProposal} disabled={!proposalPrice || !proposalQty || !hasProposalChanges} className={`w-full py-4 text-white rounded-xl font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:shadow-none transition-all ${currentUser?.id === activeChatData.seller_id ? 'bg-amber-500' : 'bg-blue-600'}`}>
+                                            )}
+                                            <button onClick={sendProposal} disabled={!proposalPrice || !hasProposalChanges} className={`w-full py-4 text-white rounded-xl font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:shadow-none transition-all ${currentUser?.id === activeChatData.seller_id ? 'bg-amber-500' : 'bg-blue-600'}`}>
                                                 <Handshake size={15} /> {currentUser?.id === activeChatData.seller_id ? 'Send Offer' : 'Send Proposal'}
                                             </button>
                                         </div>
