@@ -242,11 +242,26 @@ export async function POST(request: Request) {
       : 18.0 * Math.pow(scaleFactor, 3);
 
     const totalGrams = scaledGramsPerUnit * quantity;
-    const density = MATERIAL_DENSITY[material] ?? DEFAULT_DENSITY;
-    const pricePerKgPLN = FILAMENT_PRICE_PLN_PER_KG[material] ?? DEFAULT_FILAMENT_PLN_PER_KG;
-    const pricePerKgEUR = pricePerKgPLN / EUR_TO_PLN;
+    const PRICE_PER_GRAM_PLN: Record<string, number> = {
+      PLA: 0.11, 'PLA+': 0.12, PETG: 0.12, ABS: 0.11, ASA: 0.15,
+      TPU: 0.175, PA: 0.28, PC: 0.27, RESIN: 0.20, OTHER: 0.22,
+    };
+    const pricePerGramPLN = PRICE_PER_GRAM_PLN[material] ?? 0.11;
+    const pricePerGramEUR = pricePerGramPLN / EUR_TO_PLN;
 
-    const totalPricePLN = (totalGrams / 1000.0) * pricePerKgPLN;
+    const rawMaterialCostPLN = totalGrams * pricePerGramPLN;
+    const rawMaterialCostEUR = rawMaterialCostPLN / EUR_TO_PLN;
+
+    const supportsCostPLN = rawMaterialCostPLN * 0.10;
+    const supportsCostEUR = supportsCostPLN / EUR_TO_PLN;
+
+    const machineWearCostPLN = 15.00;
+    const machineWearCostEUR = machineWearCostPLN / EUR_TO_PLN;
+
+    const energyPostProcessingCostPLN = 10.00;
+    const energyPostProcessingCostEUR = energyPostProcessingCostPLN / EUR_TO_PLN;
+
+    const totalPricePLN = rawMaterialCostPLN + supportsCostPLN + machineWearCostPLN + energyPostProcessingCostPLN;
     const totalPriceEUR = totalPricePLN / EUR_TO_PLN;
 
     const r = (v: number) => Math.round(v * 10) / 10;
@@ -261,11 +276,37 @@ export async function POST(request: Request) {
       scalePercent,
       gramsPerUnit: r(scaledGramsPerUnit),
       totalGrams: r(totalGrams),
+      modelGrams: r(totalGrams * 0.9),
+      supportsGrams: r(totalGrams * 0.1),
       printTimeMinutes: printTimeMinutes || 35,
+      dimensionsFormatted: 'Auto Sliced',
+      parcelDimensionsFormatted: 'Standard Box',
+      parcelBoxMm: { x: 150, y: 150, z: 150 },
       estimatedPricePLN: r2(totalPricePLN),
       estimatedPriceEUR: r2(totalPriceEUR),
-      filamentPricePerKgPLN: pricePerKgPLN,
-      filamentPricePerKgEUR: r2(pricePerKgEUR),
+      pricePerGramPLN,
+      pricePerGramEUR: r2(pricePerGramEUR),
+      fileType: is3MF ? '3MF' : 'STL',
+      breakdown: {
+        material,
+        pricePerGramPLN,
+        pricePerGramEUR: r2(pricePerGramEUR),
+        rawMaterialCostPLN: r2(rawMaterialCostPLN),
+        rawMaterialCostEUR: r2(rawMaterialCostEUR),
+        supportsCostPLN: r2(supportsCostPLN),
+        supportsCostEUR: r2(supportsCostEUR),
+        machineWearCostPLN: r2(machineWearCostPLN),
+        machineWearCostEUR: r2(machineWearCostEUR),
+        energyPostProcessingCostPLN: r2(energyPostProcessingCostPLN),
+        energyPostProcessingCostEUR: r2(energyPostProcessingCostEUR),
+        gramsPerUnit: r(scaledGramsPerUnit),
+        quantity,
+        scalePercent,
+        totalGrams: r(totalGrams),
+        printTimeMinutes: printTimeMinutes || 35,
+        totalPricePLN: r2(totalPricePLN),
+        totalPriceEUR: r2(totalPriceEUR),
+      },
     });
 
   } catch (err: any) {
