@@ -2935,6 +2935,50 @@ function MessagesInner() {
                                             );
                                         }
 
+                                        if (msg.message_type === 'admin_resolution') {
+                                            let resData: any = null;
+                                            try { resData = JSON.parse(msg.content); } catch (_) {}
+                                            const isRefund = resData?.action === 'refund_buyer';
+
+                                            return (
+                                                <div key={msg.id || idx} className="my-6 p-4 bg-gradient-to-r from-blue-950/90 via-purple-950/90 to-blue-950/90 border-2 border-blue-500/40 rounded-2xl text-center space-y-2 shadow-2xl animate-in zoom-in-95">
+                                                    <div className="flex items-center justify-center gap-2 text-blue-400 font-black text-xs uppercase tracking-widest">
+                                                        <ShieldAlert size={18} className="text-blue-400" /> OFFICIAL PLATFORM ADMINISTRATION RESOLUTION
+                                                    </div>
+                                                    {resData ? (
+                                                        <p className="text-sm font-black text-white">
+                                                            {isRefund
+                                                                ? `Decision: Full Item Refund of €${Number(resData.amountEUR).toFixed(2)} has been credited to Buyer (return shipping fees excluded).`
+                                                                : `Decision: Dispute resolved in favor of Seller. Funds of €${Number(resData.amountEUR).toFixed(2)} have been released to Seller.`
+                                                            }
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-xs text-slate-200 font-bold">{msg.content}</p>
+                                                    )}
+                                                    {resData?.notes && (
+                                                        <p className="text-xs text-slate-300 italic font-medium">"{resData.notes}"</p>
+                                                    )}
+                                                    <p className="text-[10px] text-slate-400 font-mono pt-1">{new Date(msg.created_at).toLocaleString()}</p>
+                                                </div>
+                                            );
+                                        }
+
+                                        if (msg.message_type === 'admin_chat') {
+                                            return (
+                                                <div key={msg.id || idx} className="flex flex-col items-center my-4">
+                                                    <div className="max-w-[85%] bg-gradient-to-br from-blue-900/90 to-purple-900/90 border border-blue-400/40 text-white rounded-2xl p-4 shadow-xl space-y-2">
+                                                        <div className="flex items-center gap-2 border-b border-blue-500/30 pb-2">
+                                                            <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                                                                <Shield size={11} /> OFFICIAL ADMIN SUPPORT
+                                                            </span>
+                                                            <span className="text-[10px] text-blue-200 font-mono ml-auto">{new Date(msg.created_at).toLocaleString()}</span>
+                                                        </div>
+                                                        <p className="text-xs font-medium leading-relaxed text-slate-100 whitespace-pre-wrap">{msg.content}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+
                                         return (
                                             <div key={msg.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                                                 <div className={`max-w-[75%] rounded-2xl px-5 py-3 ${isMe ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>

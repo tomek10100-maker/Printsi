@@ -1,14 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { ShoppingBag, Search, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { ShoppingBag, Search, Loader2, ShieldAlert, MessageSquare, ArrowRight, CheckCircle2, DollarSign, RefreshCw, XCircle } from 'lucide-react';
 import { getAdminToken } from '../../lib/getAdminToken';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const STATUS_COLORS: any = {
   pending: { bg: 'rgba(245,158,11,0.15)', text: '#fbbf24' },
@@ -40,19 +35,64 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
+  // Dispute resolution modal state
+  const [selectedDisputeItem, setSelectedDisputeItem] = useState<any>(null);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [resolveSuccess, setResolveSuccess] = useState<string | null>(null);
+
+  const fetchOrders = async () => {
+    const token = await getAdminToken();
+    if (!token) { setLoading(false); return; }
+    const res = await fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    setOrders(data.orders || []);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchOrders = async () => {
-      const token = await getAdminToken();
-      if (!token) { setLoading(false); return; }
-      const res = await fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      setOrders(data.orders || []);
-      setLoading(false);
-    };
     fetchOrders();
   }, []);
 
   const fmt = (n: number) => `€${Number(n).toFixed(2)}`;
+
+  const handleResolveDispute = async (action: 'refund_buyer' | 'payout_seller') => {
+    if (!selectedDisputeItem) return;
+    setResolving(true);
+    setResolveSuccess(null);
+
+    try {
+      const token = await getAdminToken();
+      const res = await fetch('/api/admin/disputes/resolve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          disputeId: selectedDisputeItem.dispute?.id,
+          orderItemId: selectedDisputeItem.id,
+          action,
+          adminNotes,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to resolve dispute');
+
+      setResolveSuccess(data.message);
+      await fetchOrders();
+      setTimeout(() => {
+        setSelectedDisputeItem(null);
+        setResolveSuccess(null);
+        setAdminNotes('');
+      }, 2000);
+    } catch (err: any) {
+      alert(err.message || 'Resolution failed');
+    } finally {
+      setResolving(false);
+    }
+  };
 
   // Collect all unique statuses from items
   const allStatuses = Array.from(new Set(orders.flatMap(o => (o.items || []).map((i: any) => i.status)).filter(Boolean)));
@@ -70,7 +110,7 @@ export default function AdminOrdersPage() {
     <div className="space-y-6">
       <div>
         <h1 style={{ color: '#f1f5f9' }} className="text-2xl font-black tracking-tight flex items-center gap-2">
-          <ShoppingBag size={22} className="text-green-400" /> Orders
+          <ShoppingBag size={22} className="text-green-400" /> Orders & Dispute Resolution
         </h1>
         <p style={{ color: '#64748b' }} className="text-sm font-bold mt-0.5">{orders.length} total orders on platform</p>
       </div>
@@ -117,27 +157,71 @@ export default function AdminOrdersPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span style={{ background: isBalance ? 'rgba(139,92,246,0.15)' : 'rgba(59,130,246,0.15)', color: isBalance ? '#a78bfa' : '#60a5fa', fontSize: '9px', padding: '2px 8px', borderRadius: 999 }} className="font-black uppercase tracking-widest">
-                  {isBalance ? 'Wallet' : 'Stripe'}
-                </span>
-                <span style={{ color: '#334155', fontSize: '10px' }} className="font-mono">{order.id.slice(0, 8)}...</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span style={{ background: isBalance ? 'rgba(139,92,246,0.15)' : 'rgba(59,130,246,0.15)', color: isBalance ? '#a78bfa' : '#60a5fa', fontSize: '9px', padding: '2px 8px', borderRadius: 999 }} className="font-black uppercase tracking-widest">
+                    {isBalance ? 'Wallet' : 'Stripe'}
+                  </span>
+                  <span style={{ color: '#334155', fontSize: '10px' }} className="font-mono">{order.id.slice(0, 8)}...</span>
+                </div>
               </div>
 
               {(order.items || []).length > 0 && (
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }} className="pt-3 space-y-2">
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }} className="pt-3 space-y-3">
                   {order.items.map((item: any) => {
                     const sc = STATUS_COLORS[item.status] || { bg: 'rgba(100,116,139,0.15)', text: '#94a3b8' };
+                    const isDisputed = item.status === 'disputed' || item.status === 'cancellation_requested' || !!item.dispute;
+
                     return (
-                      <div key={item.id} className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: sc.text, flexShrink: 0 }} />
-                          <p style={{ color: '#94a3b8', fontSize: '12px' }} className="font-bold">
-                            Seller: <span style={{ color: '#cbd5e1' }}>{item.profiles?.full_name || '—'}</span>
-                            <span style={{ color: '#475569' }}> · {item.quantity || 1}× · {fmt(item.price_at_purchase)}</span>
-                          </p>
+                      <div key={item.id} className="p-3 bg-slate-900/40 rounded-xl border border-slate-800/60 flex flex-col gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: sc.text, flexShrink: 0 }} />
+                            <p style={{ color: '#94a3b8', fontSize: '12px' }} className="font-bold">
+                              Seller: <span style={{ color: '#cbd5e1' }}>{item.profiles?.full_name || '—'}</span>
+                              <span style={{ color: '#475569' }}> · {item.quantity || 1}× · {fmt(item.price_at_purchase)}</span>
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span style={{ background: sc.bg, color: sc.text, fontSize: '9px', padding: '2px 8px', borderRadius: 999 }} className="font-black uppercase tracking-widest whitespace-nowrap">
+                              {item.status}
+                            </span>
+
+                            {/* Direct Admin Open Chat Button */}
+                            {item.chat_id && (
+                              <Link
+                                href={`/admin/chats/${item.chat_id}`}
+                                style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', fontSize: '10px' }}
+                                className="px-2.5 py-1 rounded-lg font-black uppercase tracking-wider hover:bg-purple-500/25 transition flex items-center gap-1"
+                              >
+                                <MessageSquare size={11} /> Open Chat
+                              </Link>
+                            )}
+
+                            {/* Resolve Dispute Button */}
+                            {isDisputed && (
+                              <button
+                                onClick={() => setSelectedDisputeItem({ ...item, buyer, orderId: order.id })}
+                                style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)', fontSize: '10px' }}
+                                className="px-3 py-1 rounded-lg font-black uppercase tracking-wider hover:bg-red-500/30 transition flex items-center gap-1 shadow-sm"
+                              >
+                                <ShieldAlert size={12} /> Resolve Dispute
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <span style={{ background: sc.bg, color: sc.text, fontSize: '9px', padding: '2px 8px', borderRadius: 999 }} className="font-black uppercase tracking-widest whitespace-nowrap">{item.status}</span>
+
+                        {/* Dispute details preview if available */}
+                        {item.dispute && (
+                          <div className="mt-1 p-2.5 bg-red-950/30 border border-red-500/20 rounded-lg text-xs text-red-300">
+                            <p className="font-bold flex items-center gap-1.5 text-red-400">
+                              <ShieldAlert size={13} /> Reported Problem: <span className="uppercase font-black text-red-200">{item.dispute.problem_type}</span>
+                            </p>
+                            <p className="text-[11px] text-slate-300 mt-1 italic leading-relaxed font-medium">"{item.dispute.description}"</p>
+                            <p className="text-[10px] text-slate-400 mt-1">Contact Email: <span className="font-mono text-slate-200">{item.dispute.contact_email}</span></p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -151,6 +235,83 @@ export default function AdminOrdersPage() {
           <div style={{ color: '#334155' }} className="text-center py-16 font-bold">No orders found</div>
         )}
       </div>
+
+      {/* ── DISPUTE RESOLUTION MODAL ── */}
+      {selectedDisputeItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 text-white">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="text-red-400" size={24} />
+                <h3 className="text-lg font-black uppercase tracking-wide">Resolve Dispute</h3>
+              </div>
+              <button
+                onClick={() => setSelectedDisputeItem(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
+              <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Dispute Order Summary</p>
+              <div className="flex justify-between items-center text-slate-200 font-medium">
+                <span>Buyer: <strong className="text-white font-bold">{selectedDisputeItem.buyer?.full_name}</strong></span>
+                <span>Seller: <strong className="text-white font-bold">{selectedDisputeItem.profiles?.full_name}</strong></span>
+              </div>
+              <div className="flex justify-between items-center text-slate-200 font-medium pt-1 border-t border-slate-800/80">
+                <span>Item Value (excl. shipping):</span>
+                <span className="text-emerald-400 font-black text-sm">{fmt(selectedDisputeItem.price_at_purchase * selectedDisputeItem.quantity)}</span>
+              </div>
+            </div>
+
+            {selectedDisputeItem.dispute && (
+              <div className="p-3.5 bg-red-950/40 border border-red-500/30 rounded-2xl text-xs space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-red-400">Claim Details</span>
+                <p className="font-bold text-red-200 uppercase">{selectedDisputeItem.dispute.problem_type}</p>
+                <p className="text-slate-300 italic">"{selectedDisputeItem.dispute.description}"</p>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Admin Resolution Notes / Official Statement</label>
+              <textarea
+                value={adminNotes}
+                onChange={e => setAdminNotes(e.target.value)}
+                placeholder="Explain the administration decision (will be sent as official notice in chat)..."
+                rows={3}
+                className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 outline-none focus:border-blue-500 font-medium"
+              />
+            </div>
+
+            {resolveSuccess && (
+              <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 size={16} /> {resolveSuccess}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                disabled={resolving}
+                onClick={() => handleResolveDispute('refund_buyer')}
+                className="py-3 px-4 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {resolving ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+                Refund Buyer (Excl. Shipping)
+              </button>
+
+              <button
+                disabled={resolving}
+                onClick={() => handleResolveDispute('payout_seller')}
+                className="py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {resolving ? <Loader2 className="animate-spin" size={16} /> : <DollarSign size={16} />}
+                Pay Out to Seller
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

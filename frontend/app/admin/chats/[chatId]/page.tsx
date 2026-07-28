@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { ArrowLeft, Loader2, Package, MessageSquare, User } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, MessageSquare, Shield, Send, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { getAdminToken } from '../../../lib/getAdminToken';
 
@@ -30,6 +30,12 @@ function parseProposal(content: string) {
   } catch { return null; }
 }
 
+function parseAdminResolution(content: string) {
+  try {
+    return JSON.parse(content);
+  } catch { return null; }
+}
+
 export default function AdminChatDetailPage({ params }: { params: Promise<{ chatId: string }> }) {
   const resolvedParams = use(params);
   const chatId = resolvedParams.chatId;
@@ -37,21 +43,50 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
   const [chat, setChat] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminInput, setAdminInput] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const fetchChat = async () => {
+    const token = await getAdminToken();
+    if (!token) { setLoading(false); return; }
+    const res = await fetch(`/api/admin/chats/${chatId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    setChat(data.chat);
+    setMessages(data.messages || []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchChat = async () => {
-      const token = await getAdminToken();
-      if (!token) { setLoading(false); return; }
-      const res = await fetch(`/api/admin/chats/${chatId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setChat(data.chat);
-      setMessages(data.messages || []);
-      setLoading(false);
-    };
     fetchChat();
   }, [chatId]);
+
+  const handleSendAdminMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminInput.trim() || sending) return;
+    setSending(true);
+
+    try {
+      const token = await getAdminToken();
+      const res = await fetch(`/api/admin/chats/${chatId}/message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: adminInput.trim() }),
+      });
+
+      if (!res.ok) throw new Error('Failed to send admin message');
+      setAdminInput('');
+      await fetchChat();
+    } catch (err: any) {
+      alert(err.message || 'Error sending message');
+    } finally {
+      setSending(false);
+    }
+  };
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
   if (!chat) return <div style={{ color: '#f87171' }} className="text-center py-16 font-bold">Chat not found</div>;
@@ -59,7 +94,7 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
   const buyerId = (chat.buyer as any)?.id;
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto pb-12">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/admin/chats" style={{ background: 'rgba(255,255,255,0.05)', color: '#64748b', width: 40, height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }} className="flex items-center justify-center hover:text-white transition flex-shrink-0">
@@ -67,7 +102,7 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
         </Link>
         <div>
           <h1 style={{ color: '#f1f5f9' }} className="text-xl font-black tracking-tight flex items-center gap-2">
-            <MessageSquare size={18} className="text-purple-400" /> Conversation
+            <MessageSquare size={18} className="text-purple-400" /> Admin Support Conversation
           </h1>
           <p style={{ color: '#475569', fontSize: '11px' }} className="font-bold">{chatId}</p>
         </div>
@@ -125,21 +160,42 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
       </div>
 
       {/* Messages */}
-      <div style={{ background: '#111d36', border: '1px solid rgba(56,97,175,0.2)' }} className="rounded-2xl p-5">
-        <h2 style={{ color: '#94a3b8', fontSize: '11px' }} className="font-black uppercase tracking-widest mb-5 flex items-center gap-2">
+      <div style={{ background: '#111d36', border: '1px solid rgba(56,97,175,0.2)' }} className="rounded-2xl p-5 space-y-4">
+        <h2 style={{ color: '#94a3b8', fontSize: '11px' }} className="font-black uppercase tracking-widest flex items-center gap-2">
           <MessageSquare size={13} /> {messages.length} Messages
         </h2>
 
-        <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
           {messages.map((msg) => {
             const sender = (msg as any).profiles;
             const isBuyer = msg.sender_id === buyerId;
             const isSystem = msg.message_type === 'system';
+            const isAdminMsg = msg.message_type === 'admin_chat' || msg.message_type === 'admin_resolution';
             const isProposal = msg.content?.startsWith('[PROPOSAL]') || msg.message_type === 'proposal' || msg.message_type === 'job_proposal';
+
+            if (msg.message_type === 'admin_resolution') {
+              const resData = parseAdminResolution(msg.content);
+              return (
+                <div key={msg.id} className="my-4 p-4 bg-gradient-to-r from-blue-950/60 via-purple-950/60 to-blue-950/60 border border-blue-500/40 rounded-2xl text-center space-y-1.5 shadow-lg">
+                  <div className="flex items-center justify-center gap-2 text-blue-300 font-black text-xs uppercase tracking-widest">
+                    <Shield size={16} className="text-blue-400" /> Official Administration Resolution Notice
+                  </div>
+                  {resData && (
+                    <p className="text-sm font-bold text-white">
+                      Decision: {resData.action === 'refund_buyer' ? `Refunded €${Number(resData.amountEUR).toFixed(2)} to Buyer (excl. shipping)` : `Released €${Number(resData.amountEUR).toFixed(2)} to Seller`}
+                    </p>
+                  )}
+                  {resData?.notes && (
+                    <p className="text-xs text-slate-300 italic">"{resData.notes}"</p>
+                  )}
+                  <p className="text-[10px] text-slate-400 font-mono">{new Date(msg.created_at).toLocaleString()}</p>
+                </div>
+              );
+            }
 
             if (isSystem) {
               return (
-                <div key={msg.id} className="text-center">
+                <div key={msg.id} className="text-center my-2">
                   <span style={{ background: 'rgba(255,255,255,0.05)', color: '#475569', fontSize: '10px', padding: '4px 12px', borderRadius: 999 }} className="font-bold">{msg.content}</span>
                 </div>
               );
@@ -174,28 +230,31 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
             }
 
             return (
-              <div key={msg.id} className={`flex gap-3 ${isBuyer ? 'flex-row' : 'flex-row-reverse'}`}>
-                <Avatar user={sender} size={28} />
-                <div className={`max-w-[70%] ${isBuyer ? '' : ''}`}>
+              <div key={msg.id} className={`flex gap-3 ${isAdminMsg ? 'justify-center' : isBuyer ? 'flex-row' : 'flex-row-reverse'}`}>
+                {!isAdminMsg && <Avatar user={sender} size={28} />}
+                <div className={`max-w-[80%] ${isAdminMsg ? 'w-full max-w-xl' : ''}`}>
                   <div className="flex items-center gap-2 mb-1">
-                    <p style={{ color: '#475569', fontSize: '10px' }} className="font-black uppercase tracking-widest">
-                      {isBuyer ? 'Buyer' : 'Seller'} — {sender?.full_name || '—'}
-                    </p>
+                    {isAdminMsg ? (
+                      <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-md">
+                        <Shield size={10} /> Official Admin Support
+                      </span>
+                    ) : (
+                      <p style={{ color: '#475569', fontSize: '10px' }} className="font-black uppercase tracking-widest">
+                        {isBuyer ? 'Buyer' : 'Seller'} — {sender?.full_name || '—'}
+                      </p>
+                    )}
                     <p style={{ color: '#334155', fontSize: '10px' }} className="font-bold">{new Date(msg.created_at).toLocaleString()}</p>
                   </div>
                   <div
                     style={{
-                      background: isBuyer ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.12)',
-                      border: `1px solid ${isBuyer ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.2)'}`,
-                      borderRadius: isBuyer ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
+                      background: isAdminMsg ? 'rgba(59,130,246,0.25)' : isBuyer ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.12)',
+                      border: `1px solid ${isAdminMsg ? 'rgba(59,130,246,0.5)' : isBuyer ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.2)'}`,
+                      borderRadius: isAdminMsg ? '16px' : isBuyer ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
                     }}
                     className="px-4 py-3"
                   >
                     <p style={{ color: '#e2e8f0', fontSize: '13px' }} className="font-medium leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                   </div>
-                  {!msg.is_read && (
-                    <p style={{ color: '#f59e0b', fontSize: '9px' }} className="font-black uppercase tracking-widest mt-1">Unread</p>
-                  )}
                 </div>
               </div>
             );
@@ -205,6 +264,24 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
             <p style={{ color: '#334155' }} className="text-center py-8 font-bold">No messages in this conversation</p>
           )}
         </div>
+
+        {/* ── ADMIN REPLY COMPOSER ── */}
+        <form onSubmit={handleSendAdminMessage} className="pt-4 border-t border-slate-800 flex gap-3">
+          <input
+            value={adminInput}
+            onChange={e => setAdminInput(e.target.value)}
+            placeholder="Type official admin support message to users..."
+            className="flex-1 px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 outline-none focus:border-blue-500 font-medium"
+          />
+          <button
+            type="submit"
+            disabled={sending || !adminInput.trim()}
+            className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition disabled:opacity-50"
+          >
+            {sending ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
+            Send as Admin
+          </button>
+        </form>
       </div>
     </div>
   );
