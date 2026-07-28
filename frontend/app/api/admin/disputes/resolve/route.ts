@@ -25,21 +25,21 @@ export async function POST(req: Request) {
         .from('disputes')
         .select('*')
         .eq('id', disputeId)
-        .single();
+        .maybeSingle();
       dispute = d;
       if (dispute) targetItemId = dispute.order_item_id;
     }
 
     if (!targetItemId) {
-      return NextResponse.json({ error: 'Order item not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Order item ID not provided' }, { status: 400 });
     }
 
-    // 2. Fetch Order Item and associated Order & Offer
+    // 2. Fetch Order Item and associated Order
     const { data: item, error: itemErr } = await supabaseAdmin
       .from('order_items')
       .select('id, order_id, seller_id, price_at_purchase, quantity, status')
       .eq('id', targetItemId)
-      .single();
+      .maybeSingle();
 
     if (itemErr || !item) {
       return NextResponse.json({ error: 'Order item not found in database' }, { status: 404 });
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       .from('orders')
       .select('id, buyer_id')
       .eq('id', item.order_id)
-      .single();
+      .maybeSingle();
 
     if (!order) {
       return NextResponse.json({ error: 'Parent order not found' }, { status: 404 });
@@ -57,18 +57,29 @@ export async function POST(req: Request) {
 
     const buyerId = order.buyer_id;
     const sellerId = item.seller_id;
-    const itemAmountEUR = Number(item.price_at_purchase || 0) * (item.quantity || 1);
+    const itemAmountEUR = Number(item.price_at_purchase || 0) * Number(item.quantity || 1);
 
-    // 3. Locate or find chat conversation between buyer and seller
+    // 3. Safely locate chat conversation between buyer and seller
     let chatId = dispute?.chat_id;
-    if (!chatId) {
-      const { data: chat } = await supabaseAdmin
+    if (!chatId && buyerId && sellerId) {
+      const { data: chat1 } = await supabaseAdmin
         .from('chats')
         .select('id')
-        .or(`and(buyer_id.eq.${buyerId},seller_id.eq.${sellerId}),and(buyer_id.eq.${sellerId},seller_id.eq.${buyerId})`)
-        .limit(1)
+        .eq('buyer_id', buyerId)
+        .eq('seller_id', sellerId)
         .maybeSingle();
-      chatId = chat?.id;
+
+      if (chat1) {
+        chatId = chat1.id;
+      } else {
+        const { data: chat2 } = await supabaseAdmin
+          .from('chats')
+          .select('id')
+          .eq('buyer_id', sellerId)
+          .eq('seller_id', buyerId)
+          .maybeSingle();
+        if (chat2) chatId = chat2.id;
+      }
     }
 
     // 4. Handle Resolution Action

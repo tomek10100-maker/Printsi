@@ -40,6 +40,7 @@ export default function AdminOrdersPage() {
   const [adminNotes, setAdminNotes] = useState('');
   const [resolving, setResolving] = useState(false);
   const [resolveSuccess, setResolveSuccess] = useState<string | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     const token = await getAdminToken();
@@ -60,9 +61,12 @@ export default function AdminOrdersPage() {
     if (!selectedDisputeItem) return;
     setResolving(true);
     setResolveSuccess(null);
+    setResolveError(null);
 
     try {
       const token = await getAdminToken();
+      if (!token) throw new Error('Admin authorization token is missing or expired. Please re-login to admin.');
+
       const res = await fetch('/api/admin/disputes/resolve', {
         method: 'POST',
         headers: {
@@ -73,7 +77,7 @@ export default function AdminOrdersPage() {
           disputeId: selectedDisputeItem.dispute?.id,
           orderItemId: selectedDisputeItem.id,
           action,
-          adminNotes,
+          adminNotes: adminNotes.trim(),
         }),
       });
 
@@ -85,10 +89,11 @@ export default function AdminOrdersPage() {
       setTimeout(() => {
         setSelectedDisputeItem(null);
         setResolveSuccess(null);
+        setResolveError(null);
         setAdminNotes('');
-      }, 2000);
+      }, 2500);
     } catch (err: any) {
-      alert(err.message || 'Resolution failed');
+      setResolveError(err.message || 'Resolution failed');
     } finally {
       setResolving(false);
     }
@@ -284,9 +289,15 @@ export default function AdminOrdersPage() {
               />
             </div>
 
+            {resolveError && (
+              <div className="p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-xs font-bold flex items-center gap-2">
+                <ShieldAlert size={16} className="text-red-400 shrink-0" /> {resolveError}
+              </div>
+            )}
+
             {resolveSuccess && (
               <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 size={16} /> {resolveSuccess}
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" /> {resolveSuccess}
               </div>
             )}
 
