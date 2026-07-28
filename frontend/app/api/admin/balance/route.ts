@@ -4,10 +4,6 @@ import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../lib/adminAuth';
 /**
  * POST — Add or subtract balance from a user account.
  * Body: { userId: string, amount: number, note: string, action: 'add' | 'remove' }
- *
- * Balance is stored via the payouts table:
- *   - To ADD balance: insert a row with negative amount (mirrors how top-ups work via Stripe webhooks)
- *   - To REMOVE balance: insert a row with positive amount (mirrors withdrawals)
  */
 export async function POST(req: Request) {
   const adminId = await verifyAdmin(req);
@@ -24,22 +20,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'action must be "add" or "remove"' }, { status: 400 });
     }
 
-    // Adding balance = negative amount (credits wallet — same as top-up logic)
-    // Removing balance = positive amount (debits wallet — same as withdrawal logic)
-    const payoutAmount = action === 'add' ? -Math.abs(amount) : Math.abs(amount);
+    // 1. Fetch current profile wallet balance
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from('profiles')
+      .select('wallet_balance')
+      .eq('id', userId)
+      .single();
 
-    const { error } = await supabaseAdmin.from('payouts').insert({
+    if (profileErr || !profile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
+    const currentBal = Number(profile.wallet_balance || 0);
+    const numAmount = Math.abs(Number(amount));
+    const newBal = action === 'add' ? currentBal + numAmount : Math.max(0, currentBal - numAmount);
+
+    // 2. Update user wallet balance directly
+    const { error: updateErr } = await supabaseAdmin
+      .from('profiles')
+      .update({ wallet_balance: newBal })
+      .eq('id', userId);
+
+    if (updateErr) throw updateErr;
+
+    // 3. Log transaction in payouts table with note
+    const payoutAmount = action === 'add' ? -numAmount : numAmount;
+
+    await supabaseAdmin.from('payouts').insert({
       user_id: userId,
       amount: payoutAmount,
       status: 'completed',
-      // We include a note in the id-based audit by storing it in a way the system recognizes
-      // The label "admin_adjustment" prefix distinguishes these from normal payouts
+      stripe_payout_id: note ? `admin_adj: ${note}` : 'admin_adjustment',
     });
 
-    if (error) throw error;
-
-    return NextResponse.json({ success: true, action, amount: payoutAmount });
+    return NextResponse.json({
+      success: true,
+      action,
+      amount: numAmount,
+      newBalance: newBal,
+      note: note || '',
+    });
   } catch (error: any) {
+    console.error('[/api/admin/balance] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

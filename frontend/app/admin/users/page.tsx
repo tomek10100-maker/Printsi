@@ -41,6 +41,7 @@ function RoleBadge({ role }: { role: string }) {
 
 function BalanceModal({ user, onClose, onDone, token }: any) {
   const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
   const [action, setAction] = useState<'add' | 'remove'>('add');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -51,7 +52,7 @@ function BalanceModal({ user, onClose, onDone, token }: any) {
     const res = await fetch('/api/admin/balance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ userId: user.id, amount: Number(amount), action }),
+      body: JSON.stringify({ userId: user.id, amount: Number(amount), action, note: note.trim() }),
     });
     const data = await res.json();
     if (data.success) {
@@ -107,7 +108,7 @@ function BalanceModal({ user, onClose, onDone, token }: any) {
               ))}
             </div>
 
-            <div className="relative mb-5">
+            <div className="relative mb-4">
               <span style={{ color: '#64748b' }} className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-lg">€</span>
               <input
                 type="number"
@@ -117,7 +118,22 @@ function BalanceModal({ user, onClose, onDone, token }: any) {
                 onChange={e => setAmount(e.target.value)}
                 placeholder="0.00"
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#f1f5f9', borderRadius: 14 }}
-                className="w-full pl-9 pr-4 py-4 font-black text-2xl outline-none focus:border-blue-500 transition"
+                className="w-full pl-9 pr-4 py-3.5 font-black text-2xl outline-none focus:border-blue-500 transition"
+              />
+            </div>
+
+            {/* Note / Reason Message Field */}
+            <div className="mb-5">
+              <label style={{ color: '#64748b', fontSize: '10px' }} className="font-black uppercase tracking-wider block mb-1.5">
+                Note / Message (Optional)
+              </label>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder="e.g. Refund for order #1234, dispute resolution, or bonus..."
+                rows={2}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#f1f5f9', borderRadius: 12 }}
+                className="w-full p-3 font-medium text-xs outline-none focus:border-blue-500 transition placeholder-slate-600 resize-none"
               />
             </div>
 
