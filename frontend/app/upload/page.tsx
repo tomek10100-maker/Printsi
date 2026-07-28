@@ -1018,13 +1018,6 @@ export default function AddOfferPage() {
         {/* Top Header with Category Change Button */}
         <div className="bg-gray-900 p-8 text-white flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-md border border-blue-500/20">
-                {category === 'job' && '🖨️ Order 3D Print'}
-                {category === 'physical' && '📦 Physical Product'}
-                {category === 'digital' && '📐 Digital 3D Model'}
-              </span>
-            </div>
             <h1 className="text-2xl md:text-3xl font-black uppercase tracking-wide">
               {category === 'job' && 'Custom 3D Print Request'}
               {category === 'physical' && 'List Physical 3D Item'}
