@@ -370,9 +370,16 @@ export async function POST(req: Request) {
       console.warn('[CreatePackage Route] Initial Furgonetka package creation failed:', errMsg);
 
       if (errMsg.includes('terms_and_conditions_not_valid')) {
-        console.warn('[CreatePackage Route] Regulations not accepted. Attempting auto-acceptance...');
+        console.warn('[CreatePackage Route] Regulations not accepted for carrier. Attempting auto-acceptance and DPD fallback...');
         await furgonetkaClient.acceptRegulations();
-        createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
+        // Fall back to DPD Courier (Service ID: 11636590) to guarantee shipment success
+        furgonetkaPayload.service_id = 11636590;
+        try {
+          createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
+        } catch (termsRetryErr: any) {
+          console.error('[CreatePackage Route] Terms retry failed:', termsRetryErr);
+          throw termsRetryErr;
+        }
       } else {
         console.warn('[CreatePackage Route] Retrying package creation with universal DPD Courier fallback & guaranteed postal routing...');
         if (furgonetkaPayload.receiver) {
