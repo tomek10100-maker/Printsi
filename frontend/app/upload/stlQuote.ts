@@ -465,13 +465,13 @@ export async function calculate3DModelQuoteFromBuffer(
 
   const volumeCm3 = meshData.volumeCm3 * sf * sf * sf;
 
-  // ── BAMBU STUDIO X1 CARBON (0.4mm NOZZLE / 0.20mm STANDARD) CALIBRATED SLICING PHYSICS ──
+  // ── BAMBU STUDIO X1 CARBON CALIBRATED SLICING PHYSICS ──
   const boxVolumeCm3 = (dimX * dimY * dimZ) / 1000.0;
-  const compactnessRatio = Math.min(1.0, Math.max(0.15, volumeCm3 / (boxVolumeCm3 || 1.0)));
+  const compactnessRatio = Math.min(1.0, Math.max(0.30, volumeCm3 / (boxVolumeCm3 || 1.0)));
 
-  // 1. Surface Area S in cm² scaled by mesh compactness factor (2 wall perimeters @ 0.42mm)
+  // 1. Surface Area S in cm² scaled by mesh compactness factor (2 wall perimeters @ 0.42mm = 0.084 cm)
   const surfaceAreaCm2 = (2.0 * ((dimX * dimY) + (dimY * dimZ) + (dimZ * dimX)) / 100.0) * Math.sqrt(compactnessRatio);
-  const wallShellVolumeCm3 = surfaceAreaCm2 * 0.042;
+  const wallShellVolumeCm3 = surfaceAreaCm2 * 0.084 * 0.55;
 
   // 2. Top (4 layers @ 0.2mm) & Bottom (3 layers @ 0.2mm) Solid Skins Volume
   const topBottomSkinVolumeCm3 = ((dimX * dimY) / 100.0) * 0.040 * compactnessRatio;

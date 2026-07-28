@@ -2017,7 +2017,7 @@ export default function AddOfferPage() {
                   {/* Breakdown Items */}
                   <div className="space-y-2 text-xs text-slate-300 font-medium pt-1">
                     <div className="flex items-center justify-between">
-                      <span>🧵 Raw Material Plastic ({quoteResult.totalGrams}g @ {currency === 'PLN' ? `${quoteResult.breakdown.pricePerGramPLN} PLN/g` : `€${quoteResult.breakdown.pricePerGramEUR}/g`})</span>
+                      <span>🧵 Raw Material Plastic</span>
                       <span className="font-bold text-white font-mono">
                         {currency === 'PLN' ? `${quoteResult.breakdown.rawMaterialCostPLN.toFixed(2)} PLN` : `€${quoteResult.breakdown.rawMaterialCostEUR.toFixed(2)}`}
                       </span>
