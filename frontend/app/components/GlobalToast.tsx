@@ -30,6 +30,15 @@ export default function GlobalToast() {
         }
       }
 
+      // Translate Polish carrier / shipping errors to English automatically
+      if (msgStr.includes("Nazwa miejscowości") || msgStr.includes("nie pasują do siebie") || msgStr.includes("nie obsługuje podanego kodu")) {
+        msgStr = "City name and postal code do not match. The selected carrier does not support the provided postal code.";
+      } else if (msgStr.includes("punkt odbioru") || msgStr.includes("nie należy do wybranego")) {
+        msgStr = "The selected pickup point code is invalid for this carrier.";
+      } else if (msgStr.includes("Numer kierunkowy") || msgStr.includes("poprzedzony +")) {
+        msgStr = "Phone number requires an international country code prefix (e.g. +48).";
+      }
+
       // Detect type
       let type: 'success' | 'error' | 'info' = 'info';
       const msgLower = msgStr.toLowerCase();

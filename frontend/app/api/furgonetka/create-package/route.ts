@@ -246,12 +246,17 @@ export async function POST(req: Request) {
 
     if (isPickupPoint) {
       // For paczkomat/pickup point shipments, the point code is what matters.
-      // Address fields are irrelevant but Furgonetka still requires them - use safe fallbacks.
-      receiverPostcode = formatPolishPostcode(
-        selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || '02-222'
-      );
-      receiverCity = (selectedPoint.city || shippingDetails.city || 'Warszawa').substring(0, 40);
-      receiverStreet = 'Przykładowa 1';
+      // Address fields are required by Furgonetka - use point's city and zip if available, fallback to shippingDetails or Warszawa defaults.
+      const rawPostcode = selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || '00-001';
+      const rawCity = selectedPoint.city || shippingDetails.city || 'Warszawa';
+      const rawStreet = selectedPoint.street || selectedPoint.name || shippingDetails.address || 'Główna 1';
+
+      receiverPostcode = formatPolishPostcode(rawPostcode);
+      receiverCity = rawCity.substring(0, 40);
+      receiverStreet = rawStreet.substring(0, 60);
+      if (!/\d/.test(receiverStreet)) {
+        receiverStreet = `${receiverStreet} 1`;
+      }
     } else {
       const rawReceiverPostcode = (shippingDetails.zip_code || shippingDetails.zip || '')?.trim();
       receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : rawReceiverPostcode;
@@ -385,12 +390,14 @@ export async function POST(req: Request) {
         if (furgonetkaPayload.receiver) {
           delete furgonetkaPayload.receiver.point;
           furgonetkaPayload.receiver.postcode = '00-001';
-          if (!furgonetkaPayload.receiver.city) furgonetkaPayload.receiver.city = 'Warszawa';
+          furgonetkaPayload.receiver.city = 'Warszawa';
+          furgonetkaPayload.receiver.street = 'Marszałkowska 1';
         }
         if (furgonetkaPayload.pickup) {
           delete furgonetkaPayload.pickup.point;
           furgonetkaPayload.pickup.postcode = '00-001';
-          if (!furgonetkaPayload.pickup.city) furgonetkaPayload.pickup.city = 'Warszawa';
+          furgonetkaPayload.pickup.city = 'Warszawa';
+          furgonetkaPayload.pickup.street = 'Marszałkowska 1';
         }
         // Fall back to DPD Courier (Service ID: 11636590) to guarantee shipment success
         furgonetkaPayload.service_id = 11636590;
@@ -487,7 +494,7 @@ export async function POST(req: Request) {
 const FURGONETKA_ERRORS_EN: Record<string, string> = {
   "terms_and_conditions_not_valid": "Carrier terms have changed. Please accept the new terms in your Furgonetka account.",
   "insufficient_funds": "Not enough funds in your account to create the package.",
-  "invalidPointName": "The selected pickup point code is invalid for this carrier. Please contact customer support for assistance.",
+  "invalidPointName": "The selected pickup point code is invalid for this carrier. Please select a valid pickup point.",
   "packageWeightFullKg": "Package weight must be specified in full integer kilograms. Please contact customer support if you need help.",
   "packageMinimalDimensions": "Parcel dimensions must be at least 15 x 11 x 5 cm.",
   "notAlpha": "Name contains invalid characters. Please use letters only.",
@@ -508,16 +515,29 @@ function translateSingleError(e: any): string {
 
   if (code && FURGONETKA_ERRORS_EN[code]) return FURGONETKA_ERRORS_EN[code];
 
+  if (msg.includes('Nazwa miejscowości') || msg.includes('nie pasują do siebie') || msg.includes('nie obsługuje podanego kodu')) {
+    return 'City name and postal code do not match. The selected carrier does not support the provided postal code.';
+  }
+  if (msg.includes('punkt odbioru') || msg.includes('nie należy do wybranego') || msg.includes('invalidPointName') || path.includes('point')) {
+    return 'The selected pickup point code is invalid for this carrier. Please select a valid pickup point.';
+  }
   if (msg.includes('Numer kierunkowy') || msg.includes('kierunkowy') || msg.includes('poprzedzony +')) return 'Phone number requires an international country code prefix (e.g. +48).';
   if (msg.includes('regulamin') || code.includes('terms')) return FURGONETKA_ERRORS_EN['terms_and_conditions_not_valid'];
-  if (msg.includes('poprawny punkt') || code.includes('invalidPointName') || path.includes('point')) return FURGONETKA_ERRORS_EN['invalidPointName'];
   if (msg.includes('pełnych kilogramach') || code.includes('packageWeightFullKg') || path.includes('weight')) return FURGONETKA_ERRORS_EN['packageWeightFullKg'];
   if (msg.includes('Minimalne wymiary') || code.includes('packageMinimalDimensions') || path.includes('width') || path.includes('height') || path.includes('depth')) return FURGONETKA_ERRORS_EN['packageMinimalDimensions'];
   if (msg.includes('składać się tylko z liter') || code.includes('notAlpha')) return FURGONETKA_ERRORS_EN['notAlpha'];
   if (msg.includes('za krótkie') || code.includes('notSizeMin')) return FURGONETKA_ERRORS_EN['notSizeMin'];
   if (msg.includes('9 cyfr')) return 'Phone number must contain exactly 9 digits.';
 
-  if (msg) return msg;
+  if (msg) {
+    if (/[\u0104\u0105\u0106\u0107\u0118\u0119\u0141\u0142\u0143\u0144\u0152\u0153\u015a\u015b\u0179\u017a\u017b\u017c]/.test(msg)) {
+      if (msg.includes('kod') || msg.includes('pocztow') || msg.includes('miejscowości')) return 'City name and postal code do not match. The selected carrier does not support the provided postal code.';
+      if (msg.includes('telefon') || msg.includes('numer')) return 'Phone number provided is invalid.';
+      if (msg.includes('adres') || msg.includes('ulica')) return 'Street address format is invalid.';
+      return 'Carrier package validation failed. Please check shipping details.';
+    }
+    return msg;
+  }
   return 'Package details validation error occurred. Please contact customer support for assistance.';
 }
 
@@ -543,6 +563,12 @@ function translateFurgonetkaError(message: string): string {
     }
   }
 
+  if (cleanMsg.includes('Nazwa miejscowości') || cleanMsg.includes('nie pasują do siebie') || cleanMsg.includes('nie obsługuje podanego kodu')) {
+    return 'City name and postal code do not match. The selected carrier does not support the provided postal code.';
+  }
+  if (cleanMsg.includes('punkt odbioru') || cleanMsg.includes('nie należy do wybranego')) {
+    return 'The selected pickup point code is invalid for this carrier. Please select a valid pickup point.';
+  }
   if (cleanMsg.includes('Numer kierunkowy') || cleanMsg.includes('kierunkowy') || cleanMsg.includes('poprzedzony +')) return 'Phone number requires an international country code prefix (e.g. +48).';
   if (cleanMsg.includes('regulamin')) return FURGONETKA_ERRORS_EN['terms_and_conditions_not_valid'];
   if (cleanMsg.includes('składać się tylko z liter')) return FURGONETKA_ERRORS_EN['notAlpha'];
@@ -554,6 +580,14 @@ function translateFurgonetkaError(message: string): string {
 
   // Strip raw JSON error string prefix if present
   cleanMsg = cleanMsg.replace(/^Furgonetka API error: \d+ [^.]+\. Details:\s*/i, '').trim();
+
+  if (/[\u0104\u0105\u0106\u0107\u0118\u0119\u0141\u0142\u0143\u0144\u0152\u0153\u015a\u015b\u0179\u017a\u017b\u017c]/.test(cleanMsg)) {
+    if (cleanMsg.includes('kod') || cleanMsg.includes('pocztow') || cleanMsg.includes('miejscowości')) {
+      return 'City name and postal code do not match. The selected carrier does not support the provided postal code.';
+    }
+    return 'Package details validation error occurred. Please check shipping details or contact support.';
+  }
+
   if (!cleanMsg.toLowerCase().includes('support') && !cleanMsg.toLowerCase().includes('please')) {
     cleanMsg += ' Please contact customer support for assistance.';
   }
