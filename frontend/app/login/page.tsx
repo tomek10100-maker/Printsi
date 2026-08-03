@@ -16,6 +16,9 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
+  const [resendUserId, setResendUserId] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -76,6 +79,8 @@ export default function LoginPage() {
 
         if (profile && profile.is_verified === false) {
           await supabase.auth.signOut();
+          setResendUserId(sessionData.user.id);
+          setResendSent(false);
           setStatus({ type: 'error', message: 'Your account is inactive. Please verify your email by clicking the link in the message sent from noreply@printis.store.' });
         } else {
           window.location.href = '/';
@@ -108,9 +113,35 @@ export default function LoginPage() {
 
         {/* Error/Success Brick */}
         {status && (
-          <div className={`mb-6 p-4 rounded-xl border text-sm font-bold ${status.type === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-green-50 border-green-200 text-green-600'
-            }`}>
+          <div className={`mb-6 p-4 rounded-xl border text-sm font-bold ${status.type === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-green-50 border-green-200 text-green-600'}`}>
             {status.type === 'error' ? '❌ ' : '✅ '}{status.message}
+            {resendUserId && status.type === 'error' && (
+              <div className="mt-3">
+                {resendSent ? (
+                  <p className="text-green-600 font-bold text-xs">✅ Verification email sent! Check your inbox.</p>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={resendLoading}
+                    onClick={async () => {
+                      setResendLoading(true);
+                      try {
+                        await fetch('/api/auth/send-verification', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ userId: resendUserId, email }),
+                        });
+                        setResendSent(true);
+                      } catch (_) {}
+                      setResendLoading(false);
+                    }}
+                    className="mt-1 text-xs font-black underline text-red-700 hover:text-red-900 disabled:opacity-50 cursor-pointer bg-transparent border-none p-0"
+                  >
+                    {resendLoading ? 'Sending…' : 'Resend verification email'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
