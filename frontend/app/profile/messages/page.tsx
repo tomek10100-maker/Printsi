@@ -2721,6 +2721,12 @@ function MessagesInner() {
                                             const isSeller = currentUser?.id === activeChatData?.seller_id;
                                             const isBuyer = currentUser?.id === activeChatData?.buyer_id;
                                             const isPaidOrder = !!activeChatData?.order_id;
+                                            // For job offers: the PAYER is the job poster (seller_id in chat), NOT the printer (buyer_id)
+                                            const isJobOfferCard = activeChatData?.offers?.category === 'job';
+                                            const jobPosterIdCard = activeChatData?.offers?.user_id || activeChatData?.seller_id;
+                                            const isPayer = isJobOfferCard
+                                                ? String(currentUser?.id) === String(jobPosterIdCard)
+                                                : isBuyer;
                                             return (
                                                 <div key={msg.id || idx} className="flex flex-col w-full my-8 px-2 items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
                                                                 <div className={`w-[280px] sm:w-[320px] rounded-[24px] overflow-hidden border shadow-2xl transition-all hover:scale-[1.02] ${
@@ -2897,7 +2903,7 @@ function MessagesInner() {
                                                             {(() => {
                                                                 const inCart = cartItems.some(i => i.id === pData.custom_offer_id);
 
-                                                                if (inCart && isBuyer && !isPaidOrder) {
+                                                                if (inCart && isPayer && !isPaidOrder) {
                                                                     return (
                                                                         <div className="space-y-2 mt-2">
                                                                             <button
@@ -2928,14 +2934,14 @@ function MessagesInner() {
                                                                     );
                                                                 }
 
-                                                                const isOfferForBuyer = (pData.status === 'seller_proposed' || pData.status === 'counter_proposed' || pData.status === 'pending') && isBuyer && !isMe;
+                                                                const isOfferForBuyer = (pData.status === 'seller_proposed' || pData.status === 'counter_proposed' || pData.status === 'pending') && isPayer && !isMe;
 
                                                                 if (isOfferForBuyer) {
                                                                     return (
                                                                         <div className="space-y-2 pt-2">
                                                                             <button
                                                                                 onClick={() => {
-                                                                                    if (isBuyer) {
+                                                                                    if (isPayer) {
                                                                                         handleBuyerAcceptsSellerProposal(msg.id, pData);
                                                                                     } else {
                                                                                         handleAcceptProposal(msg.id, pData);
@@ -2992,7 +2998,7 @@ function MessagesInner() {
                                                                     );
                                                                 }
 
-                                                                if (pData.status === 'accepted' && isBuyer) {
+                                                                if (pData.status === 'accepted' && isPayer) {
                                                                     if (isPaidOrder) {
                                                                         return (
                                                                             <div className="flex items-center justify-center gap-2 py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-[10px] font-black uppercase tracking-widest mt-2">
