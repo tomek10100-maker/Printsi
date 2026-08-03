@@ -1,29 +1,53 @@
 'use client';
 
-import { createClient } from '@supabase/supabase-js';
 import { useState, useEffect } from 'react';
-import { Lock, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Lock, Loader2, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [hasValidSession, setHasValidSession] = useState(false);
   const [status, setStatus] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Sprawdzamy czy użytkownik wszedł tu z prawidłowym tokenem z maila
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event == "PASSWORD_RECOVERY") {
-        console.log("Password recovery event triggered.");
+    let isMounted = true;
+
+    const checkRecoverySession = async () => {
+      try {
+        // Allow brief moment for Supabase to parse access_token hash from URL
+        const { data: { session } } = await supabase.auth.getSession();
+        if (isMounted) {
+          if (session) {
+            setHasValidSession(true);
+          }
+          setCheckingSession(false);
+        }
+      } catch (_) {
+        if (isMounted) setCheckingSession(false);
       }
+    };
+
+    checkRecoverySession();
+
+    // Listen for auth state recovery events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      if (event === 'PASSWORD_RECOVERY' || session) {
+        setHasValidSession(true);
+        setStatus(null);
+      }
+      setCheckingSession(false);
     });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,17 +67,19 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // Aktualizujemy hasło u zalogowanego aktualnie użytkownika (sesja pochodzi z linku resetującego)
-    const { error } = await supabase.auth.updateUser({ password });
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
 
-    if (error) {
-      setStatus({ type: 'error', message: 'Failed to reset password: ' + error.message });
-      setLoading(false);
-    } else {
-      setSuccess(true);
-      // Wylogowujemy go przymusowo by zalogował się nowym hasłem? Lub zostawiamy zalogowanego.
-      // Domyślnie zostawiamy zalogowanego, ale dla pewności po zmianie wylogujmy, aby przeszedł standardowy flow logowania
-      await supabase.auth.signOut();
+      if (error) {
+        setStatus({ type: 'error', message: 'Failed to reset password: ' + error.message });
+        setLoading(false);
+      } else {
+        setSuccess(true);
+        await supabase.auth.signOut();
+        setLoading(false);
+      }
+    } catch (err: any) {
+      setStatus({ type: 'error', message: err.message || 'An unexpected error occurred.' });
       setLoading(false);
     }
   };
@@ -77,7 +103,28 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
-        {success ? (
+        {checkingSession ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <Loader2 className="animate-spin text-blue-600" size={32} />
+            <p className="text-gray-500 font-medium text-sm">Verifying reset token...</p>
+          </div>
+        ) : !hasValidSession && !success ? (
+          <div className="flex flex-col items-center text-center animate-in fade-in duration-300">
+            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-4 text-amber-600 border border-amber-200">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Invalid or Expired Link</h2>
+            <p className="text-gray-500 font-medium text-sm mb-6 leading-relaxed">
+              Your password reset link is missing, expired, or has already been used. Please request a new link.
+            </p>
+            <Link
+              href="/forgot-password"
+              className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-md flex items-center justify-center text-sm"
+            >
+              Request New Reset Link
+            </Link>
+          </div>
+        ) : success ? (
           <div className="flex flex-col items-center animate-in zoom-in duration-500 text-center">
             <div className="w-20 h-20 bg-green-50 rounded-2xl flex items-center justify-center mb-6 border-2 border-green-100 shadow-xl shadow-green-100">
               <CheckCircle className="text-green-500" size={32} />

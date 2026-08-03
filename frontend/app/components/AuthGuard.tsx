@@ -2,12 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '../lib/supabase';
 
 export function AuthGuard() {
     const router = useRouter();
@@ -15,8 +10,22 @@ export function AuthGuard() {
 
     useEffect(() => {
         const checkUser = async () => {
-            // Don't guard public routes
-            if (pathname === '/login' || pathname === '/onboarding') return;
+            // Don't guard public and auth flow routes
+            const UNGUARDED_PATHS = [
+                '/login',
+                '/forgot-password',
+                '/reset-password',
+                '/auth/callback',
+                '/verify',
+                '/verify-email',
+                '/onboarding',
+            ];
+
+            const isUnguarded = UNGUARDED_PATHS.some(path => 
+                pathname === path || pathname.startsWith(path + '/')
+            );
+
+            if (isUnguarded) return;
 
             const { data: { session } } = await supabase.auth.getSession();
 

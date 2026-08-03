@@ -269,6 +269,31 @@ export async function processOrder(orderId: string, userId: string) {
       results.push(`chat_updated:${chatId}`);
     }
 
+    // Mark any pending proposal in this chat as accepted upon successful payment confirmation
+    const { data: propMsgs } = await supabase
+      .from('messages')
+      .select('id, content')
+      .eq('chat_id', chatId)
+      .like('content', '[PROPOSAL]%');
+
+    if (propMsgs) {
+      for (const pMsg of propMsgs) {
+        try {
+          const pData = JSON.parse(pMsg.content.substring(10));
+          if (pData.status !== 'accepted') {
+            pData.status = 'accepted';
+            await supabase
+              .from('messages')
+              .update({ content: `[PROPOSAL]${JSON.stringify(pData)}` })
+              .eq('id', pMsg.id);
+            console.log(`✅ Proposal message ${pMsg.id} updated to accepted upon payment confirmation.`);
+          }
+        } catch (e) {
+          console.error('Failed to update proposal message status on payment:', e);
+        }
+      }
+    }
+
     // 4. System message: order confirmed
     const msgOrder = await supabase.from('messages').insert({
       chat_id: chatId,

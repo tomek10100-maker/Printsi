@@ -1286,7 +1286,8 @@ function MessagesInner() {
                 throw new Error("Offer successfully inserted but not returned.");
             }
 
-            parsedData.status = 'accepted';
+            // Attach the created custom offer ID to the proposal without changing status to accepted yet
+            // Status will be updated to 'accepted' upon successful payment confirmation in processOrder
             parsedData.custom_offer_id = offer.id;
 
             const { error: msgError } = await supabase.from('messages').update({
@@ -1295,33 +1296,9 @@ function MessagesInner() {
 
             if (msgError) throw msgError;
 
-            // Trigger Accepted Email
-            fetch('/api/order/negotiation-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chatId: activeChatId,
-                    senderId: currentUser.id,
-                    type: 'accept',
-                    productTitle: activeChatData?.offers?.title || 'Custom Item'
-                }),
-            }).catch(() => { });
-
-            // For job offers: the job poster (seller in chat) pays, so redirect them to cart
-            if (isJobOffer) {
-                // Post a system message explaining the job flow
-                await supabase.from('messages').insert({
-                    chat_id: activeChatId,
-                    sender_id: currentUser.id,
-                    content: `✅ Print job accepted! The printer has agreed to fulfill this request for ${formatPrice(parsedData.price)}. Please complete payment to proceed — your 3D file will be sent to the printer once confirmed.`,
-                    message_type: 'system',
-                });
-
-                loadMessages(activeChatId as string);
-                handleBuyCustomOffer(parsedData);
-            } else {
-                loadMessages(activeChatId as string);
-            }
+            // Load messages and add custom offer to cart & navigate to checkout
+            loadMessages(activeChatId as string);
+            handleBuyCustomOffer(parsedData);
         } catch (e: any) {
             console.error("Comprehensive Accept Failure:", e);
             alert(`Failed to accept: ${e.message || 'Unknown database error'}`);
@@ -1331,22 +1308,11 @@ function MessagesInner() {
     const handleBuyerAcceptsSellerProposal = async (msgId: string, parsedData: any) => {
         if (!activeChatData || activeChatData.buyer_id !== currentUser.id) return;
 
-        parsedData.status = 'accepted';
-        await supabase.from('messages').update({
-            content: `[PROPOSAL]${JSON.stringify(parsedData)}`
-        }).eq('id', msgId);
-
-        // Trigger Accepted Email
-        fetch('/api/order/negotiation-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chatId: activeChatId,
-                senderId: currentUser.id,
-                type: 'accept',
-                productTitle: activeChatData.offers?.title || 'Custom Item'
-            }),
-        }).catch(() => { });
+        // If custom offer isn't created yet, handleAcceptProposal will create it
+        if (!parsedData.custom_offer_id) {
+            handleAcceptProposal(msgId, parsedData);
+            return;
+        }
 
         loadMessages(activeChatId as string);
         handleBuyCustomOffer(parsedData);
@@ -2750,21 +2716,22 @@ function MessagesInner() {
                                         const isMe = msg.sender_id === currentUser?.id;
                                         if (msg.message_type && msg.message_type !== 'user') return renderSystemMessage(msg, idx);
 
-                                        if (msg.content.startsWith('[PROPOSAL]')) {
+                                         if (msg.content.startsWith('[PROPOSAL]')) {
                                             const pData = JSON.parse(msg.content.substring(10));
                                             const isSeller = currentUser?.id === activeChatData?.seller_id;
                                             const isBuyer = currentUser?.id === activeChatData?.buyer_id;
+                                            const isPaidOrder = !!activeChatData?.order_id;
                                             return (
                                                 <div key={msg.id || idx} className="flex flex-col w-full my-8 px-2 items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
                                                                 <div className={`w-[280px] sm:w-[320px] rounded-[24px] overflow-hidden border shadow-2xl transition-all hover:scale-[1.02] ${
-                                                                    pData.status === 'accepted' ? 'border-emerald-500/30 bg-emerald-900/10' :
+                                                                    pData.status === 'accepted' ? (isPaidOrder ? 'border-emerald-500/30 bg-emerald-900/10' : 'border-amber-500/30 bg-amber-950/20') :
                                                                     (pData.status === 'rejected' || pData.status === 'cancelled') ? 'border-rose-500/30 bg-rose-900/10' :
                                                                     pData.status === 'counter_proposed' ? 'border-fuchsia-500/30 bg-fuchsia-900/10' :
                                                                     'border-white/10 bg-[#0f172a]/80 backdrop-blur-xl'
                                                                 }`}>
                                                                     {/* HEADER DECORATION */}
                                                                     <div className={`h-1.5 w-full ${
-                                                                        pData.status === 'accepted' ? 'bg-emerald-500' :
+                                                                        pData.status === 'accepted' ? (isPaidOrder ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-400 to-yellow-500') :
                                                                         (pData.status === 'rejected' || pData.status === 'cancelled') ? 'bg-rose-500' :
                                                                         pData.status === 'counter_proposed' ? 'bg-gradient-to-r from-violet-500 to-purple-600' :
                                                                         pData.status === 'seller_proposed' ? 'bg-gradient-to-r from-amber-400 to-yellow-600' : 
@@ -2794,32 +2761,33 @@ function MessagesInner() {
                                                                         </span>
                                                                     </div>
                                                                     <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${
-                                                                        pData.status === 'accepted' ? 'text-emerald-400' :
+                                                                        pData.status === 'accepted' ? (isPaidOrder ? 'text-emerald-400' : 'text-amber-400') :
                                                                         (pData.status === 'rejected' || pData.status === 'cancelled') ? 'text-rose-400' :
                                                                         pData.status === 'counter_proposed' ? 'text-violet-400' :
                                                                         pData.status === 'seller_proposed' ? 'text-amber-400' : 'text-blue-400'
                                                                     }`}>
                                                                         {pData.status === 'counter_proposed' ? 'Counter Offer' :
-                                                                            pData.status === 'accepted' ? 'Deal Reached' :
+                                                                            pData.status === 'accepted' ? (isPaidOrder ? 'Order Paid & Confirmed' : 'Terms Agreed · Payment Pending') :
                                                                             pData.status === 'rejected' ? 'Offer Declined' :
                                                                             pData.status === 'cancelled' ? 'Offer Withdrawn' :
                                                                             pData.status === 'seller_proposed' ? 'Seller Offer' : 'Customer Request'}
                                                                     </span>
                                                                     <h4 className="text-white text-xs font-bold mt-0.5">
                                                                         {pData.status === 'counter_proposed' ? 'Revised Offer' :
-                                                                            pData.status === 'accepted' ? 'Final Agreement' :
+                                                                            pData.status === 'accepted' ? (isPaidOrder ? 'Paid Order' : 'Awaiting Payment') :
                                                                             pData.status === 'cancelled' ? 'Cancelled Request' :
                                                                             pData.status === 'seller_proposed' ? 'Special Deal' : 'Custom Request'}
                                                                     </h4>
                                                                 </div>
                                                                 <span className={`text-[8px] font-black uppercase px-2.5 py-1 rounded-full border ${
-                                                                    pData.status === 'accepted' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' :
+                                                                    pData.status === 'accepted' ? (isPaidOrder ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : 'border-amber-500 text-amber-400 bg-amber-500/10') :
                                                                     (pData.status === 'rejected' || pData.status === 'cancelled') ? 'border-rose-500 text-rose-400 bg-rose-900/20' :
                                                                     pData.status === 'countered' ? 'border-slate-500 text-slate-400 bg-slate-500/10' :
                                                                     pData.status === 'counter_proposed' ? 'border-violet-500 text-violet-400 bg-violet-500/10' :
                                                                     'border-blue-500/50 text-blue-400 bg-blue-500/10'
                                                                 }`}>
-                                                                    {pData.status === 'countered' ? 'Offer Replaced' : 
+                                                                    {pData.status === 'accepted' ? (isPaidOrder ? 'PAID' : 'PAYMENT PENDING') :
+                                                                     pData.status === 'countered' ? 'Offer Replaced' : 
                                                                      pData.status === 'cancelled' ? 'Cancelled' : 
                                                                      pData.status.replace('_', ' ')}
                                                                 </span>
@@ -2929,10 +2897,18 @@ function MessagesInner() {
                                                             {(() => {
                                                                 const inCart = cartItems.some(i => i.id === pData.custom_offer_id);
 
-                                                                if (inCart && isBuyer) {
+                                                                if (inCart && isBuyer && !isPaidOrder) {
                                                                     return (
-                                                                        <div className="flex items-center justify-center gap-2 py-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500 text-[10px] font-black uppercase tracking-widest mt-2 animate-pulse">
-                                                                            <Package size={14} /> Already in your Cart
+                                                                        <div className="space-y-2 mt-2">
+                                                                            <button
+                                                                                onClick={() => router.push('/cart')}
+                                                                                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-gray-950 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
+                                                                            >
+                                                                                <CreditCard size={14} /> Proceed to Checkout ({formatPrice(pData.price)})
+                                                                            </button>
+                                                                            <p className="text-[9px] font-bold text-amber-400 text-center uppercase tracking-wider">
+                                                                                🛒 In your Cart — Complete payment to confirm order
+                                                                            </p>
                                                                         </div>
                                                                     );
                                                                 }
@@ -2968,7 +2944,7 @@ function MessagesInner() {
                                                                                 className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-emerald-900/40 transition-all transform active:scale-[0.98]"
                                                                             >
                                                                                 <CreditCard size={14} className="inline mr-2 -mt-0.5" />
-                                                                                {pData.status === 'accepted' ? 'Add to Cart & Checkout' : 'Buy Now'}
+                                                                                Accept Terms & Proceed to Payment
                                                                             </button>
                                                                             <div className="grid grid-cols-2 gap-2">
                                                                                 <button
@@ -2996,7 +2972,7 @@ function MessagesInner() {
                                                                                 onClick={() => handleAcceptProposal(msg.id, pData)}
                                                                                 className={`w-full py-3.5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg ${isJob ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-emerald-900/40' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'}`}
                                                                             >
-                                                                                {isJob ? <><CreditCard size={14} className="inline mr-2 -mt-0.5" /> Accept & Pay</> : 'Accept Request'}
+                                                                                {isJob ? <><CreditCard size={14} className="inline mr-2 -mt-0.5" /> Accept Terms & Proceed to Payment</> : 'Accept Request'}
                                                                             </button>
                                                                             <div className="grid grid-cols-2 gap-2">
                                                                                 <button
@@ -3017,14 +2993,25 @@ function MessagesInner() {
                                                                 }
 
                                                                 if (pData.status === 'accepted' && isBuyer) {
+                                                                    if (isPaidOrder) {
+                                                                        return (
+                                                                            <div className="flex items-center justify-center gap-2 py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-[10px] font-black uppercase tracking-widest mt-2">
+                                                                                <Check size={14} /> Paid & Confirmed
+                                                                            </div>
+                                                                        );
+                                                                    }
                                                                     return (
-                                                                        <button
-                                                                            onClick={() => handleBuyCustomOffer(pData)}
-                                                                            className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-emerald-900/40 transition-all transform active:scale-[0.98] mt-2"
-                                                                        >
-                                                                            <CreditCard size={14} className="inline mr-2 -mt-0.5" />
-                                                                            Add to Cart & Checkout
-                                                                        </button>
+                                                                        <div className="space-y-2 mt-2">
+                                                                            <button
+                                                                                onClick={() => handleBuyCustomOffer(pData)}
+                                                                                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-gray-950 font-black rounded-xl text-[11px] uppercase tracking-[0.1em] shadow-xl transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
+                                                                            >
+                                                                                <CreditCard size={14} /> Complete Payment ({formatPrice(pData.price)})
+                                                                            </button>
+                                                                            <p className="text-[9px] font-bold text-amber-400 text-center uppercase tracking-wider">
+                                                                                ⚠️ Order not paid yet. Click above to complete checkout.
+                                                                            </p>
+                                                                        </div>
                                                                     );
                                                                 }
 
