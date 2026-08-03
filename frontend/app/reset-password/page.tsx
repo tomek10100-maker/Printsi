@@ -17,35 +17,24 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     let isMounted = true;
 
-    const checkRecoverySession = async () => {
-      try {
-        // Allow brief moment for Supabase to parse access_token hash from URL
-        const { data: { session } } = await supabase.auth.getSession();
-        if (isMounted) {
-          if (session) {
-            setHasValidSession(true);
-          }
-          setCheckingSession(false);
-        }
-      } catch (_) {
-        if (isMounted) setCheckingSession(false);
-      }
-    };
+    // If no PASSWORD_RECOVERY event fires within 3 seconds → link is invalid/expired
+    const timeout = setTimeout(() => {
+      if (isMounted) setCheckingSession(false);
+    }, 3000);
 
-    checkRecoverySession();
-
-    // Listen for auth state recovery events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    // ONLY trust PASSWORD_RECOVERY event — don't use getSession() which races with hash parsing
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (!isMounted) return;
-      if (event === 'PASSWORD_RECOVERY' || session) {
+      clearTimeout(timeout);
+      if (event === 'PASSWORD_RECOVERY') {
         setHasValidSession(true);
-        setStatus(null);
       }
       setCheckingSession(false);
     });
 
     return () => {
       isMounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -74,8 +63,9 @@ export default function ResetPasswordPage() {
         setStatus({ type: 'error', message: 'Failed to reset password: ' + error.message });
         setLoading(false);
       } else {
-        setSuccess(true);
+        // Sign out first, then show success — prevents any auth listeners from firing mid-render
         await supabase.auth.signOut();
+        setSuccess(true);
         setLoading(false);
       }
     } catch (err: any) {
