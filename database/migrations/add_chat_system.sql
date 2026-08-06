@@ -72,14 +72,18 @@ CREATE POLICY "Users can mark messages as read"
 
 -- 3. Trigger to update chat's updated_at timestamp when a new message is sent
 CREATE OR REPLACE FUNCTION public.update_chat_timestamp()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+SET search_path = public
+AS $$
 BEGIN
     UPDATE public.chats
     SET updated_at = NOW()
     WHERE id = NEW.chat_id;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_message_inserted ON public.messages;
 CREATE TRIGGER on_message_inserted

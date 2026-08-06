@@ -370,6 +370,8 @@ CREATE POLICY "Participants can manage custom offers"
 CREATE OR REPLACE FUNCTION public.decrement_stock(row_id UUID, quantity_amt INTEGER)
 RETURNS VOID
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   UPDATE public.offers
