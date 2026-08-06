@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock, MoreVertical, Flag
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -86,6 +86,17 @@ function MessagesInner() {
     // For buyer cancel: store shipping info fetched from order
     const [cancelShippingEur, setCancelShippingEur] = useState(0);
     const [cancelItemTotalEur, setCancelItemTotalEur] = useState(0);
+
+    // Report Modal State
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportSubject, setReportSubject] = useState('');
+    const [reportDescription, setReportDescription] = useState('');
+    const [reportSubmitting, setReportSubmitting] = useState(false);
+    const [reportSuccess, setReportSuccess] = useState(false);
+    const [reportError, setReportError] = useState('');
+
+    // 3-dot menu state
+    const [showChatMenu, setShowChatMenu] = useState(false);
 
     // Tracking code state
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
@@ -630,6 +641,47 @@ function MessagesInner() {
             const errorData = await res.json();
             alert(`Failed back-end: ${errorData.error || 'Unknown error'}`);
         }
+    };
+
+    // ── REPORT ISSUE ──────────────────────────────────────────────
+    const handleReport = async () => {
+        if (reportSubject.trim().length < 3) {
+            setReportError('Please provide a subject (minimum 3 characters).');
+            return;
+        }
+        if (reportDescription.trim().length < 10) {
+            setReportError('Please describe the issue (minimum 10 characters).');
+            return;
+        }
+        setReportSubmitting(true);
+        setReportError('');
+        try {
+            const chatLink = activeChatId ? `${window.location.origin}/profile/messages?chat=${activeChatId}` : '';
+            const orderId = activeChatData?.orderItem?.order_id || '';
+            const fullMsg = `${reportDescription.trim()}\n\n---\nChat ID: ${activeChatId || 'N/A'}\nOrder ID: ${orderId || 'N/A'}\nLink: ${chatLink}`;
+            const res = await fetch('/api/support', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    category: 'report',
+                    subject: reportSubject.trim(),
+                    message: fullMsg,
+                    contact: currentUser?.email || currentUser?.id || 'unknown'
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setReportSuccess(true);
+                setReportSubject('');
+                setReportDescription('');
+                setTimeout(() => { setShowReportModal(false); setReportSuccess(false); }, 2500);
+            } else {
+                setReportError(data.error || 'Failed to submit report. Please try again.');
+            }
+        } catch {
+            setReportError('Network error. Please try again.');
+        }
+        setReportSubmitting(false);
     };
 
     // ── CANCEL ORDER ─────────────────────────────────────────────
@@ -3106,34 +3158,67 @@ function MessagesInner() {
                                         </button>
                                     </div>
 
-                                    {currentUser?.id === activeChatData?.buyer_id && (
-                                        <>
-                                            {activeChatData?.orderItem && activeChatData.orderItem.status === 'pending' && (
-                                                <button type="button" onClick={() => openCancelModal('buyer')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                    <Ban size={14} /> Cancel
-                                                </button>
-                                            )}
-                                            {!activeChatData?.orderItem && (
-                                                <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                    <Handshake size={14} /> Negotiate
-                                                </button>
-                                            )}
-                                        </>
-                                    )}
-                                    {currentUser?.id === activeChatData?.seller_id && (
-                                        <>
-                                            {activeChatData?.orderItem && ['pending', 'shipped'].includes(activeChatData.orderItem.status) && (
-                                                <button type="button" onClick={() => openCancelModal('seller')} className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                    <Ban size={14} /> Cancel
-                                                </button>
-                                            )}
-                                            {!activeChatData?.orderItem && (
-                                                <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                    <Handshake size={14} /> Special Offer
-                                                </button>
-                                            )}
-                                        </>
-                                    )}
+                                    {/* ── 3-dot menu for Cancel / Report ── */}
+                                    {(() => {
+                                        const isBuyer = currentUser?.id === activeChatData?.buyer_id;
+                                        const isSeller = currentUser?.id === activeChatData?.seller_id;
+                                        const canCancel = (isBuyer && activeChatData?.orderItem?.status === 'pending')
+                                            || (isSeller && ['pending', 'shipped'].includes(activeChatData?.orderItem?.status));
+                                        const hasOrder = !!activeChatData?.orderItem;
+
+                                        return (
+                                            <>
+                                                {/* Negotiate / Special Offer button (no order) */}
+                                                {isBuyer && !hasOrder && (
+                                                    <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                        <Handshake size={14} /> Negotiate
+                                                    </button>
+                                                )}
+                                                {isSeller && !hasOrder && (
+                                                    <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
+                                                        <Handshake size={14} /> Special Offer
+                                                    </button>
+                                                )}
+
+                                                {/* 3-dot menu (only when there's an order or always for report) */}
+                                                {(isBuyer || isSeller) && (
+                                                    <div className="relative shrink-0" style={{ zIndex: 50 }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowChatMenu(v => !v)}
+                                                            className="h-[50px] w-[50px] flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 transition shadow-sm"
+                                                            title="More options"
+                                                        >
+                                                            <MoreVertical size={18} />
+                                                        </button>
+                                                        {showChatMenu && (
+                                                            <>
+                                                                <div className="fixed inset-0" style={{ zIndex: 40 }} onClick={() => setShowChatMenu(false)} />
+                                                                <div className="absolute right-0 bottom-14 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ minWidth: 200, zIndex: 50 }}>
+                                                                    {canCancel && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => { setShowChatMenu(false); openCancelModal(isSeller ? 'seller' : 'buyer'); }}
+                                                                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition text-xs font-black uppercase tracking-widest border-b border-gray-50"
+                                                                        >
+                                                                            <Ban size={14} /> Cancel Order
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => { setShowChatMenu(false); setReportSubject(''); setReportDescription(''); setReportError(''); setReportSuccess(false); setShowReportModal(true); }}
+                                                                        className="w-full flex items-center gap-3 px-4 py-3 text-left text-amber-600 hover:bg-amber-50 transition text-xs font-black uppercase tracking-widest"
+                                                                    >
+                                                                        <Flag size={14} /> Report a Problem
+                                                                    </button>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </form>
                             </div>
                         </>
@@ -3248,6 +3333,99 @@ function MessagesInner() {
                                 {cancelInitiator === 'seller' ? 'Cancel & Refund' : 'Send Request'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* ─── REPORT A PROBLEM MODAL ──────────────────────────── */}
+        {showReportModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowReportModal(false)}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                    {/* Header */}
+                    <div className="px-6 py-5 flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-600">
+                        <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                            <Flag size={20} className="text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-white font-black text-base uppercase tracking-tight">Report a Problem</h2>
+                            <p className="text-white/70 text-[11px] font-bold">Our team will review your report</p>
+                        </div>
+                        <button onClick={() => setShowReportModal(false)} className="ml-auto w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all">
+                            <X size={16} className="text-white" />
+                        </button>
+                    </div>
+
+                    <div className="px-6 py-6 space-y-5">
+                        {reportSuccess ? (
+                            <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
+                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                                    <CheckCircle2 size={32} className="text-green-600" />
+                                </div>
+                                <p className="font-black text-gray-900 text-sm uppercase tracking-wide">Report Submitted!</p>
+                                <p className="text-xs text-gray-500 font-medium">Our admin team will review it shortly.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div>
+                                    <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
+                                        Subject <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={reportSubject}
+                                        onChange={e => setReportSubject(e.target.value)}
+                                        placeholder="e.g. Seller not responding, Damaged item..."
+                                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                                        maxLength={100}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
+                                        Description <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        value={reportDescription}
+                                        onChange={e => setReportDescription(e.target.value)}
+                                        placeholder="Describe the problem in detail..."
+                                        rows={4}
+                                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all resize-none"
+                                        maxLength={1000}
+                                    />
+                                    <p className="text-[10px] text-gray-400 font-bold mt-1 text-right">{reportDescription.length}/1000</p>
+                                </div>
+
+                                {reportError && (
+                                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+                                        <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                                        <p className="text-xs font-bold text-red-600">{reportError}</p>
+                                    </div>
+                                )}
+
+                                <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                                    <p className="text-[10px] font-bold text-amber-700">
+                                        ℹ️ Chat and order information will be automatically attached to your report.
+                                    </p>
+                                </div>
+
+                                <div className="flex gap-3 pt-1">
+                                    <button
+                                        onClick={() => setShowReportModal(false)}
+                                        className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleReport}
+                                        disabled={reportSubmitting}
+                                        className="flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {reportSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Flag size={14} />}
+                                        Submit Report
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

@@ -15,6 +15,7 @@ const CATEGORY_COLORS: any = {
   order: { bg: 'rgba(16,185,129,0.15)', text: '#34d399' },
   technical: { bg: 'rgba(139,92,246,0.15)', text: '#a78bfa' },
   copyright: { bg: 'rgba(239,68,68,0.15)', text: '#f87171' },
+  report: { bg: 'rgba(245,158,11,0.18)', text: '#fbbf24' },
 };
 
 const STATUS_COLORS: any = {

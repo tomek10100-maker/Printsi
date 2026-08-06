@@ -12,6 +12,7 @@ import {
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getOfferStock, isOfferSoldOut, formatOfferWeight } from '../lib/offerHelpers';
+import { getCountryDisplay } from '../lib/countryHelpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -428,10 +429,15 @@ export default function ProfilePage() {
                 {profile?.bio || "This user hasn't written a bio yet."}
               </p>
               <div className="mt-6 space-y-3">
-                <div className="flex items-center gap-3 text-gray-500 text-sm font-bold">
-                  <MapPin size={16} />
-                  {profile?.city ? `${profile.city}, ${profile.country}` : 'Poland'}
-                </div>
+                {(() => {
+                  const countryInfo = getCountryDisplay(profile?.country);
+                  return (
+                    <div className="flex items-center gap-2 text-gray-700 text-sm font-bold bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 w-fit">
+                      <span className="text-base leading-none">{countryInfo.flag}</span>
+                      <span>{countryInfo.name} ({countryInfo.code})</span>
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center gap-3 text-gray-500 text-sm font-bold"><Calendar size={16} /> Joined Feb 2026</div>
               </div>
             </div>

@@ -9,6 +9,7 @@ import {
   Package, ShoppingBag, ArrowRight, User as UserIcon
 } from 'lucide-react';
 import { useCurrency } from '../../../context/CurrencyContext';
+import { getCountryDisplay } from '../../lib/countryHelpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -89,8 +90,15 @@ export default function PublicProfilePage() {
 
           <div className="flex-1 mb-2">
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{profile?.full_name || 'Anonymous Maker'}</h1>
-            <div className="flex flex-wrap gap-4 mt-2">
-              <span className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase tracking-wider"><MapPin size={14} /> {profile?.country || 'Global'}</span>
+            <div className="flex flex-wrap gap-4 mt-2 items-center">
+              {(() => {
+                const c = getCountryDisplay(profile?.country);
+                return (
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 uppercase tracking-wider">
+                    <span>{c.flag}</span> {c.code}
+                  </span>
+                );
+              })()}
               <span className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase tracking-wider"><Calendar size={14} /> Joined 2026</span>
             </div>
           </div>
