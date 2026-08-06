@@ -515,8 +515,14 @@ function translateSingleError(e: any): string {
 
   if (code && FURGONETKA_ERRORS_EN[code]) return FURGONETKA_ERRORS_EN[code];
 
-  if (msg.includes('Nazwa miejscowości') || msg.includes('nie pasują do siebie') || msg.includes('nie obsługuje podanego kodu')) {
-    return 'City name and postal code do not match. The selected carrier does not support the provided postal code.';
+  if (msg.includes('Nazwa miejscowości') || msg.includes('nie pasują do siebie') || msg.includes('nie obsługuje podanego kodu') || code.includes('cityPostcode') || code.includes('postcode')) {
+    if (path.includes('pickup')) {
+      return 'Sender profile address error: City name and postal code do not match. Please check your city and postal code in Profile Settings.';
+    }
+    if (path.includes('receiver')) {
+      return 'Receiver shipping address error: City name and postal code do not match. Please check recipient postal code and city.';
+    }
+    return 'City name and postal code do not match. Please verify sender and receiver postal codes and cities.';
   }
   if (msg.includes('punkt odbioru') || msg.includes('nie należy do wybranego') || msg.includes('invalidPointName') || path.includes('point')) {
     return 'The selected pickup point code is invalid for this carrier. Please select a valid pickup point.';
