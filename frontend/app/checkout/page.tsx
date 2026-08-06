@@ -137,10 +137,10 @@ function CheckoutInner() {
     }
     if (selectedShipping?.id === 'dhl_pop') {
       return {
-        title: 'Selected DHL Pickup Point',
-        placeholder: 'No pickup point selected. Use the map to select the nearest DHL point.',
-        error: 'Please select a DHL pickup point on the map before proceeding.',
-        button: selectedPoint ? 'Change DHL Point' : 'Select on map'
+        title: 'Selected Furgonetka.pl Pickup Point',
+        placeholder: 'No pickup point selected. Use the map to select the nearest Furgonetka.pl point.',
+        error: 'Please select a Furgonetka.pl pickup point on the map before proceeding.',
+        button: selectedPoint ? 'Change Furgonetka.pl Point' : 'Select on map'
       };
     }
     if (selectedShipping?.id === 'orlen_paczka') {
@@ -700,12 +700,12 @@ function CheckoutInner() {
                           const accentColor =
                             option.carrier === 'InPost' ? '#22c55e' :
                             option.carrier === 'DPD'    ? '#ef4444' :
-                            option.carrier === 'DHL'    ? '#eab308' :
+                            (option.carrier === 'DHL' || option.carrier === 'Furgonetka.pl') ? '#eab308' :
                             option.carrier === 'Orlen'  ? '#f97316' : '#6366f1';
                           const accentBg =
                             option.carrier === 'InPost' ? 'rgba(34,197,94,0.08)' :
                             option.carrier === 'DPD'    ? 'rgba(239,68,68,0.08)' :
-                            option.carrier === 'DHL'    ? 'rgba(234,179,8,0.08)' :
+                            (option.carrier === 'DHL' || option.carrier === 'Furgonetka.pl') ? 'rgba(234,179,8,0.08)' :
                             option.carrier === 'Orlen'  ? 'rgba(249,115,22,0.08)' : 'rgba(99,102,241,0.08)';
                           return (
                             <label

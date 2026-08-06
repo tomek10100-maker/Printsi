@@ -13,6 +13,7 @@ import { parseWeightToGrams } from '../../lib/dhlRates';
 import { supabase } from '../../lib/supabase';
 
 import { formatOfferWeight } from '../../lib/offerHelpers';
+import { getMaterialInfo } from '../../lib/materialHelpers';
 
 export default function OfferDetailsPage() {
   const params = useParams();
@@ -420,6 +421,82 @@ export default function OfferDetailsPage() {
                         <span className="text-blue-600 font-black">{currentWeight}</span>
                       </div>
                     ) : null)}
+
+                    {/* Material Info & Properties */}
+                    {(() => {
+                      const displayMats: string[] = [];
+                      if (currentVariant?.layers && currentVariant.layers.length > 0) {
+                        currentVariant.layers.forEach((l: any) => {
+                          const m = l.filament_id ? layerMaterials[l.filament_id] : (currentVariant.plastic_type || offer.material);
+                          if (m && !displayMats.includes(m)) displayMats.push(m);
+                        });
+                      } else {
+                        const m = currentMaterial || offer.material;
+                        if (m && !displayMats.includes(m)) displayMats.push(m);
+                      }
+
+                      const validInfos = displayMats.map(m => getMaterialInfo(m)).filter(Boolean);
+                      if (validInfos.length === 0) return null;
+
+                      return (
+                        <div className="mt-4 space-y-3 pt-3 border-t border-gray-200/80">
+                          {validInfos.map((matInfo, idx) => (
+                            <div key={idx} className="p-4 bg-white/90 border border-blue-100/80 rounded-2xl shadow-2xs space-y-3 animate-in fade-in duration-300">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                  <span>{matInfo!.icon || '💡'}</span> {matInfo!.fullName}
+                                </span>
+                              </div>
+
+                              {matInfo!.desc && (
+                                <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
+                                  {matInfo!.desc}
+                                </p>
+                              )}
+
+                              {matInfo!.properties && (
+                                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                                  {matInfo!.properties.strength && (
+                                    <div className="flex flex-col bg-slate-50/80 p-2 rounded-xl border border-slate-100">
+                                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Strength</span>
+                                      <span className="text-[11px] font-extrabold text-slate-800">{matInfo!.properties.strength}</span>
+                                    </div>
+                                  )}
+                                  {matInfo!.properties.heatResistance && (
+                                    <div className="flex flex-col bg-slate-50/80 p-2 rounded-xl border border-slate-100">
+                                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Heat Resistance</span>
+                                      <span className="text-[11px] font-extrabold text-slate-800">{matInfo!.properties.heatResistance}</span>
+                                    </div>
+                                  )}
+                                  {matInfo!.properties.flexibility && (
+                                    <div className="flex flex-col bg-slate-50/80 p-2 rounded-xl border border-slate-100">
+                                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Flexibility</span>
+                                      <span className="text-[11px] font-extrabold text-slate-800">{matInfo!.properties.flexibility}</span>
+                                    </div>
+                                  )}
+                                  {matInfo!.properties.uvResistance && (
+                                    <div className="flex flex-col bg-slate-50/80 p-2 rounded-xl border border-slate-100">
+                                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">UV Resistance</span>
+                                      <span className="text-[11px] font-extrabold text-slate-800">{matInfo!.properties.uvResistance}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {matInfo!.tags && matInfo!.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                  {matInfo!.tags.map((tag: string, tidx: number) => (
+                                    <span key={tidx} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[9px] font-black uppercase tracking-wider">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
                 {offer.dimensions && (
@@ -681,7 +758,7 @@ export default function OfferDetailsPage() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                  <Truck size={14} className="text-gray-300" /> DHL Global Express
+                  <Truck size={14} className="text-gray-300" /> Furgonetka.pl
                 </div>
               )}
             </div>

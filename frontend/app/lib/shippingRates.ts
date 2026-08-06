@@ -172,14 +172,14 @@ export function getShippingOptions(
 
   // ── DOMESTIC (PL → PL) ──────────────────────────────────────────────────
   if (isDomestic) {
-    // DHL domestic
+    // Furgonetka domestic
     const dhlPrice = getWeightPrice(DHL_DOMESTIC_PL, chargeableGrams);
     if (dhlPrice !== null) {
       options.push({
         id: 'dhl_domestic',
-        carrier: 'DHL',
-        service: 'DHL Parcel',
-        icon: '🟡',
+        carrier: 'Furgonetka.pl',
+        service: 'Furgonetka Courier',
+        icon: '📦',
         pricePln: dhlPrice,
         priceEur: Math.round((dhlPrice / plnToEurRate) * 100) / 100,
         deliveryDays: '1-2',
@@ -187,9 +187,9 @@ export function getShippingOptions(
       });
       options.push({
         id: 'dhl_pop',
-        carrier: 'DHL',
-        service: 'DHL POP / Box',
-        icon: '🟡',
+        carrier: 'Furgonetka.pl',
+        service: 'Furgonetka Point / Box',
+        icon: '📦',
         pricePln: Math.max(10, dhlPrice - 1),
         priceEur: Math.round((Math.max(10, dhlPrice - 1) / plnToEurRate) * 100) / 100,
         deliveryDays: '1-2',
@@ -298,15 +298,15 @@ export function getShippingOptions(
       });
     }
 
-    // DHL international
+    // Furgonetka international
     const dhlTier = DHL_INTERNATIONAL_VINTED[toCode] || { upTo1kg: 40, upTo5kg: 50, upTo10kg: 60, upTo20kg: 80, upTo31kg: 100 };
     const dhlPrice = getWeightPrice(dhlTier, chargeableGrams);
     if (dhlPrice !== null) {
       options.push({
         id: 'dhl_international',
-        carrier: 'DHL',
-        service: 'DHL Parcel Connect',
-        icon: '🟡',
+        carrier: 'Furgonetka.pl',
+        service: 'Furgonetka Express',
+        icon: '📦',
         pricePln: dhlPrice,
         priceEur: Math.round((dhlPrice / plnToEurRate) * 100) / 100,
         deliveryDays: toCode === 'CZ' ? '2-3' : '4-6',
@@ -314,9 +314,9 @@ export function getShippingOptions(
       });
       options.push({
         id: 'dhl_pop',
-        carrier: 'DHL',
-        service: 'DHL POP / Box',
-        icon: '🟡',
+        carrier: 'Furgonetka.pl',
+        service: 'Furgonetka Point / Box',
+        icon: '📦',
         pricePln: Math.max(15, dhlPrice - 2),
         priceEur: Math.round((Math.max(15, dhlPrice - 2) / plnToEurRate) * 100) / 100,
         deliveryDays: toCode === 'CZ' ? '2-3' : '4-6',

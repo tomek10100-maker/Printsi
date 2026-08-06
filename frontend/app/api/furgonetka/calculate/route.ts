@@ -3,8 +3,8 @@ import { furgonetkaClient } from '@/app/lib/furgonetkaClient';
 
 // Maps Furgonetka service names → ShippingOption IDs used in checkout
 const SERVICE_MAP: Record<string, { id: string; carrier: string; service: string; icon: string; deliveryDays: string; description: string; isPickup: boolean }> = {
-  dhl:      { id: 'dhl_domestic',       carrier: 'DHL',    service: 'DHL Parcel',         icon: '🟡', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
-  dhl_pop:  { id: 'dhl_pop',            carrier: 'DHL',    service: 'DHL POP / Box',       icon: '🟡', deliveryDays: '1-2', description: 'Parcel locker / Pickup point', isPickup: true },
+  dhl:      { id: 'dhl_domestic',       carrier: 'Furgonetka.pl', service: 'Furgonetka Courier', icon: '📦', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
+  dhl_pop:  { id: 'dhl_pop',            carrier: 'Furgonetka.pl', service: 'Furgonetka Point / Box', icon: '📦', deliveryDays: '1-2', description: 'Parcel locker / Pickup point', isPickup: true },
   dpd:      { id: 'dpd_domestic',       carrier: 'DPD',    service: 'DPD Classic',         icon: '🔴', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
   dpd_pickup: { id: 'dpd_pickup',       carrier: 'DPD',    service: 'DPD Pickup Station',  icon: '🔴', deliveryDays: '1-2', description: 'Parcel locker / Pickup point', isPickup: true },
   inpost:   { id: 'inpost_paczkomat',   carrier: 'InPost', service: 'Paczkomat',           icon: '🟢', deliveryDays: '1-2', description: 'Parcel locker pickup', isPickup: true },

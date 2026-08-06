@@ -15,7 +15,7 @@ const supabase = createClient(
 const COURIERS = [
     { id: 'InPost', name: 'InPost Paczkomat / Courier', icon: '🟡' },
     { id: 'DPD', name: 'DPD Pickup / Courier', icon: '🔴' },
-    { id: 'DHL', name: 'DHL POP / Courier', icon: '🟡' },
+    { id: 'DHL', name: 'Furgonetka.pl', icon: '📦' },
     { id: 'Orlen', name: 'Orlen Paczka', icon: '🔴' },
     { id: 'Poczta', name: 'Poczta Polska / Pocztex', icon: '📯' },
     { id: 'UPS', name: 'UPS Access Point / Courier', icon: '🟤' },
