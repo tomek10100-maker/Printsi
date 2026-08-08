@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock, MoreVertical, Flag
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock, MoreVertical, Flag, Camera, ImageIcon
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -98,6 +98,12 @@ function MessagesInner() {
     // 3-dot menu state
     const [showChatMenu, setShowChatMenu] = useState(false);
 
+    // Image upload in chat
+    const [chatImageUploading, setChatImageUploading] = useState(false);
+
+    // Shipment confirmation state (buyer pressing OK/Problem)
+    const [confirmingShipment, setConfirmingShipment] = useState(false);
+
     // Tracking code state
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
     const [swappedLayers, setSwappedLayers] = useState<any[]>([]);
@@ -109,6 +115,7 @@ function MessagesInner() {
     const [isJobDetailsExpanded, setIsJobDetailsExpanded] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatImageInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setShowProposalModal(false);
@@ -512,7 +519,7 @@ function MessagesInner() {
     const [furgonetkaLoading, setFurgonetkaLoading] = useState(false);
 
     const handleFurgonetkaShip = async (itemId: string) => {
-        if (furgonetkaShippingRef.current) return; // Prevent multi-click race conditions
+        if (furgonetkaShippingRef.current) return;
         furgonetkaShippingRef.current = true;
         setFurgonetkaLoading(true);
         try {
@@ -521,16 +528,49 @@ function MessagesInner() {
                 alert('Session expired. Please log in again.');
                 return;
             }
+            if (!activeChatId || !currentUser) return;
+
+            // Instead of creating package directly, send a confirmation request to buyer
+            const shippingAddr = activeChatData?.orderItem?.shipping_address || {};
+            const addrParts = [
+                shippingAddr.line1 || shippingAddr.address || shippingAddr.street || '',
+                shippingAddr.city || '',
+                shippingAddr.country || ''
+            ].filter(Boolean);
+            const addrDisplay = addrParts.join(', ') || 'Address on file';
+
+            await supabase.from('messages').insert({
+                chat_id: activeChatId,
+                sender_id: currentUser.id,
+                content: JSON.stringify({
+                    itemId,
+                    addrDisplay,
+                    requestedAt: new Date().toISOString(),
+                }),
+                message_type: 'shipment_confirmation_request',
+            });
+            loadMessages(activeChatId);
+        } catch (err) {
+            console.error('Shipment confirmation send error:', err);
+            alert('Failed to send confirmation request.');
+        } finally {
+            furgonetkaShippingRef.current = false;
+            setFurgonetkaLoading(false);
+        }
+    };
+
+    // Called by buyer when they confirm shipping address is OK
+    const handleConfirmShipment = async (itemId: string) => {
+        setConfirmingShipment(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) { alert('Session expired. Please log in again.'); return; }
 
             const res = await fetch('/api/furgonetka/create-package', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
                 body: JSON.stringify({ itemId, chatId: activeChatId })
             });
-
             const data = await res.json();
             if (data.success) {
                 setChats(prev => prev.map(c =>
@@ -547,16 +587,58 @@ function MessagesInner() {
                 ));
                 loadMessages(activeChatId as string);
             } else {
-                alert(data.error || 'Failed to ship via Furgonetka');
+                alert(data.error || 'Failed to generate shipping label.');
             }
         } catch (err) {
-            console.error('Furgonetka shipping error:', err);
+            console.error('Confirm shipment error:', err);
             alert('Network error occurred.');
         } finally {
-            furgonetkaShippingRef.current = false;
-            setFurgonetkaLoading(false);
+            setConfirmingShipment(false);
         }
     };
+
+    // Upload image(s) and send in chat
+    const handleSendImage = async (files: FileList) => {
+        if (!files.length || !activeChatId || !currentUser) return;
+        setChatImageUploading(true);
+        try {
+            const currentActiveId = await ensureActiveChatExists();
+            if (!currentActiveId) return;
+
+            const urls: string[] = [];
+            for (let i = 0; i < Math.min(files.length, 5); i++) {
+                const file = files[i];
+                if (!file.type.startsWith('image/')) continue;
+                const ext = file.name.split('.').pop() || 'jpg';
+                const path = `chat/${currentActiveId}/${Date.now()}-${i}.${ext}`;
+                const { error } = await supabase.storage.from('printsi-files1').upload(path, file, { upsert: true });
+                if (!error) {
+                    const { data: urlData } = supabase.storage.from('printsi-files1').getPublicUrl(path);
+                    urls.push(urlData.publicUrl);
+                }
+            }
+
+            if (urls.length > 0) {
+                const content = '[IMAGE]' + JSON.stringify(urls);
+                await supabase.from('messages').insert({
+                    chat_id: currentActiveId,
+                    sender_id: currentUser.id,
+                    content,
+                    message_type: 'user',
+                });
+                loadMessages(currentActiveId);
+                loadChats(currentUser.id);
+            }
+        } catch (err) {
+            console.error('Image upload error:', err);
+            alert('Failed to upload image. Please try again.');
+        } finally {
+            setChatImageUploading(false);
+            // Reset file input
+            if (chatImageInputRef.current) chatImageInputRef.current.value = '';
+        }
+    };
+
 
     const handleDownloadLabel = async (packageId: string) => {
         try {
@@ -1526,6 +1608,14 @@ function MessagesInner() {
                 label: 'Cancellation Request',
                 accent: 'from-orange-500 to-amber-500',
             },
+            shipment_confirmation_request: {
+                bg: 'bg-gradient-to-r from-indigo-50 to-blue-50/50',
+                border: 'border-indigo-200',
+                icon: <Truck size={16} />,
+                iconColor: 'text-indigo-600',
+                label: 'Shipping Confirmation Required',
+                accent: 'from-indigo-500 to-blue-600',
+            },
         };
 
         const style = typeStyles[messageType] || typeStyles.system;
@@ -1575,6 +1665,62 @@ function MessagesInner() {
         }
         if (messageType === 'cancellation_request') {
             try { cancelRequestData = JSON.parse(msg.content); } catch { }
+        }
+
+        // ── SHIPMENT CONFIRMATION REQUEST (special full render) ──
+        if (messageType === 'shipment_confirmation_request') {
+            let scData: any = {};
+            try { scData = JSON.parse(msg.content); } catch { }
+            const isBuyer = activeChatData && String(currentUser?.id) === String(activeChatData.buyer_id);
+            const alreadyShipped = activeChatData?.orderItem?.status === 'shipped';
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-5 px-4">
+                    <div className="w-full max-w-md bg-gradient-to-r from-indigo-50 to-blue-50/50 border border-indigo-200 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-gradient-to-r from-indigo-500 to-blue-600 px-4 py-2.5 flex items-center gap-2">
+                            <Truck size={16} className="text-white/90" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">Shipping Confirmation Required</span>
+                            <span className="ml-auto text-[9px] text-white/60 font-bold">
+                                {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                        <div className="px-4 py-4 space-y-3">
+                            <p className="text-sm font-bold text-slate-800">📦 The seller wants to ship your order. Please confirm the delivery address is correct before the label is generated.</p>
+                            {scData.addrDisplay && (
+                                <div className="p-3 bg-white rounded-xl border border-indigo-100 flex items-start gap-2">
+                                    <span className="text-indigo-500 mt-0.5">📍</span>
+                                    <p className="text-xs font-bold text-slate-700">{scData.addrDisplay}</p>
+                                </div>
+                            )}
+                            {alreadyShipped ? (
+                                <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
+                                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                                    <p className="text-xs font-black text-emerald-700">Confirmed — shipping label generated.</p>
+                                </div>
+                            ) : isBuyer ? (
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleConfirmShipment(scData.itemId)}
+                                        disabled={confirmingShipment}
+                                        className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                    >
+                                        {confirmingShipment ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                        Everything Looks Good
+                                    </button>
+                                    <button
+                                        onClick={() => { setReportSubject('Shipping address issue'); setReportDescription(''); setReportError(''); setReportSuccess(false); setShowReportModal(true); }}
+                                        disabled={confirmingShipment}
+                                        className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                    >
+                                        <Flag size={12} /> I Have a Problem
+                                    </button>
+                                </div>
+                            ) : (
+                                <p className="text-[11px] font-black text-indigo-600 uppercase tracking-wide text-center">⏳ Awaiting buyer's confirmation...</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
         }
 
         const isSeller = activeChatData && String(currentUser?.id) === String(activeChatData.seller_id);
@@ -3128,6 +3274,30 @@ function MessagesInner() {
                                             );
                                         }
 
+                                        // ── IMAGE MESSAGE rendering ──
+                                        if (msg.content?.startsWith('[IMAGE]')) {
+                                            let imgUrls: string[] = [];
+                                            try { imgUrls = JSON.parse(msg.content.substring(7)); } catch { imgUrls = [msg.content.substring(7)]; }
+                                            return (
+                                                <div key={msg.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                                    <div className="flex flex-wrap gap-2 max-w-[75%]">
+                                                        {imgUrls.map((url: string, i: number) => (
+                                                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                                                                <img
+                                                                    src={url}
+                                                                    alt={`Shared photo ${i + 1}`}
+                                                                    className="max-w-[220px] max-h-[220px] object-cover rounded-2xl border border-gray-200 shadow-md hover:opacity-90 transition-opacity cursor-pointer"
+                                                                />
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-400 font-bold mt-1">
+                                                        {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                            );
+                                        }
+
                                         return (
                                             <div key={msg.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                                                 <div className={`max-w-[75%] rounded-2xl px-5 py-3 ${isMe ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
@@ -3153,6 +3323,25 @@ function MessagesInner() {
                                             className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[50px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                                         />
+                                        {/* Hidden file input for images */}
+                                        <input
+                                            ref={chatImageInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            className="hidden"
+                                            onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleSendImage(e.target.files); }}
+                                        />
+                                        {/* Camera / image upload button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => chatImageInputRef.current?.click()}
+                                            disabled={chatImageUploading}
+                                            title="Send photo"
+                                            className="bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 p-3 rounded-xl transition-all h-[50px] w-[50px] flex items-center justify-center shrink-0 border border-gray-200 hover:border-indigo-300 disabled:opacity-50"
+                                        >
+                                            {chatImageUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                                        </button>
                                         <button type="submit" disabled={!newMessage.trim()} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
                                             <Send size={20} />
                                         </button>

@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import {
   MapPin, Calendar, Loader2, ArrowLeft,
-  Package, ShoppingBag, ArrowRight, User as UserIcon
+  Package, ShoppingBag, ArrowRight, User as UserIcon, Flag, X, CheckCircle
 } from 'lucide-react';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { getCountryDisplay } from '../../lib/countryHelpers';
@@ -23,10 +23,22 @@ export default function PublicProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Report user modal
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDesc, setReportDesc] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
 
   useEffect(() => {
     const fetchPublicData = async () => {
       if (!params.id) return;
+
+      // Get current logged-in user
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
 
       // 1. Pobierz dane profilu
       const { data: profileData, error: profileErr } = await supabase
@@ -57,7 +69,31 @@ export default function PublicProfilePage() {
     fetchPublicData();
   }, [params.id, router]);
 
+  const handleReportUser = async () => {
+    if (!reportReason.trim()) return;
+    setReportSubmitting(true);
+    try {
+      await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'report',
+          subject: `User Report: ${profile?.full_name || params.id}`,
+          message: `Reason: ${reportReason}\n\nDetails: ${reportDesc}\n\nReported User ID: ${params.id}\nProfile URL: ${typeof window !== 'undefined' ? window.location.href : ''}`,
+          contact: currentUser?.email || 'anonymous',
+        }),
+      });
+      setReportDone(true);
+    } catch (e) {
+      console.error('Report user error:', e);
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
+
+  const isOwnProfile = currentUser && String(currentUser.id) === String(params.id);
 
   return (
     <main className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
@@ -102,6 +138,17 @@ export default function PublicProfilePage() {
               <span className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase tracking-wider"><Calendar size={14} /> Joined 2026</span>
             </div>
           </div>
+
+          {/* Report User button — only for logged-in non-owners */}
+          {currentUser && !isOwnProfile && (
+            <button
+              onClick={() => { setReportDone(false); setReportReason(''); setReportDesc(''); setShowReportModal(true); }}
+              title="Report this user"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-400 hover:text-red-500 transition text-xs font-black uppercase tracking-widest mb-2"
+            >
+              <Flag size={14} /> Report User
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
@@ -164,6 +211,70 @@ export default function PublicProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* ── REPORT USER MODAL ── */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowReportModal(false)}>
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4 flex items-center gap-3">
+              <Flag size={18} className="text-white" />
+              <span className="text-sm font-black uppercase tracking-widest text-white">Report this User</span>
+              <button onClick={() => setShowReportModal(false)} className="ml-auto text-white/70 hover:text-white transition">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {reportDone ? (
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle size={32} className="text-emerald-500" />
+                  </div>
+                  <p className="text-base font-black text-gray-900">Report submitted</p>
+                  <p className="text-sm text-gray-500 font-medium">Our team will review this report and take appropriate action.</p>
+                  <button onClick={() => setShowReportModal(false)} className="mt-2 px-6 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-800 transition">Close</button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Reason *</label>
+                    <select
+                      value={reportReason}
+                      onChange={e => setReportReason(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    >
+                      <option value="">Select a reason...</option>
+                      <option value="Fraud or scam behavior">Fraud or scam behavior</option>
+                      <option value="Harassment or abuse">Harassment or abuse</option>
+                      <option value="Fake or impersonating account">Fake or impersonating account</option>
+                      <option value="Selling prohibited items">Selling prohibited items</option>
+                      <option value="Suspicious activity">Suspicious activity</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Additional details (optional)</label>
+                    <textarea
+                      value={reportDesc}
+                      onChange={e => setReportDesc(e.target.value)}
+                      placeholder="Describe the issue..."
+                      rows={4}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleReportUser}
+                    disabled={!reportReason || reportSubmitting}
+                    className="w-full py-3.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {reportSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Flag size={14} />}
+                    Submit Report
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

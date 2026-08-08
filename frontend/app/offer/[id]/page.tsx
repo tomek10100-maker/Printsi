@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, ShoppingBag, Truck, ShieldCheck, Box,
-  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette, Download, Printer, XCircle
+  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette, Download, Printer, XCircle, Flag, X
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -37,6 +37,13 @@ export default function OfferDetailsPage() {
   const [layerMaterials, setLayerMaterials] = useState<Record<string, string>>({});
   const [downloadingFile, setDownloadingFile] = useState(false);
   const [fileDownloaded, setFileDownloaded] = useState(false);
+
+  // Report listing modal
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDesc, setReportDesc] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -260,6 +267,28 @@ export default function OfferDetailsPage() {
       console.error('Decline notification failed:', e);
     }
     router.push('/gallery');
+  };
+
+  const handleReportOffer = async () => {
+    if (!reportReason.trim()) return;
+    setReportSubmitting(true);
+    try {
+      await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'report',
+          subject: `Listing Report: ${offer?.title || offer?.id}`,
+          message: `Reason: ${reportReason}\n\nDetails: ${reportDesc}\n\nOffer ID: ${offer?.id}\nOffer URL: ${typeof window !== 'undefined' ? window.location.href : ''}`,
+          contact: currentUser?.email || 'anonymous',
+        }),
+      });
+      setReportDone(true);
+    } catch (e) {
+      console.error('Report error:', e);
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-gray-900" size={40} /></div>;
@@ -739,6 +768,17 @@ export default function OfferDetailsPage() {
                   </div>
                 )}
               </button>
+
+              {/* Report Listing button — only visible to logged-in non-owners */}
+              {currentUser && !isOwner && (
+                <button
+                  onClick={() => { setReportDone(false); setReportReason(''); setReportDesc(''); setShowReportModal(true); }}
+                  title="Report this listing"
+                  className="w-16 h-16 rounded-[24px] border-2 border-gray-100 hover:bg-red-50 hover:border-red-200 text-gray-400 hover:text-red-500 transition flex items-center justify-center group"
+                >
+                  <Flag size={22} className="group-hover:scale-110 transition-transform" />
+                </button>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-y-4 gap-x-8 pt-4">
@@ -820,6 +860,69 @@ export default function OfferDetailsPage() {
                 <button onClick={() => router.push('/cart')} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-blue-600 transition-all shadow-lg hover:-translate-y-1 flex items-center justify-center gap-2"><ShoppingBag size={16} /> Checkout Now</button>
                 <button onClick={() => setShowModal(false)} className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-gray-200 transition-all">Keep Shopping</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── REPORT LISTING MODAL ── */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowReportModal(false)}>
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4 flex items-center gap-3">
+              <Flag size={18} className="text-white" />
+              <span className="text-sm font-black uppercase tracking-widest text-white">Report this Listing</span>
+              <button onClick={() => setShowReportModal(false)} className="ml-auto text-white/70 hover:text-white transition">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {reportDone ? (
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle size={32} className="text-emerald-500" />
+                  </div>
+                  <p className="text-base font-black text-gray-900">Report submitted</p>
+                  <p className="text-sm text-gray-500 font-medium">Our team will review this listing and take appropriate action.</p>
+                  <button onClick={() => setShowReportModal(false)} className="mt-2 px-6 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-800 transition">Close</button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Reason *</label>
+                    <select
+                      value={reportReason}
+                      onChange={e => setReportReason(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    >
+                      <option value="">Select a reason...</option>
+                      <option value="Counterfeit or stolen goods">Counterfeit or stolen goods</option>
+                      <option value="Prohibited or illegal item">Prohibited or illegal item</option>
+                      <option value="Misleading description">Misleading description</option>
+                      <option value="Spam or duplicate listing">Spam or duplicate listing</option>
+                      <option value="Inappropriate content">Inappropriate content</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Additional details (optional)</label>
+                    <textarea
+                      value={reportDesc}
+                      onChange={e => setReportDesc(e.target.value)}
+                      placeholder="Describe the issue..."
+                      rows={4}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleReportOffer}
+                    disabled={!reportReason || reportSubmitting}
+                    className="w-full py-3.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {reportSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Flag size={14} />}
+                    Submit Report
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
