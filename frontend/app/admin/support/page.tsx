@@ -32,6 +32,7 @@ export default function AdminSupportPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
   const [token, setToken] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -59,20 +60,42 @@ export default function AdminSupportPage() {
   const filtered = tickets.filter(t => {
     const matchSearch = !search || t.subject?.toLowerCase().includes(search.toLowerCase()) || t.contact?.toLowerCase().includes(search.toLowerCase()) || t.message?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === 'all' || t.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchCategory = filterCategory === 'all' || t.category === filterCategory;
+    return matchSearch && matchStatus && matchCategory;
   });
 
   const counts = STATUSES.reduce((acc, s) => ({ ...acc, [s]: tickets.filter(t => t.status === s).length }), {} as any);
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
 
+  const categories = ['all', 'report', 'general', 'order', 'technical', 'copyright'];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 style={{ color: '#f1f5f9' }} className="text-2xl font-black tracking-tight flex items-center gap-2">
-          <LifeBuoy size={22} className="text-blue-400" /> Support Tickets
-        </h1>
-        <p style={{ color: '#64748b' }} className="text-sm font-bold mt-0.5">{tickets.length} total tickets</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 style={{ color: '#f1f5f9' }} className="text-2xl font-black tracking-tight flex items-center gap-2">
+            <LifeBuoy size={22} className="text-blue-400" /> Support Tickets
+          </h1>
+          <p style={{ color: '#64748b' }} className="text-sm font-bold mt-0.5">{tickets.length} total tickets</p>
+        </div>
+
+        {/* Category Pills */}
+        <div style={{ background: '#111d36', border: '1px solid rgba(56,97,175,0.2)' }} className="p-1 rounded-2xl flex gap-1 flex-wrap">
+          {categories.map(c => (
+            <button
+              key={c}
+              onClick={() => setFilterCategory(c)}
+              style={{
+                background: filterCategory === c ? 'rgba(59,130,246,0.25)' : 'transparent',
+                color: filterCategory === c ? '#60a5fa' : '#64748b'
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition"
+            >
+              {c}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Status counts */}

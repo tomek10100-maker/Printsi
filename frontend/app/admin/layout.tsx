@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard, Users, Package, ShoppingBag, MessageSquare,
   CreditCard, LifeBuoy, LogOut, ChevronRight, Shield, Loader2,
-  Menu, X
+  Menu, X, Flag
 } from 'lucide-react';
 
 const supabase = createClient(
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
   { href: '/admin/chats', label: 'Conversations', icon: MessageSquare },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/reports', label: 'Reports', icon: Flag },
   { href: '/admin/support', label: 'Support', icon: LifeBuoy },
 ];
 
