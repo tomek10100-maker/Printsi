@@ -103,6 +103,16 @@ function MarketplaceContent() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterMaterial, setFilterMaterial] = useState<string>('');
   const [filterColorId, setFilterColorId] = useState<string>('');
+  const [showSortMenu, setShowSortMenu] = useState(false);
+
+  const POPULAR_PRESETS = [
+    { label: '🔥 PLA', material: 'PLA', colorId: '' },
+    { label: '⚡ PETG', material: 'PETG', colorId: '' },
+    { label: '🖤 Black', material: '', colorId: 'black' },
+    { label: '🤍 White', material: '', colorId: 'white' },
+    { label: '🔵 Blue', material: '', colorId: 'blue' },
+    { label: '🟢 Green', material: '', colorId: 'green' },
+  ];
 
   const fetchOffers = useCallback(async () => {
     const { data, error } = await supabase
@@ -551,43 +561,99 @@ function MarketplaceContent() {
                 <button 
                   key={cat} 
                   onClick={() => setCategoryFilter(cat)} 
-                  className={`px-7 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
+                  className={`px-7 py-3.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer select-none ${
                     isActive 
                       ? `bg-active-light ${colors[cat]} shadow-xl scale-105 z-10 category-btn-active` 
-                      : 'text-gray-400 hover:text-gray-600'
+                      : 'text-gray-400 hover:text-gray-700 hover:bg-white/70 hover:shadow-sm hover:scale-[1.02]'
                   } text-center`}
-                  style={{ transitionDuration: '1.5s' }}
                 >
                   {cat === 'job' ? 'Print On Demand' : cat === 'digital' ? '3D Files' : '3D Items'}
                 </button>
               )
             })}
           </div>
-          <div className="relative group">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase hover:border-blue-500 transition shadow-sm">
+          <div className="relative" ref={null}>
+            <button 
+              onClick={() => setShowSortMenu(v => !v)}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase hover:border-blue-500 transition shadow-sm cursor-pointer select-none"
+            >
               <ArrowUpDown size={14} />
               {sortBy === 'newest' ? 'Newest' : sortBy === 'price_asc' ? 'Price: Low to High' : 'Price: High to Low'}
             </button>
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
-              <button onClick={() => setSortBy('newest')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase cursor-pointer z-50 relative">Newest</button>
-              <button onClick={() => setSortBy('price_asc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase cursor-pointer z-50 relative">Price: Low to High</button>
-              <button onClick={() => setSortBy('price_desc')} className="w-full text-left px-4 py-3 hover:bg-gray-50 text-xs font-bold uppercase cursor-pointer z-50 relative">Price: High to Low</button>
-            </div>
+            {showSortMenu && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setShowSortMenu(false)} />
+                <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-2xl shadow-2xl z-30 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                  {[
+                    { key: 'newest', label: '🕐 Newest First' },
+                    { key: 'price_asc', label: '⬆️ Price: Low to High' },
+                    { key: 'price_desc', label: '⬇️ Price: High to Low' },
+                  ].map(opt => (
+                    <button 
+                      key={opt.key}
+                      onClick={() => { setSortBy(opt.key as any); setShowSortMenu(false); }} 
+                      className={`w-full text-left px-5 py-3.5 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors ${
+                        sortBy === opt.key ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-600'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
         
         {/* FILTERS PANEL */}
-        <div className={`transition-all duration-500 origin-top overflow-hidden ${showFilters ? 'max-h-[800px] opacity-100 mb-2' : 'max-h-0 opacity-0 mb-0'}`}>
-           <div className="p-6 bg-white border border-gray-100 rounded-3xl shadow-lg flex flex-col md:flex-row gap-8">
+        <div className={`transition-all duration-500 origin-top overflow-hidden ${showFilters ? 'max-h-[900px] opacity-100 mb-2' : 'max-h-0 opacity-0 mb-0'}`}>
+           <div className="p-6 bg-white border border-gray-100 rounded-3xl shadow-lg flex flex-col gap-6">
+
+              {/* Quick Presets */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
+                  <Zap size={14} className="text-amber-500" /> Popular Filters
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {POPULAR_PRESETS.map((preset) => {
+                    const isActive = filterMaterial === preset.material && filterColorId === preset.colorId && (preset.material !== '' || preset.colorId !== '');
+                    return (
+                      <button
+                        key={preset.label}
+                        onClick={(e) => { e.stopPropagation(); setFilterMaterial(preset.material); setFilterColorId(preset.colorId); }}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border-2 select-none ${
+                          isActive
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-105'
+                            : 'bg-gray-50 text-gray-600 border-gray-100 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:scale-105'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                  {(filterMaterial || filterColorId) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setFilterMaterial(''); setFilterColorId(''); }}
+                      className="px-4 py-2 rounded-xl text-xs font-black bg-red-50 text-red-500 border-2 border-red-100 hover:bg-red-100 transition-all cursor-pointer select-none"
+                    >
+                      ✕ Clear All
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="h-px bg-gray-100" />
+
+              <div className="flex flex-col md:flex-row gap-8">
               {/* Material Filter */}
               <div className="flex-1 space-y-3">
                  <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
                    <Layers size={14} /> Filter by Material
                  </h4>
                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => setFilterMaterial('')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterMaterial === '' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>All Materials</button>
+                    <button onClick={(e) => { e.stopPropagation(); setFilterMaterial(''); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none ${filterMaterial === '' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>All Materials</button>
                     {displayMaterials.map(mat => (
-                      <button key={mat} onClick={() => setFilterMaterial(mat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterMaterial === mat ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-transparent hover:border-gray-200'}`}>{mat}</button>
+                      <button key={mat} onClick={(e) => { e.stopPropagation(); setFilterMaterial(mat); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none ${filterMaterial === mat ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-transparent hover:border-gray-200'}`}>{mat}</button>
                     ))}
                  </div>
               </div>
@@ -600,7 +666,7 @@ function MarketplaceContent() {
                    <Palette size={14} /> Filter by Color
                  </h4>
                  <div className="flex items-center gap-3">
-                    <button onClick={() => setFilterColorId('')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterColorId === '' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>Any Color</button>
+                    <button onClick={(e) => { e.stopPropagation(); setFilterColorId(''); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer select-none ${filterColorId === '' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>Any Color</button>
                     
                     {/* Rainbow Circles grid */}
                     <div className="flex flex-wrap gap-1.5 items-center">
@@ -609,15 +675,16 @@ function MarketplaceContent() {
                         return (
                           <button 
                             key={col.id} 
-                            onClick={() => setFilterColorId(col.id)} 
+                            onClick={(e) => { e.stopPropagation(); setFilterColorId(col.id); }} 
                             title={col.name}
-                            className={`w-6 h-6 rounded-full transition-all border-2 ${isSelected ? 'scale-125 border-blue-600 shadow-lg z-10' : 'border-black/5 shadow-sm hover:scale-110 hover:border-gray-300'}`}
+                            className={`w-7 h-7 rounded-full transition-all border-2 cursor-pointer select-none ${isSelected ? 'scale-125 border-blue-600 shadow-lg z-10 ring-2 ring-blue-200' : 'border-black/5 shadow-sm hover:scale-110 hover:border-gray-300 hover:shadow-md'}`}
                             style={{ backgroundColor: col.hex }}
                           />
                         );
                       })}
                     </div>
                  </div>
+              </div>
               </div>
            </div>
         </div>

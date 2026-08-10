@@ -154,9 +154,10 @@ export default function SupportPage() {
             </p>
             <button
               onClick={() => openForm('general')}
-              className="inline-flex items-center gap-3 bg-white text-blue-700 px-10 py-4 rounded-full font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-2xl text-sm active:scale-95"
+              className="group inline-flex items-center gap-3 bg-white text-blue-700 px-10 py-4 rounded-full font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-2xl text-sm active:scale-95 cursor-pointer hover:scale-105 hover:shadow-white/30 ring-2 ring-transparent hover:ring-white/40"
             >
-              <Mail size={18} /> Contact Support
+              <Mail size={18} className="group-hover:rotate-12 transition-transform duration-300" /> Contact Support
+              <span className="ml-1 opacity-60 group-hover:translate-x-1 transition-transform duration-300">→</span>
             </button>
           </div>
         </div>
@@ -349,13 +350,18 @@ function SupportCard({
   return (
     <button
       onClick={onClick}
-      className={`bg-white/5 border border-white/10 ${borderColor} p-8 rounded-[32px] text-center hover:-translate-y-2 hover:bg-white/8 transition-all duration-300 cursor-pointer group w-full`}
+      className={`bg-white/5 border border-white/10 ${borderColor} p-8 rounded-[32px] text-center hover:-translate-y-2 hover:bg-white/8 transition-all duration-300 cursor-pointer group w-full relative overflow-hidden`}
     >
+      {/* Subtle shimmer on hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-white/5 to-transparent rounded-[32px]" />
       <div className={`${iconBg} w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300`}>
         <span className={iconColor}>{icon}</span>
       </div>
       <h3 className="font-black uppercase text-white mb-3 text-sm tracking-widest">{title}</h3>
       <p className="text-gray-400 text-xs font-bold leading-relaxed">{desc}</p>
+      <div className="mt-5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors duration-300">
+        <span>Open →</span>
+      </div>
     </button>
   );
 }
