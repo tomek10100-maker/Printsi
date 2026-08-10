@@ -104,6 +104,47 @@ function MessagesInner() {
     const [pendingCaption, setPendingCaption] = useState('');
     const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
 
+    // Anti-spam / rate limit state
+    const [spamCooldownSec, setSpamCooldownSec] = useState<number>(0);
+    const recentSendsRef = useRef<number[]>([]);
+    const lastSentTextRef = useRef<string>('');
+
+    useEffect(() => {
+        if (spamCooldownSec <= 0) return;
+        const timer = setInterval(() => {
+            setSpamCooldownSec(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [spamCooldownSec]);
+
+    const checkSpamRateLimit = (textToSend: string): boolean => {
+        const now = Date.now();
+        recentSendsRef.current = recentSendsRef.current.filter(t => now - t < 6000);
+
+        if (recentSendsRef.current.length >= 3) {
+            setSpamCooldownSec(5);
+            return true;
+        }
+
+        if (textToSend && textToSend.trim() === lastSentTextRef.current && recentSendsRef.current.length > 0) {
+            const lastSendTime = recentSendsRef.current[recentSendsRef.current.length - 1];
+            if (now - lastSendTime < 4000) {
+                setSpamCooldownSec(4);
+                return true;
+            }
+        }
+
+        recentSendsRef.current.push(now);
+        if (textToSend) lastSentTextRef.current = textToSend.trim();
+        return false;
+    };
+
     // Shipment confirmation state (buyer pressing OK/Problem)
     const [confirmingShipment, setConfirmingShipment] = useState(false);
 
@@ -429,11 +470,13 @@ function MessagesInner() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (spamCooldownSec > 0) return;
         if (pendingImages.length > 0) {
             await handleSendImage(pendingImages, pendingCaption);
             return;
         }
         if (!newMessage.trim() || !activeChatId || !currentUser) return;
+        if (checkSpamRateLimit(newMessage)) return;
 
         const content = newMessage.trim();
         setNewMessage('');
@@ -659,7 +702,8 @@ function MessagesInner() {
 
     // Upload image(s) and send in chat
     const handleSendImage = async (files: File[], caption: string) => {
-        if (!files.length || !activeChatId || !currentUser) return;
+        if (!files.length || !activeChatId || !currentUser || spamCooldownSec > 0) return;
+        if (checkSpamRateLimit(caption)) return;
         setChatImageUploading(true);
         try {
             const currentActiveId = await ensureActiveChatExists();
@@ -3534,14 +3578,7 @@ function MessagesInner() {
                                                         {imgUrls.map((url: string, i: number) => (
                                                             <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
                                                                 <img
-                                                                    src={url}
-                                                                    alt={`Shared photo ${i + 1}`}
-                                                                    className="max-w-[220px] max-h-[220px] object-cover rounded-2xl border border-gray-200 shadow-md hover:opacity-90 transition-opacity cursor-pointer"
-                                                                />
-                                                            </a>
-                                                        ))}
-                                                    </div>
-                                                    {caption && (
+                                                                                                              {caption && (
                                                         <div className={`mt-1.5 max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2 break-words [word-break:break-word] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}>
                                                             <p className="text-sm font-medium leading-relaxed break-words [word-break:break-word] [overflow-wrap:anywhere]">
                                                                 {(() => {
@@ -3549,15 +3586,17 @@ function MessagesInner() {
                                                                     const parts = caption.split(urlRegex);
                                                                     return parts.map((part, index) => {
                                                                         if (part.match(urlRegex)) {
+                                                                            const displayUrl = part.length > 55 ? part.substring(0, 50) + '...' : part;
                                                                             return (
                                                                                 <a
                                                                                     key={index}
                                                                                     href={part}
                                                                                     target="_blank"
                                                                                     rel="noopener noreferrer"
+                                                                                    title={part}
                                                                                     className={`underline break-all font-bold ${isMe ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
                                                                                 >
-                                                                                    {part}
+                                                                                    {displayUrl}
                                                                                 </a>
                                                                             );
                                                                         }
@@ -3583,15 +3622,17 @@ function MessagesInner() {
                                                             const parts = (msg.content || '').split(urlRegex);
                                                             return parts.map((part, index) => {
                                                                 if (part.match(urlRegex)) {
+                                                                    const displayUrl = part.length > 55 ? part.substring(0, 50) + '...' : part;
                                                                     return (
                                                                         <a
                                                                             key={index}
                                                                             href={part}
                                                                             target="_blank"
                                                                             rel="noopener noreferrer"
+                                                                            title={part}
                                                                             className={`underline break-all font-bold ${isMe ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
                                                                         >
-                                                                            {part}
+                                                                            {displayUrl}
                                                                         </a>
                                                                     );
                                                                 }
@@ -3681,7 +3722,7 @@ function MessagesInner() {
                                             <button
                                                 type="button"
                                                 onClick={() => handleSendImage(pendingImages, pendingCaption)}
-                                                disabled={chatImageUploading}
+                                                disabled={chatImageUploading || spamCooldownSec > 0}
                                                 className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95"
                                             >
                                                 {chatImageUploading
@@ -3695,6 +3736,14 @@ function MessagesInner() {
                             )}
 
                             <div className="p-4 bg-white border-t border-gray-100 shrink-0">
+                                {spamCooldownSec > 0 && (
+                                    <div className="max-w-4xl mx-auto mb-3 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 rounded-xl px-4 py-2.5 text-xs font-black flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className="text-amber-500 animate-spin shrink-0" />
+                                            <span><strong>Slow down a bit!</strong> Please wait <strong>{spamCooldownSec}s</strong> before sending another message.</span>
+                                        </div>
+                                    </div>
+                                )}
                                 <form onSubmit={handleSendMessage} className="flex flex-col sm:flex-row gap-2 max-w-4xl mx-auto items-stretch sm:items-end">
                                     <div className="flex-1 flex gap-2 items-end">
                                         <textarea
@@ -3716,13 +3765,13 @@ function MessagesInner() {
                                         <button
                                             type="button"
                                             onClick={() => chatImageInputRef.current?.click()}
-                                            disabled={chatImageUploading}
+                                            disabled={chatImageUploading || spamCooldownSec > 0}
                                             title="Send photo"
                                             className="bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 p-3 rounded-xl transition-all h-[50px] w-[50px] flex items-center justify-center shrink-0 border border-gray-200 hover:border-indigo-300 disabled:opacity-50"
                                         >
                                             {chatImageUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
                                         </button>
-                                        <button type="submit" disabled={!newMessage.trim() && pendingImages.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
+                                        <button type="submit" disabled={(!newMessage.trim() && pendingImages.length === 0) || spamCooldownSec > 0} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
                                             <Send size={20} />
                                         </button>
                                     </div>
