@@ -1269,10 +1269,10 @@ function MessagesInner() {
 
         let finalPrice = 0;
         if (overridePriceEUR !== undefined) {
-            finalPrice = overridePriceEUR;
+            finalPrice = Math.abs(overridePriceEUR);
         } else {
             if (!jobProposalPrice) return;
-            finalPrice = parseFloat(jobProposalPrice);
+            finalPrice = Math.abs(parseFloat(jobProposalPrice));
             if (currency !== 'EUR' && rates && rates[currency]) {
                 finalPrice = finalPrice / rates[currency];
             }
@@ -2604,9 +2604,12 @@ function MessagesInner() {
                                                                             <div className="relative flex-1 md:w-36">
                                                                                 <input 
                                                                                     type="number" 
+                                                                                    min="0.01"
+                                                                                    step="0.01"
                                                                                     placeholder="Price" 
                                                                                     value={jobProposalPrice} 
-                                                                                    onChange={e => setJobProposalPrice(e.target.value)} 
+                                                                                    onChange={e => setJobProposalPrice(e.target.value.replace(/-/g, ''))} 
+                                                                                    onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                                                                                     className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-xs font-black text-white placeholder:text-blue-200/50 focus:outline-none focus:bg-white/20 shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                                                 />
                                                                                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-blue-300 uppercase tracking-widest pointer-events-none">{currency}</span>
@@ -2781,7 +2784,15 @@ function MessagesInner() {
                                                                     )}
                                                                 </div>
                                                                 <div className="relative">
-                                                                    <input type="number" step="0.01" value={proposalPrice} onChange={e => setProposalPrice(e.target.value)} className={`w-full pl-10 pr-4 py-3 bg-white border ${pDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-900 shadow-sm`} />
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0.01"
+                                                                        step="0.01"
+                                                                        value={proposalPrice}
+                                                                        onChange={e => setProposalPrice(e.target.value.replace(/-/g, ''))}
+                                                                        onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                                                                        className={`w-full pl-10 pr-4 py-3 bg-white border ${pDiff ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-200'} rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-900 shadow-sm`}
+                                                                    />
                                                                     <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-black text-[10px] uppercase tracking-widest ${pDiff ? 'text-blue-600' : 'text-gray-400'}`}>{currency}</span>
                                                                 </div>
                                                             </div>
