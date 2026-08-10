@@ -429,6 +429,10 @@ function MessagesInner() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (pendingImages.length > 0) {
+            await handleSendImage(pendingImages, pendingCaption);
+            return;
+        }
         if (!newMessage.trim() || !activeChatId || !currentUser) return;
 
         const content = newMessage.trim();
@@ -661,6 +665,9 @@ function MessagesInner() {
             const currentActiveId = await ensureActiveChatExists();
             if (!currentActiveId) return;
 
+            const fullCaption = [caption.trim(), newMessage.trim()].filter(Boolean).join('\n');
+            setNewMessage('');
+
             const urls: string[] = [];
             for (let i = 0; i < Math.min(files.length, 5); i++) {
                 const file = files[i];
@@ -675,8 +682,7 @@ function MessagesInner() {
             }
 
             if (urls.length > 0) {
-                const captionTrimmed = caption.trim();
-                const content = '[IMAGE]' + JSON.stringify(urls) + (captionTrimmed ? '[CAPTION]' + captionTrimmed : '');
+                const content = '[IMAGE]' + JSON.stringify(urls) + (fullCaption ? '[CAPTION]' + fullCaption : '');
                 await supabase.from('messages').insert({
                     chat_id: currentActiveId,
                     sender_id: currentUser.id,
@@ -3666,7 +3672,7 @@ function MessagesInner() {
                                         >
                                             {chatImageUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
                                         </button>
-                                        <button type="submit" disabled={!newMessage.trim()} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
+                                        <button type="submit" disabled={!newMessage.trim() && pendingImages.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
                                             <Send size={20} />
                                         </button>
                                     </div>
