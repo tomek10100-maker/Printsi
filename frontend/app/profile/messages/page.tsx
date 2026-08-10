@@ -3578,7 +3578,14 @@ function MessagesInner() {
                                                         {imgUrls.map((url: string, i: number) => (
                                                             <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
                                                                 <img
-                                                                                                              {caption && (
+                                                                    src={url}
+                                                                    alt={`Shared photo ${i + 1}`}
+                                                                    className="max-w-[220px] max-h-[220px] object-cover rounded-2xl border border-gray-200 shadow-md hover:opacity-90 transition-opacity cursor-pointer"
+                                                                />
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                    {caption && (
                                                         <div className={`mt-1.5 max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2 break-words [word-break:break-word] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}>
                                                             <p className="text-sm font-medium leading-relaxed break-words [word-break:break-word] [overflow-wrap:anywhere]">
                                                                 {(() => {
