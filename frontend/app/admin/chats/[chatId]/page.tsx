@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { ArrowLeft, Loader2, Package, MessageSquare, Shield, Send, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, MessageSquare, Shield, Send, ShieldAlert, CheckCircle2, ImageIcon, ExternalLink, AlertTriangle, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { getAdminToken } from '../../../lib/getAdminToken';
 
@@ -227,6 +227,122 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
                   )}
                 </div>
               );
+            }
+
+            // ── IMAGE MESSAGES ──
+            if (msg.content?.startsWith('[IMAGE]')) {
+              const rawContent = msg.content.substring(7);
+              let imgUrls: string[] = [];
+              let caption = '';
+              const captionIdx = rawContent.indexOf('[CAPTION]');
+              try {
+                if (captionIdx !== -1) {
+                  imgUrls = JSON.parse(rawContent.substring(0, captionIdx));
+                  caption = rawContent.substring(captionIdx + 9);
+                } else {
+                  imgUrls = JSON.parse(rawContent);
+                }
+              } catch {
+                imgUrls = [rawContent];
+              }
+
+              return (
+                <div key={msg.id} className={`flex gap-3 ${isAdminMsg ? 'justify-center' : isBuyer ? 'flex-row' : 'flex-row-reverse'}`}>
+                  {!isAdminMsg && <Avatar user={sender} size={28} />}
+                  <div className="max-w-[80%] space-y-1.5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p style={{ color: '#475569', fontSize: '10px' }} className="font-black uppercase tracking-widest">
+                        {isBuyer ? 'Buyer' : 'Seller'} — {sender?.full_name || '—'}
+                      </p>
+                      <p style={{ color: '#334155', fontSize: '10px' }} className="font-bold">{new Date(msg.created_at).toLocaleString()}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {imgUrls.map((url: string, i: number) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="relative group block overflow-hidden rounded-xl border border-blue-500/30 shadow-md">
+                          <img
+                            src={url}
+                            alt={`Photo ${i + 1}`}
+                            className="max-w-[220px] max-h-[220px] object-cover transition-transform duration-200 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                            <ExternalLink size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                    {caption && (
+                      <div
+                        style={{
+                          background: isBuyer ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.12)',
+                          border: `1px solid ${isBuyer ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.2)'}`,
+                          borderRadius: '12px',
+                        }}
+                        className="px-4 py-2.5 max-w-fit"
+                      >
+                        <p style={{ color: '#e2e8f0', fontSize: '13px' }} className="font-medium leading-relaxed">{caption}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+
+            // ── JSON MESSAGES (Cancellations, Disputes, Shipment Verification) ──
+            if (msg.content?.trim().startsWith('{')) {
+              let jsonData: any = null;
+              try { jsonData = JSON.parse(msg.content); } catch { }
+              if (jsonData) {
+                if (jsonData.type === 'buyer_cancel_request' || jsonData.type === 'seller_cancel_request' || jsonData.reason) {
+                  return (
+                    <div key={msg.id} className="my-3 p-4 bg-red-950/40 border border-red-500/30 rounded-2xl space-y-1.5">
+                      <div className="flex items-center gap-2 text-red-400 font-black text-xs uppercase tracking-widest">
+                        <AlertTriangle size={14} /> Cancellation Request ({jsonData.type === 'buyer_cancel_request' ? 'Buyer' : 'Seller'})
+                      </div>
+                      <p className="text-xs text-slate-300 font-bold">Reason: <span className="text-white">{jsonData.reason || 'No reason provided'}</span></p>
+                      {jsonData.refund_eur && <p className="text-xs text-slate-300 font-bold">Refund Amount: <span className="text-emerald-400">€{Number(jsonData.refund_eur).toFixed(2)}</span></p>}
+                      <p className="text-[10px] text-slate-500 font-mono">{new Date(msg.created_at).toLocaleString()}</p>
+                    </div>
+                  );
+                }
+
+                if (jsonData.problemType || jsonData.description) {
+                  return (
+                    <div key={msg.id} className="my-3 p-4 bg-amber-950/40 border border-amber-500/30 rounded-2xl space-y-1.5">
+                      <div className="flex items-center gap-2 text-amber-400 font-black text-xs uppercase tracking-widest">
+                        <ShieldAlert size={14} /> Dispute Report ({jsonData.problemType || 'Issue'})
+                      </div>
+                      <p className="text-xs text-slate-300 font-bold">Description: <span className="text-white">{jsonData.description}</span></p>
+                      {jsonData.contactEmail && <p className="text-xs text-slate-400 font-bold">Contact Email: {jsonData.contactEmail}</p>}
+                      <p className="text-[10px] text-slate-500 font-mono">{new Date(msg.created_at).toLocaleString()}</p>
+                    </div>
+                  );
+                }
+
+                if (jsonData.photos || msg.message_type === 'shipment_confirmation_request') {
+                  const photos: string[] = Array.isArray(jsonData.photos) ? jsonData.photos : [];
+                  return (
+                    <div key={msg.id} className="my-3 p-4 bg-indigo-950/40 border border-indigo-500/30 rounded-2xl space-y-2">
+                      <div className="flex items-center gap-2 text-indigo-300 font-black text-xs uppercase tracking-widest">
+                        <Truck size={14} /> Print & Shipment Verification Request
+                      </div>
+                      {jsonData.addrDisplay && <p className="text-xs text-slate-300 font-bold">📍 Address: {jsonData.addrDisplay}</p>}
+                      {photos.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">📸 Attached Print Photos ({photos.length})</p>
+                          <div className="flex flex-wrap gap-2">
+                            {photos.map((url: string, pIdx: number) => (
+                              <a key={pIdx} href={url} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-xl border border-indigo-500/30">
+                                <img src={url} alt={`Verification photo ${pIdx + 1}`} className="w-20 h-20 object-cover group-hover:scale-105 transition-transform" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-[10px] text-slate-500 font-mono">{new Date(msg.created_at).toLocaleString()}</p>
+                    </div>
+                  );
+                }
+              }
             }
 
             return (
