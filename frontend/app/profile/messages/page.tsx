@@ -1111,7 +1111,11 @@ function MessagesInner() {
         const currentActiveId = await ensureActiveChatExists();
         if (!currentActiveId) return;
 
-        let finalPrice = parseFloat(proposalPrice);
+        let finalPrice = Math.abs(parseFloat(proposalPrice));
+        if (isNaN(finalPrice) || finalPrice <= 0) {
+            alert("Please enter a valid price greater than 0.");
+            return;
+        }
         if (currency !== 'EUR' && rates && rates[currency]) {
             finalPrice = finalPrice / rates[currency];
         }
@@ -3234,7 +3238,7 @@ function MessagesInner() {
                                                                         <div className="relative">
                                                                             <div className="flex items-baseline gap-1.5">
                                                                                 <span className={`text-3xl font-black tracking-tight ${isPriceChanged ? 'text-amber-400' : 'text-white'}`}>
-                                                                                    {formatPrice(pData.price)}
+                                                                                    {formatPrice(Math.abs(pData.price))}
                                                                                 </span>
                                                                                 <div className={`flex items-center self-center px-1.5 py-0.5 rounded bg-white/5 border border-white/10 ${isQtyChanged ? 'ring-1 ring-amber-400/50' : ''}`}>
                                                                                     <span className={`text-[10px] font-bold ${isQtyChanged ? 'text-amber-400' : 'text-slate-400'}`}>×{pData.quantity}</span>
@@ -3332,7 +3336,7 @@ function MessagesInner() {
                                                                                 onClick={() => router.push('/cart')}
                                                                                 className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-gray-950 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
                                                                             >
-                                                                                <CreditCard size={14} /> Proceed to Checkout ({formatPrice(pData.price)})
+                                                                                <CreditCard size={14} /> Proceed to Checkout ({formatPrice(Math.abs(pData.price))})
                                                                             </button>
                                                                             <p className="text-[9px] font-bold text-amber-400 text-center uppercase tracking-wider">
                                                                                 🛒 In your Cart — Complete payment to confirm order
@@ -3345,20 +3349,23 @@ function MessagesInner() {
 
                                                                 if (isOfferWithdrawable) {
                                                                     return (
-                                                                        <div className="pt-2">
+                                                                        <div className="pt-2 space-y-2">
                                                                             <button
                                                                                 onClick={() => handleWithdrawProposal(msg.id, pData)}
                                                                                 className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
                                                                             >
                                                                                 <X size={12} /> Withdraw (Cancel Offer)
                                                                             </button>
+                                                                            <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-wider">
+                                                                                ⏳ Waiting for response...
+                                                                            </p>
                                                                         </div>
                                                                     );
                                                                 }
 
-                                                                const isOfferForBuyer = (pData.status === 'seller_proposed' || pData.status === 'counter_proposed' || pData.status === 'pending') && isPayer && !isMe;
+                                                                const isProposalFromOtherParty = !isMe && (pData.status === 'seller_proposed' || pData.status === 'counter_proposed' || pData.status === 'pending');
 
-                                                                if (isOfferForBuyer) {
+                                                                if (isProposalFromOtherParty) {
                                                                     return (
                                                                         <div className="space-y-2 pt-2">
                                                                             <button
@@ -3372,35 +3379,7 @@ function MessagesInner() {
                                                                                 className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-emerald-900/40 transition-all transform active:scale-[0.98]"
                                                                             >
                                                                                 <CreditCard size={14} className="inline mr-2 -mt-0.5" />
-                                                                                Accept Terms & Proceed to Payment
-                                                                            </button>
-                                                                            <div className="grid grid-cols-2 gap-2">
-                                                                                <button
-                                                                                    onClick={() => openProposalModal(pData, msg.id)}
-                                                                                    className="py-2.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
-                                                                                >
-                                                                                    <RefreshCcw size={12} /> Counter
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => handleRejectProposal(msg.id, pData)}
-                                                                                    className="py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
-                                                                                >
-                                                                                    <X size={12} /> Reject
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                }
-
-                                                                if (pData.status === 'pending' && isSeller && !isMe) {
-                                                                    const isJob = activeChatData?.offers?.category === 'job';
-                                                                    return (
-                                                                        <div className="space-y-2 pt-2">
-                                                                            <button
-                                                                                onClick={() => handleAcceptProposal(msg.id, pData)}
-                                                                                className={`w-full py-3.5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg ${isJob ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-emerald-900/40' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'}`}
-                                                                            >
-                                                                                {isJob ? <><CreditCard size={14} className="inline mr-2 -mt-0.5" /> Accept Terms & Proceed to Payment</> : 'Accept Request'}
+                                                                                {isPayer ? 'Accept Terms & Proceed to Payment' : 'Accept Counter Offer'}
                                                                             </button>
                                                                             <div className="grid grid-cols-2 gap-2">
                                                                                 <button
