@@ -2060,19 +2060,33 @@ function MessagesInner() {
                                     </p>
                                 </div>
                             )}
+
+                            {/* Photo required warning */}
+                            {!isDigital && verificationFiles.length === 0 && (
+                                <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3 flex items-center gap-2.5 text-left text-[11px] font-bold text-red-600">
+                                    <AlertTriangle size={14} className="shrink-0 text-red-500" />
+                                    <p>⚠️ You must attach at least <strong>1 photo</strong> of the printed / packed item before sending the verification request.</p>
+                                </div>
+                            )}
+
                             {!isDigital ? (
                                 <div className="flex flex-col gap-3 max-w-[280px] mx-auto">
                                     <button
                                         onClick={() => handleFurgonetkaShip(orderItem.id)}
-                                        disabled={furgonetkaLoading || verificationUploading}
-                                        className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                                        disabled={furgonetkaLoading || verificationUploading || verificationFiles.length === 0}
+                                        className={`w-full py-3 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                            verificationFiles.length === 0
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-indigo-600/20'
+                                        }`}
+                                        title={verificationFiles.length === 0 ? 'Attach at least 1 photo first' : 'Send verification request'}
                                     >
                                         {(furgonetkaLoading || verificationUploading) ? (
                                             <Loader2 size={14} className="animate-spin" />
                                         ) : (
                                             <>
-                                                <Send size={14} />
-                                                Send Photos & Request Verification
+                                                {verificationFiles.length === 0 ? <AlertTriangle size={14} /> : <Send size={14} />}
+                                                {verificationFiles.length === 0 ? 'Attach Photos First' : 'Send Photos & Request Verification'}
                                             </>
                                         )}
                                     </button>
