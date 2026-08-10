@@ -215,16 +215,16 @@ export default function SettingsPage() {
 
       {/* SIDEBAR */}
       <aside className={`
-        fixed md:static inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-200 min-h-screen flex flex-col transform transition-transform duration-300 ease-in-out
+        fixed md:sticky top-0 inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-200 h-screen flex flex-col transform transition-transform duration-300 ease-in-out shrink-0
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="p-8 border-b border-gray-100">
+        <div className="p-8 border-b border-gray-100 shrink-0">
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2 text-gray-900 uppercase">
             <LayoutGrid className="text-blue-600" /> Settings
           </h1>
         </div>
 
-        <nav className="p-6 space-y-2 flex-1">
+        <nav className="p-6 space-y-2 flex-1 overflow-y-auto">
           <button
             onClick={() => router.push('/profile')}
             className="w-full flex items-center gap-3 px-5 py-4 mb-8 bg-blue-50 text-blue-600 rounded-2xl font-black border border-blue-100 hover:bg-blue-100 transition-all shadow-sm"
@@ -238,7 +238,7 @@ export default function SettingsPage() {
           <SidebarItem icon={<Globe size={18} />} label="Preferences" id="preferences" active={activeTab} set={(id: string) => { setActiveTab(id); setMobileMenuOpen(false); }} />
         </nav>
 
-        <div className="p-6 border-t border-gray-100">
+        <div className="p-6 border-t border-gray-100 shrink-0 bg-white">
           <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="flex items-center gap-3 px-5 py-4 text-red-600 hover:bg-red-50 rounded-2xl w-full font-bold transition-colors uppercase text-sm tracking-wide">
             <LogOut size={18} /> Sign Out
           </button>
