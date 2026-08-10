@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock, MoreVertical, Flag, Camera, ImageIcon
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock, MoreVertical, Flag, Camera, ImageIcon, Upload, Eye
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -103,6 +103,11 @@ function MessagesInner() {
 
     // Shipment confirmation state (buyer pressing OK/Problem)
     const [confirmingShipment, setConfirmingShipment] = useState(false);
+
+    // Verification photo attachment & preview lightbox state
+    const [verificationFiles, setVerificationFiles] = useState<File[]>([]);
+    const [verificationUploading, setVerificationUploading] = useState(false);
+    const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
 
     // Tracking code state
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
@@ -519,9 +524,10 @@ function MessagesInner() {
     const [furgonetkaLoading, setFurgonetkaLoading] = useState(false);
 
     const handleFurgonetkaShip = async (itemId: string) => {
-        if (furgonetkaShippingRef.current) return;
+        if (furgonetkaShippingRef.current || verificationUploading) return;
         furgonetkaShippingRef.current = true;
         setFurgonetkaLoading(true);
+        setVerificationUploading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
@@ -530,7 +536,29 @@ function MessagesInner() {
             }
             if (!activeChatId || !currentUser) return;
 
-            // Instead of creating package directly, send a confirmation request to buyer
+            // Upload verification photos if attached
+            const photoUrls: string[] = [];
+            if (verificationFiles.length > 0) {
+                for (let i = 0; i < verificationFiles.length; i++) {
+                    const file = verificationFiles[i];
+                    const ext = file.name.split('.').pop() || 'jpg';
+                    const path = `verification/${activeChatId}/${Date.now()}-${i}.${ext}`;
+                    const { error: uploadErr } = await supabase.storage
+                        .from('printsi-files1')
+                        .upload(path, file, { upsert: true });
+
+                    if (!uploadErr) {
+                        const { data: urlData } = supabase.storage
+                            .from('printsi-files1')
+                            .getPublicUrl(path);
+                        photoUrls.push(urlData.publicUrl);
+                    } else {
+                        console.error('Failed to upload verification photo:', uploadErr);
+                    }
+                }
+            }
+
+            // Instead of creating package directly, send a confirmation request with photos to buyer
             const shippingAddr = activeChatData?.orderItem?.shipping_address || {};
             const addrParts = [
                 shippingAddr.line1 || shippingAddr.address || shippingAddr.street || '',
@@ -545,10 +573,13 @@ function MessagesInner() {
                 content: JSON.stringify({
                     itemId,
                     addrDisplay,
+                    photos: photoUrls,
                     requestedAt: new Date().toISOString(),
                 }),
                 message_type: 'shipment_confirmation_request',
             });
+
+            setVerificationFiles([]);
             loadMessages(activeChatId);
         } catch (err) {
             console.error('Shipment confirmation send error:', err);
@@ -556,6 +587,7 @@ function MessagesInner() {
         } finally {
             furgonetkaShippingRef.current = false;
             setFurgonetkaLoading(false);
+            setVerificationUploading(false);
         }
     };
 
@@ -1672,46 +1704,91 @@ function MessagesInner() {
             let scData: any = {};
             try { scData = JSON.parse(msg.content); } catch { }
             const isBuyer = activeChatData && String(currentUser?.id) === String(activeChatData.buyer_id);
-            const alreadyShipped = activeChatData?.orderItem?.status === 'shipped';
+            const orderStatus = activeChatData?.orderItem?.status;
+            const alreadyShipped = orderStatus === 'shipped';
+            const isDisputed = orderStatus === 'disputed';
+            const photos: string[] = Array.isArray(scData.photos) ? scData.photos : [];
+
             return (
                 <div key={msg.id || idx} className="flex justify-center my-5 px-4">
                     <div className="w-full max-w-md bg-gradient-to-r from-indigo-50 to-blue-50/50 border border-indigo-200 rounded-2xl overflow-hidden shadow-sm">
                         <div className="bg-gradient-to-r from-indigo-500 to-blue-600 px-4 py-2.5 flex items-center gap-2">
                             <Truck size={16} className="text-white/90" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">Shipping Confirmation Required</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">Print & Shipment Verification</span>
                             <span className="ml-auto text-[9px] text-white/60 font-bold">
                                 {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
                         <div className="px-4 py-4 space-y-3">
-                            <p className="text-sm font-bold text-slate-800">📦 The seller wants to ship your order. Please confirm the delivery address is correct before the label is generated.</p>
+                            <p className="text-sm font-bold text-slate-800">
+                                📦 {isBuyer ? "The seller completed your order and requested verification. Please check the photos below before shipping label generation." : "You sent this verification request to the buyer."}
+                            </p>
+
+                            {/* Verification Photos Gallery */}
+                            {photos.length > 0 && (
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase text-indigo-900/70 tracking-wider">
+                                        📸 Attached Print Photos ({photos.length})
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {photos.map((url: string, pIdx: number) => (
+                                            <div
+                                                key={pIdx}
+                                                onClick={() => setSelectedPreviewImage(url)}
+                                                className="relative group aspect-square rounded-xl overflow-hidden border border-indigo-200 bg-white cursor-pointer shadow-sm hover:shadow-md transition-all"
+                                            >
+                                                <img
+                                                    src={url}
+                                                    alt={`Verification photo ${pIdx + 1}`}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                                />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-all flex items-center justify-center">
+                                                    <Eye size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {scData.addrDisplay && (
                                 <div className="p-3 bg-white rounded-xl border border-indigo-100 flex items-start gap-2">
                                     <span className="text-indigo-500 mt-0.5">📍</span>
                                     <p className="text-xs font-bold text-slate-700">{scData.addrDisplay}</p>
                                 </div>
                             )}
+
                             {alreadyShipped ? (
                                 <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
                                     <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
                                     <p className="text-xs font-black text-emerald-700">Confirmed — shipping label generated.</p>
                                 </div>
+                            ) : isDisputed ? (
+                                <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-xl border border-red-200">
+                                    <ShieldAlert size={14} className="text-red-600 shrink-0" />
+                                    <p className="text-xs font-black text-red-700">Dispute Opened — Platform review in progress.</p>
+                                </div>
                             ) : isBuyer ? (
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 pt-1">
                                     <button
                                         onClick={() => handleConfirmShipment(scData.itemId)}
                                         disabled={confirmingShipment}
                                         className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
                                     >
                                         {confirmingShipment ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                                        Everything Looks Good
+                                        Looks Good! Confirm
                                     </button>
                                     <button
-                                        onClick={() => { setReportSubject('Shipping address issue'); setReportDescription(''); setReportError(''); setReportSuccess(false); setShowReportModal(true); }}
+                                        onClick={() => {
+                                            setDisputeEmail(currentUser?.email || '');
+                                            setDisputeProblemType('quality_issue');
+                                            setDisputeDescription('I am not satisfied with the item photos / shipment verification provided.');
+                                            setShowDisputeModal(true);
+                                        }}
                                         disabled={confirmingShipment}
                                         className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
                                     >
-                                        <Flag size={12} /> I Have a Problem
+                                        <ShieldAlert size={12} /> Not OK (Open Dispute)
                                     </button>
                                 </div>
                             ) : (
@@ -1853,7 +1930,27 @@ function MessagesInner() {
         const showConfirmDelivery = status === 'shipped' && isCustomer;
         const showShippedWait = status === 'shipped' && isPrinter;
 
+        const pendingVerificationRequest = messages.some((m: any) => m.message_type === 'shipment_confirmation_request');
+
         if (showShipCard) {
+            if (pendingVerificationRequest) {
+                return (
+                    <div className="flex justify-center px-4 w-full my-4">
+                        <div className="w-full max-w-md bg-indigo-50/90 border border-indigo-200 rounded-2xl p-5 text-center shadow-sm">
+                            <div className="w-10 h-10 mx-auto bg-indigo-100 rounded-full flex items-center justify-center mb-2">
+                                <Truck size={18} className="text-indigo-600 animate-pulse" />
+                            </div>
+                            <p className="text-sm font-bold text-slate-800 mb-1">
+                                Verification Request Sent
+                            </p>
+                            <p className="text-xs text-slate-600 font-medium">
+                                ⏳ Verification photos & shipping request sent to buyer. Waiting for buyer approval before generating shipping label.
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
@@ -1866,11 +1963,66 @@ function MessagesInner() {
                             </p>
                             <p className="text-xs text-gray-500 font-medium mb-3">
                                 {isJob
-                                    ? "You've received the 3D file via email. Print the item, pack it securely, and ship it to the customer."
+                                    ? "You've received the 3D file via email. Print the item, attach photos of the print, and send for buyer verification."
                                     : isDigital
                                         ? "Once you've sent the files to the buyer's email, mark it as delivered below."
-                                        : "Pack the order securely and hand it over to the courier."}
+                                        : "Pack the order securely, attach verification photos, and send for buyer verification before generating label."}
                             </p>
+
+                            {/* Photo Upload Attachment Section */}
+                            {!isDigital && (
+                                <div className="mb-4 text-left">
+                                    <label className="text-[11px] font-black uppercase text-gray-700 block mb-1.5 tracking-wider">
+                                        📸 Attach Verification Photos of Print / Item
+                                    </label>
+                                    
+                                    {verificationFiles.length > 0 && (
+                                        <div className="grid grid-cols-3 gap-2 mb-3">
+                                            {verificationFiles.map((file, fIdx) => {
+                                                const previewUrl = URL.createObjectURL(file);
+                                                return (
+                                                    <div key={fIdx} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group bg-gray-50">
+                                                        <img src={previewUrl} alt="preview" className="w-full h-full object-cover" />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setVerificationFiles(prev => prev.filter((_, idx) => idx !== fIdx))}
+                                                            className="absolute top-1 right-1 p-1 bg-red-600/90 text-white rounded-full opacity-90 hover:opacity-100 hover:scale-110 transition-all shadow-md"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    <input
+                                        type="file"
+                                        id="verification-photo-input"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            if (e.target.files) {
+                                                const newFiles = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+                                                setVerificationFiles(prev => [...prev, ...newFiles].slice(0, 5));
+                                            }
+                                            e.target.value = '';
+                                        }}
+                                    />
+
+                                    {verificationFiles.length < 5 && (
+                                        <label
+                                            htmlFor="verification-photo-input"
+                                            className="w-full py-2.5 px-3 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 rounded-xl text-xs font-bold text-indigo-700 flex items-center justify-center gap-2 cursor-pointer transition-all mb-3"
+                                        >
+                                            <Upload size={14} />
+                                            {verificationFiles.length === 0 ? 'Upload Print Photos (Max 5)' : 'Add More Photos'}
+                                        </label>
+                                    )}
+                                </div>
+                            )}
+
                             {!isDigital && (
                                 <div className="bg-[#FFCC00]/10 border border-[#FFCC00]/30 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-left text-[11px] font-bold text-gray-700">
                                     <div className="bg-white p-1 rounded-md shadow-sm border border-[#FFCC00]/50 shrink-0">
@@ -1878,7 +2030,7 @@ function MessagesInner() {
                                     </div>
                                     <p className="leading-snug">
                                         <span className="text-[#D40511] font-black uppercase tracking-wider block mb-0.5 text-[9px]">Important</span>
-                                        A shipping label will be sent to your email shortly. Please print and attach it to the package.
+                                        A shipping label will be generated via Furgonetka once the buyer approves your verification photos.
                                     </p>
                                 </div>
                             )}
@@ -1886,11 +2038,17 @@ function MessagesInner() {
                                 <div className="flex flex-col gap-3 max-w-[280px] mx-auto">
                                     <button
                                         onClick={() => handleFurgonetkaShip(orderItem.id)}
-                                        disabled={furgonetkaLoading}
+                                        disabled={furgonetkaLoading || verificationUploading}
                                         className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
                                     >
-                                        {furgonetkaLoading ? <Loader2 size={14} className="animate-spin" /> : '📦'}
-                                        Ship via Furgonetka
+                                        {(furgonetkaLoading || verificationUploading) ? (
+                                            <Loader2 size={14} className="animate-spin" />
+                                        ) : (
+                                            <>
+                                                <Send size={14} />
+                                                Send Photos & Request Verification
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             ) : (
@@ -1913,8 +2071,13 @@ function MessagesInner() {
                 <div className="flex justify-center my-4 px-4 w-full">
                     <div className="w-full max-w-md bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-center">
                         <p className="text-xs font-bold text-amber-700">
-                            {isJob ? '🖨️ The printer has received your 3D file and is working on it. Waiting for shipment...'
-                                : isDigital ? '⏳ Waiting for the seller to send files to your email...' : '⏳ Waiting for the seller to ship the package...'}
+                            {pendingVerificationRequest
+                                ? '📦 The seller sent print verification photos! Please review them in the chat message above to generate the shipping label.'
+                                : isJob
+                                    ? '🖨️ The printer has received your 3D file and is working on it. Waiting for shipment...'
+                                    : isDigital
+                                        ? '⏳ Waiting for the seller to send files to your email...'
+                                        : '⏳ Waiting for the seller to ship the package...'}
                         </p>
                     </div>
                 </div>
@@ -2459,6 +2622,27 @@ function MessagesInner() {
                                     );
                                 })()}
                             </div>
+
+                            {selectedPreviewImage && (
+                                <div
+                                    className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                                    onClick={() => setSelectedPreviewImage(null)}
+                                >
+                                    <div className="relative max-w-4xl max-h-[90vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
+                                        <img
+                                            src={selectedPreviewImage}
+                                            alt="Enlarged verification preview"
+                                            className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+                                        />
+                                        <button
+                                            onClick={() => setSelectedPreviewImage(null)}
+                                            className="absolute -top-3 -right-3 p-2.5 bg-slate-900/90 hover:bg-slate-800 text-white rounded-full transition-all shadow-lg border border-white/20"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {showDisputeModal && activeChatData && (
                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
