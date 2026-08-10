@@ -1427,14 +1427,10 @@ function MessagesInner() {
     const handleAcceptProposal = async (msgId: string, parsedData: any) => {
         if (!activeChatData || !activeChatData.offers) return;
 
-        const isJobOffer = activeChatData.offers?.category === 'job';
-        const jobPosterId = activeChatData.offers?.user_id || activeChatData.seller_id;
-        const isAuthorizedToAccept = isJobOffer
-            ? currentUser?.id === jobPosterId
-            : currentUser?.id === activeChatData.seller_id || currentUser?.id === activeChatData.buyer_id;
+        const isAuthorizedToAccept = currentUser?.id === activeChatData.seller_id || currentUser?.id === activeChatData.buyer_id;
 
         if (!isAuthorizedToAccept) {
-            console.error("Accept failed: Missing chat data or unauthorized", { activeChatData, userId: currentUser?.id });
+            alert("You are not authorized to accept this proposal.");
             return;
         }
 
@@ -1444,6 +1440,7 @@ function MessagesInner() {
         }
 
         try {
+            const isJobOffer = activeChatData.offers?.category === 'job';
             const basePayload = {
                 user_id: isJobOffer ? activeChatData.buyer_id : currentUser.id,
                 category: isJobOffer ? 'physical' : (activeChatData.offers?.category || 'physical'),
@@ -1497,8 +1494,7 @@ function MessagesInner() {
                 throw new Error("Offer successfully inserted but not returned.");
             }
 
-            // Attach the created custom offer ID to the proposal without changing status to accepted yet
-            // Status will be updated to 'accepted' upon successful payment confirmation in processOrder
+            // Attach the created custom offer ID to the proposal
             parsedData.custom_offer_id = offer.id;
 
             const { error: msgError } = await supabase.from('messages').update({
@@ -1507,9 +1503,19 @@ function MessagesInner() {
 
             if (msgError) throw msgError;
 
-            // Load messages and add custom offer to cart & navigate to checkout
             loadMessages(activeChatId as string);
-            handleBuyCustomOffer(parsedData);
+
+            // Determine if accepting user is the payer
+            const jobPosterIdCard = activeChatData?.offers?.user_id || activeChatData?.seller_id;
+            const isPayerUser = isJobOffer
+                ? String(currentUser?.id) === String(jobPosterIdCard)
+                : currentUser?.id === activeChatData.buyer_id;
+
+            if (isPayerUser) {
+                handleBuyCustomOffer(parsedData);
+            } else {
+                alert("✓ Counter offer accepted! The customer can now proceed to checkout.");
+            }
         } catch (e: any) {
             console.error("Comprehensive Accept Failure:", e);
             alert(`Failed to accept: ${e.message || 'Unknown database error'}`);
@@ -1517,7 +1523,9 @@ function MessagesInner() {
     };
 
     const handleBuyerAcceptsSellerProposal = async (msgId: string, parsedData: any) => {
-        if (!activeChatData || activeChatData.buyer_id !== currentUser.id) return;
+        if (!activeChatData) return;
+        const isParticipant = currentUser?.id === activeChatData.buyer_id || currentUser?.id === activeChatData.seller_id;
+        if (!isParticipant) return;
 
         // If custom offer isn't created yet, handleAcceptProposal will create it
         if (!parsedData.custom_offer_id) {
