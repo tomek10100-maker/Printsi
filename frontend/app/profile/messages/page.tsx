@@ -904,31 +904,36 @@ function MessagesInner() {
 
     const parseDimensionsAdvanced = (dimStr: string): ParsedDim[] => {
         let parsed: ParsedDim[] = [];
+        const seenNames = new Set<string>();
+
         if (dimStr) {
-            parsed = dimStr.split(',').map(part => {
+            dimStr.split(',').forEach(part => {
                 const match = part.match(/^(.*?):\s*(\d+(?:\.\d+)?)\s*(.*)$/);
                 if (match) {
                     const name = match[1].trim();
                     const val = parseFloat(match[2]);
-                    const unit = match[3].trim();
+                    const unit = match[3].trim() || 'mm';
                     const lowerName = name.toLowerCase();
-                    const isBase = lowerName.includes('width') || lowerName.includes('height') || lowerName.includes('depth') || lowerName.includes('length') ||
-                        lowerName.includes('szerokość') || lowerName.includes('wysokość') || lowerName.includes('głębokość') || lowerName.includes('długość') ||
-                        lowerName.includes('szerokosc') || lowerName.includes('wysokosc') || lowerName.includes('glebokosc') || lowerName.includes('dlugosc') ||
-                        lowerName === 'w' || lowerName === 'h' || lowerName === 'l' || lowerName === 'd';
-                    return { name, originalValue: val, currentValueStr: val.toString(), unit, isBase };
+
+                    // Deduplicate dimension names
+                    if (!seenNames.has(lowerName) && val > 0) {
+                        seenNames.add(lowerName);
+                        const isBase = lowerName.includes('width') || lowerName.includes('height') || lowerName.includes('depth') || lowerName.includes('length') ||
+                            lowerName.includes('szerokość') || lowerName.includes('wysokość') || lowerName.includes('głębokość') || lowerName.includes('długość') ||
+                            lowerName.includes('szerokosc') || lowerName.includes('wysokosc') || lowerName.includes('glebokosc') || lowerName.includes('dlugosc') ||
+                            lowerName === 'w' || lowerName === 'h' || lowerName === 'l' || lowerName === 'd';
+                        parsed.push({ name, originalValue: val, currentValueStr: val.toString(), unit, isBase });
+                    }
                 }
-                return { name: part.trim(), originalValue: 0, currentValueStr: '', unit: '', isBase: false };
-            }).filter(d => d.originalValue > 0);
+            });
         }
 
         const hasBase = parsed.some(d => d.isBase);
-        if (!hasBase) {
+        if (!hasBase && parsed.length === 0) {
             parsed = [
                 { name: 'Width', originalValue: 100, currentValueStr: '100', unit: 'mm', isBase: true },
                 { name: 'Height', originalValue: 100, currentValueStr: '100', unit: 'mm', isBase: true },
                 { name: 'Depth', originalValue: 100, currentValueStr: '100', unit: 'mm', isBase: true },
-                ...parsed
             ];
         }
         return parsed;
@@ -1112,12 +1117,16 @@ function MessagesInner() {
         if (!currentActiveId) return;
 
         let finalPrice = Math.abs(parseFloat(proposalPrice));
-        if (isNaN(finalPrice) || finalPrice <= 0) {
-            alert("Please enter a valid price greater than 0.");
+        if (isNaN(finalPrice) || finalPrice < 0.01) {
+            alert("Please enter a valid price of at least 0.01.");
             return;
         }
         if (currency !== 'EUR' && rates && rates[currency]) {
             finalPrice = finalPrice / rates[currency];
+        }
+        if (finalPrice > 50000) {
+            alert("Price cannot exceed €50,000 EUR.");
+            return;
         }
 
         let resolvedMaterial = proposalMaterial || activeChatData.offers?.material || 'Any';
