@@ -367,9 +367,30 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
                       border: `1px solid ${isAdminMsg ? 'rgba(59,130,246,0.5)' : isBuyer ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.2)'}`,
                       borderRadius: isAdminMsg ? '16px' : isBuyer ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
                     }}
-                    className="px-4 py-3"
+                    className="px-4 py-3 break-words [word-break:break-word] [overflow-wrap:anywhere]"
                   >
-                    <p style={{ color: '#e2e8f0', fontSize: '13px' }} className="font-medium leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    <p style={{ color: '#e2e8f0', fontSize: '13px' }} className="font-medium leading-relaxed whitespace-pre-wrap break-words [word-break:break-word] [overflow-wrap:anywhere]">
+                      {(() => {
+                        const urlRegex = /(https?:\/\/[^\s]+)/g;
+                        const parts = (msg.content || '').split(urlRegex);
+                        return parts.map((part, index) => {
+                          if (part.match(urlRegex)) {
+                            return (
+                              <a
+                                key={index}
+                                href={part}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline break-all font-bold text-blue-400 hover:text-blue-300"
+                              >
+                                {part}
+                              </a>
+                            );
+                          }
+                          return part;
+                        });
+                      })()}
+                    </p>
                   </div>
                 </div>
               </div>

@@ -3542,8 +3542,29 @@ function MessagesInner() {
                                                         ))}
                                                     </div>
                                                     {caption && (
-                                                        <div className={`mt-1.5 max-w-[75%] rounded-2xl px-4 py-2 ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}>
-                                                            <p className="text-sm font-medium leading-relaxed">{caption}</p>
+                                                        <div className={`mt-1.5 max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2 break-words [word-break:break-word] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}>
+                                                            <p className="text-sm font-medium leading-relaxed break-words [word-break:break-word] [overflow-wrap:anywhere]">
+                                                                {(() => {
+                                                                    const urlRegex = /(https?:\/\/[^\s]+)/g;
+                                                                    const parts = caption.split(urlRegex);
+                                                                    return parts.map((part, index) => {
+                                                                        if (part.match(urlRegex)) {
+                                                                            return (
+                                                                                <a
+                                                                                    key={index}
+                                                                                    href={part}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className={`underline break-all font-bold ${isMe ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
+                                                                                >
+                                                                                    {part}
+                                                                                </a>
+                                                                            );
+                                                                        }
+                                                                        return part;
+                                                                    });
+                                                                })()}
+                                                            </p>
                                                         </div>
                                                     )}
                                                     <span className="text-[10px] text-gray-400 font-bold mt-1">
@@ -3555,8 +3576,29 @@ function MessagesInner() {
 
                                         return (
                                             <div key={msg.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                                <div className={`max-w-[75%] rounded-2xl px-5 py-3 ${isMe ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
-                                                    <p className="text-sm font-medium leading-relaxed">{msg.content}</p>
+                                                <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-5 py-3 break-words [word-break:break-word] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+                                                    <p className="text-sm font-medium leading-relaxed break-words [word-break:break-word] [overflow-wrap:anywhere]">
+                                                        {(() => {
+                                                            const urlRegex = /(https?:\/\/[^\s]+)/g;
+                                                            const parts = (msg.content || '').split(urlRegex);
+                                                            return parts.map((part, index) => {
+                                                                if (part.match(urlRegex)) {
+                                                                    return (
+                                                                        <a
+                                                                            key={index}
+                                                                            href={part}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className={`underline break-all font-bold ${isMe ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
+                                                                        >
+                                                                            {part}
+                                                                        </a>
+                                                                    );
+                                                                }
+                                                                return part;
+                                                            });
+                                                        })()}
+                                                    </p>
                                                 </div>
                                                 <span className="text-[10px] text-gray-400 font-bold mt-1">
                                                     {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
