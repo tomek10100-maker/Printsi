@@ -97,10 +97,12 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     // Zaokrąglenie do 2 miejsc po przecinku (use a nano-epsilon (0.0001) to avoid 9.99 glitches without penny-creep)
     const roundedAmount = Math.round((convertedAmount + (skipConversion ? 0 : 0.0001)) * 100) / 100;
 
-    return new Intl.NumberFormat('en-US', {
+    const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
     }).format(roundedAmount);
+
+    return formatted.replace(/,/g, ' ');
   };
 
   return (

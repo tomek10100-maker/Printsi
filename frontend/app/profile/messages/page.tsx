@@ -3286,7 +3286,7 @@ function MessagesInner() {
                                                                                         {isDimChanged && <span className="text-[8px] font-black text-amber-500/80">MODIFIED {pData.dimensionScale}%</span>}
                                                                                     </div>
                                                                                     <div className={`text-[10px] leading-tight font-bold ${isDimChanged ? 'text-amber-200/90' : 'text-slate-300'}`}>
-                                                                                        {pData.dimensions}
+                                                                                        {pData.dimensions?.replace(/,\s*/g, ' • ')}
                                                                                     </div>
                                                                                 </div>
                                                                             )}
