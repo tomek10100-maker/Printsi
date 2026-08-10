@@ -100,6 +100,9 @@ function MessagesInner() {
 
     // Image upload in chat
     const [chatImageUploading, setChatImageUploading] = useState(false);
+    const [pendingImages, setPendingImages] = useState<File[]>([]);
+    const [pendingCaption, setPendingCaption] = useState('');
+    const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
 
     // Shipment confirmation state (buyer pressing OK/Problem)
     const [confirmingShipment, setConfirmingShipment] = useState(false);
@@ -629,8 +632,29 @@ function MessagesInner() {
         }
     };
 
+    // Called when user picks files — show preview instead of uploading immediately
+    const handleImagePicked = (files: FileList) => {
+        const valid = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, 5);
+        if (!valid.length) return;
+        setPendingImages(valid);
+        setPendingCaption('');
+        // Generate object URLs for previews
+        const urls = valid.map(f => URL.createObjectURL(f));
+        setPendingPreviews(urls);
+        // Reset input so re-selecting same file works
+        if (chatImageInputRef.current) chatImageInputRef.current.value = '';
+    };
+
+    const cancelPendingImages = () => {
+        pendingPreviews.forEach(url => URL.revokeObjectURL(url));
+        setPendingImages([]);
+        setPendingPreviews([]);
+        setPendingCaption('');
+        if (chatImageInputRef.current) chatImageInputRef.current.value = '';
+    };
+
     // Upload image(s) and send in chat
-    const handleSendImage = async (files: FileList) => {
+    const handleSendImage = async (files: File[], caption: string) => {
         if (!files.length || !activeChatId || !currentUser) return;
         setChatImageUploading(true);
         try {
@@ -651,7 +675,8 @@ function MessagesInner() {
             }
 
             if (urls.length > 0) {
-                const content = '[IMAGE]' + JSON.stringify(urls);
+                const captionTrimmed = caption.trim();
+                const content = '[IMAGE]' + JSON.stringify(urls) + (captionTrimmed ? '[CAPTION]' + captionTrimmed : '');
                 await supabase.from('messages').insert({
                     chat_id: currentActiveId,
                     sender_id: currentUser.id,
@@ -661,13 +686,14 @@ function MessagesInner() {
                 loadMessages(currentActiveId);
                 loadChats(currentUser.id);
             }
+
+            // Clean up
+            cancelPendingImages();
         } catch (err) {
             console.error('Image upload error:', err);
             alert('Failed to upload image. Please try again.');
         } finally {
             setChatImageUploading(false);
-            // Reset file input
-            if (chatImageInputRef.current) chatImageInputRef.current.value = '';
         }
     };
 
@@ -3460,8 +3486,21 @@ function MessagesInner() {
 
                                         // ── IMAGE MESSAGE rendering ──
                                         if (msg.content?.startsWith('[IMAGE]')) {
+                                            // Parse URLs and optional caption
+                                            const rawContent = msg.content.substring(7); // strip [IMAGE]
                                             let imgUrls: string[] = [];
-                                            try { imgUrls = JSON.parse(msg.content.substring(7)); } catch { imgUrls = [msg.content.substring(7)]; }
+                                            let caption = '';
+                                            const captionIdx = rawContent.indexOf('[CAPTION]');
+                                            try {
+                                                if (captionIdx !== -1) {
+                                                    imgUrls = JSON.parse(rawContent.substring(0, captionIdx));
+                                                    caption = rawContent.substring(captionIdx + 9);
+                                                } else {
+                                                    imgUrls = JSON.parse(rawContent);
+                                                }
+                                            } catch {
+                                                imgUrls = [rawContent];
+                                            }
                                             return (
                                                 <div key={msg.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                                                     <div className="flex flex-wrap gap-2 max-w-[75%]">
@@ -3475,6 +3514,11 @@ function MessagesInner() {
                                                             </a>
                                                         ))}
                                                     </div>
+                                                    {caption && (
+                                                        <div className={`mt-1.5 max-w-[75%] rounded-2xl px-4 py-2 ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}>
+                                                            <p className="text-sm font-medium leading-relaxed">{caption}</p>
+                                                        </div>
+                                                    )}
                                                     <span className="text-[10px] text-gray-400 font-bold mt-1">
                                                         {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                                     </span>
@@ -3497,6 +3541,90 @@ function MessagesInner() {
                                 <div ref={messagesEndRef} />
                             </div>
 
+                            {/* ── IMAGE PREVIEW PANEL ─────────────────────── */}
+                            {pendingImages.length > 0 && (
+                                <div className="bg-white border-t border-indigo-100 px-4 pt-4 pb-2 shrink-0 animate-in slide-in-from-bottom-2 duration-200">
+                                    <div className="max-w-4xl mx-auto">
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1.5">
+                                                <ImageIcon size={12} /> {pendingImages.length} photo{pendingImages.length > 1 ? 's' : ''} ready to send
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={cancelPendingImages}
+                                                className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
+                                                title="Discard"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+
+                                        {/* Thumbnails */}
+                                        <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+                                            {pendingPreviews.map((url, i) => (
+                                                <div key={i} className="relative shrink-0 group">
+                                                    <img
+                                                        src={url}
+                                                        alt={`Preview ${i + 1}`}
+                                                        className="w-20 h-20 object-cover rounded-xl border-2 border-indigo-100 shadow-sm"
+                                                    />
+                                                    {/* Remove single image */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            URL.revokeObjectURL(pendingPreviews[i]);
+                                                            const newFiles = pendingImages.filter((_, fi) => fi !== i);
+                                                            const newPrev = pendingPreviews.filter((_, pi) => pi !== i);
+                                                            if (newFiles.length === 0) { cancelPendingImages(); return; }
+                                                            setPendingImages(newFiles);
+                                                            setPendingPreviews(newPrev);
+                                                        }}
+                                                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {/* Add more button */}
+                                            <button
+                                                type="button"
+                                                onClick={() => chatImageInputRef.current?.click()}
+                                                className="w-20 h-20 shrink-0 rounded-xl border-2 border-dashed border-indigo-200 flex flex-col items-center justify-center gap-1 text-indigo-400 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+                                                title="Add / change photos"
+                                            >
+                                                <Camera size={16} />
+                                                <span className="text-[9px] font-black uppercase tracking-wider">Change</span>
+                                            </button>
+                                        </div>
+
+                                        {/* Caption input */}
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={pendingCaption}
+                                                onChange={e => setPendingCaption(e.target.value)}
+                                                placeholder="Add a caption (optional)..."
+                                                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
+                                                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendImage(pendingImages, pendingCaption); } }}
+                                                autoFocus
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSendImage(pendingImages, pendingCaption)}
+                                                disabled={chatImageUploading}
+                                                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95"
+                                            >
+                                                {chatImageUploading
+                                                    ? <><Loader2 size={14} className="animate-spin" /> Sending...</>
+                                                    : <><Send size={14} /> Send</>
+                                                }
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="p-4 bg-white border-t border-gray-100 shrink-0">
                                 <form onSubmit={handleSendMessage} className="flex flex-col sm:flex-row gap-2 max-w-4xl mx-auto items-stretch sm:items-end">
                                     <div className="flex-1 flex gap-2 items-end">
@@ -3507,14 +3635,13 @@ function MessagesInner() {
                                             className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[50px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                                         />
-                                        {/* Hidden file input for images */}
                                         <input
                                             ref={chatImageInputRef}
                                             type="file"
                                             accept="image/*"
                                             multiple
                                             className="hidden"
-                                            onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleSendImage(e.target.files); }}
+                                            onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleImagePicked(e.target.files); }}
                                         />
                                         {/* Camera / image upload button */}
                                         <button
