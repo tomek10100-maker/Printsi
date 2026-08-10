@@ -373,17 +373,19 @@ export default function AdminChatDetailPage({ params }: { params: Promise<{ chat
                       {(() => {
                         const urlRegex = /(https?:\/\/[^\s]+)/g;
                         const parts = (msg.content || '').split(urlRegex);
-                        return parts.map((part, index) => {
+                        return parts.map((part: string, index: number) => {
                           if (part.match(urlRegex)) {
+                            const displayUrl = part.length > 55 ? part.substring(0, 50) + '...' : part;
                             return (
                               <a
                                 key={index}
                                 href={part}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                title={part}
                                 className="underline break-all font-bold text-blue-400 hover:text-blue-300"
                               >
-                                {part}
+                                {displayUrl}
                               </a>
                             );
                           }

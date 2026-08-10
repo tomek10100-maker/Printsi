@@ -3591,7 +3591,7 @@ function MessagesInner() {
                                                                 {(() => {
                                                                     const urlRegex = /(https?:\/\/[^\s]+)/g;
                                                                     const parts = caption.split(urlRegex);
-                                                                    return parts.map((part, index) => {
+                                                                    return parts.map((part: string, index: number) => {
                                                                         if (part.match(urlRegex)) {
                                                                             const displayUrl = part.length > 55 ? part.substring(0, 50) + '...' : part;
                                                                             return (
@@ -3627,7 +3627,7 @@ function MessagesInner() {
                                                         {(() => {
                                                             const urlRegex = /(https?:\/\/[^\s]+)/g;
                                                             const parts = (msg.content || '').split(urlRegex);
-                                                            return parts.map((part, index) => {
+                                                            return parts.map((part: string, index: number) => {
                                                                 if (part.match(urlRegex)) {
                                                                     const displayUrl = part.length > 55 ? part.substring(0, 50) + '...' : part;
                                                                     return (
