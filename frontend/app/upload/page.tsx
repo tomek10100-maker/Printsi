@@ -523,8 +523,8 @@ export default function AddOfferPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      if (newFiles.length + previewImages.length > 6) {
-        setFormError('Max 6 photos allowed.');
+      if (newFiles.length + previewImages.length > 5) {
+        setFormError('Max 5 photos allowed.');
         return;
       }
       setPreviewImages(prev => [...prev, ...newFiles]);
@@ -620,7 +620,7 @@ export default function AddOfferPage() {
     e.preventDefault();
     setFormError('');
     if (!title) { setFormError('Title is required.'); return; }
-    if (previewImages.length === 0 && category === 'physical') { setFormError('Please upload at least 1 photo for physical products.'); return; }
+    if (previewImages.length < 1) { setFormError('Please upload at least 1 photo.'); return; }
     if ((category === 'digital' || category === 'job') && !projectFile) { setFormError('3D File is required.'); return; }
     if (!user?.id) return;
 
@@ -1153,7 +1153,7 @@ export default function AddOfferPage() {
               )}
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
                 <ImageIcon className="mb-3 text-gray-400 group-hover:text-blue-500" size={32} />
-                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Optional, Max 6)</span>
+                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Min 1, Max 5)</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
               </label>
               {previewImages.length > 0 && (

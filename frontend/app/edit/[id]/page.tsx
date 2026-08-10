@@ -356,7 +356,7 @@ export default function EditOfferPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      if (newFiles.length + previewImages.length + existingImages.length > 6) { setFormError('Max 6 photos.'); return; }
+      if (newFiles.length + previewImages.length + existingImages.length > 5) { setFormError('Max 5 photos allowed.'); return; }
       setPreviewImages(prev => [...prev, ...newFiles]);
     }
   };
@@ -609,7 +609,7 @@ export default function EditOfferPage() {
               <SectionLabel label="3. Attachments" />
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
                 <ImageIcon className="mb-3 text-gray-400 group-hover:text-blue-500" size={32} />
-                <span className="text-xs font-black uppercase text-gray-500">Add Photos (Max 6 Total)</span>
+                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Min 1, Max 5 Total)</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
               </label>
               <div className="grid grid-cols-3 gap-2 mt-4">
