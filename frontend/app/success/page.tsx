@@ -49,6 +49,14 @@ function SuccessContent() {
     if (confirmed.current) return;
     confirmed.current = true;
 
+    // Extra guard: check sessionStorage so page refresh doesn't re-trigger
+    // (the server-side idempotency check is the real protection)
+    const storageKey = `printis_processed_${sessionId}`;
+    if (typeof window !== 'undefined' && sessionStorage.getItem(storageKey)) {
+      setStatus('done');
+      return;
+    }
+
     const finalizePayment = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -62,6 +70,8 @@ function SuccessContent() {
           });
           const data = await response.json();
           if (data.success) {
+            // Mark as processed in sessionStorage
+            if (typeof window !== 'undefined') sessionStorage.setItem(storageKey, '1');
             setStatus('done');
             if (data.paidAmount) {
               setPaidDisplay({ amount: data.paidAmount, currency: data.paidCurrency });
@@ -88,6 +98,7 @@ function SuccessContent() {
           if (data.chatId) {
             setChatId(data.chatId);
           }
+          if (typeof window !== 'undefined') sessionStorage.setItem(storageKey, '1');
           clearCart();
           setStatus('done');
         } else {

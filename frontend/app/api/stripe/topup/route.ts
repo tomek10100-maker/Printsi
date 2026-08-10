@@ -49,8 +49,42 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Payment not verified' }, { status: 400 });
     }
 
-    // 2. CONVERT TO INTERNAL SYSTEM CURRENCY (EUR)
-    // We take the EXACT paid amount from the Stripe Session to be 100% sure.
+    // 2. Verify session belongs to the requesting user (anti-spoofing)
+    if (session.metadata?.userId && session.metadata.userId !== userId) {
+      console.warn(`⚠️ [Topup API] User mismatch: session owner=${session.metadata.userId}, requester=${userId}`);
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
+    // 3. Verify session type is topup
+    if (session.metadata?.type && session.metadata.type !== 'topup') {
+      return NextResponse.json({ success: false, error: 'Invalid session type' }, { status: 400 });
+    }
+
+    // 4. IDEMPOTENCY CHECK — has this session already been credited?
+    const { data: existing, error: existingErr } = await supabase
+      .from('payouts')
+      .select('id')
+      .eq('stripe_session_id', sessionId)
+      .limit(1);
+
+    if (existingErr) {
+      // If the column doesn't exist yet, log and continue (will fix with migration)
+      console.warn('⚠️ [Topup API] stripe_session_id column may not exist yet:', existingErr.message);
+    } else if (existing && existing.length > 0) {
+      // Already processed — return success without doing anything
+      console.log(`✅ [Topup API] Session ${sessionId} already credited. Returning cached success.`);
+      const paidAmount = (session.amount_total || 0) / 100;
+      const paidCurrency = (session.currency || 'EUR').toUpperCase();
+      return NextResponse.json({
+        success: true,
+        amount: paidAmount,
+        paidAmount,
+        paidCurrency,
+        alreadyProcessed: true,
+      });
+    }
+
+    // 5. CONVERT TO INTERNAL SYSTEM CURRENCY (EUR)
     const paidAmount = (session.amount_total || 0) / 100;
     const paidCurrency = (session.currency || 'EUR').toUpperCase();
     const paidRate = Number(session.metadata?.topup_rate || 1);
@@ -60,18 +94,33 @@ export async function POST(req: Request) {
     
     const negativeAmount = -Math.abs(amountInEur);
 
-    console.log(`💰 [Topup API] Paid: ${paidAmount} ${(session.currency || 'EUR').toUpperCase()} -> Internal: ${amountInEur.toFixed(2)} EUR`);
+    console.log(`💰 [Topup API] Paid: ${paidAmount} ${paidCurrency} -> Internal: ${amountInEur.toFixed(2)} EUR`);
 
-    // 3. LOG TRANSACTION AS NEGATIVE PAYOUT
+    // 6. LOG TRANSACTION AS NEGATIVE PAYOUT (negative = funds added to wallet)
     const { error: txError } = await supabase.from('payouts').insert({
       user_id: userId,
       amount: negativeAmount,
-      status: 'completed'
+      status: 'completed',
+      stripe_session_id: sessionId,
     });
 
     if (txError) {
-      console.error('❌ [Topup API] DB Error:', txError);
-      return NextResponse.json({ success: false, error: `DB Error: ${txError.message}` }, { status: 500 });
+      // If column doesn't exist, retry without it
+      if (txError.message?.includes('stripe_session_id')) {
+        console.warn('⚠️ [Topup API] stripe_session_id column missing — inserting without it.');
+        const { error: txError2 } = await supabase.from('payouts').insert({
+          user_id: userId,
+          amount: negativeAmount,
+          status: 'completed',
+        });
+        if (txError2) {
+          console.error('❌ [Topup API] DB Error:', txError2);
+          return NextResponse.json({ success: false, error: `DB Error: ${txError2.message}` }, { status: 500 });
+        }
+      } else {
+        console.error('❌ [Topup API] DB Error:', txError);
+        return NextResponse.json({ success: false, error: `DB Error: ${txError.message}` }, { status: 500 });
+      }
     }
 
     console.log(`✅ [Topup API] Credit added: ${negativeAmount} EUR`);
@@ -79,7 +128,7 @@ export async function POST(req: Request) {
       success: true, 
       amount: amountInEur,
       paidAmount: paidAmount,
-      paidCurrency: (session.currency || 'EUR').toUpperCase()
+      paidCurrency: paidCurrency,
     });
 
   } catch (error: any) {
