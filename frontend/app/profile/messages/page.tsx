@@ -704,6 +704,32 @@ function MessagesInner() {
         if (chatImageInputRef.current) chatImageInputRef.current.value = '';
     };
 
+    // Handle pasting images directly from clipboard (Ctrl+V / Cmd+V)
+    const handlePaste = (e: React.ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        const imageFiles: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (file) {
+                    const ext = item.type.split('/')[1] || 'png';
+                    const renamedFile = new File([file], `pasted_image_${Date.now()}_${i}.${ext}`, { type: item.type });
+                    imageFiles.push(renamedFile);
+                }
+            }
+        }
+
+        if (imageFiles.length > 0) {
+            e.preventDefault();
+            const dt = new DataTransfer();
+            imageFiles.forEach(f => dt.items.add(f));
+            handleImagePicked(dt.files);
+        }
+    };
+
     const cancelPendingImages = () => {
         pendingPreviews.forEach(url => URL.revokeObjectURL(url));
         setPendingImages([]);
@@ -2460,7 +2486,7 @@ function MessagesInner() {
                     </div>
                 </div>
 
-                <div className={`flex-1 flex flex-col bg-gray-50 relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`}>
+                <div className={`flex-1 flex flex-col bg-gray-50 relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`} onPaste={handlePaste}>
                     {!activeChatId ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
                             <MessageSquare size={48} className="mb-4 opacity-20" />
@@ -3744,6 +3770,7 @@ function MessagesInner() {
                                                 type="text"
                                                 value={pendingCaption}
                                                 onChange={e => setPendingCaption(e.target.value)}
+                                                onPaste={handlePaste}
                                                 placeholder="Add a caption (optional)..."
                                                 className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
                                                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendImage(pendingImages, pendingCaption); } }}
@@ -3779,7 +3806,8 @@ function MessagesInner() {
                                         <textarea
                                             value={newMessage}
                                             onChange={(e) => setNewMessage(e.target.value)}
-                                            placeholder="Type a message..."
+                                            onPaste={handlePaste}
+                                            placeholder="Type a message or paste image (Ctrl+V)..."
                                             className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[50px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                                         />
@@ -3796,7 +3824,7 @@ function MessagesInner() {
                                             type="button"
                                             onClick={() => chatImageInputRef.current?.click()}
                                             disabled={chatImageUploading || spamCooldownSec > 0}
-                                            title="Send photo"
+                                            title="Send photo or paste image (Ctrl+V)"
                                             className="bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 p-3 rounded-xl transition-all h-[50px] w-[50px] flex items-center justify-center shrink-0 border border-gray-200 hover:border-indigo-300 disabled:opacity-50"
                                         >
                                             {chatImageUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
