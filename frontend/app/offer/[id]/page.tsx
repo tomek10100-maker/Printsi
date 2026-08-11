@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, ShoppingBag, Truck, ShieldCheck, Box,
-  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette, Download, Printer, XCircle, Flag, X
+  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette, Download, Printer, XCircle, Flag, X, Zap
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -154,6 +154,74 @@ export default function OfferDetailsPage() {
       weight: currentWeight,
     }, isDigital ? 1 : quantity);
     setShowModal(true);
+  };
+
+  const handleAddVariantToCart = (variant: any, variantIdx: number) => {
+    if (!offer) return;
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+    if (offer.category === 'job') return;
+
+    const vPrice = variant.priceEUR;
+    const vStock = variant.stock;
+    const vColor = variant.color_name;
+    const vColorHex = variant.primaryColor;
+    const vMaterial = variant.plastic_type;
+    const vWeight = formatOfferWeight(null, variant.layers);
+
+    addItem({
+      id: offer.id,
+      title: offer.title,
+      price: vPrice,
+      image_url: offer.image_urls?.[0] || null,
+      seller_id: offer.user_id,
+      stock: vStock,
+      variant_name: vColor,
+      variant_color: vColorHex,
+      variant_layers: variant.layers
+        ? variant.layers.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams }))
+        : undefined,
+      category: offer.category,
+      material: vMaterial,
+      weight: vWeight,
+    }, isDigital ? 1 : quantity);
+    setShowModal(true);
+  };
+
+  const handleBuyVariantNow = (variant: any, variantIdx: number) => {
+    if (!offer) return;
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+    if (offer.category === 'job') return;
+
+    const vPrice = variant.priceEUR;
+    const vStock = variant.stock;
+    const vColor = variant.color_name;
+    const vColorHex = variant.primaryColor;
+    const vMaterial = variant.plastic_type;
+    const vWeight = formatOfferWeight(null, variant.layers);
+
+    addItem({
+      id: offer.id,
+      title: offer.title,
+      price: vPrice,
+      image_url: offer.image_urls?.[0] || null,
+      seller_id: offer.user_id,
+      stock: vStock,
+      variant_name: vColor,
+      variant_color: vColorHex,
+      variant_layers: variant.layers
+        ? variant.layers.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams }))
+        : undefined,
+      category: offer.category,
+      material: vMaterial,
+      weight: vWeight,
+    }, isDigital ? 1 : quantity);
+    router.push('/cart');
   };
 
   const handleShare = () => {
@@ -586,70 +654,129 @@ export default function OfferDetailsPage() {
                     <Palette size={15} className="text-blue-400" />
                     <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Color Variant</span>
                   </div>
-                  <div className="p-2 bg-gray-100 rounded-[32px] border border-gray-200">
-                  <div className="flex flex-col gap-2">
-                    {variants.map((v: any, idx: number) => {
-                      const isSelected = selectedVariantIndex === idx;
-                      const isSoldOut = v.stock === 0;
-                      return (
-                        <button
-                          key={idx}
-                          disabled={isSoldOut}
-                          onClick={() => {
-                            setSelectedVariantIndex(idx);
-                            setQuantity(1);
-                          }}
-                          className={`relative flex items-center gap-4 p-4 rounded-[24px] transition-all text-left group/var ${isSoldOut
-                            ? 'opacity-40 cursor-not-allowed grayscale'
-                            : isSelected
-                              ? 'bg-white shadow-xl ring-2 ring-blue-600/10'
-                              : 'hover:bg-white/60'
+                  <div className="p-2 bg-gray-100 dark:bg-slate-900/60 rounded-[32px] border border-gray-200 dark:border-gray-800">
+                    <div className="flex flex-col gap-2">
+                      {variants.map((v: any, idx: number) => {
+                        const isSelected = selectedVariantIndex === idx;
+                        const isSoldOut = v.stock === 0;
+                        const isVariantInCart = items.some(
+                          i => i.id === offer.id && i.variant_name === v.color_name
+                        );
+                        const weightG = v.layers?.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0);
+
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              setSelectedVariantIndex(idx);
+                            }}
+                            className={`relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-[24px] transition-all text-left cursor-pointer group/var ${
+                              isSoldOut
+                                ? 'opacity-40 cursor-not-allowed grayscale bg-gray-50 dark:bg-slate-800/40 border border-gray-200 dark:border-gray-800'
+                                : isSelected
+                                  ? 'bg-white dark:bg-slate-800 shadow-xl ring-2 ring-blue-600/20 border border-blue-200 dark:border-blue-700'
+                                  : 'bg-white/80 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-gray-100 dark:border-gray-800 shadow-sm'
                             }`}
-                        >
-                          <div className="flex -space-x-4 flex-shrink-0">
-                            {v.layers && v.layers.length > 0 ? (
-                              v.layers.map((l: any, li: number) => (
-                                <div key={li}
-                                  className="w-12 h-12 rounded-full border-4 border-white shadow-lg transition-transform group-hover/var:scale-105"
-                                  style={{ backgroundColor: l.color_hex || '#ccc', zIndex: 10 - li }}
-                                />
-                              ))
-                            ) : (
-                              <div className="w-12 h-12 rounded-full border-4 border-white shadow-lg" style={{ backgroundColor: v.primaryColor || v.layers?.[0]?.color_hex || '#ccc' }} />
-                            )}
-                          </div>
+                          >
+                            {/* LEFT: COLOR CIRCLES + TITLE & STOCK */}
+                            <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                              <div className="flex -space-x-3 flex-shrink-0">
+                                {v.layers && v.layers.length > 0 ? (
+                                  v.layers.map((l: any, li: number) => (
+                                    <div
+                                      key={li}
+                                      className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 shadow-md transition-transform group-hover/var:scale-105"
+                                      style={{ backgroundColor: l.color_hex || '#ccc', zIndex: 10 - li }}
+                                    />
+                                  ))
+                                ) : (
+                                  <div
+                                    className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 shadow-md"
+                                    style={{ backgroundColor: v.primaryColor || v.layers?.[0]?.color_hex || '#ccc' }}
+                                  />
+                                )}
+                              </div>
 
-                          <div className="flex-1 min-w-0">
-                            <span className="block font-black text-sm tracking-tight text-gray-900">
-                              {v.layers && v.layers.length > 0 ? (
-                                v.layers.map((l: any, li: number) => (
-                                  <React.Fragment key={li}>
-                                    {li > 0 && <span className="text-blue-500 mx-1">+</span>}
-                                    {l.color_name}
-                                  </React.Fragment>
-                                ))
+                              <div className="flex-1 min-w-0">
+                                <span className="block font-black text-sm tracking-tight text-gray-900 dark:text-white truncate">
+                                  {v.layers && v.layers.length > 0 ? (
+                                    v.layers.map((l: any, li: number) => (
+                                      <React.Fragment key={li}>
+                                        {li > 0 && <span className="text-blue-500 mx-1">+</span>}
+                                        {l.color_name}
+                                      </React.Fragment>
+                                    ))
+                                  ) : (
+                                    v.label || v.color_name || 'Individual Choice'
+                                  )}
+                                </span>
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-tight mt-0.5">
+                                  <span>{isSoldOut ? 'Sold out' : (offer.category === 'digital' ? '∞' : `${v.stock} pcs left`)}</span>
+                                  {weightG && weightG > 0 ? (
+                                    <>
+                                      <span>·</span>
+                                      <span className="text-blue-600 dark:text-blue-400 font-black">~{Math.round(weightG)}g</span>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* RIGHT: PRICE & ACTION BUTTONS */}
+                            <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-gray-800">
+                              <div className="text-left sm:text-right mr-1">
+                                <div className={`text-base font-black transition-colors ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>
+                                  {offer.is_negotiable ? 'Negotiable' : formatPrice(v.priceEUR)}
+                                </div>
+                              </div>
+
+                              {!isSoldOut ? (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedVariantIndex(idx);
+                                      handleAddVariantToCart(v, idx);
+                                    }}
+                                    disabled={isVariantInCart}
+                                    className={`px-3 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95 ${
+                                      isVariantInCart
+                                        ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                                        : 'bg-gray-900 dark:bg-white text-white dark:text-slate-900 hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white'
+                                    }`}
+                                    title="Add this variant to cart"
+                                  >
+                                    {isVariantInCart ? (
+                                      <><Check size={14} /> In Cart</>
+                                    ) : (
+                                      <><ShoppingBag size={14} /> Add to Cart</>
+                                    )}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedVariantIndex(idx);
+                                      handleBuyVariantNow(v, idx);
+                                    }}
+                                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md shadow-blue-500/20 active:scale-95"
+                                    title="Buy this variant immediately"
+                                  >
+                                    <Zap size={14} /> Buy Now
+                                  </button>
+                                </div>
                               ) : (
-                                v.label || v.color_name || 'Individual Choice'
+                                <span className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/50 text-red-500 font-black text-xs uppercase tracking-wider border border-red-100 dark:border-red-900">
+                                  Sold Out
+                                </span>
                               )}
-                            </span>
+                            </div>
                           </div>
-
-                          <div className="text-right">
-                             <div className={`text-sm font-black transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>
-                               {offer.is_negotiable ? 'Negotiable' : formatPrice(v.priceEUR)}
-                             </div>
-                             <div className="text-[9px] font-bold text-gray-400 uppercase flex flex-col items-end">
-                               <span>{isSoldOut ? 'Sold out' : (offer.category === 'digital' ? <span className="text-lg leading-none">∞</span> : `${v.stock} pcs left`)}</span>
-                               {(() => {
-                                 const weight = v.layers?.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0);
-                                 return weight > 0 ? <span className="text-blue-600 font-black tracking-tighter mt-0.5">~{Math.round(weight)}g</span> : null;
-                               })()}
-                             </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -773,13 +900,15 @@ export default function OfferDetailsPage() {
                     <Handshake size={22} className="text-blue-600" /> Negotiate
                   </button>
 
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={isOutOfStock || isAlreadyInCart}
-                    className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1 active:scale-95'}`}
-                  >
-                    {isOutOfStock ? 'Item Sold Out' : isAlreadyInCart ? <><Check size={22} /> Secured in Cart</> : <><ShoppingBag size={22} /> Get this Print</>}
-                  </button>
+                  {!hasVariants && (
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={isOutOfStock || isAlreadyInCart}
+                      className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1 active:scale-95'}`}
+                    >
+                      {isOutOfStock ? 'Item Sold Out' : isAlreadyInCart ? <><Check size={22} /> Secured in Cart</> : <><ShoppingBag size={22} /> Get this Print</>}
+                    </button>
+                  )}
                 </div>
               )}
 
