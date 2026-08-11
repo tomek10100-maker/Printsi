@@ -930,9 +930,9 @@ function CheckoutInner() {
                 </div>
               )}
 
-            <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
-              <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
-                <Wallet className="text-blue-600" /> Payment Method
+            <div className="bg-white dark:bg-[#12151e] p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-white/10">
+              <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2 text-gray-900 dark:text-white">
+                <Wallet className="text-blue-600 dark:text-blue-400" /> Payment Method
               </h2>
               <div className="space-y-3">
                 <PaymentRadio
@@ -951,18 +951,19 @@ function CheckoutInner() {
                   badge={balance !== null ? formatPrice(balance) : 'Loading...'}
                 />
                 {!isTopup && balance !== null && balance < grandTotalEur && (
-                  <p className="text-[10px] text-amber-600 font-black uppercase tracking-[0.15em] mt-3 flex items-center gap-1.5 px-2 animate-in fade-in slide-in-from-top-1">
-                    <AlertCircle size={14} /> Insufficient funds. <Link href="/checkout?type=topup" className="underline hover:text-amber-800 transition-colors">Top-up here</Link>
-                  </p>
+                  <div className="mt-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-wider flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                    <AlertCircle size={16} className="text-amber-500 flex-shrink-0" />
+                    <span>Insufficient funds. <Link href="/checkout?type=topup" className="underline hover:text-amber-700 dark:hover:text-amber-300 transition-colors">Top-up here</Link></span>
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="bg-blue-50/50 border border-blue-100 p-6 rounded-3xl flex gap-4 items-center">
-              <ShieldCheck className="text-blue-600" size={28} />
+            <div className="bg-blue-50/50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 p-6 rounded-3xl flex gap-4 items-center">
+              <ShieldCheck className="text-blue-600 dark:text-blue-400 flex-shrink-0" size={28} />
               <div>
-                <p className="font-black text-blue-900 text-sm">Secure Payment</p>
-                <p className="text-xs text-blue-700 font-medium">Your payment is encrypted and processed by Stripe.</p>
+                <p className="font-black text-blue-900 dark:text-blue-200 text-sm">Secure Payment</p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">Your payment is encrypted and processed by Stripe.</p>
               </div>
             </div>
             </>
@@ -1116,13 +1117,39 @@ function CheckoutInner() {
 }
 
 function PaymentRadio({ label, value, current, set, disabled, badge }: any) {
+  const isSelected = current === value;
   return (
-    <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${current === value ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-100 hover:border-blue-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
-      <div className="flex items-center gap-3">
-        <input type="radio" checked={current === value} onChange={() => !disabled && set(value)} className="w-4 h-4 text-blue-600" />
-        <span className="font-bold text-sm text-gray-900">{label}</span>
+    <label
+      onClick={() => !disabled && set(value)}
+      className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+        isSelected
+          ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20'
+          : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-gray-100 hover:border-blue-400 dark:hover:border-blue-500/50'
+      } ${disabled ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}
+    >
+      <div className="flex items-center gap-3.5">
+        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+          isSelected
+            ? 'border-white bg-white'
+            : 'border-gray-400 dark:border-gray-500 bg-transparent'
+        }`}>
+          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
+        </div>
+        <span className={`font-black text-sm sm:text-base ${isSelected ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
+          {label}
+        </span>
       </div>
-      {badge && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md">{badge}</span>}
+      {badge && (
+        <span
+          className={`text-xs font-black px-3 py-1 rounded-xl transition-colors ${
+            isSelected
+              ? 'bg-white/20 text-white border border-white/30 backdrop-blur-sm'
+              : 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+          }`}
+        >
+          {badge}
+        </span>
+      )}
     </label>
   );
 }
