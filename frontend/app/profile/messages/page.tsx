@@ -3801,14 +3801,25 @@ function MessagesInner() {
                                         </div>
                                     </div>
                                 )}
-                                <form onSubmit={handleSendMessage} className="flex flex-col sm:flex-row gap-2 max-w-4xl mx-auto items-stretch sm:items-end">
-                                    <div className="flex-1 flex gap-2 items-end">
+                                <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto space-y-2">
+                                    {/* Negotiate button pill on mobile if no order */}
+                                    {activeChatData && !activeChatData.orderItem && (
+                                        <button
+                                            type="button"
+                                            onClick={() => openProposalModal()}
+                                            className="w-full py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/80 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 shadow-xs active:scale-98"
+                                        >
+                                            <Handshake size={14} className="text-blue-600" /> Negotiate Price / Custom Offer
+                                        </button>
+                                    )}
+
+                                    <div className="flex items-end gap-1.5 w-full">
                                         <textarea
                                             value={newMessage}
                                             onChange={(e) => setNewMessage(e.target.value)}
                                             onPaste={handlePaste}
                                             placeholder="Type a message or paste image (Ctrl+V)..."
-                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[50px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
+                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[46px] max-h-[140px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                                         />
                                         <input
@@ -3825,71 +3836,70 @@ function MessagesInner() {
                                             onClick={() => chatImageInputRef.current?.click()}
                                             disabled={chatImageUploading || spamCooldownSec > 0}
                                             title="Send photo or paste image (Ctrl+V)"
-                                            className="bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 p-3 rounded-xl transition-all h-[50px] w-[50px] flex items-center justify-center shrink-0 border border-gray-200 hover:border-indigo-300 disabled:opacity-50"
+                                            className="bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 p-2.5 rounded-xl transition-all h-[46px] w-[46px] flex items-center justify-center shrink-0 border border-gray-200 hover:border-indigo-300 disabled:opacity-50"
                                         >
                                             {chatImageUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
                                         </button>
-                                        <button type="submit" disabled={(!newMessage.trim() && pendingImages.length === 0) || spamCooldownSec > 0} className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-all disabled:opacity-50 h-[50px] w-[50px] flex items-center justify-center shrink-0 shadow-md">
-                                            <Send size={20} />
-                                        </button>
-                                    </div>
 
-                                    {/* ── 3-dot menu for Cancel / Report ── */}
-                                    {(() => {
-                                        const isBuyer = currentUser?.id === activeChatData?.buyer_id;
-                                        const isSeller = currentUser?.id === activeChatData?.seller_id;
-                                        const canCancel = (isBuyer && activeChatData?.orderItem?.status === 'pending')
-                                            || (isSeller && ['pending', 'shipped'].includes(activeChatData?.orderItem?.status));
-                                        const hasOrder = !!activeChatData?.orderItem;
+                                        {/* 3-dot menu for Options / Report / Cancel */}
+                                        {(() => {
+                                            const isBuyer = currentUser?.id === activeChatData?.buyer_id;
+                                            const isSeller = currentUser?.id === activeChatData?.seller_id;
+                                            const canCancel = (isBuyer && activeChatData?.orderItem?.status === 'pending')
+                                                || (isSeller && ['pending', 'shipped'].includes(activeChatData?.orderItem?.status));
+                                            const hasOrder = !!activeChatData?.orderItem;
 
-                                        return (
-                                            <>
-                                                {/* Negotiate / Special Offer button (no order) */}
-                                                {!hasOrder && (
-                                                    <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm active:scale-95">
-                                                        <Handshake size={14} /> Negotiate / Custom Offer
+                                            return (
+                                                <div className="relative shrink-0" style={{ zIndex: 50 }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowChatMenu(v => !v)}
+                                                        className="h-[46px] w-[46px] flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 transition shadow-xs"
+                                                        title="More options"
+                                                    >
+                                                        <MoreVertical size={18} />
                                                     </button>
-                                                )}
-
-                                                {/* 3-dot menu (only when there's an order or always for report) */}
-                                                {(isBuyer || isSeller) && (
-                                                    <div className="relative shrink-0" style={{ zIndex: 50 }}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowChatMenu(v => !v)}
-                                                            className="h-[50px] w-[50px] flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 transition shadow-sm"
-                                                            title="More options"
-                                                        >
-                                                            <MoreVertical size={18} />
-                                                        </button>
-                                                        {showChatMenu && (
-                                                            <>
-                                                                <div className="fixed inset-0" style={{ zIndex: 40 }} onClick={() => setShowChatMenu(false)} />
-                                                                <div className="absolute right-0 bottom-14 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" style={{ minWidth: 200, zIndex: 50 }}>
-                                                                    {canCancel && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => { setShowChatMenu(false); openCancelModal(isSeller ? 'seller' : 'buyer'); }}
-                                                                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition text-xs font-black uppercase tracking-widest border-b border-gray-50"
-                                                                        >
-                                                                            <Ban size={14} /> Cancel Order
-                                                                        </button>
-                                                                    )}
+                                                    {showChatMenu && (
+                                                        <>
+                                                            <div className="fixed inset-0" style={{ zIndex: 40 }} onClick={() => setShowChatMenu(false)} />
+                                                            <div className="absolute right-0 bottom-14 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 min-w-[210px]">
+                                                                {!hasOrder && (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => { setShowChatMenu(false); setReportSubject(''); setReportDescription(''); setReportError(''); setReportSuccess(false); setShowReportModal(true); }}
-                                                                        className="w-full flex items-center gap-3 px-4 py-3 text-left text-amber-600 hover:bg-amber-50 transition text-xs font-black uppercase tracking-widest"
+                                                                        onClick={() => { setShowChatMenu(false); openProposalModal(); }}
+                                                                        className="w-full flex items-center gap-3 px-4 py-3 text-left text-blue-600 hover:bg-blue-50 transition text-xs font-black uppercase tracking-wider border-b border-gray-100"
                                                                     >
-                                                                        <Flag size={14} /> Report a Problem
+                                                                        <Handshake size={15} /> Negotiate / Custom Offer
                                                                     </button>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </>
-                                        );
-                                    })()}
+                                                                )}
+                                                                {canCancel && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => { setShowChatMenu(false); openCancelModal(isSeller ? 'seller' : 'buyer'); }}
+                                                                        className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition text-xs font-black uppercase tracking-wider border-b border-gray-100"
+                                                                    >
+                                                                        <Ban size={15} /> Cancel Order
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { setShowChatMenu(false); setReportSubject(''); setReportDescription(''); setReportError(''); setReportSuccess(false); setShowReportModal(true); }}
+                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-amber-600 hover:bg-amber-50 transition text-xs font-black uppercase tracking-wider"
+                                                                >
+                                                                    <Flag size={15} /> Report a Problem
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Send button */}
+                                        <button type="submit" disabled={(!newMessage.trim() && pendingImages.length === 0) || spamCooldownSec > 0} className="bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-xl transition-all disabled:opacity-50 h-[46px] w-[46px] flex items-center justify-center shrink-0 shadow-md active:scale-95">
+                                            <Send size={18} />
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
                         </>
