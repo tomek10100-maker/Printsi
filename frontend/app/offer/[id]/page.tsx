@@ -444,80 +444,74 @@ export default function OfferDetailsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 mb-8 p-5 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
-            <div className="w-14 h-14 bg-white rounded-full overflow-hidden border-2 border-gray-100 shadow-sm flex items-center justify-center">
+          <div className="flex items-center gap-3.5 mb-6 p-4 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm hover:shadow-md transition-all">
+            <div className="w-11 h-11 bg-white dark:bg-slate-800 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center flex-shrink-0">
               {seller?.avatar_url ? (
                 <img src={seller.avatar_url} alt={seller.full_name} className="w-full h-full object-cover" />
               ) : (
-                <UserIcon className="text-gray-300" size={28} />
+                <UserIcon className="text-gray-400 dark:text-gray-500" size={22} />
               )}
             </div>
-            <div>
-              <span className="block text-[10px] font-black uppercase text-gray-400 tracking-widest mb-0.5">Crafted by</span>
-              <span className="font-black text-gray-900 text-lg">{seller?.full_name || 'Anonymous Maker'}</span>
+            <div className="min-w-0 flex-1">
+              <span className="block text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-1">Crafted by</span>
+              <span className="font-black text-gray-900 dark:text-white text-base truncate block">{seller?.full_name || 'Anonymous Maker'}</span>
             </div>
-            <div className="ml-auto">
-              <Link
-                href={`/user/${offer.user_id}`}
-                className="px-5 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-gray-200"
-              >
-                Profile
-              </Link>
-            </div>
+            <Link
+              href={`/user/${offer.user_id}`}
+              className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white transition-all shadow-sm flex-shrink-0"
+            >
+              Profile
+            </Link>
           </div>
 
-          <div className="prose prose-lg text-gray-600 mb-10 max-w-none font-medium leading-relaxed">
+          <div className="prose prose-lg text-gray-600 dark:text-gray-300 mb-8 max-w-none font-medium leading-relaxed">
             {offer.description}
           </div>
 
           {!isDigital && (
-            <div className="space-y-6 mb-10">
-              {/* Dimensions & Weight Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="mb-8">
+              {/* Specifications Grid with items-start to avoid vertical stretching/empty space */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                
+                {/* COLUMN 1: MATERIAL */}
                 {(offer.material || (currentVariant?.layers && currentVariant.layers.length > 0)) && (
-                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                  <div className="p-4.5 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm transition-all">
                     <div className="flex items-center gap-2 mb-3">
-                      <Box size={16} className="text-blue-400" />
+                      <Box size={15} className="text-blue-400" />
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Material</span>
                     </div>
-                    {/* Jeśli jest jeden wariant bez warstw — pokaż offer.material */}
+
                     {(!currentVariant?.layers || currentVariant.layers.length === 0) && (
-                      <div className="flex items-center justify-between">
-                         <span className="text-2xl font-black text-gray-900 truncate block">{offer.material}</span>
+                      <div className="flex items-center justify-between gap-2">
+                         <span className="text-xl font-black text-gray-900 dark:text-white truncate">{offer.material}</span>
                          {currentColor && (
-                           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm">
-                             <div className="w-4 h-4 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: currentColorHex || '#ccc' }} />
-                             <span className="text-xs font-black uppercase text-gray-700">{currentColor}</span>
+                           <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0">
+                             <div className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: currentColorHex || '#ccc' }} />
+                             <span className="text-[11px] font-black uppercase text-gray-700 dark:text-gray-300">{currentColor}</span>
                            </div>
                          )}
                       </div>
                     )}
                     
-                    {/* Composition Breakdown per warstwa */}
-                    {currentVariant?.layers && currentVariant.layers.length > 0 ? (
-                      <div className="space-y-3">
+                    {currentVariant?.layers && currentVariant.layers.length > 0 && (
+                      <div className="space-y-2">
                         {currentVariant.layers.map((l: any, i: number) => {
                           const mat = l.filament_id ? layerMaterials[l.filament_id] : (currentVariant.plastic_type || offer.material);
                           return (
-                            <div key={i} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                              <div className="flex items-center gap-3">
-                                <div className="w-5 h-5 rounded-full border-2 border-gray-200 shadow-md flex-shrink-0" style={{ backgroundColor: l.color_hex || '#ccc' }} />
-                                <div>
-                                  <span className="text-[11px] font-black text-gray-900 uppercase tracking-tight block leading-tight">{l.color_name}</span>
-                                  {mat && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{mat}</span>}
+                            <div key={i} className="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700/60 shadow-xs">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600 shadow-xs flex-shrink-0" style={{ backgroundColor: l.color_hex || '#ccc' }} />
+                                <div className="min-w-0">
+                                  <span className="text-[11px] font-black text-gray-900 dark:text-white uppercase tracking-tight block leading-tight truncate">{l.color_name}</span>
+                                  {mat && <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate block">{mat}</span>}
                                 </div>
                               </div>
-                              <span className="text-sm font-black text-blue-600">{Math.max(1, Math.round(parseFloat(l.grams) || 0))}g</span>
+                              <span className="text-xs font-black text-blue-600 dark:text-blue-400 flex-shrink-0 ml-2">{Math.max(1, Math.round(parseFloat(l.grams) || 0))}g</span>
                             </div>
                           );
                         })}
                       </div>
-                    ) : (currentWeight && !isJob ? (
-                      <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center text-[11px] font-bold">
-                        <span className="text-gray-400 uppercase tracking-widest">Total Material:</span>
-                        <span className="text-blue-600 font-black">{currentWeight}</span>
-                      </div>
-                    ) : null)}
+                    )}
 
                     {/* Material Info & Properties */}
                     {(() => {
@@ -536,54 +530,54 @@ export default function OfferDetailsPage() {
                       if (validInfos.length === 0) return null;
 
                       return (
-                        <div className="mt-4 space-y-3 pt-3 border-t border-gray-200/80">
+                        <div className="mt-3.5 space-y-2.5 pt-3 border-t border-gray-200/60 dark:border-gray-800">
                           {validInfos.map((matInfo, idx) => (
-                            <div key={idx} className="p-4 bg-white/90 border border-blue-100/80 rounded-2xl shadow-2xs space-y-3 animate-in fade-in duration-300">
+                            <div key={idx} className="p-3.5 bg-white/90 dark:bg-slate-800/90 border border-blue-100/80 dark:border-blue-900/40 rounded-xl shadow-xs space-y-2.5 animate-in fade-in duration-300">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
                                   <span>{matInfo!.icon || '💡'}</span> {matInfo!.fullName}
                                 </span>
                               </div>
 
                               {matInfo!.desc && (
-                                <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
+                                <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
                                   {matInfo!.desc}
                                 </p>
                               )}
 
                               {matInfo!.properties && (
-                                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                                <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-700/50">
                                   {matInfo!.properties.strength && (
-                                    <div className="flex flex-col bg-slate-50/80 p-2 rounded-xl border border-slate-100">
-                                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Strength</span>
-                                      <span className="text-[11px] font-extrabold text-slate-800">{matInfo!.properties.strength}</span>
+                                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                      <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Strength</span>
+                                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{matInfo!.properties.strength}</span>
                                     </div>
                                   )}
                                   {matInfo!.properties.heatResistance && (
-                                    <div className="flex flex-col bg-slate-50/80 p-2 rounded-xl border border-slate-100">
-                                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Heat Resistance</span>
-                                      <span className="text-[11px] font-extrabold text-slate-800">{matInfo!.properties.heatResistance}</span>
+                                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                      <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Heat Resistance</span>
+                                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{matInfo!.properties.heatResistance}</span>
                                     </div>
                                   )}
                                   {matInfo!.properties.flexibility && (
-                                    <div className="flex flex-col bg-slate-50/80 p-2 rounded-xl border border-slate-100">
-                                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Flexibility</span>
-                                      <span className="text-[11px] font-extrabold text-slate-800">{matInfo!.properties.flexibility}</span>
+                                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                      <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Flexibility</span>
+                                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{matInfo!.properties.flexibility}</span>
                                     </div>
                                   )}
                                   {matInfo!.properties.uvResistance && (
-                                    <div className="flex flex-col bg-slate-50/80 p-2 rounded-xl border border-slate-100">
-                                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">UV Resistance</span>
-                                      <span className="text-[11px] font-extrabold text-slate-800">{matInfo!.properties.uvResistance}</span>
+                                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                      <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">UV Resistance</span>
+                                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{matInfo!.properties.uvResistance}</span>
                                     </div>
                                   )}
                                 </div>
                               )}
 
                               {matInfo!.tags && matInfo!.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                <div className="flex flex-wrap gap-1 pt-0.5">
                                   {matInfo!.tags.map((tag: string, tidx: number) => (
-                                    <span key={tidx} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[9px] font-black uppercase tracking-wider">
+                                    <span key={tidx} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800 rounded-md text-[8px] font-black uppercase tracking-wider">
                                       {tag}
                                     </span>
                                   ))}
@@ -596,56 +590,66 @@ export default function OfferDetailsPage() {
                     })()}
                   </div>
                 )}
-                {offer.dimensions && (
-                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Ruler size={16} className="text-blue-400" />
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Scale & Size</span>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      {offer.dimensions.split(',').map((dim: string, idx: number) => (
-                        <span key={idx} className="text-sm font-black text-gray-900 leading-tight">{dim.trim()}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {isJob ? (
-                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Box size={16} className="text-blue-400" />
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity Requested</span>
-                    </div>
-                    <span className="text-2xl font-black text-gray-900 truncate block">{offer.stock || 1} pcs</span>
-                  </div>
-                ) : currentWeight ? (
-                  <div className="p-5 bg-gray-50 rounded-[32px] border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Layers size={16} className="text-blue-400" />
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Weight</span>
-                    </div>
-                    <span className="text-2xl font-black text-gray-900 truncate block">{currentWeight}</span>
-                  </div>
-                ) : null}
-              </div>
 
-              {offer.custom_instructions && (
-                <div className="p-6 bg-indigo-50 rounded-[32px] border border-indigo-100 animate-in fade-in slide-in-from-bottom-2 duration-500 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <MessageSquare size={80} className="text-indigo-400" />
-                  </div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                      <MessageSquare size={16} className="text-white" />
+                {/* COLUMN 2: SCALE & SIZE + NET WEIGHT / QUANTITY */}
+                <div className="space-y-4">
+                  {offer.dimensions && (
+                    <div className="p-4.5 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm transition-all">
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <Ruler size={15} className="text-blue-400" />
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Scale & Size</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {offer.dimensions.split(',').map((dim: string, idx: number) => (
+                          <div key={idx} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xs text-xs font-black text-gray-900 dark:text-white">
+                            {dim.trim()}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <span className="text-xs font-black uppercase text-indigo-900 tracking-widest">Technical Notes / Adjustments</span>
-                  </div>
-                  <div className="bg-white border border-indigo-100 p-5 rounded-2xl shadow-sm">
-                    <p className="text-sm font-bold text-gray-700 leading-relaxed whitespace-pre-line italic">
-                      {offer.custom_instructions}
-                    </p>
-                  </div>
+                  )}
+
+                  {isJob ? (
+                    <div className="p-4.5 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm transition-all">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Box size={15} className="text-blue-400" />
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity Requested</span>
+                      </div>
+                      <span className="text-xl font-black text-gray-900 dark:text-white truncate block">{offer.stock || 1} pcs</span>
+                    </div>
+                  ) : currentWeight ? (
+                    <div className="p-4.5 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm transition-all">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Layers size={15} className="text-blue-400" />
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Weight</span>
+                      </div>
+                      <span className="text-xl font-black text-gray-900 dark:text-white truncate block">{currentWeight}</span>
+                    </div>
+                  ) : null}
                 </div>
-              )}
+
+              </div>
+            </div>
+          )}
+
+          {offer.custom_instructions && (
+            <div className="p-5 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 animate-in fade-in slide-in-from-bottom-2 duration-500 relative overflow-hidden group mb-8">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <MessageSquare size={80} className="text-indigo-400" />
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 bg-indigo-500 rounded-xl flex items-center justify-center shadow-md">
+                  <MessageSquare size={15} className="text-white" />
+                </div>
+                <span className="text-xs font-black uppercase text-indigo-900 dark:text-indigo-200 tracking-widest">Technical Notes / Adjustments</span>
+              </div>
+              <div className="bg-white dark:bg-slate-900/80 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-xl shadow-xs">
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line italic">
+                  {offer.custom_instructions}
+                </p>
+              </div>
+            </div>
+          )}
 
               {/* COLOR VARIANTS SELECTION */}
               {hasVariants && (
@@ -780,8 +784,6 @@ export default function OfferDetailsPage() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
 
           {/* QUANTITY & ACTIONS */}
           <div className="mt-auto space-y-6">
