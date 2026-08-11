@@ -36,18 +36,28 @@ export async function POST(req: Request) {
     // Negative amount in payouts = credit added to user wallet balance
     // Positive amount in payouts = debit removed from user wallet balance
     const payoutAmount = action === 'add' ? -numAmount : numAmount;
+    const noteText = note ? `Admin adjustment: ${note}` : 'Admin balance adjustment';
 
-    // 2. Log transaction in payouts table (which computes live wallet balance across system)
-    const { error: insertErr } = await supabaseAdmin.from('payouts').insert({
+    // 2. Log transaction in payouts table with automatic schema column fallback
+    let { error: insertErr } = await supabaseAdmin.from('payouts').insert({
       user_id: userId,
       amount: payoutAmount,
       status: 'completed',
-      stripe_payout_id: note ? `admin_adj: ${note}` : 'admin_adjustment',
+      notes: noteText,
     });
 
     if (insertErr) {
-      console.error('[/api/admin/balance] DB Insert Error:', insertErr);
-      return NextResponse.json({ error: insertErr.message }, { status: 500 });
+      console.warn('[/api/admin/balance] Retrying insert with core columns only:', insertErr.message);
+      const { error: insertErr2 } = await supabaseAdmin.from('payouts').insert({
+        user_id: userId,
+        amount: payoutAmount,
+        status: 'completed',
+      });
+
+      if (insertErr2) {
+        console.error('[/api/admin/balance] DB Insert Error:', insertErr2);
+        return NextResponse.json({ error: insertErr2.message }, { status: 500 });
+      }
     }
 
     return NextResponse.json({

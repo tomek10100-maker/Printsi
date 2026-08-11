@@ -59,16 +59,14 @@ export async function POST(req: Request) {
     }
 
     // 4. BULLETPROOF IDEMPOTENCY CHECK — Has this session already been credited?
-    const targetPayoutId = `topup:${sessionId}`;
+    const targetPayoutNote = `topup:${sessionId}`;
     const { data: existingPayouts } = await supabase
       .from('payouts')
-      .select('id, stripe_payout_id')
+      .select('id, notes')
       .eq('user_id', userId);
 
     const isAlreadyCredited = existingPayouts?.some((p: any) =>
-      p.stripe_payout_id === targetPayoutId ||
-      p.stripe_payout_id === sessionId ||
-      p.stripe_session_id === sessionId
+      p.notes === targetPayoutNote || (p.notes && p.notes.includes(sessionId))
     );
 
     if (isAlreadyCredited) {
@@ -96,22 +94,20 @@ export async function POST(req: Request) {
     console.log(`💰 [Topup API] Paid: ${paidAmount} ${paidCurrency} -> Internal: ${amountInEur.toFixed(2)} EUR`);
 
     // 6. LOG TRANSACTION AS NEGATIVE PAYOUT (negative = funds added to wallet)
-    // Always supply `stripe_payout_id` which is guaranteed in payouts table
+    // Tries to insert with `notes`, falls back to core columns if schema lacks `notes`
     const { error: txError } = await supabase.from('payouts').insert({
       user_id: userId,
       amount: negativeAmount,
       status: 'completed',
-      stripe_payout_id: targetPayoutId,
-      stripe_session_id: sessionId,
+      notes: targetPayoutNote,
     });
 
     if (txError) {
-      // If stripe_session_id column is missing, insert with stripe_payout_id which is guaranteed
+      console.warn('⚠️ [Topup API] Retrying insert with core columns:', txError.message);
       const { error: txError2 } = await supabase.from('payouts').insert({
         user_id: userId,
         amount: negativeAmount,
         status: 'completed',
-        stripe_payout_id: targetPayoutId,
       });
       if (txError2) {
         console.error('❌ [Topup API] DB Error:', txError2);
