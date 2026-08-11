@@ -681,14 +681,26 @@ function MessagesInner() {
 
     // Called when user picks files — show preview instead of uploading immediately
     const handleImagePicked = (files: FileList) => {
-        const valid = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, 5);
+        const valid = Array.from(files).filter(f => f.type.startsWith('image/'));
         if (!valid.length) return;
-        setPendingImages(valid);
-        setPendingCaption('');
-        // Generate object URLs for previews
-        const urls = valid.map(f => URL.createObjectURL(f));
+
+        const currentCount = pendingImages.length;
+        if (currentCount >= 3) {
+            alert("You can attach a maximum of 3 photos per message.");
+            if (chatImageInputRef.current) chatImageInputRef.current.value = '';
+            return;
+        }
+
+        const remainingSpace = 3 - currentCount;
+        const newBatch = valid.slice(0, remainingSpace);
+        const combined = [...pendingImages, ...newBatch];
+
+        setPendingImages(combined);
+
+        pendingPreviews.forEach(url => URL.revokeObjectURL(url));
+        const urls = combined.map(f => URL.createObjectURL(f));
         setPendingPreviews(urls);
-        // Reset input so re-selecting same file works
+
         if (chatImageInputRef.current) chatImageInputRef.current.value = '';
     };
 
@@ -3573,21 +3585,21 @@ function MessagesInner() {
                                                 imgUrls = [rawContent];
                                             }
                                             return (
-                                                <div key={msg.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                                    <div className="flex flex-wrap gap-2 max-w-[75%]">
+                                                <div key={msg.id || idx} className={`flex flex-col w-full max-w-full min-w-0 ${isMe ? 'items-end' : 'items-start'}`}>
+                                                    <div className="flex flex-wrap gap-2 max-w-[85%] sm:max-w-[75%] min-w-0">
                                                         {imgUrls.map((url: string, i: number) => (
-                                                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                                                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-2xl border border-gray-200 shadow-md hover:opacity-90 transition-opacity">
                                                                 <img
                                                                     src={url}
                                                                     alt={`Shared photo ${i + 1}`}
-                                                                    className="max-w-[220px] max-h-[220px] object-cover rounded-2xl border border-gray-200 shadow-md hover:opacity-90 transition-opacity cursor-pointer"
+                                                                    className="w-auto h-auto max-w-[220px] max-h-[220px] sm:max-w-[260px] sm:max-h-[260px] object-cover rounded-2xl cursor-pointer"
                                                                 />
                                                             </a>
                                                         ))}
                                                     </div>
                                                     {caption && (
-                                                        <div className={`mt-1.5 max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2 break-words [word-break:break-word] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}>
-                                                            <p className="text-sm font-medium leading-relaxed break-words [word-break:break-word] [overflow-wrap:anywhere]">
+                                                        <div className={`mt-1.5 max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2 break-all [word-break:break-all] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}>
+                                                            <p className="text-sm font-medium leading-relaxed break-all [word-break:break-all] [overflow-wrap:anywhere]">
                                                                 {(() => {
                                                                     const urlRegex = /(https?:\/\/[^\s]+)/g;
                                                                     const parts = caption.split(urlRegex);
@@ -3621,9 +3633,9 @@ function MessagesInner() {
                                         }
 
                                         return (
-                                            <div key={msg.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                                <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-5 py-3 break-words [word-break:break-word] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
-                                                    <p className="text-sm font-medium leading-relaxed break-words [word-break:break-word] [overflow-wrap:anywhere]">
+                                            <div key={msg.id || idx} className={`flex flex-col w-full max-w-full min-w-0 ${isMe ? 'items-end' : 'items-start'}`}>
+                                                <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-5 py-3 break-all [word-break:break-all] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'}`}>
+                                                    <p className="text-sm font-medium leading-relaxed break-all [word-break:break-all] [overflow-wrap:anywhere]">
                                                         {(() => {
                                                             const urlRegex = /(https?:\/\/[^\s]+)/g;
                                                             const parts = (msg.content || '').split(urlRegex);
@@ -3665,7 +3677,7 @@ function MessagesInner() {
                                         {/* Header */}
                                         <div className="flex items-center justify-between mb-3">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1.5">
-                                                <ImageIcon size={12} /> {pendingImages.length} photo{pendingImages.length > 1 ? 's' : ''} ready to send
+                                                <ImageIcon size={12} /> {pendingImages.length}/3 photo{pendingImages.length > 1 ? 's' : ''} ready to send
                                             </span>
                                             <button
                                                 type="button"
@@ -3703,16 +3715,17 @@ function MessagesInner() {
                                                     </button>
                                                 </div>
                                             ))}
-                                            {/* Add more button */}
-                                            <button
-                                                type="button"
-                                                onClick={() => chatImageInputRef.current?.click()}
-                                                className="w-20 h-20 shrink-0 rounded-xl border-2 border-dashed border-indigo-200 flex flex-col items-center justify-center gap-1 text-indigo-400 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
-                                                title="Add / change photos"
-                                            >
-                                                <Camera size={16} />
-                                                <span className="text-[9px] font-black uppercase tracking-wider">Change</span>
-                                            </button>
+                                            {pendingImages.length < 3 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => chatImageInputRef.current?.click()}
+                                                    className="w-20 h-20 shrink-0 rounded-xl border-2 border-dashed border-indigo-200 flex flex-col items-center justify-center gap-1 text-indigo-400 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+                                                    title="Add photo (max 3)"
+                                                >
+                                                    <Camera size={16} />
+                                                    <span className="text-[9px] font-black uppercase tracking-wider">+ Add ({pendingImages.length}/3)</span>
+                                                </button>
+                                            )}
                                         </div>
 
                                         {/* Caption input */}
