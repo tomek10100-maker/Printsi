@@ -20,44 +20,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'action must be "add" or "remove"' }, { status: 400 });
     }
 
-    // 1. Fetch current profile wallet balance
+    // 1. Verify user profile exists using guaranteed columns (id, full_name)
     const { data: profile, error: profileErr } = await supabaseAdmin
       .from('profiles')
-      .select('wallet_balance')
+      .select('id, full_name')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (profileErr || !profile) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+      console.error('[/api/admin/balance] Profile lookup error:', profileErr);
+      return NextResponse.json({ error: 'User profile not found in database' }, { status: 404 });
     }
 
-    const currentBal = Number(profile.wallet_balance || 0);
     const numAmount = Math.abs(Number(amount));
-    const newBal = action === 'add' ? currentBal + numAmount : Math.max(0, currentBal - numAmount);
-
-    // 2. Update user wallet balance directly
-    const { error: updateErr } = await supabaseAdmin
-      .from('profiles')
-      .update({ wallet_balance: newBal })
-      .eq('id', userId);
-
-    if (updateErr) throw updateErr;
-
-    // 3. Log transaction in payouts table with note
+    // Negative amount in payouts = credit added to user wallet balance
+    // Positive amount in payouts = debit removed from user wallet balance
     const payoutAmount = action === 'add' ? -numAmount : numAmount;
 
-    await supabaseAdmin.from('payouts').insert({
+    // 2. Log transaction in payouts table (which computes live wallet balance across system)
+    const { error: insertErr } = await supabaseAdmin.from('payouts').insert({
       user_id: userId,
       amount: payoutAmount,
       status: 'completed',
       stripe_payout_id: note ? `admin_adj: ${note}` : 'admin_adjustment',
     });
 
+    if (insertErr) {
+      console.error('[/api/admin/balance] DB Insert Error:', insertErr);
+      return NextResponse.json({ error: insertErr.message }, { status: 500 });
+    }
+
     return NextResponse.json({
       success: true,
       action,
       amount: numAmount,
-      newBalance: newBal,
       note: note || '',
     });
   } catch (error: any) {
