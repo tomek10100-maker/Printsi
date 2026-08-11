@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin, supabaseAdmin, FORBIDDEN } from '../../../lib/adminAuth';
+import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthEmailMap } from '../../../lib/adminAuth';
+import { sendEmail, EmailTemplates } from '../../../lib/emailService';
 
 /**
  * POST — Add or subtract balance from a user account.
+ * Automatically posts a notification message into the user's Support Chat thread
+ * and sends an official email notification from Printis Support.
  * Body: { userId: string, amount: number, note: string, action: 'add' | 'remove' }
  */
 export async function POST(req: Request) {
@@ -60,11 +63,73 @@ export async function POST(req: Request) {
       }
     }
 
+    // 3. Find or Create Support Chat Thread with User
+    const { data: existingChats } = await supabaseAdmin
+      .from('chats')
+      .select('id')
+      .eq('buyer_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    let chatId = existingChats?.[0]?.id;
+
+    if (!chatId) {
+      const { data: newChat, error: chatErr } = await supabaseAdmin
+        .from('chats')
+        .insert({
+          buyer_id: userId,
+          seller_id: adminId,
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (!chatErr && newChat) {
+        chatId = newChat.id;
+      }
+    }
+
+    // 4. Post Support Notification Message into the Chat
+    if (chatId) {
+      const amountFormatted = `€${numAmount.toFixed(2)}`;
+      const messageContent = `💳 Wallet Balance Adjusted: ${action === 'add' ? '+' : '-'}${amountFormatted} has been ${action === 'add' ? 'added to' : 'deducted from'} your account balance.${note ? `\n\nNote / Reason: ${note}` : ''}`;
+
+      await supabaseAdmin.from('messages').insert({
+        chat_id: chatId,
+        sender_id: adminId,
+        content: messageContent,
+        message_type: 'admin_chat',
+      });
+
+      await supabaseAdmin
+        .from('chats')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', chatId);
+    }
+
+    // 5. Send Official Email Notification from Printis Support
+    try {
+      const emailMap = await getAuthEmailMap();
+      const userEmail = emailMap[userId];
+
+      if (userEmail) {
+        const userName = profile.full_name || 'Printis User';
+        const amountFormatted = `€${numAmount.toFixed(2)}`;
+        const subject = `Printis Support - Balance Adjusted (${action === 'add' ? '+' : '-'}${amountFormatted})`;
+        const html = EmailTemplates.balanceAdjusted(userName, action, amountFormatted, note);
+
+        await sendEmail({ to: userEmail, subject, html });
+      }
+    } catch (emailErr) {
+      console.warn('⚠️ [/api/admin/balance] Failed to send notification email (non-fatal):', emailErr);
+    }
+
     return NextResponse.json({
       success: true,
       action,
       amount: numAmount,
       note: note || '',
+      chatId,
     });
   } catch (error: any) {
     console.error('[/api/admin/balance] Error:', error);

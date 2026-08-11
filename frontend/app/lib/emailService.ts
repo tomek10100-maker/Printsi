@@ -892,5 +892,75 @@ export const EmailTemplates = {
       body
     );
   },
+
+  adminSupportMessage: (userName: string, messageContent: string) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Hi ${userName},</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        You have received an official support message from <strong>Printis Support</strong>:
+      </p>
+      
+      <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:20px;padding:28px;margin:24px 0;border:1px solid #e2e8f0;">
+        <div style="color:#0f172a;font-size:15px;font-weight:600;line-height:1.7;white-space:pre-line;">
+          ${messageContent}
+        </div>
+      </div>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${SITE_URL}/profile/messages" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:18px 40px;border-radius:14px;box-shadow:0 10px 20px rgba(37,99,235,0.25);letter-spacing:0.5px;">
+          Reply in Chat
+        </a>
+      </div>
+
+      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">
+        This message was sent by Printis Support. Click the button above to respond in your account dashboard.
+      </p>
+    `;
+    return emailWrapper(
+      'linear-gradient(135deg,#0f172a 0%,#1e293b 100%)',
+      '🛡️ Printis Support',
+      'Official Support Communication',
+      body
+    );
+  },
+
+  balanceAdjusted: (userName: string, action: 'add' | 'remove', amountStr: string, note?: string) => {
+    const isAdd = action === 'add';
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Hi ${userName},</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        Your Printis wallet account balance has been updated by <strong>Printis Support</strong>.
+      </p>
+      
+      <div style="background:${isAdd ? 'linear-gradient(135deg,#ecfdf5,#d1fae5)' : 'linear-gradient(135deg,#fef2f2,#fee2e2)'};border-radius:20px;padding:32px;margin:24px 0;border:1px solid ${isAdd ? '#a7f3d0' : '#fca5a5'};text-align:center;">
+        <div style="font-size:36px;margin-bottom:8px;">${isAdd ? '💳' : '💸'}</div>
+        <div style="color:${isAdd ? '#065f46' : '#991b1b'};font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">ACCOUNT BALANCE ADJUSTMENT</div>
+        <div style="color:${isAdd ? '#047857' : '#dc2626'};font-size:42px;font-weight:900;letter-spacing:-1px;margin:8px 0;">
+          ${isAdd ? '+' : '-'}${amountStr}
+        </div>
+        ${note ? `
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid ${isAdd ? 'rgba(6,95,70,0.15)' : 'rgba(153,27,27,0.15)'};color:${isAdd ? '#064e3b' : '#7f1d1d'};font-size:14px;font-weight:600;">
+            Note / Reason: ${note}
+          </div>
+        ` : ''}
+      </div>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${SITE_URL}/profile/billing" style="display:inline-block;background-color:${isAdd ? '#059669' : '#dc2626'};color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:18px 40px;border-radius:14px;box-shadow:0 10px 20px rgba(0,0,0,0.1);letter-spacing:0.5px;">
+          View Billing & Wallet
+        </a>
+      </div>
+
+      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">
+        You can also review support messages and transaction history in your Printis dashboard.
+      </p>
+    `;
+    return emailWrapper(
+      isAdd ? 'linear-gradient(135deg,#065f46 0%,#047857 100%)' : 'linear-gradient(135deg,#991b1b 0%,#dc2626 100%)',
+      isAdd ? '💳 Funds Added' : '💸 Funds Adjusted',
+      'Wallet Balance Notification',
+      body
+    );
+  },
 };
 

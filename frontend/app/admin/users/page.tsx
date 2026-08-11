@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Users, Search, Plus, Minus, Loader2, X, Check, ExternalLink } from 'lucide-react';
+import { Users, Search, Plus, Minus, Loader2, X, Check, ExternalLink, MessageSquare, Send, Shield } from 'lucide-react';
 import { getAdminToken } from '../../lib/getAdminToken';
 
 const supabase = createClient(
@@ -39,6 +39,133 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
+function SupportChatModal({ user, onClose, token }: any) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const fetchChat = async () => {
+    try {
+      const res = await fetch(`/api/admin/users/chat?userId=${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.messages) setMessages(data.messages);
+    } catch (e) {
+      console.error('Failed to load chat:', e);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchChat();
+  }, [user.id, token]);
+
+  const handleSend = async () => {
+    if (!text.trim() || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch('/api/admin/users/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId: user.id, content: text.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setText('');
+        fetchChat();
+      }
+    } catch (e) {
+      console.error('Send error:', e);
+    }
+    setSending(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+      <div style={{ background: '#111d36', border: '1px solid rgba(56, 97, 175, 0.3)', borderRadius: 24, maxWidth: 540, width: '100%', maxHeight: '85vh' }} className="p-6 flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-700/50">
+          <div className="flex items-center gap-3">
+            <Avatar user={user} />
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 style={{ color: '#f1f5f9' }} className="font-black text-base">{user.full_name || 'User'}</h3>
+                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-1">
+                  <Shield size={10} /> Support Chat
+                </span>
+              </div>
+              <p style={{ color: '#64748b', fontSize: '11px' }} className="font-bold">{user.email}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ color: '#64748b' }} className="hover:text-white transition p-1 rounded-lg"><X size={20} /></button>
+        </div>
+
+        {/* Message History */}
+        <div className="flex-1 overflow-y-auto my-4 space-y-3 pr-1 min-h-[220px] max-h-[360px]">
+          {loading ? (
+            <div className="flex items-center justify-center h-32"><Loader2 className="animate-spin text-blue-500" size={24} /></div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 font-bold text-xs">
+              No support message history with this user. Type a message below to start!
+            </div>
+          ) : (
+            messages.map((m, idx) => {
+              const isAdmin = m.sender_id !== user.id;
+              return (
+                <div key={idx} className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
+                  <div className={`p-3.5 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed ${
+                    isAdmin 
+                      ? 'bg-blue-600 text-white rounded-tr-none shadow-md' 
+                      : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'
+                  }`}>
+                    {isAdmin && (
+                      <span className="block text-[9px] font-black uppercase tracking-widest text-blue-200 mb-1">
+                        Printis Support
+                      </span>
+                    )}
+                    <p className="whitespace-pre-line">{m.content}</p>
+                  </div>
+                  <span style={{ color: '#475569', fontSize: '9px' }} className="mt-1 font-mono font-bold px-1">
+                    {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Input area */}
+        <div className="pt-3 border-t border-slate-700/50 flex gap-2">
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Type official support message (user will receive chat notification & email)..."
+            rows={2}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#f1f5f9', borderRadius: 14 }}
+            className="flex-1 p-3 font-medium text-xs outline-none focus:border-blue-500 transition placeholder-slate-600 resize-none"
+          />
+          <button
+            onClick={handleSend}
+            disabled={sending || !text.trim()}
+            style={{ background: '#2563eb', color: '#fff', borderRadius: 14 }}
+            className="px-5 font-black uppercase text-xs tracking-widest hover:bg-blue-500 disabled:opacity-40 transition flex items-center justify-center gap-1.5 flex-shrink-0"
+          >
+            {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BalanceModal({ user, onClose, onDone, token }: any) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -56,7 +183,7 @@ function BalanceModal({ user, onClose, onDone, token }: any) {
     });
     const data = await res.json();
     if (data.success) {
-      setResult(`Successfully ${action === 'add' ? 'added' : 'removed'} €${amount} ${action === 'add' ? 'to' : 'from'} ${user.full_name}'s balance.`);
+      setResult(`Successfully ${action === 'add' ? 'added' : 'removed'} €${amount} ${action === 'add' ? 'to' : 'from'} ${user.full_name}'s balance. Support chat message & email notification sent!`);
       onDone();
     } else {
       setResult('Error: ' + data.error);
@@ -66,7 +193,7 @@ function BalanceModal({ user, onClose, onDone, token }: any) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
-      <div style={{ background: '#111d36', border: '1px solid rgba(56, 97, 175, 0.3)', borderRadius: 24, maxWidth: 440, width: '100%' }} className="p-8">
+      <div style={{ background: '#111d36', border: '1px solid rgba(56, 97, 175, 0.3)', borderRadius: 24, maxWidth: 440, width: '100%' }} className="p-8 shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <h3 style={{ color: '#f1f5f9' }} className="font-black text-lg">Adjust Balance</h3>
           <button onClick={onClose} style={{ color: '#64748b' }} className="hover:text-white transition"><X size={20} /></button>
@@ -135,6 +262,9 @@ function BalanceModal({ user, onClose, onDone, token }: any) {
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#f1f5f9', borderRadius: 12 }}
                 className="w-full p-3 font-medium text-xs outline-none focus:border-blue-500 transition placeholder-slate-600 resize-none"
               />
+              <p style={{ color: '#60a5fa', fontSize: '10px' }} className="font-bold mt-1.5 flex items-center gap-1">
+                <MessageSquare size={12} /> Automatically posts to Support Chat & sends email notification
+              </p>
             </div>
 
             <button
@@ -167,6 +297,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [token, setToken] = useState('');
   const [balanceUser, setBalanceUser] = useState<any>(null);
+  const [chatUser, setChatUser] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchUsers = async () => {
@@ -280,6 +411,13 @@ export default function AdminUsersPage() {
                       >
                         Balance
                       </button>
+                      <button
+                        onClick={() => setChatUser(user)}
+                        style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.25)', fontSize: '10px', borderRadius: 8 }}
+                        className="px-3 py-1.5 font-black uppercase tracking-widest hover:bg-purple-500/25 transition whitespace-nowrap flex items-center gap-1"
+                      >
+                        <MessageSquare size={12} /> Support
+                      </button>
                       <a
                         href={`/user/${user.id}`}
                         target="_blank"
@@ -306,6 +444,14 @@ export default function AdminUsersPage() {
           token={token}
           onClose={() => setBalanceUser(null)}
           onDone={() => { fetchUsers(); }}
+        />
+      )}
+
+      {chatUser && (
+        <SupportChatModal
+          user={chatUser}
+          token={token}
+          onClose={() => setChatUser(null)}
         />
       )}
     </div>
