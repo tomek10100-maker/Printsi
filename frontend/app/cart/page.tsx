@@ -187,17 +187,23 @@ export default function CartPage() {
                       </span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
-                      <button onClick={() => updateQuantity(item.id, -1, item.variant_name)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-gray-100 transition"><Minus size={12} /></button>
-                      <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.id, 1, item.variant_name)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-md shadow-sm transition ${item.stock !== undefined && item.quantity >= item.stock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100'}`}
-                        disabled={item.stock !== undefined && item.quantity >= item.stock}
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
+                     <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
+                       <button
+                         onClick={() => updateQuantity(item.id, -1, item.variant_name)}
+                         disabled={item.quantity <= 1}
+                         className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-gray-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                       >
+                         <Minus size={12} />
+                       </button>
+                       <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
+                       <button
+                         onClick={() => updateQuantity(item.id, 1, item.variant_name)}
+                         className={`w-8 h-8 flex items-center justify-center rounded-md shadow-sm transition ${item.stock !== undefined && item.quantity >= item.stock ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-30' : 'bg-white hover:bg-gray-100'}`}
+                         disabled={item.stock !== undefined && item.quantity >= item.stock}
+                       >
+                         <Plus size={12} />
+                       </button>
+                     </div>
                   )}
 
                   <div className="text-right min-w-[80px]">

@@ -427,7 +427,7 @@ export default function OnboardingPage() {
                                         </div>
                                     </div>
                                     <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
-                                        I have read and I accept the <span className="text-blue-600 dark:text-blue-400 font-black underline">Printis Terms of Service</span> and <span className="text-blue-600 dark:text-blue-400 font-black underline">Privacy Policy</span>. I understand that by using the Platform, I agree to be bound by these Terms.
+                                        I have read and I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 dark:text-blue-400 font-black underline hover:opacity-80 transition-opacity">Printis Terms of Service</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 dark:text-blue-400 font-black underline hover:opacity-80 transition-opacity">Privacy Policy</a>. I understand that by using the Platform, I agree to be bound by these Terms.
                                     </span>
                                 </label>
 
@@ -445,7 +445,7 @@ export default function OnboardingPage() {
                                         </div>
                                     </div>
                                     <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
-                                        I expressly consent to the immediate delivery of digital content (3D model files) before the expiry of the 14-day withdrawal period, and I acknowledge that by granting this consent, <span className="text-emerald-700 dark:text-emerald-400 font-black underline">I lose my right to withdraw from the contract</span> for digital file purchases once the file has been delivered. (§7 of the Terms, Art. 38(13) of the Consumer Rights Act)
+                                        I expressly consent to the immediate delivery of digital content (3D model files) before the expiry of the 14-day withdrawal period, and I acknowledge that by granting this consent, <a href="/terms#withdrawal" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-emerald-700 dark:text-emerald-400 font-black underline hover:opacity-80 transition-opacity">I lose my right to withdraw from the contract</a> for digital file purchases once the file has been delivered. (§7 of the Terms, Art. 38(13) of the Consumer Rights Act)
                                     </span>
                                 </label>
                             </div>

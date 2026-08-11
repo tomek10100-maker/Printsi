@@ -667,12 +667,42 @@ export default function OfferDetailsPage() {
                    </span>
                  </div>
                  <div className="flex items-center gap-6 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
-                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90"><Minus size={16} /></button>
-                    <span className="font-black text-2xl w-8 text-center">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                      disabled={quantity <= 1}
+                      className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:active:scale-100"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={currentStock}
+                      value={quantity === 0 ? '' : quantity}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setQuantity(0);
+                        } else {
+                          const parsed = parseInt(raw, 10);
+                          if (!isNaN(parsed)) {
+                            setQuantity(Math.min(currentStock, Math.max(1, parsed)));
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!quantity || quantity < 1) {
+                          setQuantity(1);
+                        } else if (quantity > currentStock) {
+                          setQuantity(currentStock);
+                        }
+                      }}
+                      className="font-black text-2xl w-14 text-center bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-gray-900"
+                    />
                     <button
                       onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
-                      className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90"
                       disabled={quantity >= currentStock}
+                      className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:active:scale-100"
                     >
                       <Plus size={16} />
                     </button>
