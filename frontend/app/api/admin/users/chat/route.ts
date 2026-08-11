@@ -3,7 +3,7 @@ import { verifyAdmin, supabaseAdmin, FORBIDDEN, getAuthEmailMap } from '../../..
 import { sendEmail, EmailTemplates } from '../../../../lib/emailService';
 
 /**
- * GET — Fetch or create support chat messages for a specific user.
+ * GET — Fetch or create dedicated support chat messages for a specific user.
  * Query param: userId
  */
 export async function GET(req: Request) {
@@ -18,22 +18,26 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 1. Find existing chat for this user
+    // 1. Find existing DEDICATED support chat (offer_id IS NULL AND order_id IS NULL)
     let { data: chat } = await supabaseAdmin
       .from('chats')
       .select('id, created_at, updated_at')
       .eq('buyer_id', userId)
+      .is('offer_id', null)
+      .is('order_id', null)
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (!chat) {
-      // Create new support chat
+      // Create new dedicated support chat
       const { data: newChat, error: createErr } = await supabaseAdmin
         .from('chats')
         .insert({
           buyer_id: userId,
           seller_id: adminId,
+          offer_id: null,
+          order_id: null,
           updated_at: new Date().toISOString(),
         })
         .select()
@@ -68,7 +72,7 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST — Send a direct support message from Admin to a User.
+ * POST — Send a direct support message from Admin to a User in a dedicated Support Chat thread.
  * Body: { userId: string, content: string }
  */
 export async function POST(req: Request) {
@@ -89,11 +93,13 @@ export async function POST(req: Request) {
       .eq('id', userId)
       .maybeSingle();
 
-    // 2. Find or Create Support Chat Thread
+    // 2. Find or Create DEDICATED Support Chat Thread (offer_id IS NULL AND order_id IS NULL)
     let { data: chat } = await supabaseAdmin
       .from('chats')
       .select('id')
       .eq('buyer_id', userId)
+      .is('offer_id', null)
+      .is('order_id', null)
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -104,6 +110,8 @@ export async function POST(req: Request) {
         .insert({
           buyer_id: userId,
           seller_id: adminId,
+          offer_id: null,
+          order_id: null,
           updated_at: new Date().toISOString(),
         })
         .select()

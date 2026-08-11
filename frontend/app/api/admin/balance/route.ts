@@ -4,7 +4,7 @@ import { sendEmail, EmailTemplates } from '../../../lib/emailService';
 
 /**
  * POST — Add or subtract balance from a user account.
- * Automatically posts a notification message into the user's Support Chat thread
+ * Automatically posts a notification message into the user's dedicated Support Chat thread
  * and sends an official email notification from Printis Support.
  * Body: { userId: string, amount: number, note: string, action: 'add' | 'remove' }
  */
@@ -63,11 +63,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3. Find or Create Support Chat Thread with User
+    // 3. Find or Create DEDICATED Support Chat Thread (offer_id IS NULL AND order_id IS NULL)
     const { data: existingChats } = await supabaseAdmin
       .from('chats')
       .select('id')
       .eq('buyer_id', userId)
+      .is('offer_id', null)
+      .is('order_id', null)
       .order('updated_at', { ascending: false })
       .limit(1);
 
@@ -79,6 +81,8 @@ export async function POST(req: Request) {
         .insert({
           buyer_id: userId,
           seller_id: adminId,
+          offer_id: null,
+          order_id: null,
           updated_at: new Date().toISOString(),
         })
         .select()
@@ -89,7 +93,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Post Support Notification Message into the Chat
+    // 4. Post Support Notification Message into the Dedicated Support Chat
     if (chatId) {
       const amountFormatted = `€${numAmount.toFixed(2)}`;
       const messageContent = `💳 Wallet Balance Adjusted: ${action === 'add' ? '+' : '-'}${amountFormatted} has been ${action === 'add' ? 'added to' : 'deducted from'} your account balance.${note ? `\n\nNote / Reason: ${note}` : ''}`;

@@ -215,20 +215,27 @@ function MessagesInner() {
                 .limit(1);
 
             const isEmpty = !mError && (!mData || mData.length === 0);
+            const isSupport = !chat.offer_id && !chat.order_id;
 
-            if (isEmpty) {
-                // User requirement: delete chats that have NO user content and NO order attached
-                if (!chat.order_id) {
+            if (isEmpty && !isSupport) {
+                // User requirement: delete empty chats ONLY if they are draft product chats
+                if (!chat.order_id && chat.offer_id) {
                     await supabase.from('chats').delete().eq('id', chat.id);
                     return null;
                 }
             }
 
-            const { data: otherProfile } = await supabase
-                .from('profiles')
-                .select('full_name, avatar_url')
-                .eq('id', otherUserId)
-                .single();
+            let otherUser = null;
+            if (isSupport) {
+                otherUser = { full_name: 'Printis Support', isSupport: true, avatar_url: null };
+            } else {
+                const { data: otherProfile } = await supabase
+                    .from('profiles')
+                    .select('full_name, avatar_url')
+                    .eq('id', otherUserId)
+                    .single();
+                otherUser = otherProfile || { full_name: 'Unknown User' };
+            }
 
             const { count: unreadCount } = await supabase
                 .from('messages')
@@ -262,7 +269,7 @@ function MessagesInner() {
                 }
             }
 
-            return { ...chat, otherUser: otherProfile || { full_name: 'Unknown User' }, unreadCount: unreadCount || 0, orderItem: orderItemInfo };
+            return { ...chat, isSupport, otherUser, unreadCount: unreadCount || 0, orderItem: orderItemInfo };
         }));
 
         const filteredChats = enrichChats.filter(c => c !== null) as any[];
@@ -2421,24 +2428,49 @@ function MessagesInner() {
                                 {chatTab === 'archived' && <p className="text-xs text-gray-400 mt-1 font-medium">Chats are auto-archived 24h after completion</p>}
                             </div>
                         );
-                        return filteredChats.map((chat) => (
+                        return filteredChats.map((chat) => {
+                            const isSupport = chat.isSupport || (!chat.offer_id && !chat.order_id);
+                            return (
                             <div key={chat.id} className="relative group/chatrow">
                                 <button
                                     onClick={() => setActiveChatId(chat.id)}
-                                    className={`w-full text-left p-4 border-b border-gray-50 transition-colors hover:bg-blue-50/50 flex gap-3 pr-10 ${activeChatId === chat.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'border-l-4 border-l-transparent'}`}
+                                    className={`w-full text-left p-4 border-b border-gray-50 transition-all flex gap-3 pr-10 ${
+                                      isSupport
+                                        ? activeChatId === chat.id
+                                          ? 'bg-gradient-to-r from-blue-900/15 via-indigo-900/15 to-slate-900/10 border-l-4 border-l-blue-600 font-bold shadow-xs'
+                                          : 'bg-gradient-to-r from-blue-950/5 via-indigo-950/5 to-transparent hover:bg-blue-50/70 border-l-4 border-l-blue-500'
+                                        : activeChatId === chat.id
+                                          ? 'bg-blue-50 border-l-4 border-l-blue-600'
+                                          : 'border-l-4 border-l-transparent hover:bg-blue-50/50'
+                                    }`}
                                 >
-                                    <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-                                        {chat.otherUser?.avatar_url ? (
+                                    <div className={`w-10 h-10 rounded-full border overflow-hidden shrink-0 flex items-center justify-center ${
+                                      isSupport
+                                        ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 border-blue-400 shadow-md text-white'
+                                        : 'bg-gray-100 border-gray-200'
+                                    }`}>
+                                        {isSupport ? (
+                                            <Shield size={20} className="text-white drop-shadow-xs" />
+                                        ) : chat.otherUser?.avatar_url ? (
                                             <img src={chat.otherUser.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                                         ) : (
                                             <User size={20} className="text-gray-400" />
                                         )}
                                     </div>
                                     <div className="overflow-hidden flex-1 flex flex-col justify-center">
-                                        <h3 className={`truncate text-sm ${chat.id === 'draft' ? 'text-blue-500 font-black' : (chat.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-700')}`}>
-                                            {chat.otherUser?.full_name}
-                                        </h3>
-                                        <p className={`text-xs truncate mt-0.5 ${chat.unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-blue-600 font-bold'}`}>{chat.offers?.title || 'Unknown Item'}</p>
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <h3 className={`truncate text-sm ${isSupport ? 'text-blue-600 font-black' : (chat.id === 'draft' ? 'text-blue-500 font-black' : (chat.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-700'))}`}>
+                                                {isSupport ? 'Printis Support' : chat.otherUser?.full_name}
+                                            </h3>
+                                            {isSupport && (
+                                              <span className="px-1.5 py-0.5 bg-blue-600 text-white text-[8px] font-black uppercase tracking-wider rounded flex items-center gap-0.5 shadow-2xs shrink-0">
+                                                <Shield size={9} /> SUPPORT
+                                              </span>
+                                            )}
+                                        </div>
+                                        <p className={`text-xs truncate mt-0.5 ${isSupport ? 'text-blue-600 font-black' : (chat.unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-blue-600 font-bold')}`}>
+                                            {isSupport ? 'Official System Communication' : (chat.offers?.title || 'Unknown Item')}
+                                        </p>
                                         {chat.order_id && (
                                             <span className={`inline-block mt-1.5 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${
                                                 chat.orderItem?.status === 'completed' || chat.orderItem?.status === 'transfer_completed' ? 'bg-emerald-100 text-emerald-700' :
@@ -2481,8 +2513,9 @@ function MessagesInner() {
                                     </button>
                                 )}
                             </div>
-                        ));
-                    })()}
+                        );
+                        });
+                      })()}
                     </div>
                 </div>
 
@@ -2494,27 +2527,54 @@ function MessagesInner() {
                         </div>
                     ) : (
                         <>
-                            {activeChatData && (
-                                <div className="bg-white px-6 py-4 border-b border-gray-100 flex items-center gap-4 shrink-0 shadow-sm">
-                                    <button onClick={() => setActiveChatId(null)} className="md:hidden p-2 -ml-2 text-gray-400 hover:text-gray-900">
+                            {activeChatData && (() => {
+                                const isSupport = activeChatData.isSupport || (!activeChatData.offer_id && !activeChatData.order_id);
+                                return (
+                                <div className={`px-6 py-4 border-b flex items-center gap-4 shrink-0 shadow-sm ${
+                                  isSupport 
+                                    ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border-blue-500/30 text-white' 
+                                    : 'bg-white border-gray-100'
+                                }`}>
+                                    <button onClick={() => setActiveChatId(null)} className={`md:hidden p-2 -ml-2 ${isSupport ? 'text-slate-400 hover:text-white' : 'text-gray-400 hover:text-gray-900'}`}>
                                         <ArrowLeft size={20} />
                                     </button>
-                                    <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-                                        {activeChatData.otherUser?.avatar_url ? (
+                                    <div className={`w-10 h-10 rounded-full border overflow-hidden shrink-0 flex items-center justify-center ${
+                                      isSupport
+                                        ? 'bg-gradient-to-br from-blue-500 via-indigo-600 to-slate-900 border-blue-400 shadow-lg text-white'
+                                        : 'bg-gray-100 border-gray-200'
+                                    }`}>
+                                        {isSupport ? (
+                                            <Shield size={22} className="text-white drop-shadow-md" />
+                                        ) : activeChatData.otherUser?.avatar_url ? (
                                             <img src={activeChatData.otherUser.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                                         ) : (
                                             <User size={20} className="text-gray-400" />
                                         )}
                                     </div>
-                                    <div className="flex-1">
-                                        <h2 className="font-bold text-gray-900">{activeChatData.otherUser?.full_name}</h2>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <h2 className={`font-black text-base truncate ${isSupport ? 'text-white' : 'text-gray-900'}`}>
+                                              {isSupport ? 'Printis Support' : activeChatData.otherUser?.full_name}
+                                            </h2>
+                                            {isSupport && (
+                                              <span className="px-2 py-0.5 bg-blue-500/30 border border-blue-400/40 text-blue-300 text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-1">
+                                                <Shield size={10} /> Verified Support
+                                              </span>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-3 mt-0.5">
-                                            <Link href={`/offer/${activeChatData.offer_id}`} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 w-fit">
-                                                <Package size={12} /> {activeChatData.offers?.title}
-                                            </Link>
+                                            {isSupport ? (
+                                              <span className="text-xs font-medium text-slate-300 truncate">
+                                                Official Customer Support & System Communication
+                                              </span>
+                                            ) : (
+                                              <Link href={`/offer/${activeChatData.offer_id}`} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 w-fit">
+                                                  <Package size={12} /> {activeChatData.offers?.title}
+                                              </Link>
+                                            )}
                                         </div>
                                     </div>
-                                    {!activeChatData.order_id && (
+                                    {!isSupport && !activeChatData.order_id && (
                                         <button
                                             type="button"
                                             onClick={() => openProposalModal()}
@@ -2525,7 +2585,8 @@ function MessagesInner() {
                                         </button>
                                     )}
                                 </div>
-                            )}
+                                );
+                            })()}
                             <div className="shrink-0 border-b border-gray-200 bg-white relative z-20 shadow-sm">
                                 {(showJobProposalBanner || (activeChatData?.offers?.category === 'job')) && activeChatData && (() => {
                                     const isJobOffer = activeChatData.offers?.category === 'job';
