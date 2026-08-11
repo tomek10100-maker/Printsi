@@ -391,10 +391,7 @@ export default function HomePage() {
       </div>
 
       <footer className="relative z-10 py-10">
-        <div className="max-w-7xl mx-auto px-12 flex justify-between items-center">
-          <div className="flex gap-10 opacity-40">
-            <FooterIcon icon={<Globe size={16} />} /><FooterIcon icon={<Zap size={16} />} /><FooterIcon icon={<Shield size={16} />} /><FooterIcon icon={<Users size={16} />} />
-          </div>
+        <div className="max-w-7xl mx-auto px-12 flex justify-center items-center">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">© 2026 Printis Ecosystem</p>
         </div>
       </footer>
@@ -416,14 +413,6 @@ function StatCard({ icon, label, value, color }: any) {
       <div className="p-4 bg-white rounded-2xl shadow-sm border border-white/50 mb-6">{icon}</div>
       <span className="text-xl font-black uppercase tracking-[0.3em] opacity-60 mb-3">{label}</span>
       <div className="text-6xl font-black tracking-tighter">{value.toLocaleString()}</div>
-    </div>
-  );
-}
-
-function FooterIcon({ icon }: { icon: React.ReactNode }) {
-  return (
-    <div className="text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">
-      {icon}
     </div>
   );
 }
