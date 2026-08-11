@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import {
-  User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins, AlertCircle, Loader2, MapPin
+  User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins, AlertCircle, Loader2, MapPin, UploadCloud
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { DHL_COUNTRIES } from '../lib/dhlRates';
@@ -42,6 +42,9 @@ export default function SettingsPage() {
   const [roleError, setRoleError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [country, setCountry] = useState('PL');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (roleError) {
@@ -70,11 +73,50 @@ export default function SettingsPage() {
         setBio(profile.bio || '');
         setRoles(profile.roles || ['customer']);
         setCountry(profile.country || 'PL');
+        setAvatarUrl(profile.avatar_url || '');
       }
       setLoading(false);
     };
     getData();
   }, [router]);
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!user || !file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (JPEG, PNG, WEBP).');
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filePath = `avatars/${user.id}-${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('printsi-files1')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('printsi-files1')
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+      setAvatarUrl(publicUrl);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+    } catch (err: any) {
+      console.error('Avatar upload error:', err);
+      alert('Failed to upload avatar: ' + (err.message || 'Unknown error'));
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -86,6 +128,7 @@ export default function SettingsPage() {
         bio,
         roles,
         country,
+        avatar_url: avatarUrl,
         updated_at: new Date(),
       };
 
@@ -259,13 +302,43 @@ export default function SettingsPage() {
 
             <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm space-y-8">
               <div className="flex items-center gap-8 border-b border-gray-100 pb-8">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 font-black text-3xl overflow-hidden">
-                  {user.email[0].toUpperCase()}
+                <div className="relative group shrink-0">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 font-black text-3xl overflow-hidden border-2 border-gray-200 shadow-md">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{fullName?.[0]?.toUpperCase() || user.email[0].toUpperCase()}</span>
+                    )}
+                  </div>
+                  {avatarUploading && (
+                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                      <Loader2 className="animate-spin text-white" size={24} />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 text-lg">Profile Picture</h3>
-                  <p className="text-sm text-gray-400 mb-3">We use Gravatar or upload your own.</p>
-                  <button className="px-5 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-blue-600 transition-colors">Change Avatar</button>
+                  <p className="text-sm text-gray-400 mb-3">Upload your custom avatar (JPEG, PNG, WEBP).</p>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleAvatarUpload(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="px-5 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-wide hover:bg-blue-600 transition-colors shadow-md disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {avatarUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                    {avatarUploading ? 'Uploading...' : 'Change Avatar'}
+                  </button>
                 </div>
               </div>
 
