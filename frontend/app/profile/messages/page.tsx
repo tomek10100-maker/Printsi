@@ -2488,6 +2488,16 @@ function MessagesInner() {
                                             </Link>
                                         </div>
                                     </div>
+                                    {!activeChatData.order_id && (
+                                        <button
+                                            type="button"
+                                            onClick={() => openProposalModal()}
+                                            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center gap-2 shrink-0 active:scale-95 border border-blue-400/20"
+                                            title="Negotiate custom price, material, size or color"
+                                        >
+                                            <Handshake size={16} /> Negotiate / Custom Offer
+                                        </button>
+                                    )}
                                 </div>
                             )}
                             <div className="shrink-0 border-b border-gray-200 bg-white relative z-20 shadow-sm">
@@ -3807,14 +3817,9 @@ function MessagesInner() {
                                         return (
                                             <>
                                                 {/* Negotiate / Special Offer button (no order) */}
-                                                {isBuyer && !hasOrder && (
-                                                    <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                        <Handshake size={14} /> Negotiate
-                                                    </button>
-                                                )}
-                                                {isSeller && !hasOrder && (
-                                                    <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm">
-                                                        <Handshake size={14} /> Special Offer
+                                                {!hasOrder && (
+                                                    <button type="button" onClick={() => openProposalModal()} className="px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 h-[50px] w-full sm:w-auto shrink-0 whitespace-nowrap shadow-sm active:scale-95">
+                                                        <Handshake size={14} /> Negotiate / Custom Offer
                                                     </button>
                                                 )}
 

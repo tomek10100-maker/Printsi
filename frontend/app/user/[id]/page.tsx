@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import {
   MapPin, Calendar, Loader2, ArrowLeft,
-  Package, ShoppingBag, ArrowRight, User as UserIcon, Flag, X, CheckCircle
+  Package, ShoppingBag, ArrowRight, User as UserIcon, Flag, X, CheckCircle, Handshake
 } from 'lucide-react';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { getCountryDisplay } from '../../lib/countryHelpers';
@@ -139,15 +139,31 @@ export default function PublicProfilePage() {
             </div>
           </div>
 
-          {/* Report User button — only for logged-in non-owners */}
+          {/* Contact / Negotiate button — only for logged-in non-owners */}
           {currentUser && !isOwnProfile && (
-            <button
-              onClick={() => { setReportDone(false); setReportReason(''); setReportDesc(''); setShowReportModal(true); }}
-              title="Report this user"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-400 hover:text-red-500 transition text-xs font-black uppercase tracking-widest mb-2"
-            >
-              <Flag size={14} /> Report User
-            </button>
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => {
+                  const firstOffer = offers[0];
+                  if (firstOffer) {
+                    router.push(`/profile/messages?seller_id=${params.id}&offer_id=${firstOffer.id}`);
+                  } else {
+                    router.push(`/profile/messages?seller_id=${params.id}`);
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition text-xs font-black uppercase tracking-widest shadow-md active:scale-95"
+              >
+                <Handshake size={16} /> Contact / Negotiate
+              </button>
+
+              <button
+                onClick={() => { setReportDone(false); setReportReason(''); setReportDesc(''); setShowReportModal(true); }}
+                title="Report this user"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-400 hover:text-red-500 transition text-xs font-black uppercase tracking-widest"
+              >
+                <Flag size={14} /> Report
+              </button>
+            </div>
           )}
         </div>
 
