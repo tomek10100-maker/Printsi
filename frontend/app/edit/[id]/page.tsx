@@ -572,7 +572,7 @@ export default function EditOfferPage() {
                         value={manualPriceLocal} 
                         onChange={e => {
                           const val = e.target.value.replace(',', '.');
-                          if (/^\d*\.?\d*$/.test(val)) {
+                          if (/^\d*\.?\d{0,2}$/.test(val)) {
                             setManualPriceLocal(val);
                             if (category === 'physical' && manualVariants.length > 0) {
                               updateManualVariant(manualVariants[0].id, { priceLocal: val });
@@ -760,7 +760,7 @@ export default function EditOfferPage() {
                               value={manualPriceLocal}
                               onChange={e => {
                                 const val = e.target.value.replace(',', '.');
-                                if (/^\d*\.?\d*$/.test(val)) setManualPriceLocal(val);
+                                if (/^\d*\.?\d{0,2}$/.test(val)) setManualPriceLocal(val);
                               }}
                               className="w-full min-w-0 bg-transparent outline-none font-black text-4xl text-gray-900 placeholder-gray-200"
                               required={!isNegotiable} title="Please fill out this field" />
@@ -989,7 +989,10 @@ export default function EditOfferPage() {
                                </div>
 
                                <div className="grid grid-cols-2 gap-3">
-                                  <div><span className="text-[9px] font-black uppercase text-gray-400">Price ({currency})</span><input type="text" value={v.priceLocal} onChange={e => updateManualVariant(v.id, { priceLocal: e.target.value.replace(',', '.') })} className="w-full p-3 bg-gray-50 border rounded-xl font-black text-sm"/></div>
+                                  <div><span className="text-[9px] font-black uppercase text-gray-400">Price ({currency})</span><input type="text" value={v.priceLocal} onChange={e => {
+                                  const val = e.target.value.replace(',', '.');
+                                  if (/^\d*\.?\d{0,2}$/.test(val)) updateManualVariant(v.id, { priceLocal: val });
+                               }} className="w-full p-3 bg-gray-50 border rounded-xl font-black text-sm"/></div>
                                   <div><span className="text-[9px] font-black uppercase text-gray-400">Stock</span><input type="text" value={v.stock} onChange={e => updateManualVariant(v.id, { stock: e.target.value })} className="w-full p-3 bg-gray-50 border rounded-xl font-black text-sm"/></div>
                                </div>
                              </div>

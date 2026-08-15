@@ -1830,7 +1830,7 @@ export default function AddOfferPage() {
                                         <SectionLabel step="" label="Print Weight (g)" />
                                         <input type="text" value={layer.weight} onChange={e => {
                                           const val = e.target.value.replace(',', '.');
-                                          if (/^\d*\.?\d*$/.test(val)) updateManualLayer(v.id, layer.id, { weight: val });
+                                          if (/^\d*\.?\d{0,2}$/.test(val)) updateManualLayer(v.id, layer.id, { weight: val });
                                         }} placeholder="20" className="w-full p-2.5 mt-1 bg-gray-50 border border-gray-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500" />
                                       </div>
                                     </div>
@@ -1845,7 +1845,7 @@ export default function AddOfferPage() {
                                 <SectionLabel step="" label={`Price (${currency})`} />
                                 <input type="text" value={v.priceLocal} onChange={e => {
                                   const val = e.target.value.replace(',', '.');
-                                  if (/^\d*\.?\d*$/.test(val)) updateManualVariant(v.id, { priceLocal: val });
+                                  if (/^\d*\.?\d{0,2}$/.test(val)) updateManualVariant(v.id, { priceLocal: val });
                                 }} placeholder="25.00" className="w-full p-3 mt-1 bg-white border border-gray-200 rounded-xl font-black text-sm outline-none focus:border-blue-500 text-blue-600 shadow-sm" />
                               </div>
                               <div>
@@ -1929,7 +1929,7 @@ export default function AddOfferPage() {
                           value={manualPriceLocal}
                           onChange={e => {
                             const val = e.target.value.replace(',', '.');
-                            if (/^\d*\.?\d*$/.test(val)) setManualPriceLocal(val);
+                            if (/^\d*\.?\d{0,2}$/.test(val)) setManualPriceLocal(val);
                           }}
                           className="w-full min-w-0 bg-transparent outline-none font-black text-4xl text-gray-900 placeholder-gray-200"
                           required={!isNegotiable} title="Please fill out this field" />
