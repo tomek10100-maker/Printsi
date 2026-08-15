@@ -48,6 +48,8 @@ function CheckoutInner() {
   const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({});
   const [sellerDisabledCouriers, setSellerDisabledCouriers] = useState<Record<string, string[]>>({});
   const [sellerDeliverySettings, setSellerDeliverySettings] = useState<Record<string, any>>({});
+  // Flag: true once seller profile data (including disabled_couriers) has been fetched
+  const [sellerDataLoaded, setSellerDataLoaded] = useState(false);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   // Stable options — never clears once set, prevents spinner flash between re-renders
   const [stableShippingOptions, setStableShippingOptions] = useState<ShippingOption[]>([]);
@@ -181,8 +183,10 @@ function CheckoutInner() {
   }, [items, isTopup]);
 
   // Compute available shipping options — first try live Furgonetka prices, fall back to static
+  // Only runs after seller profile data is loaded so disabled_couriers restrictions are applied correctly
   const fetchShippingOptions = React.useCallback(async () => {
     if (!hasShippable) return;
+    if (!sellerDataLoaded) return; // Wait for seller profile data (incl. disabled_couriers) to load
     const plnRate = rates?.['PLN'] || 4.25;
 
     let totalWeightGrams = 0;
@@ -267,7 +271,7 @@ function CheckoutInner() {
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, sellerDisabledCouriers, formData.country, rates]);
+  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, sellerDisabledCouriers, formData.country, rates, sellerDataLoaded]);
 
   useEffect(() => {
     fetchShippingOptions();
@@ -376,8 +380,18 @@ function CheckoutInner() {
             });
             setSellerCountries(countries);
             setSellerDisabledCouriers(disabledMap);
+            setSellerDataLoaded(true); // Seller data is ready — safe to fetch shipping options now
+          } else {
+            // No seller IDs to fetch — still mark as loaded so shipping options can proceed
+            setSellerDataLoaded(true);
           }
+        } else {
+          // Offer data fetch returned nothing — still mark seller data as loaded
+          setSellerDataLoaded(true);
         }
+      } else {
+        // No items in cart — still mark seller data as loaded
+        setSellerDataLoaded(true);
       }
 
       const { data: sales } = await supabase.from('order_items').select('price_at_purchase, quantity, status').eq('seller_id', user.id);
