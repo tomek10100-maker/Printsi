@@ -51,7 +51,7 @@ export default function TermsPage() {
             <div className="pt-2 border-t border-blue-200/60 flex items-start gap-2 text-[11px] text-gray-700 font-medium">
               <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
               <p>
-                <strong>Shipping Cost Exclusion:</strong> Return shipping costs to the maker or Printis inspection center are non-refundable and must be borne by the returning party (<em>zwrot pieniędzy za zamówienie następuje na Twoje konto, bez kosztów wysyłki powrotnej</em>).
+                <strong>Shipping Cost Exclusion:</strong> Return shipping costs to the maker or Printis inspection center are non-refundable and must be borne by the returning party (<em>refunds are credited directly to your account, excluding return shipping fees</em>).
               </p>
             </div>
           </div>

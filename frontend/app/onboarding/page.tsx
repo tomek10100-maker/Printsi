@@ -17,7 +17,7 @@ const supabase = createClient(
 
 const CURRENCIES = [
     { code: 'EUR', label: '🇪🇺 Euro (€)' },
-    { code: 'PLN', label: '🇵🇱 Polski Złoty (zł)' },
+    { code: 'PLN', label: '🇵🇱 Polish Zloty (PLN)' },
     { code: 'CZK', label: '🇨🇿 Czech Koruna (Kč)' },
     { code: 'HUF', label: '🇭🇺 Hungarian Forint (Ft)' },
     { code: 'RON', label: '🇷🇴 Romanian Leu (lei)' },
@@ -29,7 +29,7 @@ const TOTAL_STEPS = 4;
 const TOS_SECTIONS = [
     {
         title: '§1. General Provisions and Definitions',
-        content: `These Terms of Service ("Terms") govern access to and use of the Printis online marketplace ("Platform"), available at printis.io, operated by Printis Global Sp. z o.o., ul. Wymyślona 404/2, 00-000 Warszawa, Poland, NIP: 1234567890, e-mail: legal@printis.io ("Administrator").
+        content: `These Terms of Service ("Terms") govern access to and use of the Printis online marketplace ("Platform"), available at printis.io, operated by Printis Global Ltd, 100 Innovation Ave, Suite 404, 00-000 Warsaw, Poland, NIP: 1234567890, e-mail: legal@printis.io ("Administrator").
 
 Definitions:
 • User – any individual or legal entity accessing the Platform.

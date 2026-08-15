@@ -17,7 +17,7 @@ const supabase = createClient(
 // Waluty krajów obsługiwanych przez Vinted (wysyłka z PL)
 const CURRENCIES = [
   { code: 'EUR', label: '🇪🇺 Euro (€)' },
-  { code: 'PLN', label: '🇵🇱 Polski Złoty (zł)' },
+  { code: 'PLN', label: '🇵🇱 Polish Zloty (PLN)' },
   { code: 'CZK', label: '🇨🇿 Czech Koruna (Kč)' },
   { code: 'HUF', label: '🇭🇺 Hungarian Forint (Ft)' },
   { code: 'RON', label: '🇷🇴 Romanian Leu (lei)' },

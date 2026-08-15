@@ -51,9 +51,9 @@ export default function AboutPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm font-medium text-gray-600">
               <div>
                 <p className="font-black text-gray-900 uppercase tracking-widest mb-2 text-xs">Registered Address</p>
-                <p>Printis Global Sp. z o.o. (To Jest Fikcja)</p>
-                <p>ul. Wymyślona 404/2</p>
-                <p>00-000 Warszawa, Polska</p>
+                <p>Printis Global Ltd (Demo Entity)</p>
+                <p>100 Innovation Ave, Suite 404</p>
+                <p>00-000 Warsaw, Poland</p>
               </div>
               <div>
                 <p className="font-black text-gray-900 uppercase tracking-widest mb-2 text-xs">Legal Information</p>
