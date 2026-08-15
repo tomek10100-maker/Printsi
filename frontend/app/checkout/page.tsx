@@ -546,7 +546,8 @@ function CheckoutInner() {
                           value={topupAmount}
                           onChange={(e) => {
                             const val = e.target.value;
-                            if (val === '' || /^[0-9]*\.?[0-9]*$/.test(val)) {
+                            // Allow only up to 2 decimal places
+                            if (val === '' || /^[0-9]*\.?[0-9]{0,2}$/.test(val)) {
                               setTopupAmount(val);
                             }
                           }}

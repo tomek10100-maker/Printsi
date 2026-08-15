@@ -83,15 +83,20 @@ export async function POST(req: Request) {
     }
 
     // 5. CONVERT TO INTERNAL SYSTEM CURRENCY (EUR)
+    // We take the EXACT paid amount from the Stripe session to be 100% sure.
     const paidAmount = (session.amount_total || 0) / 100;
     const paidCurrency = (session.currency || 'EUR').toUpperCase();
-    const paidRate = Number(session.metadata?.topup_rate || 1);
     
-    // Internal EUR calculation for the database
-    const amountInEur = paidAmount / paidRate;
+    // Fetch the LIVE rate from the same API the frontend CurrencyContext uses.
+    // This guarantees that when the billing page converts EUR back to the user's
+    // currency, it uses the same rate and the customer sees the exact amount they paid.
+    // Keep full EUR precision — do NOT round to 2 decimal places, because
+    // rounding destroys the inverse relationship.
+    const amountInEur = await getEurAmount(paidAmount, paidCurrency);
+    
     const negativeAmount = -Math.abs(amountInEur);
 
-    console.log(`💰 [Topup API] Paid: ${paidAmount} ${paidCurrency} -> Internal: ${amountInEur.toFixed(2)} EUR`);
+    console.log(`💰 [Topup API] Paid: ${paidAmount} ${paidCurrency} -> Internal: ${amountInEur} EUR (full precision)`);
 
     // 6. LOG TRANSACTION AS NEGATIVE PAYOUT (negative = funds added to wallet)
     // Tries to insert with `notes`, falls back to core columns if schema lacks `notes`

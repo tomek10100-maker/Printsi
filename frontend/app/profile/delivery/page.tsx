@@ -42,16 +42,30 @@ export default function DeliverySettingsPage() {
             if (!user) { router.push('/login'); return; }
             setUser(user);
 
-            const { data: profile } = await supabase
+            let profileData: any = null;
+            const { data: profile, error } = await supabase
                 .from('profiles')
-                .select('country, free_shipping_enabled, free_shipping_threshold')
+                .select('country, free_shipping_enabled, free_shipping_threshold, disabled_couriers')
                 .eq('id', user.id)
                 .single();
 
-            if (profile) {
-                setShipFromCountry(profile.country || 'Poland');
-                setFreeShippingEnabled(profile.free_shipping_enabled || false);
-                setFreeShippingThreshold(profile.free_shipping_threshold?.toString() || '0');
+            if (error) {
+                // Fallback if custom delivery columns do not exist in DB schema yet
+                const { data: fallbackProfile } = await supabase
+                    .from('profiles')
+                    .select('country')
+                    .eq('id', user.id)
+                    .single();
+                profileData = fallbackProfile;
+            } else {
+                profileData = profile;
+            }
+
+            if (profileData) {
+                setShipFromCountry(profileData.country || 'Poland');
+                setFreeShippingEnabled(profileData.free_shipping_enabled || false);
+                setFreeShippingThreshold(profileData.free_shipping_threshold?.toString() || '0');
+                setDisabledCouriers(profileData.disabled_couriers || []);
             }
 
             setLoading(false);
@@ -82,15 +96,29 @@ export default function DeliverySettingsPage() {
 
     const handleSave = async () => {
         setSaving(true);
-        const { error } = await supabase
+        // First try saving with all delivery fields
+        let { error } = await supabase
             .from('profiles')
             .update({ 
                 country: shipFromCountry,
                 free_shipping_enabled: freeShippingEnabled,
                 free_shipping_threshold: parseFloat(freeShippingThreshold) || 0,
+                disabled_couriers: disabledCouriers,
                 updated_at: new Date().toISOString()
             })
             .eq('id', user.id);
+
+        // If DB table is missing extra columns, fallback gracefully to updating country
+        if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('schema cache'))) {
+            const { error: fallbackErr } = await supabase
+                .from('profiles')
+                .update({ 
+                    country: shipFromCountry,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', user.id);
+            error = fallbackErr;
+        }
 
         if (error) {
             alert('Error saving: ' + error.message);

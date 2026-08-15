@@ -94,8 +94,9 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       convertedAmount = amount * rates[currency];
     }
 
-    // Zaokrąglenie do 2 miejsc po przecinku (use a nano-epsilon (0.0001) to avoid 9.99 glitches without penny-creep)
-    const roundedAmount = Math.round((convertedAmount + (skipConversion ? 0 : 0.0001)) * 100) / 100;
+    // Round to 2 decimal places using standard rounding (no epsilon offset
+    // which can add phantom cents on large amounts)
+    const roundedAmount = Math.round(convertedAmount * 100) / 100;
 
     const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',
