@@ -11,6 +11,7 @@ import {
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { POPULAR_MATERIALS, getMaterialInfo } from '@/app/lib/materialHelpers';
+import ColorPickerInput from '../../components/ColorPickerInput';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -3167,22 +3168,19 @@ function MessagesInner() {
 
                                                                     {/* Custom filament input */}
                                                                     {(showCustomFilamentInput || sellerFilaments.length === 0) && (
-                                                                        <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1">
-                                                                            <div className="flex gap-2">
-                                                                                <div className="relative shrink-0" title="Click to pick color">
-                                                                                    <div className="w-10 h-10 rounded-xl border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center cursor-pointer transition-transform hover:scale-105" style={{ backgroundColor: proposalColorHex }}>
-                                                                                        <input type="color" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" value={proposalColorHex} onChange={e => setProposalColorHex(e.target.value)} title="Click to pick color" />
-                                                                                        {proposalColorHex === '#cccccc' && <Palette size={14} className="text-gray-400 pointer-events-none" />}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    placeholder="Color name (e.g. Ocean Blue)..."
-                                                                                    value={proposalColor}
-                                                                                    onChange={e => setProposalColor(e.target.value)}
-                                                                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-blue-400 text-gray-900 transition-all"
-                                                                                />
-                                                                            </div>
+                                                                        <div className="space-y-3 pt-1 animate-in fade-in slide-in-from-top-1">
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Color name (e.g. Ocean Blue)..."
+                                                                                value={proposalColor}
+                                                                                onChange={e => setProposalColor(e.target.value)}
+                                                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-blue-400 text-gray-900 transition-all"
+                                                                            />
+                                                                            <ColorPickerInput
+                                                                                value={proposalColorHex}
+                                                                                onChange={setProposalColorHex}
+                                                                                label="Custom Color HEX"
+                                                                            />
                                                                             <div className="space-y-2 pt-1">
                                                                                 <div className="flex items-center justify-between">
                                                                                     <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Suggested Materials</span>

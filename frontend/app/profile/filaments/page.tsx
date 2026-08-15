@@ -10,6 +10,7 @@ import {
     Info, Eye, EyeOff
 } from 'lucide-react';
 import { useCurrency } from '../../../context/CurrencyContext';
+import ColorPickerInput from '../../components/ColorPickerInput';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -516,30 +517,13 @@ export default function FilamentsPage() {
                                 </div>
 
                                 {/* Hex row */}
-                                <div className="relative">
-                                    <div className="absolute -top-6 right-0 flex items-center gap-1 text-[10px] font-black text-orange-500 uppercase tracking-tighter animate-bounce-v-simple">
-                                        Click box to pick color <span className="text-xs">↓</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 mb-5">
-                                        <div className="flex items-center gap-1 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 overflow-hidden focus-within:border-orange-400 transition-all">
-                                            <span className="text-gray-400 font-bold text-sm">#</span>
-                                            <input
-                                                type="text"
-                                                value={form.color_hex.replace('#', '')}
-                                                onChange={e => handleHexInput(e.target.value)}
-                                                placeholder="HEX (e.g. FF4500)"
-                                                maxLength={6}
-                                                className="flex-1 py-3 bg-transparent font-mono font-bold text-sm outline-none uppercase"
-                                            />
-                                        </div>
-                                        <input
-                                            type="color"
-                                            value={form.color_hex.startsWith('#') && form.color_hex.length === 7 ? form.color_hex : '#3A86FF'}
-                                            onChange={e => handleHexInput(e.target.value)}
-                                            className="w-11 h-11 rounded-xl border-2 border-orange-200 cursor-pointer overflow-hidden flex-shrink-0 hover:scale-105 transition-all shadow-sm shadow-orange-200"
-                                            title="Click square to open color picker"
-                                        />
-                                    </div>
+                                <div className="mb-5">
+                                    <ColorPickerInput
+                                        value={form.color_hex}
+                                        onChange={hex => setForm(f => ({ ...f, color_hex: hex }))}
+                                        label="Custom Color Selection"
+                                        showPresets={false}
+                                    />
                                 </div>
 
                                 {/* Large Color Palette Grid */}
