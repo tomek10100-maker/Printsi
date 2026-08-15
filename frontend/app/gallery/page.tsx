@@ -185,6 +185,10 @@ function MarketplaceContent() {
       router.push('/login');
       return;
     }
+    if (offer.user_id === currentUser.id) {
+      alert("You cannot purchase your own listing.");
+      return;
+    }
     if (isOfferSoldOut(offer)) return;
     // Job offers → redirect to offer detail page for download & fulfill flow
     if (offer.category === 'job') {
@@ -223,6 +227,10 @@ function MarketplaceContent() {
   const handleBuyNow = (offer: Offer) => {
     if (!currentUser) {
       router.push('/login');
+      return;
+    }
+    if (offer.user_id === currentUser.id) {
+      alert("You cannot purchase your own listing.");
       return;
     }
     if (isOfferSoldOut(offer)) return;

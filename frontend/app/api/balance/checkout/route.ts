@@ -15,6 +15,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Invalid checkout data' }, { status: 400 });
     }
 
+    const hasOwnItem = items.some((i: any) => i.seller_id === userId);
+    if (hasOwnItem) {
+      return NextResponse.json({ success: false, error: 'You cannot purchase your own listing.' }, { status: 400 });
+    }
+
     // 1. Calculate cart total & grand total (in EUR)
     const cartTotalEur = items.reduce(
       (total: number, item: any) => total + (item.price * item.quantity), 0

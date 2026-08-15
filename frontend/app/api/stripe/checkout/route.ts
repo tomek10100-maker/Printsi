@@ -25,6 +25,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
     }
 
+    if (!isTopup && items && items.length > 0 && userId) {
+      const hasOwnItem = items.some((i: any) => i.seller_id === userId);
+      if (hasOwnItem) {
+        return NextResponse.json({ error: 'You cannot purchase your own listing.' }, { status: 400 });
+      }
+    }
+
     const currency = (selectedCurrency || 'eur').toLowerCase();
     const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
 

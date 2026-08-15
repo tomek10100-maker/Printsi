@@ -1,8 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
-// TU BYŁ BRAK: Definicja typu musi mieć 'stock'
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export type CartItem = {
   id: string;
   title: string;
@@ -14,14 +19,12 @@ export type CartItem = {
   is_custom?: boolean;
   variant_name?: string;
   variant_color?: string;
-  // Warstwy filamentu dla wybranego wariantu – używane do zmniejszania stock_grams po sprzedaży
-  // Format: [{filament_id: string, grams: string|number, color_hex?: string, color_name?: string}]
   variant_layers?: { filament_id: string; grams: string | number; color_hex?: string; color_name?: string }[];
   category: string;
-  material?: string;  // Typ materiału (ABS, PLA itp.)
-  color?: string;     // Kolor przedmiotu
-  dimensions?: string;// Wymiary
-  weight?: string;    // Waga netto (np. "109g"), dla multi-color suma z layers
+  material?: string;
+  color?: string;
+  dimensions?: string;
+  weight?: string;
 };
 
 type CartContextType = {
@@ -38,6 +41,19 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentUserId(user.id);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user?.id || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     try {
@@ -54,6 +70,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   const addItem = (newItem: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
+    if (currentUserId && newItem.seller_id === currentUserId) {
+      alert("You cannot purchase your own listing.");
+      return;
+    }
+
     const existingItem = items.find((i) =>
         i.id === newItem.id && i.variant_name === newItem.variant_name
     );

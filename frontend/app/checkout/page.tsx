@@ -405,6 +405,10 @@ function CheckoutInner() {
     if (isSubmittingRef.current || loading) return; // Prevent double-clicking checkout
     if (!user) return;
     if (!isTopup && items.length === 0) return;
+    if (!isTopup && items.some(i => i.seller_id === user.id)) {
+      alert('You cannot purchase your own listing.');
+      return;
+    }
     if (hasShippable && !selectedShipping) { alert('Please select a shipping method.'); return; }
     if (isPickupOption && !selectedPoint) {
       setShowMapError(true);

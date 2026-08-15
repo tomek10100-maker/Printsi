@@ -133,6 +133,10 @@ export default function OfferDetailsPage() {
       router.push('/login');
       return;
     }
+    if (isOwner) {
+      alert("You cannot purchase your own listing.");
+      return;
+    }
     // Job offers → handled by the dedicated fulfillment panel below
     if (offer.category === 'job') {
       return;
@@ -160,6 +164,10 @@ export default function OfferDetailsPage() {
     if (!offer) return;
     if (!currentUser) {
       router.push('/login');
+      return;
+    }
+    if (isOwner) {
+      alert("You cannot purchase your own listing.");
       return;
     }
     if (offer.category === 'job') return;
@@ -194,6 +202,10 @@ export default function OfferDetailsPage() {
     if (!offer) return;
     if (!currentUser) {
       router.push('/login');
+      return;
+    }
+    if (isOwner) {
+      alert("You cannot purchase your own listing.");
       return;
     }
     if (offer.category === 'job') return;
@@ -734,7 +746,7 @@ export default function OfferDetailsPage() {
                                 </div>
                               </div>
 
-                              {!isSoldOut ? (
+                              {!isOwner && (!isSoldOut ? (
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
@@ -775,7 +787,7 @@ export default function OfferDetailsPage() {
                                 <span className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/50 text-red-500 font-black text-xs uppercase tracking-wider border border-red-100 dark:border-red-900">
                                   Sold Out
                                 </span>
-                              )}
+                              ))}
                             </div>
                           </div>
                         );
