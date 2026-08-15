@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { furgonetkaClient } from '@/app/lib/furgonetkaClient';
+import { filterOptionsByDisabledCouriers } from '@/app/lib/shippingRates';
 
 // Maps Furgonetka service names → ShippingOption IDs used in checkout
 const SERVICE_MAP: Record<string, { id: string; carrier: string; service: string; icon: string; deliveryDays: string; description: string; isPickup: boolean }> = {
@@ -17,7 +18,7 @@ const SERVICE_MAP: Record<string, { id: string; carrier: string; service: string
 
 export async function POST(req: Request) {
   try {
-    const { widthCm, heightCm, lengthCm, weightGrams, fromCountry, toCountry, fromZip, toZip, plnToEurRate } = await req.json();
+    const { widthCm, heightCm, lengthCm, weightGrams, fromCountry, toCountry, fromZip, toZip, plnToEurRate, disabledCouriers } = await req.json();
 
     if (!widthCm || !heightCm || !lengthCm || !weightGrams) {
       return NextResponse.json({ success: false, error: 'Missing parcel dimensions' }, { status: 400 });
@@ -94,7 +95,12 @@ export async function POST(req: Request) {
       .filter((o: any) => o.pricePln > 0)
       .sort((a: any, b: any) => a.pricePln - b.pricePln);
 
-    return NextResponse.json({ success: true, options });
+    let finalOptions: any[] = options;
+    if (Array.isArray(disabledCouriers) && disabledCouriers.length > 0) {
+      finalOptions = filterOptionsByDisabledCouriers(options as any, disabledCouriers) as any[];
+    }
+
+    return NextResponse.json({ success: true, options: finalOptions });
   } catch (err: any) {
     console.error('[Furgonetka Calculate] Error:', err?.message || err);
     // Return empty options so checkout falls back to static prices gracefully

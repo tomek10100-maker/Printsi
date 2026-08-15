@@ -344,3 +344,49 @@ export function getShippingOptions(
   return options.sort((a, b) => a.pricePln - b.pricePln);
 }
 
+/**
+ * Map a ShippingOption (or generic option object) to its seller delivery Courier ID
+ * (e.g. 'InPost', 'DPD', 'DHL', 'Orlen', 'Poczta', 'UPS', 'FedEx', 'GLS', 'Geis', 'Ambro')
+ */
+export function getCourierIdForOption(option: { id?: string; carrier?: string; service?: string }): string {
+  const carrier = (option.carrier || '').toLowerCase();
+  const id = (option.id || '').toLowerCase();
+  const service = (option.service || '').toLowerCase();
+
+  if (carrier.includes('inpost') || id.startsWith('inpost') || service.includes('inpost') || service.includes('paczkomat')) return 'InPost';
+  if (carrier.includes('dpd') || id.startsWith('dpd') || service.includes('dpd')) return 'DPD';
+  if (carrier.includes('dhl') || carrier.includes('furgonetka') || id.startsWith('dhl') || service.includes('dhl') || service.includes('furgonetka')) return 'DHL';
+  if (carrier.includes('orlen') || id.startsWith('orlen') || service.includes('orlen')) return 'Orlen';
+  if (carrier.includes('poczta') || id.startsWith('poczta') || service.includes('poczta')) return 'Poczta';
+  if (carrier.includes('ups') || id.startsWith('ups') || service.includes('ups')) return 'UPS';
+  if (carrier.includes('fedex') || id.startsWith('fedex') || service.includes('fedex')) return 'FedEx';
+  if (carrier.includes('gls') || id.startsWith('gls') || service.includes('gls')) return 'GLS';
+  if (carrier.includes('geis') || id.startsWith('geis') || service.includes('geis')) return 'Geis';
+  if (carrier.includes('ambro') || id.startsWith('ambro') || service.includes('ambro')) return 'Ambro';
+
+  return '';
+}
+
+/**
+ * Filter shipping options to remove options matching any courier in disabledCouriers
+ */
+export function filterOptionsByDisabledCouriers(
+  options: ShippingOption[],
+  disabledCouriers: string[]
+): ShippingOption[] {
+  if (!disabledCouriers || disabledCouriers.length === 0) return options;
+
+  const disabledSet = new Set(disabledCouriers.map(c => c.toLowerCase()));
+
+  const filtered = options.filter(option => {
+    const courierId = getCourierIdForOption(option);
+    if (courierId && disabledSet.has(courierId.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
+
+  // If filtering removed all options (safety fallback), return original options so checkout is not bricked
+  return filtered.length > 0 ? filtered : options;
+}
+

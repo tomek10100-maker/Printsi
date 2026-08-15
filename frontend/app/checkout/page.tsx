@@ -17,6 +17,7 @@ import {
   getShippingOptions,
   calculateParcel,
   parseDimensionString,
+  filterOptionsByDisabledCouriers,
   ShippingOption
 } from '../lib/shippingRates';
 
@@ -45,6 +46,7 @@ function CheckoutInner() {
   const [offerWeights, setOfferWeights] = useState<Record<string, number>>({});
   const [offerDimensions, setOfferDimensions] = useState<Record<string, string>>({});
   const [sellerCountries, setSellerCountries] = useState<Record<string, string>>({});
+  const [sellerDisabledCouriers, setSellerDisabledCouriers] = useState<Record<string, string[]>>({});
   const [sellerDeliverySettings, setSellerDeliverySettings] = useState<Record<string, any>>({});
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   // Stable options — never clears once set, prevents spinner flash between re-renders
@@ -186,6 +188,9 @@ function CheckoutInner() {
     let totalWeightGrams = 0;
     let maxDimsMm: [number, number, number] | null = null;
     const shippableItems = items.filter(item => item.category !== 'digital');
+
+    // Combine all disabled couriers across all sellers involved in this order
+    const disabledCouriersSet = new Set<string>();
     for (const item of shippableItems) {
       totalWeightGrams += (offerWeights[item.id] ?? 500) * item.quantity;
       const dimStr = offerDimensions[item.id];
@@ -201,8 +206,11 @@ function CheckoutInner() {
           ];
         }
       }
+      const itemSellerDisabled = sellerDisabledCouriers[item.seller_id] || [];
+      itemSellerDisabled.forEach(c => disabledCouriersSet.add(c));
     }
     totalWeightGrams = Math.min(totalWeightGrams, 31000);
+    const combinedDisabledCouriers = Array.from(disabledCouriersSet);
 
     const firstSellerId = shippableItems[0]?.seller_id;
     const fromCode = (sellerCountries as any)[firstSellerId] || 'PL';
@@ -222,15 +230,17 @@ function CheckoutInner() {
           fromCountry: fromCode,
           toCountry: toCode,
           plnToEurRate: plnRate, // Pass live PLN→EUR rate so server uses correct conversion
+          disabledCouriers: combinedDisabledCouriers,
         }),
       });
       const data = await res.json();
       if (data.success && data.options && data.options.length > 0) {
         // Live prices from Furgonetka — convert PLN to EUR using current rate
-        const liveOptions: ShippingOption[] = data.options.map((o: any) => ({
+        const rawLiveOptions: ShippingOption[] = data.options.map((o: any) => ({
           ...o,
           priceEur: Math.round((o.pricePln / plnRate) * 100) / 100,
         }));
+        const liveOptions = filterOptionsByDisabledCouriers(rawLiveOptions, combinedDisabledCouriers);
         setStableShippingOptions(liveOptions);
         setSelectedShipping(prev => {
           if (!prev) return liveOptions[0];
@@ -246,7 +256,8 @@ function CheckoutInner() {
     }
 
     // Static fallback if Furgonetka API unavailable
-    const staticOptions = getShippingOptions(fromCode, toCode, parcel, plnRate);
+    const rawStaticOptions = getShippingOptions(fromCode, toCode, parcel, plnRate);
+    const staticOptions = filterOptionsByDisabledCouriers(rawStaticOptions, combinedDisabledCouriers);
     if (staticOptions.length > 0) {
       setStableShippingOptions(staticOptions);
       setSelectedShipping(prev => {
@@ -256,7 +267,7 @@ function CheckoutInner() {
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, formData.country, rates]);
+  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, sellerDisabledCouriers, formData.country, rates]);
 
   useEffect(() => {
     fetchShippingOptions();
@@ -333,22 +344,38 @@ function CheckoutInner() {
           setOfferWeights(weights);
           setOfferDimensions(dimensions);
 
-          // Fetch seller countries (only columns that exist in the live DB)
+          // Fetch seller countries & disabled couriers (with fallback for schema safety)
           if (sellerIds.length > 0) {
-            const { data: sellerProfiles } = await supabase
+            const uniqueSellerIds = [...new Set(sellerIds)];
+            let sellerProfiles: any[] | null = null;
+            
+            const { data: profilesData, error: profileErr } = await supabase
               .from('profiles')
-              .select('id, country')
-              .in('id', [...new Set(sellerIds)]);
+              .select('id, country, disabled_couriers')
+              .in('id', uniqueSellerIds);
+
+            if (profileErr) {
+              const { data: fallbackProfiles } = await supabase
+                .from('profiles')
+                .select('id, country')
+                .in('id', uniqueSellerIds);
+              sellerProfiles = fallbackProfiles;
+            } else {
+              sellerProfiles = profilesData;
+            }
 
             const countries: Record<string, string> = {};
+            const disabledMap: Record<string, string[]> = {};
             
             sellerProfiles?.forEach(p => {
               const code = (p.country || 'PL').length === 2
                 ? p.country.toUpperCase()
                 : (countryNameToCode(p.country) || 'PL');
               countries[p.id] = code;
+              disabledMap[p.id] = p.disabled_couriers || [];
             });
             setSellerCountries(countries);
+            setSellerDisabledCouriers(disabledMap);
           }
         }
       }
