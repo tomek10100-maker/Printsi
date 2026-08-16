@@ -493,10 +493,20 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('❌ Furgonetka package creation route error:', error);
-    const errMsg = error?.message || '';
+    const lowerErrMsg = (error?.message || '').toLowerCase();
 
     // If Furgonetka API fails due to auth or service unavailability, create a fallback shipment tracking entry
-    if (errMsg.includes('authorization') || errMsg.includes('token') || errMsg.includes('unauthorized') || errMsg.includes('grant') || errMsg.includes('expired')) {
+    if (
+      lowerErrMsg.includes('access_denied') ||
+      lowerErrMsg.includes('authentication') ||
+      lowerErrMsg.includes('authorization') ||
+      lowerErrMsg.includes('unauthorized') ||
+      lowerErrMsg.includes('token') ||
+      lowerErrMsg.includes('grant') ||
+      lowerErrMsg.includes('expired') ||
+      lowerErrMsg.includes('401') ||
+      lowerErrMsg.includes('403')
+    ) {
       console.warn('⚠️ Furgonetka API authorization error. Applying fallback shipment status...');
       const fallbackTracking = `PRT-FURG-${Date.now().toString().slice(-8)}`;
       const fallbackPackageId = `DEMO-${Date.now()}`;
