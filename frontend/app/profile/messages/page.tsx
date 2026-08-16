@@ -1899,7 +1899,7 @@ function MessagesInner() {
             try { scData = JSON.parse(msg.content); } catch { }
             const isBuyer = activeChatData && String(currentUser?.id) === String(activeChatData.buyer_id);
             const orderStatus = activeChatData?.orderItem?.status;
-            const alreadyShipped = orderStatus === 'shipped';
+            const isConfirmedOrDone = ['shipped', 'delivered', 'completed', 'payout_completed'].includes(orderStatus || '');
             const isDisputed = orderStatus === 'disputed';
             const photos: string[] = Array.isArray(scData.photos) ? scData.photos : [];
 
@@ -1952,10 +1952,14 @@ function MessagesInner() {
                                 </div>
                             )}
 
-                            {alreadyShipped ? (
+                            {isConfirmedOrDone ? (
                                 <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
                                     <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                                    <p className="text-xs font-black text-emerald-700">Confirmed — shipping label generated.</p>
+                                    <p className="text-xs font-black text-emerald-700">
+                                        {orderStatus === 'completed' || orderStatus === 'delivered' || orderStatus === 'payout_completed'
+                                            ? 'Transaction Completed — Item received by buyer.'
+                                            : 'Confirmed — shipping label generated.'}
+                                    </p>
                                 </div>
                             ) : isDisputed ? (
                                 <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-xl border border-red-200">
