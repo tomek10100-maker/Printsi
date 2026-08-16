@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 const FURGONETKA_SECRET = process.env.FURGONETKA_WEBHOOK_SECRET || 'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123';
-const ENV = process.env.FURGONETKA_ENV || 'production';
+const ENV = process.env.FURGONETKA_ENV || 'sandbox';
 const BASE_URL = ENV === 'sandbox'
   ? 'https://api.sandbox.furgonetka.pl'
   : 'https://api.furgonetka.pl';
