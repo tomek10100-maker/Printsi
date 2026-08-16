@@ -51,6 +51,7 @@ function MessagesInner() {
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [chatTab, setChatTab] = useState<'active' | 'archived'>('active');
     const [archivingChatId, setArchivingChatId] = useState<string | null>(null);
+    const [acceptingProposalId, setAcceptingProposalId] = useState<string | null>(null);
 
     // Proposal Modal State
     const [showProposalModal, setShowProposalModal] = useState(false);
@@ -1520,6 +1521,7 @@ function MessagesInner() {
 
     const handleAcceptProposal = async (msgId: string, parsedData: any) => {
         if (!activeChatData || !activeChatData.offers) return;
+        if (acceptingProposalId) return;
 
         const isAuthorizedToAccept = currentUser?.id === activeChatData.seller_id || currentUser?.id === activeChatData.buyer_id;
 
@@ -1533,63 +1535,80 @@ function MessagesInner() {
             return;
         }
 
+        // If already accepted, avoid duplicate offer creation
+        if (parsedData.status === 'accepted' && parsedData.custom_offer_id) {
+            const isJobOfferCard = activeChatData.offers?.category === 'job';
+            const jobPosterIdCard = activeChatData.offers?.user_id || activeChatData.seller_id;
+            const isPayerUser = isJobOfferCard
+                ? String(currentUser?.id) === String(jobPosterIdCard)
+                : currentUser?.id === activeChatData.buyer_id;
+
+            if (isPayerUser) {
+                handleBuyCustomOffer(parsedData);
+            }
+            return;
+        }
+
+        setAcceptingProposalId(msgId);
+
         try {
             const isJobOffer = activeChatData.offers?.category === 'job';
-            const basePayload = {
-                user_id: isJobOffer ? activeChatData.buyer_id : currentUser.id,
-                category: isJobOffer ? 'physical' : (activeChatData.offers?.category || 'physical'),
-                title: `Custom Order: ${activeChatData.offers?.title || 'Item'}`.substring(0, 150),
-                description: isJobOffer ? 'Print on Demand job accepted via chat.' : 'Custom order negotiated via chat.',
-                price: Number(parsedData.price),
-                material: parsedData.material || 'N/A',
-                color: parsedData.color || 'N/A',
-                stock: Number(parsedData.quantity) || 1,
-                is_custom: true,
-                parent_offer_id: activeChatData.offers?.id || null,
-                image_urls: activeChatData.offers?.image_urls || null,
-                dimensions: parsedData.dimensions || activeChatData.offers?.dimensions || null,
-                created_at: new Date()
-            };
+            let offerId = parsedData.custom_offer_id;
 
-            const colorVariants = parsedData.swappedLayers ? [{
-                manual: true,
-                isMultiColor: true,
-                layers: parsedData.swappedLayers.map((sl: any) => ({
-                    color_name: sl.to,
-                    color_hex: sl.to_hex,
-                    grams: sl.grams
-                }))
-            }] : undefined;
+            if (!offerId) {
+                const basePayload = {
+                    user_id: isJobOffer ? activeChatData.buyer_id : currentUser.id,
+                    category: isJobOffer ? 'physical' : (activeChatData.offers?.category || 'physical'),
+                    title: `Custom Order: ${activeChatData.offers?.title || 'Item'}`.substring(0, 150),
+                    description: isJobOffer ? 'Print on Demand job accepted via chat.' : 'Custom order negotiated via chat.',
+                    price: Number(parsedData.price),
+                    material: parsedData.material || 'N/A',
+                    color: parsedData.color || 'N/A',
+                    stock: Number(parsedData.quantity) || 1,
+                    is_custom: true,
+                    parent_offer_id: activeChatData.offers?.id || null,
+                    image_urls: activeChatData.offers?.image_urls || null,
+                    dimensions: parsedData.dimensions || activeChatData.offers?.dimensions || null,
+                    created_at: new Date()
+                };
 
-            let lastError: any = null;
+                const colorVariants = parsedData.swappedLayers ? [{
+                    manual: true,
+                    isMultiColor: true,
+                    layers: parsedData.swappedLayers.map((sl: any) => ({
+                        color_name: sl.to,
+                        color_hex: sl.to_hex,
+                        grams: sl.grams
+                    }))
+                }] : undefined;
 
-            // TRY 1: Full payload
-            const { data: newOffer, error: err1 } = await supabase.from('offers').insert({
-                ...basePayload,
-                ...(colorVariants ? { color_variants: colorVariants } : {})
-            }).select().single();
+                let lastError: any = null;
 
-            let offer = newOffer;
-            lastError = err1;
+                const { data: newOffer, error: err1 } = await supabase.from('offers').insert({
+                    ...basePayload,
+                    ...(colorVariants ? { color_variants: colorVariants } : {})
+                }).select().single();
 
-            if (lastError && lastError.message?.includes('color_variants')) {
-                // TRY 2: Without color_variants
-                const { data: newOffer2, error: err2 } = await supabase.from('offers').insert(basePayload).select().single();
-                offer = newOffer2;
-                lastError = err2;
+                let offer = newOffer;
+                lastError = err1;
+
+                if (lastError && lastError.message?.includes('color_variants')) {
+                    const { data: newOffer2, error: err2 } = await supabase.from('offers').insert(basePayload).select().single();
+                    offer = newOffer2;
+                    lastError = err2;
+                }
+
+                if (lastError || !offer) {
+                    console.error("Offer Creation Error Details:", lastError);
+                    throw lastError || new Error("Failed to create offer.");
+                }
+
+                offerId = offer.id;
             }
 
-            if (lastError) {
-                console.error("Offer Creation Error Details:", lastError);
-                throw lastError;
-            }
-
-            if (!offer) {
-                throw new Error("Offer successfully inserted but not returned.");
-            }
-
-            // Attach the created custom offer ID to the proposal
-            parsedData.custom_offer_id = offer.id;
+            // CRITICAL FIX: Set status = 'accepted' AND custom_offer_id on parsedData
+            parsedData.status = 'accepted';
+            parsedData.custom_offer_id = offerId;
 
             const { error: msgError } = await supabase.from('messages').update({
                 content: `[PROPOSAL]${JSON.stringify(parsedData)}`
@@ -1597,7 +1616,11 @@ function MessagesInner() {
 
             if (msgError) throw msgError;
 
-            loadMessages(activeChatId as string);
+            const currentId = (activeChatId && activeChatId !== 'draft') ? activeChatId : (activeChatData?.id || null);
+            if (currentId) {
+                await loadMessages(currentId);
+                await loadChats(currentUser?.id || '');
+            }
 
             // Determine if accepting user is the payer
             const jobPosterIdCard = activeChatData?.offers?.user_id || activeChatData?.seller_id;
@@ -1613,6 +1636,8 @@ function MessagesInner() {
         } catch (e: any) {
             console.error("Comprehensive Accept Failure:", e);
             alert(`Failed to accept: ${e.message || 'Unknown database error'}`);
+        } finally {
+            setAcceptingProposalId(null);
         }
     };
 
@@ -1621,14 +1646,7 @@ function MessagesInner() {
         const isParticipant = currentUser?.id === activeChatData.buyer_id || currentUser?.id === activeChatData.seller_id;
         if (!isParticipant) return;
 
-        // If custom offer isn't created yet, handleAcceptProposal will create it
-        if (!parsedData.custom_offer_id) {
-            handleAcceptProposal(msgId, parsedData);
-            return;
-        }
-
-        loadMessages(activeChatId as string);
-        handleBuyCustomOffer(parsedData);
+        await handleAcceptProposal(msgId, parsedData);
     };
 
     const handleRejectProposal = async (msgId: string, parsedData: any) => {
@@ -3557,6 +3575,7 @@ function MessagesInner() {
                                                                     return (
                                                                         <div className="space-y-2 pt-2">
                                                                             <button
+                                                                                disabled={acceptingProposalId === msg.id}
                                                                                 onClick={() => {
                                                                                     if (isPayer) {
                                                                                         handleBuyerAcceptsSellerProposal(msg.id, pData);
@@ -3564,10 +3583,19 @@ function MessagesInner() {
                                                                                         handleAcceptProposal(msg.id, pData);
                                                                                     }
                                                                                 }}
-                                                                                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-emerald-900/40 transition-all transform active:scale-[0.98]"
+                                                                                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-emerald-900/40 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                                                             >
-                                                                                <CreditCard size={14} className="inline mr-2 -mt-0.5" />
-                                                                                {isPayer ? 'Accept Terms & Proceed to Payment' : 'Accept Counter Offer'}
+                                                                                {acceptingProposalId === msg.id ? (
+                                                                                    <>
+                                                                                        <Loader2 size={14} className="animate-spin" />
+                                                                                        Accepting...
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <CreditCard size={14} className="inline mr-1 -mt-0.5" />
+                                                                                        {isPayer ? 'Accept Terms & Proceed to Payment' : 'Accept Counter Offer'}
+                                                                                    </>
+                                                                                )}
                                                                             </button>
                                                                             <div className="grid grid-cols-2 gap-2">
                                                                                 <button
