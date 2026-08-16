@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, ShoppingBag, Truck, ShieldCheck, Box,
-  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette, Download, Printer, XCircle, Flag, X, Zap
+  Minus, Plus, Share2, User as UserIcon, Star, Ban, Heart, MessageSquare, Loader2, Check, Ruler, Edit, Layers, CheckCircle, Handshake, Palette, Download, Printer, XCircle, Flag, X, Zap, Wrench
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -476,9 +476,28 @@ export default function OfferDetailsPage() {
             </Link>
           </div>
 
-          <div className="prose prose-lg text-gray-600 dark:text-gray-300 mb-8 max-w-none font-medium leading-relaxed">
-            {offer.description}
+          <div className="prose prose-lg text-gray-600 dark:text-gray-300 mb-6 max-w-none font-medium leading-relaxed">
+            {offer.description?.split('🛠️ Additional Parts / Tools Needed:')[0]?.trim() || offer.description}
           </div>
+
+          {/* ADDITIONAL PARTS & TOOLS NEEDED FOR ASSEMBLY */}
+          {(offer.assembly_tools || (offer.description && offer.description.includes('🛠️ Additional Parts / Tools Needed:'))) && (
+            <div className="p-5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900/40 mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="flex items-center gap-2 mb-2.5">
+                <div className="w-7 h-7 bg-amber-500 rounded-xl flex items-center justify-center shadow-md">
+                  <Wrench size={15} className="text-white" />
+                </div>
+                <span className="text-xs font-black uppercase text-amber-900 dark:text-amber-200 tracking-widest">
+                  Additional Parts / Tools Needed to Assemble
+                </span>
+              </div>
+              <div className="bg-white dark:bg-slate-900/80 border border-amber-200/70 dark:border-amber-900/40 p-4 rounded-xl shadow-xs">
+                <p className="text-sm font-bold text-amber-950 dark:text-amber-100 leading-relaxed whitespace-pre-line">
+                  {offer.assembly_tools || offer.description?.split('🛠️ Additional Parts / Tools Needed:')[1]?.trim()}
+                </p>
+              </div>
+            </div>
+          )}
 
           {!isDigital && (
             <div className="mb-8">

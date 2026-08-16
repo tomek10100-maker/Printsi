@@ -81,6 +81,21 @@ export default function TermsPage() {
           </p>
         </div>
       )
+    },
+    {
+      id: 'assembly-hardware',
+      title: '6. Assembly, Tools & Non-Printed Hardware Requirements',
+      icon: <AlertCircle size={20} />,
+      content: (
+        <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
+          <p>
+            For multi-part models or items requiring assembly, sellers must explicitly state any non-3D-printed hardware (e.g. M3/M4 screws, bearings, magnets, adhesives, or electronics) and required assembly tools in the <strong>"Additional Parts & Tools Needed for Assembly"</strong> section of the listing.
+          </p>
+          <p>
+            Buyers are responsible for reviewing assembly requirements prior to purchase. Unless explicitly included in the item listing description, Printis order shipments include only the 3D-printed parts.
+          </p>
+        </div>
+      )
     }
   ];
 

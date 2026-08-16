@@ -201,6 +201,7 @@ export default function AddOfferPage() {
   // Common
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [assemblyTools, setAssemblyTools] = useState('');
   // Dimensions: structured list of { label, value } entries, serialized to string on submit
   const [dimensionEntries, setDimensionEntries] = useState<DimensionEntry[]>([
     { id: uid(), label: 'Width', value: '' },
@@ -777,8 +778,14 @@ export default function AddOfferPage() {
       const finalDimensions = category === 'job' 
         ? (quoteResult ? `${quoteResult.dimensionsFormatted} (Parcel Box: ${quoteResult.parcelDimensionsFormatted})` : `Scale: ${printScale || '100'}%`)
         : (category === 'physical' ? serializeDimensions() || null : null);
+
+      let finalDesc = description.trim();
+      if (assemblyTools.trim()) {
+        finalDesc = `${finalDesc}\n\n🛠️ Additional Parts / Tools Needed:\n${assemblyTools.trim()}`;
+      }
+
       const basePayload = {
-        title, description, price: dbPrice, category,
+        title, description: finalDesc, price: dbPrice, category,
         material: dbMaterial, color: dbColor, color_name: dbColorName,
         weight: dbWeight, dimensions: finalDimensions,
         custom_instructions: category === 'job' ? customInstructions : null,
@@ -1107,6 +1114,25 @@ export default function AddOfferPage() {
                 onChange={e => setDescription(e.target.value)}
                 rows={4}
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all resize-none" />
+
+              <div className="pt-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wrench size={15} className="text-amber-600" />
+                  <span className="text-[11px] font-black uppercase text-amber-800 tracking-widest">
+                    Additional Parts / Tools Needed for Assembly (Optional)
+                  </span>
+                </div>
+                <textarea
+                  placeholder="e.g. 4x M3x10mm hex screws, superglue, 2x 608ZZ bearings, 2mm Allen key"
+                  value={assemblyTools}
+                  onChange={e => setAssemblyTools(e.target.value)}
+                  rows={2}
+                  className="w-full p-4 bg-amber-50/50 border border-amber-200/80 rounded-xl font-medium text-sm outline-none focus:border-amber-500 focus:bg-white transition-all resize-none shadow-xs"
+                />
+                <p className="text-[10px] text-gray-400 font-medium mt-1">
+                  Specify any non-3D printed hardware, screws, glue, electronics, or tools required to assemble this model.
+                </p>
+              </div>
               
               {category === 'job' && (
                 <div className="space-y-3 pt-2">

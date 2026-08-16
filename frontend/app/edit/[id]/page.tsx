@@ -144,6 +144,7 @@ export default function EditOfferPage() {
   // Common
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [assemblyTools, setAssemblyTools] = useState('');
   const [dimensionEntries, setDimensionEntries] = useState<DimensionEntry[]>([
     { id: uid(), label: 'Width', value: '' },
     { id: uid(), label: 'Height', value: '' },
@@ -209,7 +210,17 @@ export default function EditOfferPage() {
 
       setCategory(offerData.category);
       setTitle(offerData.title);
-      setDescription(offerData.description || '');
+      let rawDesc = offerData.description || '';
+      if (offerData.assembly_tools) {
+        setDescription(rawDesc);
+        setAssemblyTools(offerData.assembly_tools);
+      } else if (rawDesc.includes('🛠️ Additional Parts / Tools Needed:')) {
+        const parts = rawDesc.split('🛠️ Additional Parts / Tools Needed:');
+        setDescription(parts[0].trim());
+        setAssemblyTools(parts[1].trim());
+      } else {
+        setDescription(rawDesc);
+      }
       setExistingImages(offerData.image_urls || []);
       setCustomInstructions(offerData.custom_instructions || '');
       setIsNegotiable(offerData.is_negotiable || false);
@@ -458,8 +469,13 @@ export default function EditOfferPage() {
 
       const finalDimensions = (category === 'physical' || category === 'job') ? serializeDimensions() || null : null;
 
+      let finalDesc = description.trim();
+      if (assemblyTools.trim()) {
+        finalDesc = `${finalDesc}\n\n🛠️ Additional Parts / Tools Needed:\n${assemblyTools.trim()}`;
+      }
+
       const { error: dbErr } = await supabase.from('offers').update({
-        title, description, price: dbPrice, stock: dbStock, category,
+        title, description: finalDesc, price: dbPrice, stock: dbStock, category,
         image_urls: finalImages, image_url: finalImages[0] || null,
         dimensions: finalDimensions,
         material: dbMaterial, color: dbColor, color_name: dbColorName,
@@ -538,6 +554,25 @@ export default function EditOfferPage() {
               <SectionLabel label="2. Basic Details" />
               <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all shadow-sm" />
               <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all resize-none shadow-sm" />
+
+              <div className="pt-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wrench size={15} className="text-amber-600" />
+                  <span className="text-[11px] font-black uppercase text-amber-800 tracking-widest">
+                    Additional Parts / Tools Needed for Assembly (Optional)
+                  </span>
+                </div>
+                <textarea
+                  placeholder="e.g. 4x M3x10mm hex screws, superglue, 2x 608ZZ bearings, 2mm Allen key"
+                  value={assemblyTools}
+                  onChange={e => setAssemblyTools(e.target.value)}
+                  rows={2}
+                  className="w-full p-4 bg-amber-50/50 border border-amber-200/80 rounded-xl font-medium text-sm outline-none focus:border-amber-500 focus:bg-white transition-all resize-none shadow-xs"
+                />
+                <p className="text-[10px] text-gray-400 font-medium mt-1">
+                  Specify any non-3D printed hardware, screws, glue, electronics, or tools required to assemble this model.
+                </p>
+              </div>
               
               {category === 'job' && (
                 <div className="space-y-3 p-5 bg-indigo-50/30 rounded-3xl border border-indigo-100/50">
