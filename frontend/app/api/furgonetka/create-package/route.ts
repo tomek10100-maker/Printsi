@@ -48,6 +48,10 @@ function isPointToPoint(carrier: string): boolean {
 }
 
 export async function POST(req: Request) {
+  let reqItemId: string | null = null;
+  let reqChatId: string | null = null;
+  let currentUser: any = null;
+
   try {
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
@@ -61,8 +65,14 @@ export async function POST(req: Request) {
     if (authError || !user) {
       return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }
+    currentUser = user;
 
-    const { itemId, chatId } = await req.json();
+    const body = await req.json();
+    reqItemId = body?.itemId;
+    reqChatId = body?.chatId;
+    const itemId = reqItemId;
+    const chatId = reqChatId;
+
     if (!itemId || !chatId) {
       return NextResponse.json({ success: false, error: 'Item ID and Chat ID are required' }, { status: 400 });
     }
@@ -492,7 +502,7 @@ export async function POST(req: Request) {
       const fallbackPackageId = `DEMO-${Date.now()}`;
 
       try {
-        if (itemId) {
+        if (reqItemId) {
           await supabase
             .from('order_items')
             .update({
@@ -500,13 +510,13 @@ export async function POST(req: Request) {
               tracking_code: fallbackTracking,
               furgonetka_package_id: fallbackPackageId,
             })
-            .eq('id', itemId);
+            .eq('id', reqItemId);
         }
 
-        if (chatId && user?.id) {
+        if (reqChatId && currentUser?.id) {
           await supabase.from('messages').insert({
-            chat_id: chatId,
-            sender_id: user.id,
+            chat_id: reqChatId,
+            sender_id: currentUser.id,
             content: `The shipment confirmation has been approved! Tracking number: ${fallbackTracking}.`,
             message_type: 'status_shipped'
           });
