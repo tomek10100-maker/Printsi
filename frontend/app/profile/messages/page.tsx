@@ -2358,7 +2358,7 @@ function MessagesInner() {
                                 {isJob ? '📦 Item shipped! Waiting for the customer to confirm delivery...'
                                     : isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
                             </p>
-                            {(isPrinter || isSeller) && (orderItem.furgonetka_package_id || orderItem.tracking_code || orderItem.label_url) && (
+                            {isPrinter && (orderItem.furgonetka_package_id || orderItem.tracking_code || orderItem.label_url) && (
                                 <button
                                     onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
                                     className="mt-3 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 mx-auto transition-all shadow-md active:scale-95 cursor-pointer"
