@@ -1955,14 +1955,16 @@ export default function AddOfferPage() {
                       </div>
                     </div>
 
-                    <div className="w-full md:w-44 shrink-0 md:border-l border-gray-100 md:pl-6 pt-4 md:pt-0 flex flex-col items-center">
-                       <SectionLabel step="" label="Pieces" />
-                       <div className="flex items-center gap-2 mt-2 bg-gray-50 p-2 rounded-xl border border-gray-200 w-full justify-between">
-                          <button type="button" onClick={() => setManualStock(s => Math.max(1, (parseInt(s) || 1) - 1).toString())} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-sm font-black"><Minus size={14} /></button>
-                          <input type="text" value={manualStock} onChange={e => { if (/^\d*$/.test(e.target.value)) setManualStock(e.target.value) }} className="w-8 bg-transparent text-center font-black text-base outline-none text-gray-900" />
-                          <button type="button" onClick={() => setManualStock(s => ((parseInt(s) || 1) + 1).toString())} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-sm font-black"><Plus size={14} /></button>
-                       </div>
-                    </div>
+                    {category !== 'digital' && (
+                      <div className="w-full md:w-44 shrink-0 md:border-l border-gray-100 md:pl-6 pt-4 md:pt-0 flex flex-col items-center">
+                         <SectionLabel step="" label="Pieces" />
+                         <div className="flex items-center gap-2 mt-2 bg-gray-50 p-2 rounded-xl border border-gray-200 w-full justify-between">
+                            <button type="button" onClick={() => setManualStock(s => Math.max(1, (parseInt(s) || 1) - 1).toString())} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-sm font-black"><Minus size={14} /></button>
+                            <input type="text" value={manualStock} onChange={e => { if (/^\d*$/.test(e.target.value)) setManualStock(e.target.value) }} className="w-8 bg-transparent text-center font-black text-base outline-none text-gray-900" />
+                            <button type="button" onClick={() => setManualStock(s => ((parseInt(s) || 1) + 1).toString())} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition shadow-sm font-black"><Plus size={14} /></button>
+                         </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col md:flex-row gap-4 w-full">
@@ -1978,14 +1980,16 @@ export default function AddOfferPage() {
                       </div>
                     </div>
 
-                    <div className="w-full md:w-36 bg-white border-2 border-gray-100 p-5 rounded-[2rem] shadow-sm flex flex-col justify-center items-center gap-2 flex-shrink-0">
-                       <SectionLabel step="" label="Pieces" />
-                       <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
-                          <button type="button" onClick={() => setManualStock(s => Math.max(1, (parseInt(s) || 1) - 1).toString())} className="w-7 h-7 flex items-center justify-center bg-white rounded-lg border border-gray-200"><Minus size={12} /></button>
-                          <span className="w-6 text-center font-black text-sm text-gray-900">{manualStock}</span>
-                          <button type="button" onClick={() => setManualStock(s => ((parseInt(s) || 1) + 1).toString())} className="w-7 h-7 flex items-center justify-center bg-white rounded-lg border border-gray-200"><Plus size={12} /></button>
-                       </div>
-                    </div>
+                    {category !== 'digital' && (
+                      <div className="w-full md:w-36 bg-white border-2 border-gray-100 p-5 rounded-[2rem] shadow-sm flex flex-col justify-center items-center gap-2 flex-shrink-0">
+                         <SectionLabel step="" label="Pieces" />
+                         <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+                            <button type="button" onClick={() => setManualStock(s => Math.max(1, (parseInt(s) || 1) - 1).toString())} className="w-7 h-7 flex items-center justify-center bg-white rounded-lg border border-gray-200"><Minus size={12} /></button>
+                            <span className="w-6 text-center font-black text-sm text-gray-900">{manualStock}</span>
+                            <button type="button" onClick={() => setManualStock(s => ((parseInt(s) || 1) + 1).toString())} className="w-7 h-7 flex items-center justify-center bg-white rounded-lg border border-gray-200"><Plus size={12} /></button>
+                         </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
