@@ -26,14 +26,40 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Find the order item associated with this package
-    const { data: item, error: itemError } = await supabase
-      .from('order_items')
-      .select('id, seller_id, order_id')
-      .eq('furgonetka_package_id', packageId)
-      .single();
+    // Find the order item associated with this package (by furgonetka_package_id, tracking_code, or item id)
+    let item: any = null;
 
-    if (itemError || !item) {
+    const { data: itemByFurgId } = await supabase
+      .from('order_items')
+      .select('id, seller_id, order_id, furgonetka_package_id, tracking_code')
+      .eq('furgonetka_package_id', packageId)
+      .maybeSingle();
+
+    if (itemByFurgId) {
+      item = itemByFurgId;
+    } else {
+      const { data: itemByTrack } = await supabase
+        .from('order_items')
+        .select('id, seller_id, order_id, furgonetka_package_id, tracking_code')
+        .eq('tracking_code', packageId)
+        .maybeSingle();
+
+      if (itemByTrack) {
+        item = itemByTrack;
+      } else {
+        const { data: itemById } = await supabase
+          .from('order_items')
+          .select('id, seller_id, order_id, furgonetka_package_id, tracking_code')
+          .eq('id', packageId)
+          .maybeSingle();
+
+        if (itemById) {
+          item = itemById;
+        }
+      }
+    }
+
+    if (!item) {
       return NextResponse.json({ error: 'Package not found in database records' }, { status: 404 });
     }
 
@@ -55,8 +81,9 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden: You are not authorized to view this label' }, { status: 403 });
     }
 
-    console.log(`[Label Endpoint] Fetching label for package ${packageId} from Furgonetka...`);
-    const pdfBuffer = await furgonetkaClient.getLabel(packageId);
+    const targetPackageId = item.furgonetka_package_id || item.tracking_code || packageId;
+    console.log(`[Label Endpoint] Fetching label for package ${targetPackageId} from Furgonetka...`);
+    const pdfBuffer = await furgonetkaClient.getLabel(targetPackageId);
 
     return new Response(new Uint8Array(pdfBuffer), {
       status: 200,

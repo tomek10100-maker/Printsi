@@ -250,7 +250,7 @@ function MessagesInner() {
             if (chat.order_id && chat.offer_id) {
                 const { data: rawItems } = await supabase
                     .from('order_items')
-                    .select('id, status, quantity, price_at_purchase, tracking_code, offer_id, offers(parent_offer_id)')
+                    .select('id, status, quantity, price_at_purchase, tracking_code, furgonetka_package_id, label_url, offer_id, offers(parent_offer_id)')
                     .eq('order_id', chat.order_id)
                     .eq('seller_id', chat.seller_id);
 
@@ -265,7 +265,9 @@ function MessagesInner() {
                             status: match.status || 'pending',
                             quantity: match.quantity,
                             price_at_purchase: match.price_at_purchase,
-                            tracking_code: match.tracking_code
+                            tracking_code: match.tracking_code,
+                            furgonetka_package_id: match.furgonetka_package_id,
+                            label_url: match.label_url
                         };
                     }
                 }
