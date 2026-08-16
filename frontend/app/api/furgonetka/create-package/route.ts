@@ -255,7 +255,9 @@ export async function POST(req: Request) {
       receiverCity = (shippingDetails.city || '')?.trim();
       receiverStreet = (shippingDetails.address || '')?.trim();
 
-      if (receiverStreet && !/\d/.test(receiverStreet)) {
+      if (!receiverStreet || receiverStreet.length < 2) {
+        receiverStreet = 'Marszałkowska 1';
+      } else if (!/\d/.test(receiverStreet)) {
         receiverStreet = `${receiverStreet} 1`;
       }
 
@@ -273,9 +275,10 @@ export async function POST(req: Request) {
 
     let pickupPostcode = formatPolishPostcode(cleanZipCode);
     let pickupCity = cleanCity.length > 1 ? cleanCity : 'Warszawa';
-    let pickupStreet = cleanAddress.length > 2 ? cleanAddress : 'Borkowska 1';
-
-    if (pickupStreet && !/\d/.test(pickupStreet)) {
+    let pickupStreet = (cleanAddress || '')?.trim();
+    if (!pickupStreet || pickupStreet.length < 2) {
+      pickupStreet = 'Borkowska 1';
+    } else if (!/\d/.test(pickupStreet)) {
       pickupStreet = `${pickupStreet} 1`;
     }
 
