@@ -1,3 +1,4 @@
+// Furgonetka package creation route - v2.5 live production build
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { furgonetkaClient } from '@/app/lib/furgonetkaClient';
