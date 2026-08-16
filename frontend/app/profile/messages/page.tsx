@@ -3169,17 +3169,16 @@ function MessagesInner() {
                                                                     {/* Custom filament input */}
                                                                     {(showCustomFilamentInput || sellerFilaments.length === 0) && (
                                                                         <div className="space-y-3 pt-1 animate-in fade-in slide-in-from-top-1">
-                                                                            <input
-                                                                                type="text"
-                                                                                placeholder="Color name (e.g. Ocean Blue)..."
-                                                                                value={proposalColor}
-                                                                                onChange={e => setProposalColor(e.target.value)}
-                                                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-blue-400 text-gray-900 transition-all"
-                                                                            />
                                                                             <ColorPickerInput
                                                                                 value={proposalColorHex}
-                                                                                onChange={setProposalColorHex}
-                                                                                label="Custom Color HEX"
+                                                                                onChange={(hex) => {
+                                                                                    setProposalColorHex(hex);
+                                                                                    // Auto-set color name from sellerFilaments if match found
+                                                                                    const match = sellerFilaments.find(f => (f.color_hex || '').toUpperCase() === hex.toUpperCase());
+                                                                                    if (match && !proposalColor) setProposalColor(match.color_name);
+                                                                                }}
+                                                                                label="Color"
+                                                                                sellerColors={sellerFilaments.map(f => ({ id: String(f.id), color_name: f.color_name, color_hex: f.color_hex || '#cccccc', plastic_type: f.plastic_type }))}
                                                                             />
                                                                             <div className="space-y-2 pt-1">
                                                                                 <div className="flex items-center justify-between">
