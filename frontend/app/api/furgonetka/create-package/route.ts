@@ -551,9 +551,9 @@ function translateSingleError(e: any): string {
   if (msg) {
     if (/[\u0104\u0105\u0106\u0107\u0118\u0119\u0141\u0142\u0143\u0144\u0152\u0153\u015a\u015b\u0179\u017a\u017b\u017c]/.test(msg)) {
       if (msg.includes('kod') || msg.includes('pocztow') || msg.includes('miejscowości')) return 'City name and postal code do not match. The selected carrier does not support the provided postal code.';
-      if (msg.includes('telefon') || msg.includes('numer')) return 'Phone number provided is invalid.';
-      if (msg.includes('adres') || msg.includes('ulica')) return 'Street address format is invalid.';
-      return 'Carrier package validation failed. Please check shipping details.';
+      if (msg.includes('telefon') || msg.includes('numer telefonu')) return 'Phone number provided is invalid.';
+      if (msg.includes('ulica') || msg.includes('numer budynku') || code.includes('street') || path.includes('street')) return 'Street address or house number format is invalid.';
+      return msg;
     }
     return msg;
   }
