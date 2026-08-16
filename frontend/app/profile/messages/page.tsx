@@ -3555,6 +3555,32 @@ function MessagesInner() {
                                                                                     })()}
                                                                                 </div>
                                                                             )}
+
+                                                                            {/* TOTAL ORDER COST SUMMARY */}
+                                                                            {(() => {
+                                                                                const unitPriceNum = Math.abs(parseFloat(pData.price) || 0);
+                                                                                const qtyNum = Math.max(1, parseInt(pData.quantity) || 1);
+                                                                                const totalOrderCost = unitPriceNum * qtyNum;
+
+                                                                                return (
+                                                                                    <div className="mt-3 p-3 bg-slate-900/90 border border-amber-500/30 rounded-xl flex items-center justify-between shadow-inner">
+                                                                                        <div>
+                                                                                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-300 block">Total Order Cost</span>
+                                                                                            <span className="text-[10px] text-slate-400 font-bold">
+                                                                                                {formatPrice(unitPriceNum)} × {qtyNum} {qtyNum === 1 ? 'unit' : 'units'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <div className="text-right">
+                                                                                            <div className="text-sm font-black text-amber-400 leading-tight">
+                                                                                                {formatPrice(totalOrderCost)} <span className="text-[10px] font-bold text-slate-400">+ shipping</span>
+                                                                                            </div>
+                                                                                            <div className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">
+                                                                                                Calculated at checkout
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
                                                                         </div>
                                                                     </div>
                                                                 );
