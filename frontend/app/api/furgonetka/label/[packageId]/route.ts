@@ -64,38 +64,47 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Find the order item associated with this package
-    const { data: item, error: itemError } = await supabase
+    // Find the order item associated with this package (check both furgonetka_package_id and tracking_code)
+    let item: any = null;
+
+    const { data: itemByPkg } = await supabase
       .from('order_items')
-      .select('id, seller_id, order_id, tracking_code')
+      .select('id, seller_id, order_id, tracking_code, furgonetka_package_id')
       .eq('furgonetka_package_id', packageId)
-      .single();
+      .maybeSingle();
 
-    if (itemError || !item) {
-      return NextResponse.json({ error: 'Package not found in database records' }, { status: 404 });
+    if (itemByPkg) {
+      item = itemByPkg;
+    } else {
+      const { data: itemByTrack } = await supabase
+        .from('order_items')
+        .select('id, seller_id, order_id, tracking_code, furgonetka_package_id')
+        .eq('tracking_code', packageId)
+        .maybeSingle();
+      if (itemByTrack) item = itemByTrack;
     }
 
-    // Find the buyer ID of the parent order
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('buyer_id')
-      .eq('id', item.order_id)
-      .single();
+    if (item) {
+      // Find the buyer ID of the parent order
+      const { data: order } = await supabase
+        .from('orders')
+        .select('buyer_id')
+        .eq('id', item.order_id)
+        .maybeSingle();
 
-    if (orderError || !order) {
-      return NextResponse.json({ error: 'Parent order not found' }, { status: 404 });
+      if (order) {
+        const isSeller = String(user.id) === String(item.seller_id);
+        const isBuyer = String(user.id) === String(order.buyer_id);
+        if (!isSeller && !isBuyer) {
+          return NextResponse.json({ error: 'Forbidden: You are not authorized to view this label' }, { status: 403 });
+        }
+      }
     }
 
-    const isSeller = String(user.id) === String(item.seller_id);
-    const isBuyer = String(user.id) === String(order.buyer_id);
-
-    if (!isSeller && !isBuyer) {
-      return NextResponse.json({ error: 'Forbidden: You are not authorized to view this label' }, { status: 403 });
-    }
-
-    // For demo/fallback package IDs, stream generated demo PDF label directly
-    if (packageId.startsWith('DEMO-')) {
-      const demoBuffer = createDemoPdfLabelBuffer(item.tracking_code || packageId, packageId);
+    // For demo/fallback package IDs or tracking codes, stream generated demo PDF label directly
+    if (packageId.startsWith('DEMO-') || packageId.startsWith('PRT-') || !item) {
+      const trackingCode = item?.tracking_code || packageId;
+      const demoBuffer = createDemoPdfLabelBuffer(trackingCode, packageId);
       return new Response(new Uint8Array(demoBuffer), {
         status: 200,
         headers: {
@@ -111,7 +120,7 @@ export async function GET(
       pdfBuffer = await furgonetkaClient.getLabel(packageId);
     } catch (apiErr: any) {
       console.warn(`[Label Endpoint] Carrier API error fetching label (${apiErr?.message}), using demo PDF fallback.`);
-      pdfBuffer = createDemoPdfLabelBuffer(item.tracking_code || packageId, packageId);
+      pdfBuffer = createDemoPdfLabelBuffer(item?.tracking_code || packageId, packageId);
     }
 
     return new Response(new Uint8Array(pdfBuffer), {
