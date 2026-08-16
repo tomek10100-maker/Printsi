@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, MapPin, Loader2, Phone, Globe } from 'lucide-react';
 
+import { DHL_COUNTRIES, countryNameToCode } from '@/app/lib/dhlRates';
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -38,17 +40,24 @@ export default function AddressPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('address, city, zip_code, country, phone_number')
+        .select('address, city, zip_code, country, country_code, phone_number, phone')
         .eq('id', user.id)
         .single();
 
       if (profile) {
+        // Resolve country name from ISO code ('FR' -> 'France') or use stored string
+        let rawCountry = profile.country || profile.country_code || 'PL';
+        if (rawCountry.length === 2) {
+          const match = DHL_COUNTRIES.find(c => c.code.toUpperCase() === rawCountry.toUpperCase());
+          if (match) rawCountry = match.name;
+        }
+
         setFormData({
           address: profile.address || '',
           city: profile.city || '',
           zip_code: profile.zip_code || '',
-          country: profile.country || 'Poland',
-          phone_number: profile.phone_number || ''
+          country: rawCountry || 'Poland',
+          phone_number: profile.phone_number || profile.phone || ''
         });
       }
       setLoading(false);
@@ -62,6 +71,7 @@ export default function AddressPage() {
     setSaving(true);
 
     try {
+      const code = countryNameToCode(formData.country) || (formData.country.length === 2 ? formData.country.toUpperCase() : 'PL');
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -69,7 +79,9 @@ export default function AddressPage() {
           city: formData.city,
           zip_code: formData.zip_code,
           country: formData.country,
+          country_code: code,
           phone_number: formData.phone_number,
+          phone: formData.phone_number,
           updated_at: new Date()
         })
         .eq('id', user.id);
@@ -171,10 +183,9 @@ export default function AddressPage() {
                   onChange={handleChange}
                   className="w-full p-4 pl-12 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900 outline-none focus:border-blue-500 transition-all appearance-none"
                 >
-                  <option value="Poland">Poland</option>
-                  <option value="Germany">Germany</option>
-                  <option value="France">France</option>
-                  <option value="USA">USA</option>
+                  {DHL_COUNTRIES.map(c => (
+                    <option key={c.code} value={c.name}>{c.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
