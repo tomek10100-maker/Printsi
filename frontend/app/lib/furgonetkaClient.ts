@@ -55,6 +55,15 @@ async function saveTokens(accessToken: string, refreshToken: string): Promise<vo
   }
 }
 
+async function clearStoredTokens(): Promise<void> {
+  try {
+    await supabase.from('furgonetka_tokens').delete().eq('id', 1);
+    console.log('[FurgonetkaClient] Invalid tokens cleared from Supabase.');
+  } catch (err) {
+    console.error('[FurgonetkaClient] Failed to clear invalid tokens:', err);
+  }
+}
+
 let refreshPromise: Promise<string> | null = null;
 
 async function refreshAccessToken(currentRefreshToken: string): Promise<string> {
@@ -107,13 +116,33 @@ export async function getValidAccessToken(forceRefresh = false): Promise<string>
     return refreshPromise;
   }
 
-  // Get the best available refresh token: stored in DB or from env var
-  const refreshToken = stored?.refresh_token || process.env.FURGONETKA_REFRESH_TOKEN;
-  if (!refreshToken) {
-    throw new Error('Furgonetka refresh token is missing. Add FURGONETKA_REFRESH_TOKEN to env vars.');
+  const dbToken = stored?.refresh_token;
+  const envToken = process.env.FURGONETKA_REFRESH_TOKEN;
+  const primaryToken = dbToken || envToken;
+
+  if (!primaryToken) {
+    throw new Error('Furgonetka refresh token is missing in configuration.');
   }
 
-  refreshPromise = refreshAccessToken(refreshToken).finally(() => {
+  refreshPromise = (async () => {
+    try {
+      return await refreshAccessToken(primaryToken);
+    } catch (err: any) {
+      console.warn('[FurgonetkaClient] Primary token refresh failed:', err?.message || err);
+      // If DB token failed and we have a different env token, attempt env token fallback
+      if (dbToken && envToken && dbToken !== envToken) {
+        console.log('[FurgonetkaClient] Attempting fallback with env FURGONETKA_REFRESH_TOKEN...');
+        try {
+          return await refreshAccessToken(envToken);
+        } catch (envErr) {
+          console.error('[FurgonetkaClient] Fallback token refresh failed:', envErr);
+        }
+      }
+      // Clear invalid token from DB to prevent persistent retries
+      await clearStoredTokens();
+      throw new Error('Carrier service authorization expired. Please re-authenticate Furgonetka.');
+    }
+  })().finally(() => {
     refreshPromise = null;
   });
 

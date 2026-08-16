@@ -37,6 +37,8 @@ export default function GlobalToast() {
         msgStr = "The selected pickup point code is invalid for this carrier.";
       } else if (msgStr.includes("Numer kierunkowy") || msgStr.includes("poprzedzony +")) {
         msgStr = "Phone number requires an international country code prefix (e.g. +48).";
+      } else if (msgStr.includes("invalid_grant") || msgStr.includes("refresh token") || msgStr.includes("FURGONETKA_REFRESH_TOKEN")) {
+        msgStr = "Shipping service authentication error. The carrier token requires re-authorization.";
       }
 
       // Detect type
@@ -65,36 +67,45 @@ export default function GlobalToast() {
 
   return (
     <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100000] flex flex-col gap-4 pointer-events-none">
-      {toasts.map((toast) => (
-        <div 
-          key={toast.id}
-          className={`group flex items-center gap-5 px-8 py-5 w-[90vw] max-w-sm sm:max-w-md rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border backdrop-blur-3xl transition-all duration-500 pointer-events-auto
-            animate-in slide-in-from-top-12 fade-in zoom-in-90
-            ${toast.type === 'success' ? 'bg-[#0f1115]/90 border-emerald-500/30 text-emerald-50' : ''}
-            ${toast.type === 'error' ? 'bg-[#120a0a]/90 border-red-500/30 text-red-50' : ''}
-            ${toast.type === 'info' ? 'bg-[#0a0c12]/90 border-blue-500/30 text-blue-50' : ''}
-          `}
-        >
-          <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-500
-            ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : ''}
-            ${toast.type === 'error' ? 'bg-red-500/10 text-red-400' : ''}
-            ${toast.type === 'info' ? 'bg-blue-500/10 text-blue-400' : ''}
-          `}>
-            {toast.type === 'success' && <CheckCircle size={28} strokeWidth={1.5} />}
-            {toast.type === 'error' && <XCircle size={28} strokeWidth={1.5} />}
-            {toast.type === 'info' && <AlertCircle size={28} strokeWidth={1.5} />}
-          </div>
-          
-          <div className="flex-1 flex flex-col">
-            <span className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1.5
-              ${toast.type === 'success' ? 'text-emerald-500/60' : ''}
-              ${toast.type === 'error' ? 'text-red-500/60' : ''}
-              ${toast.type === 'info' ? 'text-blue-500/60' : ''}
+      {toasts.map((toast) => {
+        const isPaymentErr = toast.type === 'error' && (
+          toast.message.toLowerCase().includes('payment') ||
+          toast.message.toLowerCase().includes('stripe') ||
+          toast.message.toLowerCase().includes('card') ||
+          toast.message.toLowerCase().includes('deposit') ||
+          toast.message.toLowerCase().includes('withdraw')
+        );
+
+        return (
+          <div 
+            key={toast.id}
+            className={`group flex items-center gap-5 px-8 py-5 w-[90vw] max-w-sm sm:max-w-md rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border backdrop-blur-3xl transition-all duration-500 pointer-events-auto
+              animate-in slide-in-from-top-12 fade-in zoom-in-90
+              ${toast.type === 'success' ? 'bg-[#0f1115]/90 border-emerald-500/30 text-emerald-50' : ''}
+              ${toast.type === 'error' ? 'bg-[#120a0a]/90 border-red-500/30 text-red-50' : ''}
+              ${toast.type === 'info' ? 'bg-[#0a0c12]/90 border-blue-500/30 text-blue-50' : ''}
+            `}
+          >
+            <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-500
+              ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : ''}
+              ${toast.type === 'error' ? 'bg-red-500/10 text-red-400' : ''}
+              ${toast.type === 'info' ? 'bg-blue-500/10 text-blue-400' : ''}
             `}>
-              {toast.type === 'success' && 'Confirmed'}
-              {toast.type === 'error' && 'Payment Error'}
-              {toast.type === 'info' && 'Notification'}
-            </span>
+              {toast.type === 'success' && <CheckCircle size={28} strokeWidth={1.5} />}
+              {toast.type === 'error' && <XCircle size={28} strokeWidth={1.5} />}
+              {toast.type === 'info' && <AlertCircle size={28} strokeWidth={1.5} />}
+            </div>
+            
+            <div className="flex-1 flex flex-col">
+              <span className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1.5
+                ${toast.type === 'success' ? 'text-emerald-500/60' : ''}
+                ${toast.type === 'error' ? 'text-red-500/60' : ''}
+                ${toast.type === 'info' ? 'text-blue-500/60' : ''}
+              `}>
+                {toast.type === 'success' && 'Confirmed'}
+                {toast.type === 'error' && (isPaymentErr ? 'Payment Error' : 'System Notice')}
+                {toast.type === 'info' && 'Notification'}
+              </span>
             <span className="font-bold text-[13px] leading-tight tracking-tight max-h-32 overflow-y-auto whitespace-pre-wrap pr-2">
               {toast.message}
             </span>

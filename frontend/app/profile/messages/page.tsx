@@ -3681,45 +3681,55 @@ function MessagesInner() {
                                             }
                                             return (
                                                 <div key={msg.id || idx} className={`flex flex-col w-full max-w-full min-w-0 ${isMe ? 'items-end' : 'items-start'}`}>
-                                                    <div className="flex flex-wrap gap-2 max-w-[85%] sm:max-w-[75%] min-w-0">
-                                                        {imgUrls.map((url: string, i: number) => (
-                                                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-2xl border border-gray-200 shadow-md hover:opacity-90 transition-opacity">
-                                                                <img
-                                                                    src={url}
-                                                                    alt={`Shared photo ${i + 1}`}
-                                                                    className="w-auto h-auto max-w-[220px] max-h-[220px] sm:max-w-[260px] sm:max-h-[260px] object-cover rounded-2xl cursor-pointer"
-                                                                />
-                                                            </a>
-                                                        ))}
-                                                    </div>
-                                                    {caption && (
-                                                        <div className={`mt-1.5 max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2 break-all [word-break:break-all] [overflow-wrap:anywhere] ${isMe ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}>
-                                                            <p className="text-sm font-medium leading-relaxed break-all [word-break:break-all] [overflow-wrap:anywhere]">
-                                                                {(() => {
-                                                                    const urlRegex = /(https?:\/\/[^\s]+)/g;
-                                                                    const parts = caption.split(urlRegex);
-                                                                    return parts.map((part: string, index: number) => {
-                                                                        if (part.match(urlRegex)) {
-                                                                            const displayUrl = part.length > 55 ? part.substring(0, 50) + '...' : part;
-                                                                            return (
-                                                                                <a
-                                                                                    key={index}
-                                                                                    href={part}
-                                                                                    target="_blank"
-                                                                                    rel="noopener noreferrer"
-                                                                                    title={part}
-                                                                                    className={`underline break-all font-bold ${isMe ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
-                                                                                >
-                                                                                    {displayUrl}
-                                                                                </a>
-                                                                            );
-                                                                        }
-                                                                        return part;
-                                                                    });
-                                                                })()}
-                                                            </p>
+                                                    <div className={`overflow-hidden rounded-2xl border shadow-md max-w-[85%] sm:max-w-[75%] min-w-0 ${
+                                                        isMe
+                                                            ? 'bg-blue-600 border-blue-500/40 text-white rounded-tr-sm'
+                                                            : 'bg-white border-gray-200/80 text-gray-800 rounded-tl-sm'
+                                                    }`}>
+                                                        <div className="p-1.5 flex flex-wrap gap-1.5">
+                                                            {imgUrls.map((url: string, i: number) => (
+                                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border border-black/10 hover:opacity-95 transition-opacity">
+                                                                    <img
+                                                                        src={url}
+                                                                        alt={`Shared photo ${i + 1}`}
+                                                                        className="w-auto h-auto max-w-[220px] max-h-[220px] sm:max-w-[260px] sm:max-h-[260px] object-cover rounded-xl cursor-pointer"
+                                                                    />
+                                                                </a>
+                                                            ))}
                                                         </div>
-                                                    )}
+                                                        {caption && (
+                                                            <div className={`px-3.5 py-2 text-xs font-medium border-t break-all [word-break:break-all] [overflow-wrap:anywhere] ${
+                                                                isMe
+                                                                    ? 'border-blue-500/30 bg-blue-700/40 text-white'
+                                                                    : 'border-gray-100 bg-gray-50/90 text-gray-800'
+                                                            }`}>
+                                                                <p className="text-sm font-medium leading-relaxed break-all [word-break:break-all] [overflow-wrap:anywhere]">
+                                                                    {(() => {
+                                                                        const urlRegex = /(https?:\/\/[^\s]+)/g;
+                                                                        const parts = caption.split(urlRegex);
+                                                                        return parts.map((part: string, index: number) => {
+                                                                            if (part.match(urlRegex)) {
+                                                                                const displayUrl = part.length > 55 ? part.substring(0, 50) + '...' : part;
+                                                                                return (
+                                                                                    <a
+                                                                                        key={index}
+                                                                                        href={part}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        title={part}
+                                                                                        className={`underline break-all font-bold ${isMe ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
+                                                                                    >
+                                                                                        {displayUrl}
+                                                                                    </a>
+                                                                                );
+                                                                            }
+                                                                            return part;
+                                                                        });
+                                                                    })()}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <span className="text-[10px] text-gray-400 font-bold mt-1">
                                                         {new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                                     </span>
