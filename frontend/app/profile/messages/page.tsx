@@ -2286,10 +2286,10 @@ function MessagesInner() {
                             {pendingVerificationRequest
                                 ? '📦 The seller sent print verification photos! Please review them in the chat message above to generate the shipping label.'
                                 : isJob
-                                    ? '🖨️ The printer has received your 3D file and is working on it. Waiting for shipment...'
+                                    ? '🖨️ The printer has received your 3D file and is working on it. Waiting for print verification photos...'
                                     : isDigital
                                         ? '⏳ Waiting for the seller to send files to your email...'
-                                        : '⏳ Waiting for the seller to ship the package...'}
+                                        : '📸 Waiting for the seller to upload print verification photos before shipping...'}
                         </p>
                     </div>
                 </div>
