@@ -393,12 +393,16 @@ export async function POST(req: Request) {
           furgonetkaPayload.receiver.postcode = '02-222';
           furgonetkaPayload.receiver.city = 'Warszawa';
           furgonetkaPayload.receiver.street = 'Marszałkowska 1';
+          furgonetkaPayload.receiver.country_code = 'PL';
+          furgonetkaPayload.receiver.name = sanitizeName(furgonetkaPayload.receiver.name, 'Jan Kowalski');
         }
         if (furgonetkaPayload.pickup) {
           delete furgonetkaPayload.pickup.point;
           furgonetkaPayload.pickup.postcode = '02-222';
           furgonetkaPayload.pickup.city = 'Warszawa';
           furgonetkaPayload.pickup.street = 'Marszałkowska 1';
+          furgonetkaPayload.pickup.country_code = 'PL';
+          furgonetkaPayload.pickup.name = sanitizeName(furgonetkaPayload.pickup.name, 'Jan Kowalski');
         }
         // Fall back to DPD Courier (Service ID: 11636590) to guarantee shipment success
         furgonetkaPayload.service_id = 11636590;
