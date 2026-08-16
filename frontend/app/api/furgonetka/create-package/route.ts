@@ -48,10 +48,6 @@ function isPointToPoint(carrier: string): boolean {
 }
 
 export async function POST(req: Request) {
-  let reqItemId: string | null = null;
-  let reqChatId: string | null = null;
-  let currentUser: any = null;
-
   try {
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
@@ -65,14 +61,8 @@ export async function POST(req: Request) {
     if (authError || !user) {
       return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }
-    currentUser = user;
 
-    const body = await req.json();
-    reqItemId = body?.itemId;
-    reqChatId = body?.chatId;
-    const itemId = reqItemId;
-    const chatId = reqChatId;
-
+    const { itemId, chatId } = await req.json();
     if (!itemId || !chatId) {
       return NextResponse.json({ success: false, error: 'Item ID and Chat ID are required' }, { status: 400 });
     }
@@ -493,58 +483,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('❌ Furgonetka package creation route error:', error);
-    const lowerErrMsg = (error?.message || '').toLowerCase();
-
-    // If Furgonetka API fails due to auth or service unavailability, create a fallback shipment tracking entry
-    if (
-      lowerErrMsg.includes('access_denied') ||
-      lowerErrMsg.includes('authentication') ||
-      lowerErrMsg.includes('authorization') ||
-      lowerErrMsg.includes('unauthorized') ||
-      lowerErrMsg.includes('token') ||
-      lowerErrMsg.includes('grant') ||
-      lowerErrMsg.includes('expired') ||
-      lowerErrMsg.includes('401') ||
-      lowerErrMsg.includes('403')
-    ) {
-      console.warn('⚠️ Furgonetka API authorization error. Applying fallback shipment status...');
-      const fallbackTracking = `PRT-FURG-${Date.now().toString().slice(-8)}`;
-      const fallbackPackageId = `DEMO-${Date.now()}`;
-
-      const fallbackLabelUrl = `/api/furgonetka/label/${fallbackPackageId}`;
-      try {
-        if (reqItemId) {
-          await supabase
-            .from('order_items')
-            .update({
-              status: 'shipped',
-              tracking_code: fallbackTracking,
-              furgonetka_package_id: fallbackPackageId,
-              label_url: fallbackLabelUrl,
-            })
-            .eq('id', reqItemId);
-        }
-
-        if (reqChatId && currentUser?.id) {
-          await supabase.from('messages').insert({
-            chat_id: reqChatId,
-            sender_id: currentUser.id,
-            content: `The shipment confirmation has been approved! Tracking number: ${fallbackTracking}.`,
-            message_type: 'status_shipped'
-          });
-        }
-
-        return NextResponse.json({
-          success: true,
-          packageId: fallbackPackageId,
-          trackingNumber: fallbackTracking,
-          labelUrl: fallbackLabelUrl
-        });
-      } catch (fallbackErr) {
-        console.error('Fallback shipment update failed:', fallbackErr);
-      }
-    }
-
     const userError = translateFurgonetkaError(error.message || 'Internal Server Error');
     return NextResponse.json({
       success: false,
