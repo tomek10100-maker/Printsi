@@ -125,9 +125,9 @@ export default function GlobalToast() {
             className="shrink-0 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors opacity-50 hover:opacity-100"
           >
             <X size={18} />
-          </button>
-        </div>
-      ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
