@@ -1207,7 +1207,7 @@ function MessagesInner() {
     })();
 
     const sendProposal = async () => {
-        if (!activeChatId || !currentUser || !activeChatData) return;
+        if (!currentUser || !activeChatData) return;
 
         const currentActiveId = await ensureActiveChatExists();
         if (!currentActiveId) return;
@@ -1254,8 +1254,6 @@ function MessagesInner() {
                 isModified: isActuallyModified
             };
         });
-
-
 
         const payload: any = {
             price: finalPrice,
@@ -1319,7 +1317,7 @@ function MessagesInner() {
 
         const tempMsg = {
             id: 'temp-' + Date.now(),
-            chat_id: activeChatId,
+            chat_id: currentActiveId,
             sender_id: currentUser.id,
             content: content,
             message_type: 'user',
@@ -1328,11 +1326,17 @@ function MessagesInner() {
         setMessages(prev => [...prev, tempMsg]);
         scrollToBottom();
 
-        await supabase.from('messages').insert({
-            chat_id: activeChatId,
+        const { error: sendErr } = await supabase.from('messages').insert({
+            chat_id: currentActiveId,
             sender_id: currentUser.id,
             content: content,
         });
+
+        if (sendErr) {
+            console.error('Failed to send proposal message:', sendErr);
+            alert('Failed to send proposal message.');
+            return;
+        }
 
         // Trigger Negotiation Email
         const emailType = payload.status === 'counter_proposed' ? 'counter_offer' : (payload.status === 'seller_proposed' ? 'seller_offer' : 'new_offer');
@@ -1340,7 +1344,7 @@ function MessagesInner() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                chatId: activeChatId,
+                chatId: currentActiveId,
                 senderId: currentUser.id,
                 type: emailType,
                 price: formatPrice(payload.price),
@@ -1364,7 +1368,7 @@ function MessagesInner() {
             setRespondingToMsgId(null);
         }
 
-        loadMessages(activeChatId);
+        loadMessages(currentActiveId);
         loadChats(currentUser.id);
     };
 
