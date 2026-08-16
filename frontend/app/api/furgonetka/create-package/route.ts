@@ -247,7 +247,7 @@ export async function POST(req: Request) {
     if (isPickupPoint) {
       // For paczkomat/pickup point shipments, the point code is what matters.
       // Address fields are required by Furgonetka - use point's city and zip if available, fallback to shippingDetails or Warszawa defaults.
-      const rawPostcode = selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || '00-001';
+      const rawPostcode = selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || '02-222';
       const rawCity = selectedPoint.city || shippingDetails.city || 'Warszawa';
       const rawStreet = selectedPoint.street || selectedPoint.name || shippingDetails.address || 'Główna 1';
 
@@ -390,13 +390,13 @@ export async function POST(req: Request) {
         console.warn('[CreatePackage Route] Retrying package creation with universal DPD Courier fallback & guaranteed postal routing...');
         if (furgonetkaPayload.receiver) {
           delete furgonetkaPayload.receiver.point;
-          furgonetkaPayload.receiver.postcode = '00-001';
+          furgonetkaPayload.receiver.postcode = '02-222';
           furgonetkaPayload.receiver.city = 'Warszawa';
           furgonetkaPayload.receiver.street = 'Marszałkowska 1';
         }
         if (furgonetkaPayload.pickup) {
           delete furgonetkaPayload.pickup.point;
-          furgonetkaPayload.pickup.postcode = '00-001';
+          furgonetkaPayload.pickup.postcode = '02-222';
           furgonetkaPayload.pickup.city = 'Warszawa';
           furgonetkaPayload.pickup.street = 'Marszałkowska 1';
         }
