@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
-    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock, MoreVertical, Flag, Camera, ImageIcon, Upload, Eye
+    Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock, MoreVertical, Flag, Camera, ImageIcon, Upload, Eye, Zap, ShoppingBag
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -1709,6 +1709,35 @@ function MessagesInner() {
         router.push('/checkout');
     };
 
+    const handleAddToCartCustomOffer = (parsedData: any) => {
+        if (!activeChatData) return;
+
+        const isJobOffer = activeChatData.offers?.category === 'job';
+        const jobPosterId = activeChatData.offers?.user_id || activeChatData.seller_id;
+        const printerUserId = isJobOffer
+            ? (activeChatData.buyer_id === jobPosterId ? activeChatData.seller_id : activeChatData.buyer_id)
+            : activeChatData.seller_id;
+
+        const targetOfferId = parsedData?.custom_offer_id || activeChatData.offer_id;
+        if (!targetOfferId) return;
+
+        addItem({
+            id: targetOfferId,
+            title: isJobOffer ? `Print Job: ${activeChatData.offers?.title}` : `Custom: ${activeChatData.offers?.title}`,
+            price: Number(parsedData?.price || activeChatData.offers?.price),
+            image_url: activeChatData.offers?.image_urls?.[0] || null,
+            seller_id: printerUserId,
+            stock: Number(parsedData?.quantity || 1),
+            is_custom: true,
+            category: isJobOffer ? 'job' : (activeChatData.offers?.category || 'physical'),
+            material: parsedData?.material || activeChatData.offers?.material,
+            color: parsedData?.color || activeChatData.offers?.color,
+            dimensions: parsedData?.dimensions || activeChatData.offers?.dimensions
+        }, Number(parsedData?.quantity || 1));
+
+        alert('🛒 Custom offer added to cart!');
+    };
+
     const handleArchiveChat = async (chatId: string, currentlyArchived: boolean) => {
         if (!currentUser) return;
         setArchivingChatId(chatId);
@@ -3399,32 +3428,32 @@ function MessagesInner() {
                                                                         </span>
                                                                     </div>
                                                                     <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${
-                                                                        pData.status === 'accepted' ? (isPaidOrder ? 'text-emerald-400' : 'text-amber-400') :
+                                                                        pData.status === 'accepted' ? 'text-emerald-400' :
                                                                         (pData.status === 'rejected' || pData.status === 'cancelled') ? 'text-rose-400' :
                                                                         pData.status === 'counter_proposed' ? 'text-violet-400' :
                                                                         pData.status === 'seller_proposed' ? 'text-amber-400' : 'text-blue-400'
                                                                     }`}>
                                                                         {pData.status === 'counter_proposed' ? 'Counter Offer' :
-                                                                            pData.status === 'accepted' ? (isPaidOrder ? 'Order Paid & Confirmed' : 'Terms Agreed · Payment Pending') :
+                                                                            pData.status === 'accepted' ? (isPaidOrder ? 'Order Paid & Confirmed' : 'Offer Accepted') :
                                                                             pData.status === 'rejected' ? 'Offer Declined' :
                                                                             pData.status === 'cancelled' ? 'Offer Withdrawn' :
                                                                             pData.status === 'seller_proposed' ? 'Seller Offer' : 'Customer Request'}
                                                                     </span>
                                                                     <h4 className="text-white text-xs font-bold mt-0.5">
                                                                         {pData.status === 'counter_proposed' ? 'Revised Offer' :
-                                                                            pData.status === 'accepted' ? (isPaidOrder ? 'Paid Order' : 'Awaiting Payment') :
+                                                                            pData.status === 'accepted' ? (isPaidOrder ? 'Paid Order' : 'Accepted') :
                                                                             pData.status === 'cancelled' ? 'Cancelled Request' :
                                                                             pData.status === 'seller_proposed' ? 'Special Deal' : 'Custom Request'}
                                                                     </h4>
                                                                 </div>
                                                                 <span className={`text-[8px] font-black uppercase px-2.5 py-1 rounded-full border ${
-                                                                    pData.status === 'accepted' ? (isPaidOrder ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : 'border-amber-500 text-amber-400 bg-amber-500/10') :
+                                                                    pData.status === 'accepted' ? (isPaidOrder ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : 'border-emerald-500 text-emerald-400 bg-emerald-500/10') :
                                                                     (pData.status === 'rejected' || pData.status === 'cancelled') ? 'border-rose-500 text-rose-400 bg-rose-900/20' :
                                                                     pData.status === 'countered' ? 'border-slate-500 text-slate-400 bg-slate-500/10' :
                                                                     pData.status === 'counter_proposed' ? 'border-violet-500 text-violet-400 bg-violet-500/10' :
                                                                     'border-blue-500/50 text-blue-400 bg-blue-500/10'
                                                                 }`}>
-                                                                    {pData.status === 'accepted' ? (isPaidOrder ? 'PAID' : 'PAYMENT PENDING') :
+                                                                    {pData.status === 'accepted' ? (isPaidOrder ? 'PAID' : 'ACCEPTED') :
                                                                      pData.status === 'countered' ? 'Offer Replaced' : 
                                                                      pData.status === 'cancelled' ? 'Cancelled' : 
                                                                      pData.status.replace('_', ' ')}
@@ -3623,16 +3652,29 @@ function MessagesInner() {
                                                                             </div>
                                                                         );
                                                                     }
+                                                                    const inCart = cartItems.some(i => i.id === pData.custom_offer_id);
                                                                     return (
                                                                         <div className="space-y-2 mt-2">
-                                                                            <button
-                                                                                onClick={() => handleBuyCustomOffer(pData)}
-                                                                                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-gray-950 font-black rounded-xl text-[11px] uppercase tracking-[0.1em] shadow-xl transition-all transform active:scale-[0.98] flex items-center justify-center gap-2"
-                                                                            >
-                                                                                <CreditCard size={14} /> Complete Payment ({formatPrice(pData.price)})
-                                                                            </button>
-                                                                            <p className="text-[9px] font-bold text-amber-400 text-center uppercase tracking-wider">
-                                                                                ⚠️ Order not paid yet. Click above to complete checkout.
+                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                                <button
+                                                                                    onClick={() => handleBuyCustomOffer(pData)}
+                                                                                    className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-black rounded-xl text-[10px] uppercase tracking-[0.1em] shadow-xl transition-all transform active:scale-[0.98] flex items-center justify-center gap-1.5"
+                                                                                >
+                                                                                    <Zap size={13} className="fill-white" /> Buy Now ({formatPrice(pData.price)})
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => handleAddToCartCustomOffer(pData)}
+                                                                                    className={`w-full py-3.5 font-black rounded-xl text-[10px] uppercase tracking-[0.1em] transition-all transform active:scale-[0.98] flex items-center justify-center gap-1.5 ${
+                                                                                        inCart
+                                                                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                                                                                            : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                                                                                    }`}
+                                                                                >
+                                                                                    <ShoppingBag size={13} /> {inCart ? 'In Cart' : 'Add to Cart'}
+                                                                                </button>
+                                                                            </div>
+                                                                            <p className="text-[9px] font-bold text-emerald-400 text-center uppercase tracking-wider">
+                                                                                ✅ Offer Accepted! Choose Buy Now or Add to Cart.
                                                                             </p>
                                                                         </div>
                                                                     );
