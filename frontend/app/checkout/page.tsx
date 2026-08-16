@@ -21,6 +21,17 @@ import {
   ShippingOption
 } from '../lib/shippingRates';
 
+function sanitizeSavedAddress(addr: string | null | undefined): string {
+  if (!addr) return '';
+  const clean = addr.trim();
+  // Strip corrupted Paczkomat prefix e.g. "FR_FR018259 - 86 Rue Abbé Pierre, 87-100 Limoges" or "PL_WAW01 - Ul. X"
+  if (/^[A-Z0-9_]{4,20}\s*-\s*/i.test(clean)) {
+    const parts = clean.split('-').slice(1).join('-').trim();
+    return parts;
+  }
+  return clean;
+}
+
 function CheckoutInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -92,7 +103,7 @@ function CheckoutInner() {
     // Set country for international pickup point search
     const targetCountry = (formData.country || 'PL').toLowerCase();
 
-    const map = new (window as any).Furgonetka.Map({
+    const mapConfig: any = {
       apiKey: apiKey,
       language: 'en',
       lang: 'en',
@@ -116,17 +127,24 @@ function CheckoutInner() {
           setSelectedPoint(pointDetails);
           setShowMapError(false);
 
-          // Auto-fill standard form fields so that user gets feedback in the form
+          // Keep user's physical home street address intact!
+          // Only update city/zip if empty in form
           setFormData(prev => ({
             ...prev,
-            address: `${pointDetails.name}, ${pointDetails.street}`,
-            city: pointDetails.city || prev.city,
-            zip: pointDetails.zip || prev.zip,
+            city: prev.city || pointDetails.city,
+            zip: prev.zip || pointDetails.zip,
           }));
         }
       }
-    });
+    };
 
+    if (selectedPoint?.code) {
+      mapConfig.point = selectedPoint.code;
+      mapConfig.selectedPoint = selectedPoint.code;
+      mapConfig.pointCode = selectedPoint.code;
+    }
+
+    const map = new (window as any).Furgonetka.Map(mapConfig);
     map.show();
   };
 
@@ -311,11 +329,12 @@ function CheckoutInner() {
       if (profile || savedLocal) {
         const rawCountry = profile?.country || savedLocal?.country || 'PL';
         const countryCode = rawCountry.length === 2 ? rawCountry.toUpperCase() : (countryNameToCode(rawCountry) || 'PL');
+        const cleanAddr = sanitizeSavedAddress(profile?.address || savedLocal?.address);
         setFormData({
           fullName: profile?.full_name || savedLocal?.fullName || '',
           email: user.email || '',
-          phone: profile?.phone || savedLocal?.phone || '',
-          address: profile?.address || savedLocal?.address || '',
+          phone: profile?.phone || profile?.phone_number || savedLocal?.phone || '',
+          address: cleanAddr,
           city: profile?.city || savedLocal?.city || '',
           zip: profile?.zip_code || savedLocal?.zip || '',
           country: countryCode,
@@ -435,10 +454,12 @@ function CheckoutInner() {
 
     // Auto-save phone number & delivery details to user profile & localStorage
     try {
-      if (user && formData.phone) {
+      const cleanHomeAddr = sanitizeSavedAddress(formData.address);
+      if (user && (formData.phone || cleanHomeAddr)) {
         await supabase.from('profiles').update({
           phone: formData.phone,
-          address: formData.address,
+          phone_number: formData.phone,
+          address: cleanHomeAddr,
           city: formData.city,
           zip_code: formData.zip,
           country: formData.country,
@@ -447,7 +468,7 @@ function CheckoutInner() {
       localStorage.setItem('printsi_delivery_defaults', JSON.stringify({
         fullName: formData.fullName,
         phone: formData.phone,
-        address: formData.address,
+        address: cleanHomeAddr,
         city: formData.city,
         zip: formData.zip,
         country: formData.country,
@@ -673,48 +694,44 @@ function CheckoutInner() {
                         onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                         className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
                       />
-                      {!isPickupOption && (
-                        <>
-                          <input
-                            name="address"
-                            value={formData.address}
-                            onChange={handleInputChange}
-                            placeholder="Address"
-                            required
-                            title="Please fill out this field"
-                            onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
-                            onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
-                          />
-                          <div className="grid grid-cols-2 gap-4">
-                            <input
-                              name="city"
-                              value={formData.city}
-                              onChange={handleInputChange}
-                              placeholder="City"
-                              required
-                              title="Please fill out this field"
-                              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
-                              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-                              className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold"
-                            />
-                            <input
-                              name="zip"
-                              value={formData.zip}
-                              onChange={handleInputChange}
-                              placeholder="ZIP"
-                              required
-                              title="Please fill out this field"
-                              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
-                              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-                              className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold"
-                            />
-                          </div>
-                          <select name="country" value={formData.country} onChange={handleInputChange} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold">
-                            {DHL_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
-                          </select>
-                        </>
-                      )}
+                      <input
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        placeholder="Street Address"
+                        required={!isPickupOption}
+                        title="Please fill out this field"
+                        onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                        onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <input
+                          name="city"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                          placeholder="City"
+                          required={!isPickupOption}
+                          title="Please fill out this field"
+                          onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                          onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                          className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900"
+                        />
+                        <input
+                          name="zip"
+                          value={formData.zip}
+                          onChange={handleInputChange}
+                          placeholder="ZIP / Postal Code"
+                          required={!isPickupOption}
+                          title="Please fill out this field"
+                          onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                          onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                          className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900"
+                        />
+                      </div>
+                      <select name="country" value={formData.country} onChange={handleInputChange} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900">
+                        {DHL_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                      </select>
                     </>
                   )}
                 </form>
