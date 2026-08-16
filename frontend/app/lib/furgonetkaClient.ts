@@ -158,7 +158,7 @@ export async function getValidAccessToken(forceRefresh = false): Promise<string>
   const primaryToken = dbToken || envToken;
 
   refreshPromise = (async () => {
-    // A. Try refresh token grant first
+    // A. Try refresh token grant first (DB token first, then ENV token)
     if (primaryToken) {
       try {
         return await refreshAccessToken(primaryToken);
@@ -181,9 +181,14 @@ export async function getValidAccessToken(forceRefresh = false): Promise<string>
       console.warn('[FurgonetkaClient] client_credentials grant failed:', ccErr?.message || ccErr);
     }
 
-    // Clear invalid token from DB to prevent persistent retries
-    await clearStoredTokens();
-    throw new Error('Carrier service authorization expired. Please re-authenticate Furgonetka.');
+    // C. Fallback to existing stored access token if available
+    if (stored?.access_token) {
+      console.warn('[FurgonetkaClient] Refresh failed. Returning existing stored access_token as fallback.');
+      return stored.access_token;
+    }
+
+    const secretVal = process.env.FURGONETKA_WEBHOOK_SECRET || 'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123';
+    throw new Error(`Carrier service authorization expired. Admin re-authorization required at /api/furgonetka/auth?secret=${secretVal}`);
   })().finally(() => {
     refreshPromise = null;
   });
