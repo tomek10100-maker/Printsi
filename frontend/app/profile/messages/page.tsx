@@ -1898,6 +1898,7 @@ function MessagesInner() {
             let scData: any = {};
             try { scData = JSON.parse(msg.content); } catch { }
             const isBuyer = activeChatData && String(currentUser?.id) === String(activeChatData.buyer_id);
+            const isSeller = activeChatData && String(currentUser?.id) === String(activeChatData.seller_id);
             const orderStatus = activeChatData?.orderItem?.status;
             const isConfirmedOrDone = ['shipped', 'delivered', 'completed', 'payout_completed'].includes(orderStatus || '');
             const isDisputed = orderStatus === 'disputed';
@@ -1953,13 +1954,25 @@ function MessagesInner() {
                             )}
 
                             {isConfirmedOrDone ? (
-                                <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
-                                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                                    <p className="text-xs font-black text-emerald-700">
-                                        {orderStatus === 'completed' || orderStatus === 'delivered' || orderStatus === 'payout_completed'
-                                            ? 'Transaction Completed — Item received by buyer.'
-                                            : 'Confirmed — shipping label generated.'}
-                                    </p>
+                                <div className="space-y-3 p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200">
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                                        <p className="text-xs font-black text-emerald-800">
+                                            {orderStatus === 'completed' || orderStatus === 'delivered' || orderStatus === 'payout_completed'
+                                                ? 'Transaction Completed — Shipping Label Ready'
+                                                : 'Confirmed — Shipping Label Generated'}
+                                        </p>
+                                    </div>
+
+                                    {/* Direct Download Button for Seller / Maker */}
+                                    {isSeller && (
+                                        <button
+                                            onClick={() => handleDownloadLabel(activeChatData?.orderItem?.furgonetka_package_id || activeChatData?.orderItem?.tracking_code || scData.itemId)}
+                                            className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-98 cursor-pointer"
+                                        >
+                                            <Printer size={16} /> 📥 Download Courier Shipping Label (PDF)
+                                        </button>
+                                    )}
                                 </div>
                             ) : isDisputed ? (
                                 <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-xl border border-red-200">
@@ -2345,12 +2358,12 @@ function MessagesInner() {
                                 {isJob ? '📦 Item shipped! Waiting for the customer to confirm delivery...'
                                     : isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
                             </p>
-                            {isPrinter && orderItem.label_url && (
+                            {(isPrinter || isSeller) && (orderItem.furgonetka_package_id || orderItem.tracking_code || orderItem.label_url) && (
                                 <button
                                     onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
-                                    className="mt-3 px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 mx-auto transition-all shadow-sm"
+                                    className="mt-3 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 mx-auto transition-all shadow-md active:scale-95 cursor-pointer"
                                 >
-                                    <Printer size={12} /> Download PDF Label
+                                    <Printer size={14} /> 📥 Download Courier Shipping Label (PDF)
                                 </button>
                             )}
                         </div>
