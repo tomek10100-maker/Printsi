@@ -106,25 +106,26 @@ export default function GlobalToast() {
                 {toast.type === 'error' && (isPaymentErr ? 'Payment Error' : 'System Notice')}
                 {toast.type === 'info' && 'Notification'}
               </span>
-            <span className="font-bold text-[13px] leading-tight tracking-tight max-h-32 overflow-y-auto whitespace-pre-wrap pr-2">
-              {toast.message}
-            </span>
-            {toast.message.toLowerCase().includes('support') && (
-              <Link
-                href="/support"
-                onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                className="mt-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-wider transition-all w-fit shadow-lg shadow-blue-600/30 active:scale-95 pointer-events-auto"
-              >
-                <LifeBuoy size={12} /> Contact Support &rarr;
-              </Link>
-            )}
-          </div>
+              <span className="font-bold text-[13px] leading-tight tracking-tight max-h-32 overflow-y-auto whitespace-pre-wrap pr-2">
+                {toast.message}
+              </span>
+              {toast.message.toLowerCase().includes('support') && (
+                <Link
+                  href="/support"
+                  onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                  className="mt-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-wider transition-all w-fit shadow-lg shadow-blue-600/30 active:scale-95 pointer-events-auto"
+                >
+                  <LifeBuoy size={12} /> Contact Support &rarr;
+                </Link>
+              )}
+            </div>
 
-          <button 
-            onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-            className="shrink-0 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors opacity-50 hover:opacity-100"
-          >
-            <X size={18} />
+            <button 
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              className="shrink-0 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors opacity-50 hover:opacity-100"
+            >
+              <X size={18} />
+            </button>
           </div>
         );
       })}
