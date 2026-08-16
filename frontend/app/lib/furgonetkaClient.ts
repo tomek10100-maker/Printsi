@@ -104,6 +104,43 @@ async function refreshAccessToken(currentRefreshToken: string): Promise<string> 
   return data.access_token;
 }
 
+async function requestClientCredentialsToken(): Promise<string> {
+  const clientId = process.env.FURGONETKA_CLIENT_ID;
+  const clientSecret = process.env.FURGONETKA_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('Furgonetka client credentials are missing in env.');
+  }
+
+  const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const tokenUrl = `${BASE_URL}/oauth/token`;
+
+  console.log('[FurgonetkaClient] Attempting client_credentials OAuth grant fallback...');
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${authHeader}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials'
+    })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`client_credentials grant failed: ${response.status}. Response: ${text}`);
+  }
+
+  const data = await response.json();
+  if (!data.access_token) {
+    throw new Error('Invalid response structure from client_credentials endpoint.');
+  }
+
+  await saveTokens(data.access_token, data.refresh_token || '');
+  return data.access_token;
+}
+
 export async function getValidAccessToken(forceRefresh = false): Promise<string> {
   // 1. Try Supabase-stored token first (persists across serverless invocations)
   const stored = await getStoredTokens();
@@ -120,28 +157,33 @@ export async function getValidAccessToken(forceRefresh = false): Promise<string>
   const envToken = process.env.FURGONETKA_REFRESH_TOKEN;
   const primaryToken = dbToken || envToken;
 
-  if (!primaryToken) {
-    throw new Error('Furgonetka refresh token is missing in configuration.');
-  }
-
   refreshPromise = (async () => {
-    try {
-      return await refreshAccessToken(primaryToken);
-    } catch (err: any) {
-      console.warn('[FurgonetkaClient] Primary token refresh failed:', err?.message || err);
-      // If DB token failed and we have a different env token, attempt env token fallback
-      if (dbToken && envToken && dbToken !== envToken) {
-        console.log('[FurgonetkaClient] Attempting fallback with env FURGONETKA_REFRESH_TOKEN...');
-        try {
-          return await refreshAccessToken(envToken);
-        } catch (envErr) {
-          console.error('[FurgonetkaClient] Fallback token refresh failed:', envErr);
+    // A. Try refresh token grant first
+    if (primaryToken) {
+      try {
+        return await refreshAccessToken(primaryToken);
+      } catch (err: any) {
+        console.warn('[FurgonetkaClient] Primary refresh token failed:', err?.message || err);
+        if (dbToken && envToken && dbToken !== envToken) {
+          try {
+            return await refreshAccessToken(envToken);
+          } catch (envErr) {
+            console.error('[FurgonetkaClient] Fallback env refresh token failed:', envErr);
+          }
         }
       }
-      // Clear invalid token from DB to prevent persistent retries
-      await clearStoredTokens();
-      throw new Error('Carrier service authorization expired. Please re-authenticate Furgonetka.');
     }
+
+    // B. Try client_credentials grant fallback
+    try {
+      return await requestClientCredentialsToken();
+    } catch (ccErr: any) {
+      console.warn('[FurgonetkaClient] client_credentials grant failed:', ccErr?.message || ccErr);
+    }
+
+    // Clear invalid token from DB to prevent persistent retries
+    await clearStoredTokens();
+    throw new Error('Carrier service authorization expired. Please re-authenticate Furgonetka.');
   })().finally(() => {
     refreshPromise = null;
   });

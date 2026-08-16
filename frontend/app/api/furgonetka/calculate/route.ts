@@ -103,7 +103,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, options: finalOptions });
   } catch (err: any) {
     console.error('[Furgonetka Calculate] Error:', err?.message || err);
-    // Return empty options so checkout falls back to static prices gracefully
-    return NextResponse.json({ success: false, error: err?.message || 'Failed to calculate shipping', options: [] }, { status: 500 });
+    return NextResponse.json({ success: false, error: null, options: [] }, { status: 200 });
   }
 }
