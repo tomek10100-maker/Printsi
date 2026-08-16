@@ -2290,9 +2290,9 @@ function MessagesInner() {
                                 {isJob ? '📦 Item shipped! Waiting for the customer to confirm delivery...'
                                     : isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
                             </p>
-                            {isPrinter && orderItem.label_url && (
+                            {isPrinter && !isDigital && (
                                 <button
-                                    onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
+                                    onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code || 'DEMO-LABEL')}
                                     className="mt-3 px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 mx-auto transition-all shadow-sm"
                                 >
                                     <Printer size={12} /> Download PDF Label
@@ -3642,6 +3642,28 @@ function MessagesInner() {
                                                         <p className="text-xs text-slate-300 italic font-medium">"{resData.notes}"</p>
                                                     )}
                                                     <p className="text-[10px] text-slate-400 font-mono pt-1">{new Date(msg.created_at).toLocaleString()}</p>
+                                                </div>
+                                            );
+                                        }
+
+                                        if (msg.message_type === 'status_shipped' || (msg.content && msg.content.includes('shipped the package'))) {
+                                            const isSellerUser = activeChatData?.seller_id === currentUser?.id || activeChatData?.orderItem?.seller_id === currentUser?.id;
+                                            return (
+                                                <div key={msg.id || idx} className="flex flex-col items-center my-4 w-full">
+                                                    <div className="max-w-[85%] bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 text-slate-800 rounded-2xl p-4 shadow-sm text-center space-y-2">
+                                                        <div className="flex items-center justify-center gap-2 text-indigo-600 font-black text-xs uppercase tracking-wider">
+                                                            <Truck size={16} /> Shipment Confirmed
+                                                        </div>
+                                                        <p className="text-xs text-slate-600 font-medium leading-relaxed">{msg.content}</p>
+                                                        {isSellerUser && (
+                                                            <button
+                                                                onClick={() => handleDownloadLabel(activeChatData?.orderItem?.furgonetka_package_id || activeChatData?.orderItem?.tracking_code || 'DEMO-LABEL')}
+                                                                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95"
+                                                            >
+                                                                <Printer size={14} /> Download PDF Shipping Label
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
                                         }

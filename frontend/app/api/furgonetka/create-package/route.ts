@@ -511,6 +511,7 @@ export async function POST(req: Request) {
       const fallbackTracking = `PRT-FURG-${Date.now().toString().slice(-8)}`;
       const fallbackPackageId = `DEMO-${Date.now()}`;
 
+      const fallbackLabelUrl = `/api/furgonetka/label/${fallbackPackageId}`;
       try {
         if (reqItemId) {
           await supabase
@@ -519,6 +520,7 @@ export async function POST(req: Request) {
               status: 'shipped',
               tracking_code: fallbackTracking,
               furgonetka_package_id: fallbackPackageId,
+              label_url: fallbackLabelUrl,
             })
             .eq('id', reqItemId);
         }
@@ -536,7 +538,7 @@ export async function POST(req: Request) {
           success: true,
           packageId: fallbackPackageId,
           trackingNumber: fallbackTracking,
-          labelUrl: null
+          labelUrl: fallbackLabelUrl
         });
       } catch (fallbackErr) {
         console.error('Fallback shipment update failed:', fallbackErr);
