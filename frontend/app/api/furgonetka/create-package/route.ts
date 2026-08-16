@@ -144,14 +144,29 @@ export async function POST(req: Request) {
       .eq('order_id', item.order_id)
       .maybeSingle();
 
-    let shippingDetails: any = dbShippingDetails || (orderShippingAddr && (orderShippingAddr.fullName || orderShippingAddr.address || orderShippingAddr.phone) ? {
-      full_name: orderShippingAddr.fullName || orderShippingAddr.name || 'Recipient',
-      address: orderShippingAddr.address || orderShippingAddr.address?.line1 || orderShippingAddr.line1 || '',
-      city: orderShippingAddr.city || orderShippingAddr.address?.city || '',
-      zip_code: orderShippingAddr.zip || orderShippingAddr.zip_code || orderShippingAddr.address?.postal_code || '',
-      country: orderShippingAddr.country || orderShippingAddr.address?.country || 'PL',
-      email: orderShippingAddr.email || orderShippingAddr.customer_details?.email || '',
-      phone: orderShippingAddr.phone || orderShippingAddr.customer_details?.phone || ''
+    // Stripe stores address as a nested object: { name, address: { line1, city, country, postal_code } }
+    // Balance checkout stores it flat: { fullName, address, city, zip, country }
+    // We need to handle both formats.
+    const stripeNestedAddr = orderShippingAddr?.address && typeof orderShippingAddr.address === 'object' && !Array.isArray(orderShippingAddr.address)
+      ? orderShippingAddr.address
+      : null;
+
+    let shippingDetails: any = dbShippingDetails || (orderShippingAddr ? {
+      full_name: orderShippingAddr.fullName || orderShippingAddr.name || orderShippingAddr.individual_name || 'Recipient',
+      address: orderShippingAddr.address && typeof orderShippingAddr.address === 'string'
+        ? orderShippingAddr.address
+        : stripeNestedAddr?.line1 || orderShippingAddr.line1 || '',
+      city: (typeof orderShippingAddr.city === 'string' && orderShippingAddr.city)
+        ? orderShippingAddr.city
+        : stripeNestedAddr?.city || '',
+      zip_code: orderShippingAddr.zip || orderShippingAddr.zip_code
+        ? (orderShippingAddr.zip || orderShippingAddr.zip_code)
+        : stripeNestedAddr?.postal_code || '',
+      country: (typeof orderShippingAddr.country === 'string' && orderShippingAddr.country.length === 2)
+        ? orderShippingAddr.country
+        : stripeNestedAddr?.country || orderShippingAddr.country || 'PL',
+      email: orderShippingAddr.email || '',
+      phone: orderShippingAddr.phone || '',
     } : null);
 
     if (!shippingDetails) {
