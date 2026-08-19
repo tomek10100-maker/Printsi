@@ -3009,7 +3009,21 @@ function MessagesInner() {
                                                                 ? sellerFilaments.find(f => f.id === sl.swapped_filament_id)?.color_name
                                                                 : (sl.showCustom ? sl.custom_color_name : '');
                                                             return currentChoiceName && currentChoiceName !== sl.original_color_name;
-                                                        <div className={`grid ${isJob ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
+                                                        }) ||
+                                                        (proposalMaterial !== (sd?.material || '')) ||
+                                                        (proposalColor !== (sd?.color || ''))
+                                                    );
+
+                                                    const originalDims = parseDimensionsAdvanced(sd?.dimensions || activeChatData.offers?.dimensions || '');
+                                                    const hasDimChanges = !isJob && !isDigital && (proposalScale !== 100 || proposalDims.some((dim, idx) => {
+                                                        const orig = originalDims[idx]?.originalValue || dim.originalValue;
+                                                        return Math.abs(parseFloat(dim.currentValueStr || '0') - orig) > 0.01;
+                                                    }));
+
+                                                    const hasProposalChanges = isDigital ? pDiff : (pDiff || qDiff || hasMatChanges || hasDimChanges);
+
+                                                    return (
+                                                        <div className={`grid ${isJob || isDigital ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                                                             <div>
                                                                 <div className="flex justify-between items-center mb-1">
                                                                     <label className={`text-[9px] font-black uppercase ${pDiff ? 'text-blue-600' : 'text-gray-400'}`}>Price</label>
