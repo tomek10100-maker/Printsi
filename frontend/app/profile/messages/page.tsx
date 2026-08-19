@@ -195,7 +195,7 @@ function MessagesInner() {
         id, created_at, updated_at, order_id,
         buyer_id, seller_id,
         offer_id,
-        offers ( id, user_id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants, is_negotiable )
+        offers ( id, user_id, title, image_urls, category, price, material, color_name, color, dimensions, weight, custom_instructions, color_variants, is_negotiable, file_url, parent_offer_id )
       `)
             .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
             .order('updated_at', { ascending: false });
@@ -207,6 +207,17 @@ function MessagesInner() {
         }
 
         const enrichChats = await Promise.all((fetchedChats || []).map(async (chat) => {
+            if (chat.offers && !chat.offers.file_url && chat.offers.parent_offer_id) {
+                const { data: pOffer } = await supabase
+                    .from('offers')
+                    .select('file_url')
+                    .eq('id', chat.offers.parent_offer_id)
+                    .single();
+                if (pOffer?.file_url) {
+                    chat.offers.file_url = pOffer.file_url;
+                }
+            }
+
             const otherUserId = chat.buyer_id === userId ? chat.seller_id : chat.buyer_id;
 
             // Check if there are messages. Filter out empty chats to clean up database/clutter.
@@ -2294,6 +2305,48 @@ function MessagesInner() {
         }
 
         if (showWaitCard) {
+            const digitalFileUrl = chatData?.offers?.file_url;
+            if (isDigital) {
+                return (
+                    <div className="flex justify-center my-4 px-4 w-full">
+                        <div className="w-full max-w-md bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-2xl p-5 text-center shadow-sm space-y-3">
+                            <div className="w-12 h-12 mx-auto bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-inner">
+                                <Download size={22} />
+                            </div>
+                            <h4 className="text-sm font-black text-gray-900">
+                                📦 Your 3D Digital File is Ready!
+                            </h4>
+                            <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                                You bought a digital 3D model. Download your STL / 3MF file directly below.
+                            </p>
+                            {digitalFileUrl ? (
+                                <a
+                                    href={digitalFileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-600/25 active:scale-95 transition-all w-full cursor-pointer"
+                                >
+                                    <Download size={18} /> 📥 Download 3D File (STL / 3MF)
+                                </a>
+                            ) : (
+                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800">
+                                    ⏳ Preparing file download link...
+                                </div>
+                            )}
+                            <div className="pt-2 border-t border-emerald-100">
+                                <button
+                                    onClick={() => handleStatusUpdate('completed')}
+                                    disabled={statusUpdating}
+                                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition shadow-md flex items-center justify-center gap-2"
+                                >
+                                    {statusUpdating ? <Loader2 size={14} className="inline animate-spin" /> : <CheckCircle2 size={14} className="inline" />} Confirm & Finalize Order
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
                 <div className="flex justify-center my-4 px-4 w-full">
                     <div className="w-full max-w-md bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-center">
@@ -2302,9 +2355,7 @@ function MessagesInner() {
                                 ? '📦 The seller sent print verification photos! Please review them in the chat message above to generate the shipping label.'
                                 : isJob
                                     ? '🖨️ The printer has received your 3D file and is working on it. Waiting for print verification photos...'
-                                    : isDigital
-                                        ? '⏳ Waiting for the seller to send files to your email...'
-                                        : '📸 Waiting for the seller to upload print verification photos before shipping...'}
+                                    : '📸 Waiting for the seller to upload print verification photos before shipping...'}
                         </p>
                     </div>
                 </div>
@@ -2312,24 +2363,35 @@ function MessagesInner() {
         }
 
         if (showConfirmDelivery) {
+            const digitalFileUrl = chatData?.offers?.file_url;
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-200 rounded-2xl p-5 text-center shadow-sm">
-                            <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
+                        <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-200 rounded-2xl p-5 text-center shadow-sm space-y-3">
+                            <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center">
                                 {isDigital ? <Mail size={18} className="text-emerald-600" /> : <PackageCheck size={18} className="text-emerald-600" />}
                             </div>
-                            <p className="text-sm font-bold text-gray-800 mb-1">
+                            <p className="text-sm font-bold text-gray-800">
                                 {isJob ? 'Your printed item is on its way!' : isDigital ? 'Files delivered!' : 'Package on its way!'}
                             </p>
-                            <p className="text-xs text-gray-500 font-medium mb-4">
+                            <p className="text-xs text-gray-500 font-medium leading-relaxed">
                                 {isJob
                                     ? "The printer has shipped your item. Have you received it? Confirm delivery below."
                                     : isDigital
-                                        ? "The seller reported that files were sent to your email. Do you accept the delivery?"
+                                        ? "Your digital file purchase is complete. Click below to download your 3D model."
                                         : "The seller has shipped your order. Have you received the package? Confirm delivery below."}
                             </p>
-                            <div className="flex gap-3 justify-center">
+                            {isDigital && digitalFileUrl && (
+                                <a
+                                    href={digitalFileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-600/25 active:scale-95 transition-all w-full cursor-pointer"
+                                >
+                                    <Download size={18} /> 📥 Download 3D File (STL / 3MF)
+                                </a>
+                            )}
+                            <div className="flex gap-3 justify-center pt-1">
                                 <button
                                     onClick={() => handleStatusUpdate('completed')}
                                     disabled={statusUpdating}
@@ -2375,11 +2437,12 @@ function MessagesInner() {
         }
 
         if (status === 'completed' || status === 'disputed' || status === 'cancelled') {
+            const digitalFileUrl = chatData?.offers?.file_url;
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className={`w-full max-w-md rounded-2xl p-4 text-center ${
-                            status === 'completed' ? 'bg-green-50/80 border border-green-100' :
+                        <div className={`w-full max-w-md rounded-2xl p-5 text-center ${
+                            status === 'completed' ? 'bg-green-50/90 border border-green-200 shadow-sm space-y-3' :
                             status === 'cancelled' ? 'bg-slate-50/80 border border-slate-200' :
                             'bg-red-50/80 border border-red-100'
                         }`}>
@@ -2392,6 +2455,21 @@ function MessagesInner() {
                                  status === 'cancelled' ? '🚫 Order Cancelled' :
                                  '⚠️ Dispute Open — Funds on hold'}
                             </p>
+                            {status === 'completed' && (
+                                <p className="text-xs text-gray-600 font-bold">
+                                    Transaction completed successfully! Funds have been released.
+                                </p>
+                            )}
+                            {status === 'completed' && digitalFileUrl && (
+                                <a
+                                    href={digitalFileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-600/20 active:scale-95 transition-all w-full cursor-pointer"
+                                >
+                                    <Download size={18} /> 📥 Download Purchased 3D File (STL / 3MF)
+                                </a>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -2763,6 +2841,18 @@ function MessagesInner() {
                                                                 Awaiting Printer
                                                             </span>
                                                         )
+                                                    )}
+
+                                                    {activeChatData.offers?.file_url && (
+                                                        <a
+                                                            href={activeChatData.offers.file_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg transition-all shadow-sm active:scale-95 cursor-pointer"
+                                                            title="Download 3D Model File"
+                                                        >
+                                                            <Download size={12} /> 3D File
+                                                        </a>
                                                     )}
 
                                                     <button
