@@ -2996,10 +2996,11 @@ function MessagesInner() {
                                             <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100 space-y-5 shadow-inner">
                                                 {(() => {
                                                     const sd = editingProposalData || activeChatData.offers;
+                                                    const isJob = activeChatData.offers?.category === 'job';
+                                                    const isDigital = activeChatData.offers?.category === 'digital';
                                                     const sp = sd?.price !== undefined ? (currency !== 'EUR' && rates && rates[currency] ? sd.price * rates[currency] : sd.price) : 0;
                                                     const pDiff = Math.abs(parseFloat(proposalPrice || '0') - sp) > 0.01;
                                                     const qDiff = proposalQty !== (sd?.quantity?.toString() || '1');
-                                                    const isJob = activeChatData.offers?.category === 'job';
 
                                                     // Comprehensive change detection
                                                     const hasMatChanges = (activeChatData.offers?.category === 'physical' || isJob) && (
@@ -3008,20 +3009,6 @@ function MessagesInner() {
                                                                 ? sellerFilaments.find(f => f.id === sl.swapped_filament_id)?.color_name
                                                                 : (sl.showCustom ? sl.custom_color_name : '');
                                                             return currentChoiceName && currentChoiceName !== sl.original_color_name;
-                                                        }) ||
-                                                        (proposalMaterial !== (sd?.material || '')) ||
-                                                        (proposalColor !== (sd?.color || ''))
-                                                    );
-
-                                                    const originalDims = parseDimensionsAdvanced(sd?.dimensions || activeChatData.offers?.dimensions || '');
-                                                    const hasDimChanges = !isJob && (proposalScale !== 100 || proposalDims.some((dim, idx) => {
-                                                        const orig = originalDims[idx]?.originalValue || dim.originalValue;
-                                                        return Math.abs(parseFloat(dim.currentValueStr || '0') - orig) > 0.01;
-                                                    }));
-
-                                                    const hasProposalChanges = pDiff || qDiff || hasMatChanges || hasDimChanges;
-
-                                                    return (
                                                         <div className={`grid ${isJob ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                                                             <div>
                                                                 <div className="flex justify-between items-center mb-1">
