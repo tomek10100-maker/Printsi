@@ -3043,7 +3043,7 @@ function MessagesInner() {
                                                                     <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-black text-[10px] uppercase tracking-widest ${pDiff ? 'text-blue-600' : 'text-gray-400'}`}>{currency}</span>
                                                                 </div>
                                                             </div>
-                                                            {!isJob && (
+                                                            {!isJob && !isDigital && (
                                                                 <div>
                                                                     <div className="flex justify-between items-center mb-1">
                                                                         <label className={`text-[9px] font-black uppercase ${qDiff ? 'text-blue-600' : 'text-gray-400'}`}>Quantity</label>
@@ -3302,7 +3302,7 @@ function MessagesInner() {
                                                 </div>
                                             )}
 
-                                            {activeChatData.offers?.category !== 'job' && (
+                                            {activeChatData.offers?.category !== 'job' && activeChatData.offers?.category !== 'digital' && (
                                                 <div>
                                                     <div className="flex items-center justify-between mb-3">
                                                         <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Dimensions</span>
