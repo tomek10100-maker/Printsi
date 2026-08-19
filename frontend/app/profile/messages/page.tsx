@@ -207,14 +207,15 @@ function MessagesInner() {
         }
 
         const enrichChats = await Promise.all((fetchedChats || []).map(async (chat) => {
-            if (chat.offers && !chat.offers.file_url && chat.offers.parent_offer_id) {
+            const offerObj = Array.isArray(chat.offers) ? chat.offers[0] : chat.offers;
+            if (offerObj && !offerObj.file_url && offerObj.parent_offer_id) {
                 const { data: pOffer } = await supabase
                     .from('offers')
                     .select('file_url')
-                    .eq('id', chat.offers.parent_offer_id)
+                    .eq('id', offerObj.parent_offer_id)
                     .single();
                 if (pOffer?.file_url) {
-                    chat.offers.file_url = pOffer.file_url;
+                    offerObj.file_url = pOffer.file_url;
                 }
             }
 
