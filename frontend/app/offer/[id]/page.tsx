@@ -198,6 +198,39 @@ export default function OfferDetailsPage() {
     setShowModal(true);
   };
 
+  const handleBuyNow = () => {
+    if (!offer) return;
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+    if (isOwner) {
+      alert("You cannot purchase your own listing.");
+      return;
+    }
+    if (offer.category === 'job') return;
+
+    if (!isAlreadyInCart) {
+      addItem({
+        id: offer.id,
+        title: offer.title,
+        price: currentPrice,
+        image_url: offer.image_urls?.[0] || null,
+        seller_id: offer.user_id,
+        stock: currentStock,
+        variant_name: currentColor,
+        variant_color: currentColorHex,
+        variant_layers: currentVariant?.layers
+          ? currentVariant.layers.map((l: any) => ({ filament_id: l.filament_id, grams: l.grams }))
+          : undefined,
+        category: offer.category,
+        material: currentMaterial,
+        weight: currentWeight,
+      }, isDigital ? 1 : quantity);
+    }
+    router.push('/checkout');
+  };
+
   const handleBuyVariantNow = (variant: any, variantIdx: number) => {
     if (!offer) return;
     if (!currentUser) {
@@ -233,7 +266,7 @@ export default function OfferDetailsPage() {
       material: vMaterial,
       weight: vWeight,
     }, isDigital ? 1 : quantity);
-    router.push('/cart');
+    router.push('/checkout');
   };
 
   const handleShare = () => {
@@ -925,23 +958,48 @@ export default function OfferDetailsPage() {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-1 gap-4">
+                <div className="flex-1 flex flex-col sm:flex-row gap-3">
+                  {/* BUY NOW BUTTON */}
                   <button
-                    onClick={handleContactMaker}
-                    className="flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest bg-white border-2 border-gray-100 text-gray-900 hover:bg-gray-50 hover:border-blue-200 transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95"
+                    onClick={handleBuyNow}
+                    disabled={isOutOfStock}
+                    className={`flex-1 py-4 sm:py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
+                      isOutOfStock
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                        : 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-800 hover:-translate-y-0.5 active:scale-95 shadow-blue-500/25 border border-blue-400/30'
+                    }`}
                   >
-                    <Handshake size={22} className="text-blue-600" /> Negotiate
+                    <Zap size={20} className="fill-white" /> Buy Now
                   </button>
 
-                  {!hasVariants && (
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={isOutOfStock || isAlreadyInCart}
-                      className={`flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : isAlreadyInCart ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-none' : 'bg-gray-900 text-white hover:bg-blue-600 hover:-translate-y-1 active:scale-95'}`}
-                    >
-                      {isOutOfStock ? 'Item Sold Out' : isAlreadyInCart ? <><Check size={22} /> Secured in Cart</> : <><ShoppingBag size={22} /> Get this Print</>}
-                    </button>
-                  )}
+                  {/* ADD TO CART BUTTON */}
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isOutOfStock || isAlreadyInCart}
+                    className={`flex-1 py-4 sm:py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
+                      isOutOfStock
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                        : isAlreadyInCart
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-none'
+                        : 'bg-gray-900 text-white hover:bg-gray-800 hover:-translate-y-0.5 active:scale-95'
+                    }`}
+                  >
+                    {isOutOfStock ? (
+                      'Item Sold Out'
+                    ) : isAlreadyInCart ? (
+                      <><Check size={20} /> Secured in Cart</>
+                    ) : (
+                      <><ShoppingBag size={20} /> Add to Cart</>
+                    )}
+                  </button>
+
+                  {/* NEGOTIATE BUTTON */}
+                  <button
+                    onClick={handleContactMaker}
+                    className="flex-1 py-4 sm:py-5 rounded-[24px] font-black uppercase tracking-widest bg-white border-2 border-gray-100 text-gray-900 hover:bg-gray-50 hover:border-blue-200 transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <Handshake size={20} className="text-blue-600" /> Negotiate
+                  </button>
                 </div>
               )}
 
