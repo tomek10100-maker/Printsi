@@ -4121,7 +4121,7 @@ function MessagesInner() {
                                             onChange={(e) => setNewMessage(e.target.value)}
                                             onPaste={handlePaste}
                                             placeholder="Type a message or paste image (Ctrl+V)..."
-                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[46px] max-h-[140px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-sm font-medium"
+                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[46px] max-h-[140px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-[16px] sm:text-sm font-medium"
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                                         />
                                         <input

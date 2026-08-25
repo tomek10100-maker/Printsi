@@ -94,8 +94,6 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       convertedAmount = amount * rates[currency];
     }
 
-    // Round to 2 decimal places using standard rounding (no epsilon offset
-    // which can add phantom cents on large amounts)
     const roundedAmount = Math.round(convertedAmount * 100) / 100;
 
     const formatted = new Intl.NumberFormat('en-US', {
@@ -103,7 +101,9 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       currency: currency,
     }).format(roundedAmount);
 
-    return formatted.replace(/,/g, ' ');
+    // Replace all commas and spaces with non-breaking spaces (\u00a0)
+    // so currency symbols and amounts (e.g. PLN 2 949.84) never wrap onto multiple lines.
+    return formatted.replace(/,/g, '\u00a0').replace(/\s/g, '\u00a0');
   };
 
   return (

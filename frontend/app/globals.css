@@ -128,3 +128,10 @@ body {
 #quot3d-widget [class*="duration"] {
   display: none !important;
 }
+
+/* ── Prevent mobile browser auto-zoom on input / textarea focus ── */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}

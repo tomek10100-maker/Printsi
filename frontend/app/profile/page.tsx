@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Settings, MapPin, Link as LinkIcon, Calendar, Loader2, Home, LogOut,
-  CreditCard, Bell, Package, ChevronRight, ShoppingBag, Plus, Trash2, Eye, Edit,
+  CreditCard, Bell, Package, ChevronRight, ChevronDown, ShoppingBag, Plus, Trash2, Eye, Edit,
   Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers, CheckCircle, User, Lock, Handshake, Shield
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -30,6 +30,7 @@ export default function ProfilePage() {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [myOffers, setMyOffers] = useState<any[]>([]);
+  const [expandedOffers, setExpandedOffers] = useState<Record<string, boolean>>({});
 
   const [stats, setStats] = useState({
     spent: 0,
@@ -327,95 +328,104 @@ export default function ProfilePage() {
 
       <div className="max-w-5xl mx-auto px-6 pb-20">
 
-        {/* HEADER */}
-        <div className="relative -mt-20 mb-12 flex flex-col md:flex-row items-center md:items-end text-center md:text-left gap-8">
-          {/* AVATAR */}
-          <div className="w-40 h-40 bg-white p-1 rounded-full shadow-2xl flex-shrink-0 relative group">
-            <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl font-black text-gray-400 uppercase overflow-hidden">
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} className="w-full h-full object-cover" alt="Avatar" />
-              ) : (
-                profile?.full_name?.[0] || 'U'
-              )}
-            </div>
-          </div>
-
-          {/* USER INFO & STATS */}
-          <div className="flex-1 mb-2 w-full flex flex-col items-center md:items-start">
-            <h1 className="text-4xl font-black text-gray-900">{profile?.full_name || 'Anonymous User'}</h1>
-            <p className="text-gray-500 font-bold mb-6">Member since 2026</p>
-
-            {/* --- BALANCE STATS --- */}
-            <div className="flex flex-col sm:flex-row flex-wrap items-center sm:items-stretch gap-6 bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl w-full sm:w-auto shadow-lg">
-              {/* Total Earned from Sales — only for printer/cad roles */}
-              {(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) && (
-                <>
-                  <div className="flex items-center gap-3 pr-6 border-b sm:border-b-0 sm:border-r border-gray-200 pb-4 sm:pb-0 w-full sm:w-auto justify-center sm:justify-start">
-                    <div className="p-2 bg-green-100 text-green-600 rounded-lg shadow-inner">
-                      <TrendingUp size={20} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Total Sales Value</p>
-                      <p className="text-xl font-black text-gray-900">{formatPrice(stats.earned + stats.pendingEarned)}</p>
-                      <p className="text-[9px] text-gray-400 font-bold">without shipping</p>
-                    </div>
-                  </div>
-
-                  {/* Pending Funds */}
-                  <div className="flex items-center gap-3 pr-6 border-b sm:border-b-0 sm:border-r border-gray-200 pb-4 sm:pb-0 w-full sm:w-auto justify-center sm:justify-start">
-                    <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg shadow-inner">
-                      <Package size={20} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Pending Funds</p>
-                      <p className="text-xl font-black text-yellow-600">{formatPrice(stats.pendingEarned)}</p>
-                      <p className="text-[9px] text-gray-400 font-bold">awaiting delivery</p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Account Balance (available money, never below 0) */}
-              <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start pt-2 sm:pt-0">
-                <div className={`p-2 rounded-lg shadow-inner ${netBalance > 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-                  <Wallet size={20} />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Account Balance</p>
-                  <p className={`text-xl font-black ${netBalance > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                    {formatPrice(Math.max(0, netBalance))}
-                  </p>
-                  <p className="text-[9px] text-gray-400 font-bold">available to spend</p>
-                </div>
+        {/* HEADER TOP ROW: AVATAR, NAME, ACTIONS */}
+        <div className="relative -mt-20 mb-8 flex flex-col md:flex-row items-center md:items-end justify-between gap-6 text-center md:text-left">
+          {/* AVATAR & NAME */}
+          <div className="flex flex-col md:flex-row items-center md:items-end gap-6">
+            <div className="w-36 h-36 sm:w-40 sm:h-40 bg-white p-1 rounded-full shadow-2xl flex-shrink-0 relative group">
+              <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl font-black text-gray-400 uppercase overflow-hidden">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} className="w-full h-full object-cover" alt="Avatar" />
+                ) : (
+                  profile?.full_name?.[0] || 'U'
+                )}
               </div>
             </div>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-black text-gray-900">{profile?.full_name || 'Anonymous User'}</h1>
+              <p className="text-gray-500 font-bold mt-1">Member since 2026</p>
+            </div>
           </div>
 
-          <div className="flex gap-3 mb-4 flex-wrap justify-center md:justify-start">
+          {/* ACTION BUTTONS */}
+          <div className="flex gap-3 flex-wrap justify-center md:justify-end w-full md:w-auto">
             <button
               onClick={() => setTheme(theme === 'white' ? 'black' : theme === 'black' ? 'midnight' : 'white')}
-              className="px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:border-purple-500 hover:text-purple-600 transition-all flex items-center gap-2 shadow-sm min-w-[140px] justify-center group overflow-hidden relative"
+              className="px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:border-purple-500 hover:text-purple-600 transition-all flex items-center gap-2 shadow-sm min-w-[130px] justify-center group overflow-hidden relative"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-blue-100 opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               {theme === 'white' && <><Sun size={18} className="text-yellow-500" /> Light</>}
               {theme === 'black' && <><Moon size={18} className="text-gray-900" /> Dark</>}
               {theme === 'midnight' && <><Sparkles size={18} className="text-purple-500 animate-pulse" /> Midnight</>}
             </button>
-            <Link href="/settings" className="px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:border-blue-500 hover:text-blue-600 transition-all flex items-center gap-2 shadow-sm">
+            <Link href="/settings" className="px-5 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:border-blue-500 hover:text-blue-600 transition-all flex items-center gap-2 shadow-sm">
               <Settings size={18} /> Edit Profile
             </Link>
             {profile?.roles?.includes('admin') && (
               <Link
                 href="/admin"
-                className="px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all border-2"
+                className="px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all border-2"
                 style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d1b69)', borderColor: 'rgba(59,130,246,0.5)', color: '#93c5fd' }}
               >
                 <Shield size={18} /> Admin Panel
               </Link>
             )}
-            <button onClick={handleLogout} className="px-6 py-3 bg-gray-900 text-white border-2 border-gray-900 rounded-xl font-bold hover:bg-red-600 hover:border-red-600 transition-all flex items-center gap-2 shadow-lg">
+            <button onClick={handleLogout} className="px-5 py-3 bg-gray-900 text-white border-2 border-gray-900 rounded-xl font-bold hover:bg-red-600 hover:border-red-600 transition-all flex items-center gap-2 shadow-lg">
               <LogOut size={18} /> Log Out
             </button>
+          </div>
+        </div>
+
+        {/* --- BALANCE STATS CARDS GRID --- */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 w-full">
+          {/* Total Sales Value — only for printer/cad roles */}
+          {(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) && (
+            <>
+              <div className="bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl shadow-lg flex items-center gap-4 transition-all hover:shadow-xl w-full min-w-0">
+                <div className="p-3.5 bg-green-100 text-green-600 rounded-xl shadow-inner flex-shrink-0">
+                  <TrendingUp size={24} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Total Sales Value</p>
+                  <p className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                    {formatPrice(stats.earned + stats.pendingEarned)}
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold mt-0.5">without shipping</p>
+                </div>
+              </div>
+
+              {/* Pending Funds */}
+              <div className="bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl shadow-lg flex items-center gap-4 transition-all hover:shadow-xl w-full min-w-0">
+                <div className="p-3.5 bg-yellow-100 text-yellow-600 rounded-xl shadow-inner flex-shrink-0">
+                  <Package size={24} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Pending Funds</p>
+                  <p className="text-xl sm:text-2xl font-black text-yellow-600 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                    {formatPrice(stats.pendingEarned)}
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold mt-0.5">awaiting delivery</p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Account Balance (available money, never below 0) */}
+          <div className={`bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl shadow-lg flex items-center gap-4 transition-all hover:shadow-xl w-full min-w-0 ${
+            (profile?.roles?.includes('printer') || profile?.roles?.includes('cad'))
+              ? 'col-span-1 sm:col-span-2 lg:col-span-1'
+              : 'col-span-1'
+          }`}>
+            <div className={`p-3.5 rounded-xl shadow-inner flex-shrink-0 ${netBalance > 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+              <Wallet size={24} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Account Balance</p>
+              <p className={`text-xl sm:text-2xl font-black tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${netBalance > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                {formatPrice(Math.max(0, netBalance))}
+              </p>
+              <p className="text-[9px] text-gray-400 font-bold mt-0.5">available to spend</p>
+            </div>
           </div>
         </div>
 
@@ -667,81 +677,94 @@ export default function ProfilePage() {
 
                           {/* ── Attached custom orders ── */}
                           {linkedCustomOrders.length > 0 && (
-                            <div className="ml-4 -mt-2 relative">
-                              {/* Vertical connector line */}
-                              <div className="absolute left-0 top-0 bottom-6 w-px bg-purple-100" />
-                              <div className="space-y-0 pt-2">
-                                {linkedCustomOrders.map((co: any, ci: number) => {
-                                  const buyerName = co._buyer?.full_name || 'Unknown buyer';
-                                  const buyerAvatar = co._buyer?.avatar_url;
-                                  const isLast = ci === linkedCustomOrders.length - 1;
-                                  return (
-                                    <div key={co.id} className="relative pl-5">
-                                      {/* Horizontal connector nub */}
-                                      <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-5 h-px bg-purple-100`} />
-                                      <div className={`flex items-center gap-3 bg-white border border-dashed border-purple-100 px-4 py-2.5 hover:border-purple-200 hover:bg-purple-50/30 transition-all group/co ${
-                                        ci === 0 ? 'rounded-t-xl' : ''
-                                      } ${isLast ? 'rounded-b-3xl' : 'border-b-0'}`}>
-                                        {/* Info */}
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-1.5 mb-0.5">
-                                            <span className="text-[7px] font-black uppercase tracking-widest text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100 flex-shrink-0">Custom</span>
-                                            <span className="font-black text-gray-900 text-[11px] flex-shrink-0">{formatPrice(co.price)}</span>
-                                            <span className="text-gray-300 mx-0.5">·</span>
-                                            <span className="text-[10px] font-bold text-gray-400 flex-shrink-0">{co.stock === 0 ? <span className="text-emerald-500">Sold</span> : `${co.stock} pcs`}</span>
-                                            {co.material && (
-                                              <>
-                                                <span className="text-gray-300 mx-0.5">·</span>
-                                                <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">{co.material}</span>
-                                              </>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-2 mb-1.5 line-clamp-1">
-                                             <span className="text-[10px] font-bold text-gray-500 flex items-center gap-1">
-                                               {co.color || 'Custom Color'}
-                                               {(() => {
-                                                 try {
-                                                   const weight = co.color_variants?.[0]?.layers?.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0);
-                                                   return weight > 0 ? <span className="text-gray-400 font-medium whitespace-nowrap">({Math.round(weight)}g)</span> : null;
-                                                 } catch { return null; }
-                                               })()}
-                                             </span>
-                                          </div>
-                                          <div className="flex items-center gap-1.5">
-                                            {buyerAvatar
-                                              ? <img src={buyerAvatar} className="w-3.5 h-3.5 rounded-full border border-gray-200 flex-shrink-0" alt="" />
-                                              : <div className="w-3.5 h-3.5 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0"><User size={7} className="text-gray-400" /></div>
-                                            }
-                                            <span className="text-[10px] font-bold text-gray-400 truncate">for <span className="text-gray-600">{buyerName}</span></span>
-                                          </div>
-                                        </div>
+                            <div className="ml-4 mt-2 flex flex-col items-start">
+                              <button
+                                onClick={() => setExpandedOffers(prev => ({ ...prev, [offer.id]: !prev[offer.id] }))}
+                                className="px-3 py-1.5 bg-white hover:bg-purple-50/80 border border-dashed border-purple-200 rounded-full text-[10px] font-bold text-purple-600 flex items-center gap-1.5 transition-all shadow-sm group/btn cursor-pointer"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                                <span>{linkedCustomOrders.length} {linkedCustomOrders.length === 1 ? 'custom offer' : 'custom offers'}</span>
+                                <ChevronDown size={12} className={`text-purple-400 group-hover/btn:text-purple-600 transition-transform duration-200 ${expandedOffers[offer.id] ? 'rotate-180' : ''}`} />
+                              </button>
 
-                                        {/* Actions */}
-                                        <div className="flex items-center gap-1 flex-shrink-0">
-                                          <div className="p-1.5 text-gray-200 cursor-not-allowed rounded-lg" title="Editing custom orders is disabled">
-                                            <Lock size={12} />
+                              {expandedOffers[offer.id] && (
+                                <div className="w-full relative mt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                  {/* Vertical connector line */}
+                                  <div className="absolute left-0 top-0 bottom-6 w-px bg-purple-100" />
+                                  <div className="space-y-0 pt-2">
+                                    {linkedCustomOrders.map((co: any, ci: number) => {
+                                      const buyerName = co._buyer?.full_name || 'Unknown buyer';
+                                      const buyerAvatar = co._buyer?.avatar_url;
+                                      const isLast = ci === linkedCustomOrders.length - 1;
+                                      return (
+                                        <div key={co.id} className="relative pl-5">
+                                          {/* Horizontal connector nub */}
+                                          <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-5 h-px bg-purple-100`} />
+                                          <div className={`flex items-center gap-3 bg-white border border-dashed border-purple-100 px-4 py-2.5 hover:border-purple-200 hover:bg-purple-50/30 transition-all group/co ${
+                                            ci === 0 ? 'rounded-t-xl' : ''
+                                          } ${isLast ? 'rounded-b-3xl' : 'border-b-0'}`}>
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-1.5 mb-0.5">
+                                                <span className="text-[7px] font-black uppercase tracking-widest text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100 flex-shrink-0">Custom</span>
+                                                <span className="font-black text-gray-900 text-[11px] flex-shrink-0">{formatPrice(co.price)}</span>
+                                                <span className="text-gray-300 mx-0.5">·</span>
+                                                <span className="text-[10px] font-bold text-gray-400 flex-shrink-0">{co.stock === 0 ? <span className="text-emerald-500">Sold</span> : `${co.stock} pcs`}</span>
+                                                {co.material && (
+                                                  <>
+                                                    <span className="text-gray-300 mx-0.5">·</span>
+                                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">{co.material}</span>
+                                                  </>
+                                                )}
+                                              </div>
+                                              <div className="flex items-center gap-2 mb-1.5 line-clamp-1">
+                                                 <span className="text-[10px] font-bold text-gray-500 flex items-center gap-1">
+                                                   {co.color || 'Custom Color'}
+                                                   {(() => {
+                                                     try {
+                                                       const weight = co.color_variants?.[0]?.layers?.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0);
+                                                       return weight > 0 ? <span className="text-gray-400 font-medium whitespace-nowrap">({Math.round(weight)}g)</span> : null;
+                                                     } catch { return null; }
+                                                   })()}
+                                                 </span>
+                                              </div>
+                                              <div className="flex items-center gap-1.5">
+                                                {buyerAvatar
+                                                  ? <img src={buyerAvatar} className="w-3.5 h-3.5 rounded-full border border-gray-200 flex-shrink-0" alt="" />
+                                                  : <div className="w-3.5 h-3.5 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0"><User size={7} className="text-gray-400" /></div>
+                                                }
+                                                <span className="text-[10px] font-bold text-gray-400 truncate">for <span className="text-gray-600">{buyerName}</span></span>
+                                              </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                              <div className="p-1.5 text-gray-200 cursor-not-allowed rounded-lg" title="Editing custom orders is disabled">
+                                                <Lock size={12} />
+                                              </div>
+                                              <button
+                                                onClick={() => {
+                                                  setModal({
+                                                    show: true,
+                                                    type: 'confirm',
+                                                    title: 'Cancel Custom Order?',
+                                                    message: `This will permanently remove the custom order for "${buyerName}". The proposal in the chat will be marked as rejected. This cannot be undone.`,
+                                                    action: () => executeDelete(co.id)
+                                                  });
+                                                }}
+                                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Cancel custom order"
+                                              >
+                                                <Trash2 size={12} />
+                                              </button>
+                                            </div>
                                           </div>
-                                          <button
-                                            onClick={() => {
-                                              setModal({
-                                                show: true,
-                                                type: 'confirm',
-                                                title: 'Cancel Custom Order?',
-                                                message: `This will permanently remove the custom order for "${buyerName}". The proposal in the chat will be marked as rejected. This cannot be undone.`,
-                                                action: () => executeDelete(co.id)
-                                              });
-                                            }}
-                                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                            title="Cancel custom order"
-                                          >
-                                            <Trash2 size={12} />
-                                          </button>
                                         </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

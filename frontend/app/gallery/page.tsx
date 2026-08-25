@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Loader2, Search, ShoppingBag, X, SlidersHorizontal,
-  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare, Palette, Check, Layers
+  ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare, Palette, Check, Layers,
+  Grid2X2, LayoutGrid, List, User
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -73,6 +74,7 @@ type Offer = {
   weight?: string;
   dimensions?: string;
   is_negotiable?: boolean;
+  sellerProfile?: { full_name?: string; avatar_url?: string };
 };
 
 function MarketplaceContent() {
@@ -87,6 +89,7 @@ function MarketplaceContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(initialCategory);
   const [sortBy, setSortBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
+  const [viewMode, setViewMode] = useState<'vinted' | 'cards' | 'list'>('vinted');
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
@@ -122,7 +125,22 @@ function MarketplaceContent() {
     if (error) {
       console.error('Error fetching offers:', error);
     } else {
-      setOffers(data || []);
+      const rawOffers = data || [];
+      const userIds = [...new Set(rawOffers.map(o => o.user_id))];
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', userIds);
+        if (profs) {
+          const profMap: Record<string, any> = {};
+          profs.forEach(p => { profMap[p.id] = p; });
+          rawOffers.forEach(o => {
+            o.sellerProfile = profMap[o.user_id] || null;
+          });
+        }
+      }
+      setOffers(rawOffers);
     }
   }, []);
 
@@ -580,14 +598,49 @@ function MarketplaceContent() {
               )
             })}
           </div>
-          <div className="relative" ref={null}>
-            <button 
-              onClick={() => setShowSortMenu(v => !v)}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase hover:border-blue-500 transition shadow-sm cursor-pointer select-none"
-            >
-              <ArrowUpDown size={14} />
-              {sortBy === 'newest' ? 'Newest' : sortBy === 'price_asc' ? 'Price: Low to High' : 'Price: High to Low'}
-            </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* View Mode Selector (Vinted Grid, Cards, List) */}
+            <div className="flex items-center p-1 bg-white border border-gray-200 rounded-xl shadow-xs">
+              <button
+                onClick={() => setViewMode('vinted')}
+                className={`p-2 rounded-lg transition-all flex items-center gap-1 cursor-pointer select-none ${
+                  viewMode === 'vinted' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-400 hover:text-gray-700'
+                }`}
+                title="Vinted 2-Column Grid (Default)"
+              >
+                <Grid2X2 size={16} />
+                <span className="text-[10px] font-black uppercase hidden sm:inline">Grid</span>
+              </button>
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`p-2 rounded-lg transition-all flex items-center gap-1 cursor-pointer select-none ${
+                  viewMode === 'cards' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-400 hover:text-gray-700'
+                }`}
+                title="Large Cards View"
+              >
+                <LayoutGrid size={16} />
+                <span className="text-[10px] font-black uppercase hidden sm:inline">Cards</span>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-all flex items-center gap-1 cursor-pointer select-none ${
+                  viewMode === 'list' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-400 hover:text-gray-700'
+                }`}
+                title="Compact List View"
+              >
+                <List size={16} />
+                <span className="text-[10px] font-black uppercase hidden sm:inline">List</span>
+              </button>
+            </div>
+
+            <div className="relative" ref={null}>
+              <button 
+                onClick={() => setShowSortMenu(v => !v)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase hover:border-blue-500 transition shadow-sm cursor-pointer select-none"
+              >
+                <ArrowUpDown size={14} />
+                {sortBy === 'newest' ? 'Newest' : sortBy === 'price_asc' ? 'Price: Low to High' : 'Price: High to Low'}
+              </button>
             {showSortMenu && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setShowSortMenu(false)} />
@@ -612,6 +665,7 @@ function MarketplaceContent() {
             )}
           </div>
         </div>
+      </div>
         
         {/* FILTERS PANEL */}
         <div className={`transition-all duration-500 origin-top overflow-hidden ${showFilters ? 'max-h-[900px] opacity-100 mb-2' : 'max-h-0 opacity-0 mb-0'}`}>
@@ -698,18 +752,136 @@ function MarketplaceContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-20">
         {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div> : filteredOffers.length === 0 ? (
           <div className="text-center py-20 opacity-50 text-gray-900"><Package className="mx-auto mb-4 text-gray-200" size={64} /><h2 className="text-xl font-black uppercase">No Listings Here</h2></div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <div className={
+            viewMode === 'vinted'
+              ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4"
+              : viewMode === 'list'
+              ? "flex flex-col gap-3"
+              : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
+          }>
             {filteredOffers.map((offer) => {
               const offerSoldOut = isOfferSoldOut(offer);
               const offerStock = getOfferStock(offer);
+              const isLiked = savedIds.includes(offer.id);
+
+              // MODE 1: VINTED GRID 2-COLUMNS (DEFAULT ON MOBILE)
+              if (viewMode === 'vinted') {
+                return (
+                  <div
+                    key={offer.id}
+                    onClick={() => router.push(`/offer/${offer.id}`)}
+                    className={`group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col relative cursor-pointer ${offerSoldOut ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1'}`}
+                  >
+                    {/* Top Seller Bar */}
+                    <div className="px-2.5 py-1.5 flex items-center gap-1.5 bg-gray-50/80 border-b border-gray-100">
+                      <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
+                        {offer.sellerProfile?.avatar_url ? (
+                          <img src={offer.sellerProfile.avatar_url} className="w-full h-full object-cover" alt="" />
+                        ) : (
+                          <span className="text-[8px] font-black text-gray-500 uppercase">{offer.sellerProfile?.full_name?.[0] || 'U'}</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-600 truncate">{offer.sellerProfile?.full_name?.split(' ')[0] || 'Seller'}</span>
+                    </div>
+
+                    {/* Image Container */}
+                    <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                      {offer.image_urls?.[0] ? (
+                        <img src={offer.image_urls[0]} alt={offer.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-gray-300 bg-gray-50"><Package size={24} /></div>
+                      )}
+
+                      {offerSoldOut && (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/30 backdrop-blur-[1px]">
+                          <div className="bg-red-600 text-white text-[9px] font-black uppercase tracking-wider py-1.5 px-4 -rotate-12 shadow-lg">Sold</div>
+                        </div>
+                      )}
+
+                      {/* Like Button */}
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
+                        className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur rounded-full hover:bg-white transition-all shadow-sm z-30"
+                      >
+                        <Heart size={14} className={`transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                      </button>
+                    </div>
+
+                    {/* Vinted Card Info */}
+                    <div className="p-2.5 flex flex-col flex-grow justify-between gap-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-sm font-black text-gray-900 whitespace-nowrap">{formatPrice(offer.price)}</span>
+                        <div className="flex items-center gap-0.5 text-gray-400 text-[10px] font-bold shrink-0">
+                          <Heart size={11} className={isLiked ? 'fill-red-500 text-red-500' : ''} />
+                          <span>{isLiked ? 1 : 0}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs font-bold text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">{offer.title}</p>
+                      
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider truncate">
+                          {offer.material || offer.category}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // MODE 2: COMPACT LIST VIEW
+              if (viewMode === 'list') {
+                return (
+                  <div
+                    key={offer.id}
+                    onClick={() => router.push(`/offer/${offer.id}`)}
+                    className={`group bg-white rounded-2xl p-3 border border-gray-100 shadow-xs hover:shadow-md transition-all flex items-center gap-4 cursor-pointer ${offerSoldOut ? 'opacity-60' : ''}`}
+                  >
+                    <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 relative">
+                      {offer.image_urls?.[0] ? (
+                        <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300"><Package size={20} /></div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                          {offer.sellerProfile?.avatar_url ? (
+                            <img src={offer.sellerProfile.avatar_url} className="w-full h-full object-cover" alt="" />
+                          ) : (
+                            <span className="text-[7px] font-black text-gray-500 uppercase flex items-center justify-center h-full">{offer.sellerProfile?.full_name?.[0] || 'U'}</span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-500 truncate">{offer.sellerProfile?.full_name || 'Seller'}</span>
+                      </div>
+                      <h4 className="font-bold text-sm text-gray-900 truncate group-hover:text-blue-600 transition-colors">{offer.title}</h4>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{offer.material || offer.category}</p>
+                    </div>
+
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                      <span className="text-base font-black text-gray-900 whitespace-nowrap">{formatPrice(offer.price)}</span>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
+                        className="p-1.5 rounded-full hover:bg-gray-100 transition"
+                      >
+                        <Heart size={16} className={isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              // MODE 3: LARGE CARDS VIEW
               return (
               <div
                 key={offer.id}
-                onClick={() => router.push(`/offer/${offer.id}`)} // CAŁA KARTA KLIKALNA
+                onClick={() => router.push(`/offer/${offer.id}`)}
                 className={`group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col relative cursor-pointer ${offerSoldOut ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-2'}`}
               >
                 {offerSoldOut && (
@@ -721,12 +893,12 @@ function MarketplaceContent() {
                   {offer.image_urls?.[0] ? <img src={offer.image_urls[0]} alt={offer.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" /> : <div className="h-full w-full flex items-center justify-center text-gray-300 bg-gray-50"><Package size={32} /></div>}
                   <div className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[9px] font-black uppercase text-gray-900 shadow-sm z-20">{offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}</div>
 
-                  {/* LIKE BUTTON - Zatrzymujemy propagację (e.stopPropagation), żeby nie wchodziło w ofertę */}
+                  {/* LIKE BUTTON */}
                   <button
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
                     className="absolute top-4 right-4 p-2 bg-white/80 backdrop-blur rounded-full hover:bg-white transition-all shadow-sm z-40"
                   >
-                    <Heart size={18} className={`transition-colors ${savedIds.includes(offer.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                    <Heart size={18} className={`transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
                   </button>
 
                   {!offerSoldOut && (!currentUser || currentUser.id !== offer.user_id) && (offer.category !== 'job' || userRoles.includes('printer')) && (() => {
@@ -823,7 +995,6 @@ function MarketplaceContent() {
                     ) : (
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex flex-col gap-0.5">
-                          {/* Dla fizycznych z wariantami — po prostu pokaż 'From X' zamiast wylistowywać wszystko */}
                           {(() => {
                             const variants = offer.color_variants || [];
                             if (offer.category === 'physical' && variants.length > 1) {
