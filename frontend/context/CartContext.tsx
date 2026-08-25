@@ -58,7 +58,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('printis_cart');
-      if (savedCart) setItems(JSON.parse(savedCart));
+      if (savedCart) {
+        const parsed = JSON.parse(savedCart);
+        const cleaned = Array.isArray(parsed) ? parsed.map((item: CartItem) => {
+          if (item.category === 'digital') {
+            return {
+              ...item,
+              variant_name: undefined,
+              variant_color: undefined,
+              variant_layers: undefined,
+              material: undefined,
+              color: undefined,
+              weight: undefined,
+            };
+          }
+          if (item.variant_name && item.variant_name.startsWith('#')) {
+            return {
+              ...item,
+              variant_name: undefined,
+              variant_color: item.variant_color || item.variant_name,
+            };
+          }
+          return item;
+        }) : [];
+        setItems(cleaned);
+      }
     } catch (e) {
       console.warn("Failed to parse cart JSON. Resetting cart.", e);
       localStorage.removeItem('printis_cart');
@@ -75,12 +99,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const isDigital = newItem.category === 'digital';
+    const sanitizedItem: Omit<CartItem, 'quantity'> = isDigital
+      ? {
+          ...newItem,
+          variant_name: undefined,
+          variant_color: undefined,
+          variant_layers: undefined,
+          material: undefined,
+          color: undefined,
+          weight: undefined,
+        }
+      : (newItem.variant_name && newItem.variant_name.startsWith('#'))
+      ? {
+          ...newItem,
+          variant_name: undefined,
+          variant_color: newItem.variant_color || newItem.variant_name,
+        }
+      : newItem;
+
     const existingItem = items.find((i) =>
-        i.id === newItem.id && i.variant_name === newItem.variant_name
+        i.id === sanitizedItem.id && i.variant_name === sanitizedItem.variant_name
     );
 
     const currentQty = existingItem ? existingItem.quantity : 0;
-    const availableStock = newItem.stock;
+    const availableStock = sanitizedItem.stock;
 
     if (currentQty + quantity > availableStock) {
         alert(`Sorry, only ${availableStock} items available in stock.`);
@@ -90,10 +133,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prevItems) => {
       if (existingItem) {
         return prevItems.map((i) =>
-          (i.id === newItem.id && i.variant_name === newItem.variant_name) ? { ...i, quantity: i.quantity + quantity } : i
+          (i.id === sanitizedItem.id && i.variant_name === sanitizedItem.variant_name) ? { ...i, quantity: i.quantity + quantity } : i
         );
       } else {
-        return [...prevItems, { ...newItem, quantity }];
+        return [...prevItems, { ...sanitizedItem, quantity: isDigital ? 1 : quantity }];
       }
     });
   };

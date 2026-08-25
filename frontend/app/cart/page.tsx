@@ -118,7 +118,7 @@ export default function CartPage() {
                     <p className="text-sm font-bold text-gray-500">
                       {formatPrice(item.price)} {item.category !== 'digital' && <span className="text-[10px] font-normal text-gray-400">/ each</span>}
                     </p>
-                    {item.variant_name && (
+                    {item.category !== 'digital' && item.variant_name && !item.variant_name.startsWith('#') && (
                       <div className="flex items-center gap-2 mt-1">
                         {item.variant_layers && item.variant_layers.length > 1 ? (
                           <div className="flex -space-x-1">
