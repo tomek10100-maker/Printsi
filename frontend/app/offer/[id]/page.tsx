@@ -903,17 +903,17 @@ export default function OfferDetailsPage() {
               </div>
             )}
 
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3.5">
               {isOwner ? (
                 <Link
                   href={`/edit/${offer.id}`}
-                  className="flex-1 py-5 rounded-[24px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 group border border-blue-400/30"
+                  className="w-full py-5 rounded-[24px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 group border border-blue-400/30 whitespace-nowrap"
                 >
                   <Edit size={22} className="group-hover:rotate-12 transition-transform" /> Manage Listing
                 </Link>
               ) : isJob ? (
                 /* ── JOB FULFILLMENT PANEL ── */
-                <div className="flex-1 space-y-4">
+                <div className="w-full space-y-4">
                   {!isPrinter ? (
                     <div className="py-5 rounded-[24px] bg-gray-100 border-2 border-dashed border-gray-200 text-center">
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Printer Role Required</p>
@@ -929,7 +929,7 @@ export default function OfferDetailsPage() {
                       <button
                         onClick={handleFulfillJob}
                         disabled={downloadingFile}
-                        className={`w-full py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 group relative overflow-hidden ${
+                        className={`w-full py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 group relative overflow-hidden whitespace-nowrap ${
                           fileDownloaded
                             ? 'bg-emerald-600 text-white shadow-emerald-500/30'
                             : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:-translate-y-1 active:scale-95 shadow-blue-500/30'
@@ -937,15 +937,13 @@ export default function OfferDetailsPage() {
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                         {downloadingFile ? (
-                          <><Loader2 size={22} className="animate-spin" /> Preparing...</>
+                          <><Loader2 size={22} className="animate-spin shrink-0" /> <span className="whitespace-nowrap">Preparing...</span></>
                         ) : fileDownloaded ? (
-                          <><Check size={22} /> File Downloaded — Opening Chat...</>
+                          <><Check size={22} className="shrink-0" /> <span className="whitespace-nowrap">File Downloaded — Opening Chat...</span></>
                         ) : (
-                          <><Download size={22} className="group-hover:animate-bounce" /> Download 3D File & Fulfill</>  
+                          <><Download size={22} className="group-hover:animate-bounce shrink-0" /> <span className="whitespace-nowrap">Download 3D File & Fulfill</span></>  
                         )}
                       </button>
-
-
 
                       {/* Info hint */}
                       <div className="flex items-start gap-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
@@ -958,76 +956,88 @@ export default function OfferDetailsPage() {
                   )}
                 </div>
               ) : (
-                <div className="flex-1 flex flex-col sm:flex-row gap-3">
-                  {/* BUY NOW BUTTON */}
+                <>
+                  {/* ROW 1: PRIMARY BUY NOW BUTTON (Full width, bold, single-line) */}
                   <button
                     onClick={handleBuyNow}
                     disabled={isOutOfStock}
-                    className={`flex-1 py-4 sm:py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
+                    className={`w-full py-4.5 px-6 rounded-[22px] font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2.5 whitespace-nowrap active:scale-[0.99] ${
                       isOutOfStock
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                        : 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-800 hover:-translate-y-0.5 active:scale-95 shadow-blue-500/25 border border-blue-400/30'
+                        : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white hover:from-blue-700 hover:to-indigo-800 shadow-blue-500/25 border border-blue-400/30'
                     }`}
                   >
-                    <Zap size={20} className="fill-white" /> Buy Now
+                    <Zap size={20} className="fill-white shrink-0" />
+                    <span className="whitespace-nowrap">Buy Now — {formatPrice(currentPrice)}</span>
                   </button>
 
-                  {/* ADD TO CART BUTTON */}
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={isOutOfStock || isAlreadyInCart}
-                    className={`flex-1 py-4 sm:py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${
-                      isOutOfStock
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                        : isAlreadyInCart
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-none'
-                        : 'bg-gray-900 text-white hover:bg-gray-800 hover:-translate-y-0.5 active:scale-95'
-                    }`}
-                  >
-                    {isOutOfStock ? (
-                      'Item Sold Out'
-                    ) : isAlreadyInCart ? (
-                      <><Check size={20} /> Secured in Cart</>
-                    ) : (
-                      <><ShoppingBag size={20} /> Add to Cart</>
+                  {/* ROW 2: ADD TO CART + NEGOTIATE + ACTION ICONS */}
+                  <div className="flex flex-wrap items-center gap-2.5 w-full">
+                    {/* ADD TO CART */}
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={isOutOfStock || isAlreadyInCart}
+                      className={`flex-1 min-w-[130px] py-3.5 px-4 rounded-[18px] font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap ${
+                        isOutOfStock
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                          : isAlreadyInCart
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-none'
+                          : 'bg-gray-900 text-white hover:bg-gray-800 hover:-translate-y-0.5 active:scale-95'
+                      }`}
+                    >
+                      {isOutOfStock ? (
+                        'Sold Out'
+                      ) : isAlreadyInCart ? (
+                        <><Check size={18} className="shrink-0 text-emerald-600" /> <span className="whitespace-nowrap">In Cart</span></>
+                      ) : (
+                        <><ShoppingBag size={18} className="shrink-0" /> <span className="whitespace-nowrap">Add to Cart</span></>
+                      )}
+                    </button>
+
+                    {/* NEGOTIATE */}
+                    <button
+                      onClick={handleContactMaker}
+                      className="flex-1 min-w-[130px] py-3.5 px-4 rounded-[18px] font-black text-xs uppercase tracking-wider bg-white border-2 border-gray-100 text-gray-900 hover:bg-gray-50 hover:border-blue-200 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 whitespace-nowrap"
+                    >
+                      <Handshake size={18} className="text-blue-600 shrink-0" />
+                      <span className="whitespace-nowrap">Negotiate</span>
+                    </button>
+
+                    {/* FAVORITE ICON */}
+                    <button
+                      onClick={toggleFavorite}
+                      className={`w-12 h-12 rounded-[18px] border-2 transition-all flex items-center justify-center shrink-0 ${isFavorite ? 'bg-red-50 border-red-200 text-red-500 shadow-red-100 shadow-md' : 'bg-white hover:bg-gray-50 text-gray-400 border-gray-100'}`}
+                      title="Favorite"
+                    >
+                      <Heart size={20} className={isFavorite ? 'fill-red-500 animate-pulse' : ''} />
+                    </button>
+
+                    {/* SHARE ICON */}
+                    <button
+                      onClick={handleShare}
+                      className="w-12 h-12 rounded-[18px] border-2 border-gray-100 bg-white hover:bg-gray-50 text-gray-400 transition flex items-center justify-center group relative shrink-0"
+                      title="Share"
+                    >
+                      <Share2 size={20} className="group-hover:scale-110 transition-transform" />
+                      {showShareToast && (
+                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] font-black py-2 px-4 rounded-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap shadow-xl z-30">
+                          <CheckCircle size={12} className="text-green-400" /> Copied to Clipboard
+                        </div>
+                      )}
+                    </button>
+
+                    {/* REPORT ICON */}
+                    {currentUser && !isOwner && (
+                      <button
+                        onClick={() => { setReportDone(false); setReportReason(''); setReportDesc(''); setShowReportModal(true); }}
+                        title="Report this listing"
+                        className="w-12 h-12 rounded-[18px] border-2 border-gray-100 bg-white hover:bg-red-50 hover:border-red-200 text-gray-400 hover:text-red-500 transition flex items-center justify-center group shrink-0"
+                      >
+                        <Flag size={18} className="group-hover:scale-110 transition-transform" />
+                      </button>
                     )}
-                  </button>
-
-                  {/* NEGOTIATE BUTTON */}
-                  <button
-                    onClick={handleContactMaker}
-                    className="flex-1 py-4 sm:py-5 rounded-[24px] font-black uppercase tracking-widest bg-white border-2 border-gray-100 text-gray-900 hover:bg-gray-50 hover:border-blue-200 transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
-                  >
-                    <Handshake size={20} className="text-blue-600" /> Negotiate
-                  </button>
-                </div>
-              )}
-
-              <button
-                onClick={toggleFavorite}
-                className={`w-16 h-16 rounded-[24px] border-2 transition-all flex items-center justify-center ${isFavorite ? 'bg-red-50 border-red-200 text-red-500 shadow-red-100 shadow-lg' : 'hover:bg-gray-50 text-gray-400 border-gray-100'}`}
-              >
-                <Heart size={24} className={isFavorite ? 'fill-red-500 animate-pulse' : ''} />
-              </button>
-
-              <button onClick={handleShare} className="w-16 h-16 rounded-[24px] border-2 border-gray-100 hover:bg-gray-50 text-gray-400 transition flex items-center justify-center group relative">
-                <Share2 size={24} className="group-hover:scale-110 transition-transform" />
-                {showShareToast && (
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] font-black py-2 px-4 rounded-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap shadow-xl">
-                    <CheckCircle size={12} className="text-green-400" /> Copied to Clipboard
                   </div>
-                )}
-              </button>
-
-              {/* Report Listing button — only visible to logged-in non-owners */}
-              {currentUser && !isOwner && (
-                <button
-                  onClick={() => { setReportDone(false); setReportReason(''); setReportDesc(''); setShowReportModal(true); }}
-                  title="Report this listing"
-                  className="w-16 h-16 rounded-[24px] border-2 border-gray-100 hover:bg-red-50 hover:border-red-200 text-gray-400 hover:text-red-500 transition flex items-center justify-center group"
-                >
-                  <Flag size={22} className="group-hover:scale-110 transition-transform" />
-                </button>
+                </>
               )}
             </div>
 
