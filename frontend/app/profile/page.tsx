@@ -7,7 +7,8 @@ import Link from 'next/link';
 import {
   Settings, MapPin, Link as LinkIcon, Calendar, Loader2, Home, LogOut,
   CreditCard, Bell, Package, ChevronRight, ChevronDown, ShoppingBag, Plus, Trash2, Eye, Edit,
-  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers, CheckCircle, User, Lock, Handshake, Shield
+  Heart, TrendingUp, Wallet, DollarSign, MessageSquare, Sun, Moon, Sparkles, Layers, CheckCircle, User, Lock, Handshake, Shield,
+  LayoutList, Grid2X2, List, LayoutGrid
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -49,6 +50,19 @@ export default function ProfilePage() {
   }>({ show: false, type: 'confirm', title: '', message: '' });
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [myListingsViewMode, setMyListingsViewMode] = useState<'compact' | 'grid' | 'dense' | 'cards'>('compact');
+
+  useEffect(() => {
+    const savedMode = localStorage.getItem('printis_mylistings_view');
+    if (savedMode && ['compact', 'grid', 'dense', 'cards'].includes(savedMode)) {
+      setMyListingsViewMode(savedMode as any);
+    }
+  }, []);
+
+  const changeViewMode = (mode: 'compact' | 'grid' | 'dense' | 'cards') => {
+    setMyListingsViewMode(mode);
+    localStorage.setItem('printis_mylistings_view', mode);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -530,8 +544,8 @@ export default function ProfilePage() {
 
             {/* --- MY LISTINGS SECTION --- */}
             <div>
-              <div className="flex items-center justify-between mb-4 mt-8">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 mt-8">
+                <div className="flex flex-wrap items-center gap-3">
                   <h3 className="text-xl font-black uppercase text-gray-900 flex items-center gap-2">
                     <Package className="text-blue-600" /> My Listings
                   </h3>
@@ -544,11 +558,54 @@ export default function ProfilePage() {
                 </div>
 
                 {myOffers.length > 0 && (
-                  <Link href="/upload" className="text-xs font-bold bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition flex items-center gap-1">
-                    <Plus size={14} /> Add New
-                  </Link>
+                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap sm:flex-nowrap">
+                    {/* 4-MODE VIEW SWITCHER BAR */}
+                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/60 shadow-2xs">
+                      <button
+                        onClick={() => changeViewMode('compact')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${myListingsViewMode === 'compact' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                        title="Compact List View (Default)"
+                      >
+                        <LayoutList size={15} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">Compact</span>
+                      </button>
+
+                      <button
+                        onClick={() => changeViewMode('grid')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${myListingsViewMode === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                        title="2-Column Grid View"
+                      >
+                        <Grid2X2 size={15} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">Grid</span>
+                      </button>
+
+                      <button
+                        onClick={() => changeViewMode('dense')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${myListingsViewMode === 'dense' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                        title="Ultra-compact Table Row View"
+                      >
+                        <List size={15} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">Rows</span>
+                      </button>
+
+                      <button
+                        onClick={() => changeViewMode('cards')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${myListingsViewMode === 'cards' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                        title="Large Cards View"
+                      >
+                        <LayoutGrid size={15} />
+                        <span className="text-[11px] uppercase tracking-wider font-black">Cards</span>
+                      </button>
+                    </div>
+
+                    <Link href="/upload" className="text-xs font-bold bg-gray-900 text-white px-3.5 py-2 rounded-xl hover:bg-blue-600 transition flex items-center gap-1 shrink-0 shadow-sm">
+                      <Plus size={14} /> Add New
+                    </Link>
+                  </div>
                 )}
-              </div>              {myOffers.length === 0 ? (
+              </div>
+
+              {myOffers.length === 0 ? (
                 <div className="bg-white p-10 rounded-2xl shadow-sm border border-gray-100 text-center py-20">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                     <Package size={28} />
@@ -560,9 +617,194 @@ export default function ProfilePage() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-12">
-                  {/* Grid of parent listings with their custom sub-orders */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-10">
+                <div className="space-y-6">
+                  {/* MODE 1: COMPACT (DEFAULT) */}
+                  {myListingsViewMode === 'compact' && (
+                    <div className="space-y-3">
+                      {myOffers.filter((o: any) => !o.is_custom).map((offer: any) => {
+                        const variants = offer.color_variants || [];
+                        const hasVariants = variants.length > 1;
+                        const offerSoldOut = isOfferSoldOut(offer);
+                        const offerStock = getOfferStock(offer);
+                        const displayWeight = formatOfferWeight(offer.weight, variants[0]?.layers);
+
+                        return (
+                          <div key={offer.id} className="bg-white rounded-2xl border border-gray-100 p-3 shadow-xs hover:shadow-md transition-all flex flex-col relative">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0 flex-1 w-full sm:w-auto">
+                                {/* Thumbnail */}
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 rounded-xl overflow-hidden shrink-0 relative border border-gray-100">
+                                  {offer.image_urls?.[0] ? (
+                                    <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-300"><Package size={20} /></div>
+                                  )}
+                                  <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-white/90 backdrop-blur rounded text-[8px] font-black uppercase text-gray-900 shadow-2xs">
+                                    {offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}
+                                  </div>
+                                  {offerSoldOut && (
+                                    <div className="absolute inset-0 bg-red-500/20 backdrop-blur-[1px] flex items-center justify-center">
+                                      <span className="bg-red-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow">Sold</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Info */}
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="font-black text-gray-900 text-sm sm:text-base line-clamp-1">{offer.title}</h4>
+                                    {hasVariants && (
+                                      <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                                        {variants.length} colors
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                                    {offer.is_negotiable ? (
+                                      <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">Negotiable</span>
+                                    ) : (
+                                      <span className="text-base font-black text-gray-900">{formatPrice(offer.price)}</span>
+                                    )}
+
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                      offer.category === 'digital' ? 'bg-orange-50 text-orange-700 border border-orange-100' :
+                                      offer.category === 'physical' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                                      'bg-blue-50 text-blue-700 border border-blue-100'
+                                    }`}>
+                                      {offer.category}
+                                    </span>
+
+                                    <span className="text-[10px] font-bold text-gray-500">
+                                      Stock: <strong className="text-gray-900">{offer.category === 'digital' ? '∞' : (offerSoldOut ? '0' : `${offerStock} pcs`)}</strong>
+                                    </span>
+                                  </div>
+
+                                  {offer.category !== 'digital' && offer.material && (
+                                    <p className="text-[10px] text-gray-400 font-bold truncate">
+                                      Material: <span className="text-purple-600 capitalize">{offer.material}</span>
+                                      {displayWeight && <span> · Net: {displayWeight}</span>}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 w-full sm:w-auto justify-end">
+                                <Link href={`/offer/${offer.id}`} className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs transition flex items-center gap-1" title="Preview">
+                                  <Eye size={14} /> <span className="hidden sm:inline">Preview</span>
+                                </Link>
+                                <Link href={`/edit/${offer.id}`} className="px-2.5 py-1.5 bg-gray-900 hover:bg-blue-600 text-white rounded-xl font-bold text-xs transition flex items-center gap-1" title="Edit">
+                                  <Edit size={14} /> <span className="hidden sm:inline">Edit</span>
+                                </Link>
+                                <button onClick={() => confirmDelete(offer.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition" title="Delete">
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* MODE 2: GRID (2 COLUMNS ON MOBILE) */}
+                  {myListingsViewMode === 'grid' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {myOffers.filter((o: any) => !o.is_custom).map((offer: any) => {
+                        const offerSoldOut = isOfferSoldOut(offer);
+                        const offerStock = getOfferStock(offer);
+
+                        return (
+                          <div key={offer.id} className="bg-white rounded-2xl border border-gray-100 p-2.5 flex flex-col shadow-xs hover:shadow-md transition-all relative">
+                            <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden relative mb-2 border border-gray-100">
+                              {offer.image_urls?.[0] ? (
+                                <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-300"><Package size={24} /></div>
+                              )}
+                              <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-white/90 backdrop-blur rounded text-[7px] font-black uppercase text-gray-900 shadow-2xs">
+                                {offer.category === 'job' ? 'Request' : offer.category === 'digital' ? 'File' : 'Item'}
+                              </div>
+                              {offerSoldOut && (
+                                <div className="absolute inset-0 bg-red-500/20 backdrop-blur-[1px] flex items-center justify-center">
+                                  <span className="bg-red-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded shadow">Sold</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <h4 className="font-bold text-gray-900 text-xs sm:text-sm line-clamp-1 mb-0.5">{offer.title}</h4>
+                            <div className="font-black text-xs sm:text-sm text-gray-900 mb-1">
+                              {offer.is_negotiable ? <span className="text-indigo-600">Negotiable</span> : formatPrice(offer.price)}
+                            </div>
+
+                            <div className="flex items-center justify-between text-[9px] font-bold text-gray-400 mt-auto pt-1">
+                              <span className="capitalize">{offer.category}</span>
+                              <span>{offer.category === 'digital' ? '∞' : (offerSoldOut ? 'Sold' : `${offerStock} pcs`)}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1 mt-2 pt-2 border-t border-gray-50 justify-between">
+                              <Link href={`/offer/${offer.id}`} className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs" title="Preview">
+                                <Eye size={13} />
+                              </Link>
+                              <Link href={`/edit/${offer.id}`} className="p-1.5 bg-gray-900 hover:bg-blue-600 text-white rounded-lg text-xs" title="Edit">
+                                <Edit size={13} />
+                              </Link>
+                              <button onClick={() => confirmDelete(offer.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="Delete">
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* MODE 3: DENSE TABLE ROWS */}
+                  {myListingsViewMode === 'dense' && (
+                    <div className="space-y-1.5">
+                      {myOffers.filter((o: any) => !o.is_custom).map((offer: any) => {
+                        const offerSoldOut = isOfferSoldOut(offer);
+                        const offerStock = getOfferStock(offer);
+
+                        return (
+                          <div key={offer.id} className="flex items-center justify-between gap-2 sm:gap-4 bg-white rounded-xl border border-gray-100 p-2 shadow-2xs hover:bg-gray-50/80 transition-all">
+                            <div className="w-8 h-8 rounded-lg bg-gray-50 overflow-hidden shrink-0 border border-gray-100">
+                              {offer.image_urls?.[0] ? (
+                                <img src={offer.image_urls[0]} alt={offer.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-300"><Package size={14} /></div>
+                              )}
+                            </div>
+
+                            <h4 className="font-bold text-xs text-gray-900 truncate flex-1 min-w-0">{offer.title}</h4>
+
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0 hidden xs:inline-block">
+                              {offer.category}
+                            </span>
+
+                            <span className="text-[10px] font-bold text-gray-500 shrink-0">
+                              {offer.category === 'digital' ? '∞' : (offerSoldOut ? 'Sold' : `${offerStock} pcs`)}
+                            </span>
+
+                            <span className="font-black text-xs sm:text-sm text-gray-900 shrink-0">
+                              {offer.is_negotiable ? 'Neg' : formatPrice(offer.price)}
+                            </span>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Link href={`/offer/${offer.id}`} className="p-1 text-gray-400 hover:text-gray-700" title="Preview"><Eye size={14} /></Link>
+                              <Link href={`/edit/${offer.id}`} className="p-1 text-gray-400 hover:text-blue-600" title="Edit"><Edit size={14} /></Link>
+                              <button onClick={() => confirmDelete(offer.id)} className="p-1 text-gray-400 hover:text-red-600" title="Delete"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* MODE 4: CARDS (ORIGINAL LARGE CARDS) */}
+                  {myListingsViewMode === 'cards' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-10">
                     {myOffers.filter((o: any) => !o.is_custom).map((offer: any) => {
                       const variants = offer.color_variants || [];
                       const hasVariants = variants.length > 1;
@@ -769,8 +1011,9 @@ export default function ProfilePage() {
                           )}
                         </div>
                       );
-                    })}
-                  </div>
+                        })}
+                      </div>
+                    )}
 
                   {/* ── Stand-alone Custom Orders (e.g. from Jobs or deleted parents) ── */}
                   {myOffers.some((o: any) => o.is_custom && o.stock > 0 && !myOffers.some(parent => parent.id === o.parent_offer_id)) && (
