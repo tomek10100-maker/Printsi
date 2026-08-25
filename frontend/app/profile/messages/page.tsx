@@ -2525,7 +2525,7 @@ function MessagesInner() {
     return (
         <>
             <main className="h-[calc(100dvh-32px)] sm:h-[calc(100dvh-36px)] overflow-hidden bg-gray-50 flex flex-col font-sans text-gray-900">
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shrink-0">
+            <div className="bg-white border-b border-gray-200 px-3.5 sm:px-6 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10 shrink-0">
                 <div className="flex items-center gap-4">
                     <Link href="/profile" className="p-2 bg-gray-50 text-gray-500 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors">
                         <ArrowLeft size={20} />
@@ -2680,7 +2680,7 @@ function MessagesInner() {
                             {activeChatData && (() => {
                                 const isSupport = activeChatData.isSupport || (!activeChatData.offer_id && !activeChatData.order_id);
                                 return (
-                                <div className={`px-6 py-4 border-b flex items-center gap-4 shrink-0 shadow-sm ${
+                                <div className={`px-3.5 sm:px-6 py-2.5 sm:py-4 border-b flex items-center gap-2 sm:gap-4 shrink-0 shadow-sm ${
                                   isSupport 
                                     ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border-blue-500/30 text-white' 
                                     : 'bg-white border-gray-100'
@@ -3430,7 +3430,7 @@ function MessagesInner() {
                                 </div>
                             )}
 
-                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 sm:px-6 sm:py-6 space-y-3.5">
                                 {loadingMessages ? (
                                     <div className="flex justify-center py-10"><Loader2 className="animate-spin text-blue-600" /></div>
                                 ) : (() => {
@@ -4094,7 +4094,7 @@ function MessagesInner() {
                                 </div>
                             )}
 
-                            <div className="p-4 bg-white border-t border-gray-100 shrink-0">
+                            <div className="px-2 py-2.5 sm:px-4 sm:py-4 bg-white border-t border-gray-100 shrink-0 w-full overflow-x-hidden">
                                 {spamCooldownSec > 0 && (
                                     <div className="max-w-4xl mx-auto mb-3 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 rounded-xl px-4 py-2.5 text-xs font-black flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-bottom-2">
                                         <div className="flex items-center gap-2">
@@ -4103,7 +4103,7 @@ function MessagesInner() {
                                         </div>
                                     </div>
                                 )}
-                                <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto space-y-2">
+                                <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto space-y-1.5 w-full">
                                     {/* Negotiate button pill on mobile if no order */}
                                     {activeChatData && !activeChatData.orderItem && (
                                         <button
@@ -4115,13 +4115,13 @@ function MessagesInner() {
                                         </button>
                                     )}
 
-                                    <div className="flex items-end gap-1.5 w-full">
+                                    <div className="flex items-end gap-1 sm:gap-1.5 w-full">
                                         <textarea
                                             value={newMessage}
                                             onChange={(e) => setNewMessage(e.target.value)}
                                             onPaste={handlePaste}
-                                            placeholder="Type a message or paste image (Ctrl+V)..."
-                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-h-[46px] max-h-[140px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-[16px] sm:text-sm font-medium"
+                                            placeholder="Type a message..."
+                                            className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 min-h-[44px] sm:min-h-[46px] max-h-[140px] focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all text-[16px] sm:text-sm font-medium"
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                                         />
                                         <input
@@ -4137,10 +4137,10 @@ function MessagesInner() {
                                             type="button"
                                             onClick={() => chatImageInputRef.current?.click()}
                                             disabled={chatImageUploading || spamCooldownSec > 0}
-                                            title="Send photo or paste image (Ctrl+V)"
-                                            className="bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 p-2.5 rounded-xl transition-all h-[46px] w-[46px] flex items-center justify-center shrink-0 border border-gray-200 hover:border-indigo-300 disabled:opacity-50"
+                                            title="Send photo or paste image"
+                                            className="bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 p-2 sm:p-2.5 rounded-xl transition-all h-[44px] w-[38px] sm:w-[46px] sm:h-[46px] flex items-center justify-center shrink-0 border border-gray-200 hover:border-indigo-300 disabled:opacity-50"
                                         >
-                                            {chatImageUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                                            {chatImageUploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
                                         </button>
 
                                         {/* 3-dot menu for Options / Report / Cancel */}
@@ -4156,10 +4156,10 @@ function MessagesInner() {
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowChatMenu(v => !v)}
-                                                        className="h-[46px] w-[46px] flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 transition shadow-xs"
+                                                        className="h-[44px] w-[38px] sm:w-[46px] sm:h-[46px] flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 transition shadow-xs p-2 sm:p-2.5"
                                                         title="More options"
                                                     >
-                                                        <MoreVertical size={18} />
+                                                        <MoreVertical size={16} />
                                                     </button>
                                                     {showChatMenu && (
                                                         <>
@@ -4198,8 +4198,8 @@ function MessagesInner() {
                                         })()}
 
                                         {/* Send button */}
-                                        <button type="submit" disabled={(!newMessage.trim() && pendingImages.length === 0) || spamCooldownSec > 0} className="bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-xl transition-all disabled:opacity-50 h-[46px] w-[46px] flex items-center justify-center shrink-0 shadow-md active:scale-95">
-                                            <Send size={18} />
+                                        <button type="submit" disabled={(!newMessage.trim() && pendingImages.length === 0) || spamCooldownSec > 0} className="bg-blue-600 hover:bg-blue-700 text-white p-2 sm:p-2.5 rounded-xl transition-all disabled:opacity-50 h-[44px] w-[40px] sm:w-[46px] sm:h-[46px] flex items-center justify-center shrink-0 shadow-md active:scale-95">
+                                            <Send size={16} />
                                         </button>
                                     </div>
                                 </form>
