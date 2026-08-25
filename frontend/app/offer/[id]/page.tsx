@@ -978,7 +978,7 @@ export default function OfferDetailsPage() {
                 <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /> Direct from Master-Maker
               </div>
               <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                <ShieldCheck size={14} className="text-gray-300" /> Printsi Escrow Protection
+                <ShieldCheck size={14} className="text-gray-300" /> Printis Escrow Protection
               </div>
               {isDigital ? (
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-600 tracking-wider">

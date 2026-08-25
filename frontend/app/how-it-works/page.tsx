@@ -45,7 +45,7 @@ export default function HowItWorksPage() {
                 { icon: <Package size={22} />, title: 'Create Listings', desc: 'List 3D items with up to 6 photos, multi-color variants, dimensions and auto-calculated pricing from your filament stock. Or use Manual Mode to set prices directly.' },
                 { icon: <MessageSquare size={22} />, title: 'Chat & Negotiate', desc: 'Receive orders and messages from buyers. Use the chat panel to negotiate custom requests, propose changes and confirm orders before production.' },
                 { icon: <CheckCircle2 size={22} />, title: 'Upload Print Verification Photos', desc: 'Once your 3D print is completed, take high-resolution verification photos and send them via chat. Upon buyer approval ("LOOKS GOOD! CONFIRM"), an official Furgonetka shipping label is automatically generated.' },
-                { icon: <Truck size={22} />, title: 'Ship & Get Paid', desc: 'Pack the item safely and ship via your chosen carrier. Funds are securely released to your Printsi balance upon buyer delivery confirmation.' },
+                { icon: <Truck size={22} />, title: 'Ship & Get Paid', desc: 'Pack the item safely and ship via your chosen carrier. Funds are securely released to your Printis balance upon buyer delivery confirmation.' },
             ],
             cta: { label: 'Start Selling', href: '/upload' },
         },
@@ -58,7 +58,7 @@ export default function HowItWorksPage() {
                 { icon: <Upload size={22} />, title: 'Create a Digital Listing', desc: 'Upload your 3D model file plus up to 6 preview images. Set a price in your local currency. The file is stored securely — buyers receive it only after payment.' },
                 { icon: <Globe size={22} />, title: 'Sell Globally', desc: 'Your listing is instantly visible to buyers worldwide. Prices are automatically shown in the buyer\'s local currency. No need to manage stock or shipping.' },
                 { icon: <MessageSquare size={22} />, title: 'Deliver via Chat', desc: 'When a purchase is made, coordinate delivery through the chat. Mark the order as "Sent to Email" once the buyer has the file.' },
-                { icon: <Wallet size={22} />, title: 'Passive Income', desc: 'Each sale goes straight to your Printsi balance. One design can generate income indefinitely. Withdraw earnings anytime.' },
+                { icon: <Wallet size={22} />, title: 'Passive Income', desc: 'Each sale goes straight to your Printis balance. One design can generate income indefinitely. Withdraw earnings anytime.' },
             ],
             cta: { label: 'Upload a Design', href: '/upload' },
         },
@@ -104,7 +104,7 @@ export default function HowItWorksPage() {
                     <div className="max-w-3xl">
                         <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400 mb-4">Platform Guide</p>
                         <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none mb-5">
-                            How<br /><span className="text-blue-400">Printsi</span><br />Works.
+                            How<br /><span className="text-blue-400">Printis</span><br />Works.
                         </h1>
                         <p className="text-gray-300 font-medium text-lg leading-relaxed max-w-xl">
                             A marketplace built around 3D printing — connecting buyers, printers, and designers in one secure ecosystem.

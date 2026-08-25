@@ -37,7 +37,7 @@ const FAQS: FAQItem[] = [
     // BUYING
     {
         category: 'buying',
-        q: 'How do I place an order on Printsi?',
+        q: 'How do I place an order on Printis?',
         a: 'Browse the Gallery and find an item you like. You can add it directly to your cart, or click on the listing to view details. From the product page you can message the seller, customize the order (color, material, quantity), and proceed to checkout. Payment is held securely in escrow until you confirm delivery.',
     },
     {
@@ -63,13 +63,13 @@ const FAQS: FAQItem[] = [
     // SELLING
     {
         category: 'selling',
-        q: 'How do I start selling on Printsi?',
+        q: 'How do I start selling on Printis?',
         a: 'Create an account and go through onboarding to set your role — Printer (for 3D items) or CAD Designer (for digital files). Then go to Upload to create your first listing. Add photos, set a price, choose your delivery settings, and publish.',
     },
     {
         category: 'selling',
         q: 'What is the Auto Pricing mode for 3D items?',
-        a: 'Auto Pricing is available if you have added your filament inventory in the Profile → Filaments section. When creating a listing, you select which filaments and how many grams each variant uses. Printsi automatically calculates the material cost and lets you add a markup. This ensures your prices always reflect current material costs.',
+        a: 'Auto Pricing is available if you have added your filament inventory in the Profile → Filaments section. When creating a listing, you select which filaments and how many grams each variant uses. Printis automatically calculates the material cost and lets you add a markup. This ensures your prices always reflect current material costs.',
     },
     {
         category: 'selling',
@@ -79,12 +79,12 @@ const FAQS: FAQItem[] = [
     {
         category: 'selling',
         q: 'How do I receive payment?',
-        a: 'When a buyer confirms delivery, the payment is released from escrow to your Printsi balance. You can then withdraw your balance to a connected bank account via the Profile → Billing section. We use Stripe Connect to process payouts securely.',
+        a: 'When a buyer confirms delivery, the payment is released from escrow to your Printis balance. You can then withdraw your balance to a connected bank account via the Profile → Billing section. We use Stripe Connect to process payouts securely.',
     },
     {
         category: 'selling',
-        q: 'What fees does Printsi charge sellers?',
-        a: 'Printsi takes a small platform fee per transaction to cover escrow, payment processing, and platform costs. The exact percentage is shown during listing creation. There are no monthly subscription fees — you only pay when you make a sale.',
+        q: 'What fees does Printis charge sellers?',
+        a: 'Printis takes a small platform fee per transaction to cover escrow, payment processing, and platform costs. The exact percentage is shown during listing creation. There are no monthly subscription fees — you only pay when you make a sale.',
     },
     // DIGITAL
     {
@@ -95,7 +95,7 @@ const FAQS: FAQItem[] = [
     {
         category: 'digital',
         q: 'Can buyers pirate or share digital files I sell?',
-        a: 'While we cannot prevent buyers from sharing files after purchase (as with all digital goods), Printsi protects your files during the transaction — files are only released after confirmed payment. We recommend watermarking your files or including license terms in the description.',
+        a: 'While we cannot prevent buyers from sharing files after purchase (as with all digital goods), Printis protects your files during the transaction — files are only released after confirmed payment. We recommend watermarking your files or including license terms in the description.',
     },
     {
         category: 'digital',
@@ -105,18 +105,18 @@ const FAQS: FAQItem[] = [
     // PAYMENTS
     {
         category: 'payments',
-        q: 'Is it safe to pay on Printsi?',
+        q: 'Is it safe to pay on Printis?',
         a: 'Yes. All payments go through an escrow system powered by Stripe — one of the world\'s most trusted payment processors. Your money is never sent directly to the seller. It is held securely until you confirm you have received your order in good condition.',
     },
     {
         category: 'payments',
         q: 'What currencies are supported?',
-        a: 'Printsi supports multiple currencies including PLN, EUR, USD, GBP, CHF, SEK, CZK and more. Prices are automatically shown in your selected currency using live exchange rates. You can switch your currency at any time from the navigation bar or your account settings.',
+        a: 'Printis supports multiple currencies including PLN, EUR, USD, GBP, CHF, SEK, CZK and more. Prices are automatically shown in your selected currency using live exchange rates. You can switch your currency at any time from the navigation bar or your account settings.',
     },
     {
         category: 'payments',
-        q: 'Can I top up my Printsi balance?',
-        a: 'Yes. You can top up your Printsi wallet from the Profile → Billing section using a card or other Stripe-supported payment method. Your balance is used for purchases and can also be withdrawn if you are a seller.',
+        q: 'Can I top up my Printis balance?',
+        a: 'Yes. You can top up your Printis wallet from the Profile → Billing section using a card or other Stripe-supported payment method. Your balance is used for purchases and can also be withdrawn if you are a seller.',
     },
     {
         category: 'payments',
@@ -137,7 +137,7 @@ const FAQS: FAQItem[] = [
     {
         category: 'shipping',
         q: 'How long does delivery take?',
-        a: 'Delivery times vary depending on the seller\'s location, print complexity, and chosen shipping method. Unlike traditional e-commerce, most items on Printsi are printed on demand after the order is placed. Typical times range from 3–14 business days. Check with the seller for an accurate estimate.',
+        a: 'Delivery times vary depending on the seller\'s location, print complexity, and chosen shipping method. Unlike traditional e-commerce, most items on Printis are printed on demand after the order is placed. Typical times range from 3–14 business days. Check with the seller for an accurate estimate.',
     },
     // SAFETY
     {
@@ -148,11 +148,11 @@ const FAQS: FAQItem[] = [
     {
         category: 'safety',
         q: 'How does the dispute system work?',
-        a: 'When a buyer opens a dispute, funds in escrow are frozen and the case is escalated to the Printsi support team. Both buyer and seller are asked to provide evidence (photos, messages, etc.). Our team reviews the case and issues a resolution — which may include a full refund, partial refund or release of funds to the seller.',
+        a: 'When a buyer opens a dispute, funds in escrow are frozen and the case is escalated to the Printis support team. Both buyer and seller are asked to provide evidence (photos, messages, etc.). Our team reviews the case and issues a resolution — which may include a full refund, partial refund or release of funds to the seller.',
     },
     {
         category: 'safety',
-        q: 'Is my personal data safe on Printsi?',
+        q: 'Is my personal data safe on Printis?',
         a: 'Yes. We follow GDPR guidelines and use industry-standard encryption for all personal data. Payment data is handled exclusively by Stripe and never stored on our servers. You can manage your data preferences and request deletion at any time from your account settings.',
     },
     {

@@ -290,7 +290,7 @@ export default function BankConnect({ profile, onSaved, sessionToken, theme = 'w
                   type="text"
                   value={form.transferTitle}
                   onChange={e => setForm(p => ({ ...p, transferTitle: e.target.value }))}
-                  placeholder="e.g. Printsi payout"
+                  placeholder="e.g. Printis payout"
                   className={`w-full px-4 py-3.5 rounded-2xl border-2 font-bold text-sm transition-all outline-none ${inputCls}`}
                 />
               </div>

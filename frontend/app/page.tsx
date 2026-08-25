@@ -134,7 +134,7 @@ export default function HomePage() {
             <button onClick={() => setShowStats(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-900 rounded-full hover:bg-gray-900 hover:text-white transition-all font-bold text-xl z-20">×</button>
             <div className="text-center mb-8">
               <h2 className="text-4xl font-black uppercase tracking-tighter text-gray-900 leading-tight mb-1">Live <span className="text-blue-600">Growth.</span></h2>
-              <p className="text-gray-400 font-bold uppercase text-[9px] tracking-[0.4em]">Printsi Community Tracker</p>
+              <p className="text-gray-400 font-bold uppercase text-[9px] tracking-[0.4em]">Printis Community Tracker</p>
             </div>
             <div className="space-y-6">
               <div>

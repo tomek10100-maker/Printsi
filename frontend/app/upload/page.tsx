@@ -871,7 +871,7 @@ export default function AddOfferPage() {
           <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 p-8 md:p-10 text-white relative overflow-hidden">
             <div className="relative z-10 max-w-2xl">
               <span className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20 mb-3 inline-block">
-                Printsi Marketplace & Printing Hub
+                Printis Marketplace & Printing Hub
               </span>
               <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wide">What would you like to create?</h1>
               <p className="text-blue-200/80 mt-2 text-sm font-medium leading-relaxed">

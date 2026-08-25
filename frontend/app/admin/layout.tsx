@@ -95,7 +95,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Shield size={16} className="text-white" />
           </div>
           <div>
-            <p style={{ color: '#f1f5f9' }} className="font-black text-sm tracking-tight">Printsi</p>
+            <p style={{ color: '#f1f5f9' }} className="font-black text-sm tracking-tight">Printis</p>
             <p style={{ color: '#3b82f6', fontSize: '10px' }} className="font-black uppercase tracking-widest">Admin Panel</p>
           </div>
           <button
