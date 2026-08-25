@@ -85,7 +85,25 @@ function BillingContent() {
     const unified: any[] = [];
     spentOrders?.forEach(o => unified.push({ id: o.id, type: 'spent', amount: o.total_amount, date: o.created_at, label: 'Purchase' }));
     sales?.forEach(s => unified.push({ id: s.id, type: 'earned', amount: s.price_at_purchase * (s.quantity || 1), date: s.created_at, label: 'Sale', status: s.status }));
-    payouts?.forEach(p => unified.push({ id: p.id, type: 'payout', amount: p.amount, date: p.created_at, label: 'Payout', status: p.status }));
+    payouts?.forEach(p => {
+      // Try to parse enriched topup notes to extract exact paid amount
+      let parsedNotes: any = null;
+      if (p.notes) {
+        try { parsedNotes = JSON.parse(p.notes); } catch { /* not JSON, old format */ }
+      }
+      const isTopupEntry = p.amount < 0;
+      unified.push({
+        id: p.id,
+        type: 'payout',
+        amount: p.amount,
+        // For topups with exact data, store original paid amount & currency for display
+        paidAmount: isTopupEntry && parsedNotes?.paidAmount ? parsedNotes.paidAmount : null,
+        paidCurrency: isTopupEntry && parsedNotes?.paidCurrency ? parsedNotes.paidCurrency : null,
+        date: p.created_at,
+        label: 'Payout',
+        status: p.status,
+      });
+    });
     setTransactions(unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setLoading(false);
 
@@ -310,7 +328,11 @@ function BillingContent() {
                           tx.type === 'payout' ? 'text-orange-400' :
                             'text-blue-400'
                         }`}>
-                        {tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? '+' : '-'}{formatPrice(Math.abs(tx.amount))}
+                        {tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? '+' : '-'}
+                        {(tx.type === 'payout' && tx.amount < 0 && tx.paidAmount && tx.paidCurrency)
+                          ? `${tx.paidCurrency} ${Number(tx.paidAmount).toFixed(2)}`
+                          : formatPrice(Math.abs(tx.amount))
+                        }
                       </p>
                     </div>
                   </div>

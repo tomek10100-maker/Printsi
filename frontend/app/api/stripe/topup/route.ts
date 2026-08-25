@@ -99,12 +99,18 @@ export async function POST(req: Request) {
     console.log(`💰 [Topup API] Paid: ${paidAmount} ${paidCurrency} -> Internal: ${amountInEur} EUR (full precision)`);
 
     // 6. LOG TRANSACTION AS NEGATIVE PAYOUT (negative = funds added to wallet)
-    // Tries to insert with `notes`, falls back to core columns if schema lacks `notes`
+    // Store the exact paid amount+currency in notes so billing page can display it without re-converting
+    const enrichedNote = JSON.stringify({
+      ref: `topup:${sessionId}`,
+      paidAmount,
+      paidCurrency,
+    });
+
     const { error: txError } = await supabase.from('payouts').insert({
       user_id: userId,
       amount: negativeAmount,
       status: 'completed',
-      notes: targetPayoutNote,
+      notes: enrichedNote,
     });
 
     if (txError) {
@@ -120,7 +126,7 @@ export async function POST(req: Request) {
       }
     }
 
-    console.log(`✅ [Topup API] Credit added: ${negativeAmount} EUR`);
+    console.log(`✅ [Topup API] Credit added: ${negativeAmount} EUR (paid: ${paidAmount} ${paidCurrency})`);
     return NextResponse.json({ 
       success: true, 
       amount: amountInEur,
