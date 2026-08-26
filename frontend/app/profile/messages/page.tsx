@@ -273,19 +273,24 @@ function MessagesInner() {
                     });
                     if (match) {
                         orderItemInfo = {
-                            id: match.id,
+                            ...match,
                             status: match.status || 'pending',
-                            quantity: match.quantity,
-                            price_at_purchase: match.price_at_purchase,
-                            tracking_code: match.tracking_code,
-                            furgonetka_package_id: match.furgonetka_package_id,
-                            label_url: match.label_url
                         };
                     }
                 }
             }
 
-            return { ...chat, isSupport, otherUser, unreadCount: unreadCount || 0, orderItem: orderItemInfo };
+            let shippingInfo = null;
+            if (chat.order_id) {
+                const { data: sd } = await supabase
+                    .from('order_shipping_details')
+                    .select('*')
+                    .eq('order_id', chat.order_id)
+                    .maybeSingle();
+                shippingInfo = sd;
+            }
+
+            return { ...chat, isSupport, otherUser, unreadCount: unreadCount || 0, orderItem: orderItemInfo, shipping: shippingInfo };
         }));
 
         const filteredChats = enrichChats.filter(c => c !== null) as any[];
@@ -632,10 +637,11 @@ function MessagesInner() {
             }
 
             // Instead of creating package directly, send a confirmation request with photos to buyer
-            const shippingAddr = activeChatData?.orderItem?.shipping_address || {};
+            const shippingAddr = activeChatData?.shipping || activeChatData?.orderItem?.shipping_address || {};
             const addrParts = [
-                shippingAddr.line1 || shippingAddr.address || shippingAddr.street || '',
+                shippingAddr.address || shippingAddr.line1 || shippingAddr.street || '',
                 shippingAddr.city || '',
+                shippingAddr.zip_code || shippingAddr.zip || '',
                 shippingAddr.country || ''
             ].filter(Boolean);
             const addrDisplay = addrParts.join(', ') || 'Address on file';
