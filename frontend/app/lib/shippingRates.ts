@@ -106,34 +106,34 @@ const DPD_DOMESTIC_PL: WeightTier   = { upTo1kg: 13, upTo5kg: 16, upTo10kg: 22, 
 
 // ─── INTERNATIONAL RATE TIERS (PLN, from PL) ─────────────────────────────────
 
-// InPost international rates from PL
+// InPost international rates from PL (Furgonetka gross rates)
 const INPOST_INTERNATIONAL: Record<string, WeightTier> = {
-  CZ: { upTo1kg: 18, upTo5kg: 22, upTo10kg: 28, upTo20kg: 38, upTo31kg: 55 },
-  SK: { upTo1kg: 18, upTo5kg: 22, upTo10kg: 28, upTo20kg: 38, upTo31kg: 55 },
-  HU: { upTo1kg: 22, upTo5kg: 28, upTo10kg: 35, upTo20kg: 48, upTo31kg: 68 },
-  RO: { upTo1kg: 28, upTo5kg: 35, upTo10kg: 45, upTo20kg: 60, upTo31kg: 85 },
-  HR: { upTo1kg: 30, upTo5kg: 38, upTo10kg: 48, upTo20kg: 65, upTo31kg: 90 },
-  SI: { upTo1kg: 28, upTo5kg: 35, upTo10kg: 45, upTo20kg: 60, upTo31kg: 85 },
-  DE: { upTo1kg: 25, upTo5kg: 30, upTo10kg: 40, upTo20kg: 55, upTo31kg: 75 },
-  FR: { upTo1kg: 30, upTo5kg: 38, upTo10kg: 48, upTo20kg: 65, upTo31kg: 90 },
-  AT: { upTo1kg: 28, upTo5kg: 35, upTo10kg: 45, upTo20kg: 60, upTo31kg: 85 },
-  IT: { upTo1kg: 32, upTo5kg: 40, upTo10kg: 50, upTo20kg: 68, upTo31kg: 95 },
+  CZ: { upTo1kg: 22.90, upTo5kg: 27.90, upTo10kg: 34.90, upTo20kg: 44.90, upTo31kg: 62.00 },
+  SK: { upTo1kg: 22.90, upTo5kg: 27.90, upTo10kg: 34.90, upTo20kg: 44.90, upTo31kg: 62.00 },
+  HU: { upTo1kg: 26.90, upTo5kg: 32.90, upTo10kg: 42.90, upTo20kg: 56.90, upTo31kg: 78.00 },
+  RO: { upTo1kg: 34.90, upTo5kg: 42.90, upTo10kg: 54.90, upTo20kg: 72.90, upTo31kg: 98.00 },
+  HR: { upTo1kg: 36.90, upTo5kg: 45.90, upTo10kg: 58.90, upTo20kg: 76.90, upTo31kg: 102.00 },
+  SI: { upTo1kg: 34.90, upTo5kg: 42.90, upTo10kg: 54.90, upTo20kg: 72.90, upTo31kg: 98.00 },
+  DE: { upTo1kg: 31.90, upTo5kg: 38.90, upTo10kg: 48.90, upTo20kg: 64.90, upTo31kg: 84.00 },
+  FR: { upTo1kg: 38.90, upTo5kg: 47.90, upTo10kg: 58.90, upTo20kg: 76.90, upTo31kg: 102.00 },
+  AT: { upTo1kg: 35.90, upTo5kg: 43.90, upTo10kg: 54.90, upTo20kg: 72.90, upTo31kg: 96.00 },
+  IT: { upTo1kg: 40.70, upTo5kg: 49.90, upTo10kg: 62.00, upTo20kg: 78.00, upTo31kg: 105.00 },
 };
 
-// DPD international rates from PL
+// DPD international rates from PL (Furgonetka gross rates)
 const DPD_INTERNATIONAL: Record<string, WeightTier> = {
-  CZ: { upTo1kg: 20, upTo5kg: 25, upTo10kg: 32, upTo20kg: 42, upTo31kg: 60 },
-  SK: { upTo1kg: 20, upTo5kg: 25, upTo10kg: 32, upTo20kg: 42, upTo31kg: 60 },
-  HU: { upTo1kg: 25, upTo5kg: 32, upTo10kg: 40, upTo20kg: 55, upTo31kg: 75 },
-  LT: { upTo1kg: 25, upTo5kg: 30, upTo10kg: 38, upTo20kg: 50, upTo31kg: 72 },
-  LV: { upTo1kg: 26, upTo5kg: 32, upTo10kg: 40, upTo20kg: 52, upTo31kg: 74 },
-  EE: { upTo1kg: 28, upTo5kg: 34, upTo10kg: 42, upTo20kg: 55, upTo31kg: 78 },
-  SE: { upTo1kg: 35, upTo5kg: 42, upTo10kg: 52, upTo20kg: 68, upTo31kg: 95 },
-  FI: { upTo1kg: 35, upTo5kg: 42, upTo10kg: 52, upTo20kg: 68, upTo31kg: 95 },
-  DE: { upTo1kg: 30, upTo5kg: 40, upTo10kg: 50, upTo20kg: 65, upTo31kg: 85 },
-  FR: { upTo1kg: 35, upTo5kg: 45, upTo10kg: 55, upTo20kg: 70, upTo31kg: 95 },
-  AT: { upTo1kg: 32, upTo5kg: 42, upTo10kg: 52, upTo20kg: 68, upTo31kg: 90 },
-  IT: { upTo1kg: 38, upTo5kg: 48, upTo10kg: 58, upTo20kg: 75, upTo31kg: 100 },
+  CZ: { upTo1kg: 24.90, upTo5kg: 29.90, upTo10kg: 38.90, upTo20kg: 49.90, upTo31kg: 68.00 },
+  SK: { upTo1kg: 24.90, upTo5kg: 29.90, upTo10kg: 38.90, upTo20kg: 49.90, upTo31kg: 68.00 },
+  HU: { upTo1kg: 29.90, upTo5kg: 38.90, upTo10kg: 48.90, upTo20kg: 64.90, upTo31kg: 85.00 },
+  LT: { upTo1kg: 29.90, upTo5kg: 36.90, upTo10kg: 46.90, upTo20kg: 59.90, upTo31kg: 82.00 },
+  LV: { upTo1kg: 31.90, upTo5kg: 38.90, upTo10kg: 48.90, upTo20kg: 62.90, upTo31kg: 85.00 },
+  EE: { upTo1kg: 34.90, upTo5kg: 42.90, upTo10kg: 52.90, upTo20kg: 68.90, upTo31kg: 92.00 },
+  SE: { upTo1kg: 42.90, upTo5kg: 52.90, upTo10kg: 64.90, upTo20kg: 82.90, upTo31kg: 110.00 },
+  FI: { upTo1kg: 42.90, upTo5kg: 52.90, upTo10kg: 64.90, upTo20kg: 82.90, upTo31kg: 110.00 },
+  DE: { upTo1kg: 38.90, upTo5kg: 48.90, upTo10kg: 58.90, upTo20kg: 75.90, upTo31kg: 98.00 },
+  FR: { upTo1kg: 44.90, upTo5kg: 54.90, upTo10kg: 66.90, upTo20kg: 84.90, upTo31kg: 112.00 },
+  AT: { upTo1kg: 41.90, upTo5kg: 51.90, upTo10kg: 62.90, upTo20kg: 80.90, upTo31kg: 106.00 },
+  IT: { upTo1kg: 48.60, upTo5kg: 58.90, upTo10kg: 69.90, upTo20kg: 89.90, upTo31kg: 118.00 },
 };
 
 // DHL international rates from PL (for Vinted-available countries only: CZ, SE)
