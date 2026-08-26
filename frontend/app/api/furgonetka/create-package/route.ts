@@ -429,7 +429,7 @@ export async function POST(req: Request) {
       service_id: serviceId
     };
 
-    // 10. Configure Pickup/Receiver points ONLY if valid for this carrier
+    // 10. Configure Pickup/Receiver points ONLY for point-to-point carriers (e.g. InPost, Orlen)
     if (pointToPoint) {
       if (pickupPointCode) {
         furgonetkaPayload.pickup.point = pickupPointCode;
@@ -441,16 +441,6 @@ export async function POST(req: Request) {
         }
         furgonetkaPayload.receiver.point = rxPoint;
       }
-    } else if (
-      selectedPoint?.code && 
-      selectedPoint?.courier && 
-      selectedPoint.courier.toLowerCase() === carrier.toLowerCase()
-    ) {
-      let rxPoint = selectedPoint.code.trim();
-      if (carrier.toLowerCase() === 'inpost' && /^[A-Z]{3}\d{2,4}$/i.test(rxPoint)) {
-        rxPoint = `${rxPoint}M`;
-      }
-      furgonetkaPayload.receiver.point = rxPoint;
     }
 
     console.log('[CreatePackage Route] Sending payload to Furgonetka:', JSON.stringify(furgonetkaPayload, null, 2));
@@ -501,17 +491,17 @@ export async function POST(req: Request) {
         try {
           createRes = await furgonetkaClient.createPackage(tier2Payload);
         } catch (tier2Err: any) {
-          console.warn('[CreatePackage Route] Tier 2 fallback failed. Attempting Tier 3 guaranteed domestic DPD fallback...');
+          console.warn('[CreatePackage Route] Tier 2 fallback failed. Attempting Tier 3 fallback with buyer real address & country:', receiverCountryCode);
 
           const tier3Payload: any = {
             ...tier2Payload,
-            service_id: 11636590, // DPD Domestic Poland (guaranteed in Furgonetka Sandbox)
+            service_id: 11636590,
             receiver: {
               name: receiverName,
               street: receiverStreet && receiverStreet.length >= 3 ? receiverStreet : 'Main Street 1',
-              postcode: '02-222',
-              city: 'Warszawa',
-              country_code: 'PL',
+              postcode: receiverPostcode,
+              city: receiverCity,
+              country_code: receiverCountryCode,
               phone: receiverPhone,
               email: shippingDetails?.email || 'recipient@printis.store'
             }
@@ -537,7 +527,7 @@ export async function POST(req: Request) {
     let packageId = createRes.package_id;
     console.log(`[CreatePackage Route] Created Furgonetka draft package ID: ${packageId}`);
 
-    // 12. Call Furgonetka API: Confirm/Order Package (with auto-acceptance retry for terms & guaranteed fallback)
+    // 12. Call Furgonetka API: Confirm/Order Package (with auto-acceptance retry for terms & fallback preserving real address)
     let orderRes: any;
     try {
       orderRes = await furgonetkaClient.orderPackage(packageId);
@@ -550,16 +540,16 @@ export async function POST(req: Request) {
         await furgonetkaClient.acceptRegulations();
         orderRes = await furgonetkaClient.orderPackage(packageId);
       } else {
-        console.warn('[CreatePackage Route] Order failed on carrier API. Creating guaranteed domestic DPD Courier fallback package...');
+        console.warn('[CreatePackage Route] Order failed on carrier API. Creating DPD Courier fallback package with real buyer details...');
         const fallbackDpdPayload: any = {
           ...furgonetkaPayload,
           service_id: 11636590, // DPD Courier (Service ID: 11636590)
           receiver: {
             name: receiverName,
             street: receiverStreet && receiverStreet.length >= 3 ? receiverStreet : 'Main Street 1',
-            postcode: '02-222',
-            city: 'Warszawa',
-            country_code: 'PL',
+            postcode: receiverPostcode,
+            city: receiverCity,
+            country_code: receiverCountryCode,
             phone: receiverPhone,
             email: shippingDetails?.email || 'recipient@printis.store'
           }
