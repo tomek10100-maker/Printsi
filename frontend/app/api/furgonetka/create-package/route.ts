@@ -36,25 +36,50 @@ function getCountryCode(countryStr: string): string {
 }
 
 /** Carriers that use point-to-point delivery (require pickup.point + receiver.point) */
-const POINT_TO_POINT_CARRIERS = new Set(['inpost', 'orlen']);
+const POINT_TO_POINT_CARRIERS = new Set([
+  'inpost', 'inpost_paczkomat', 'inpost_international', 'inpost international',
+  'orlen', 'orlen_paczka', 'dhl_pop', 'dpd_pickup'
+]);
 
 function getServiceId(carrier: string): number {
-  const cleanCarrier = (carrier || 'dpd').trim().toLowerCase();
+  const cleanCarrier = (carrier || 'dpd').trim().toLowerCase().replace(/[-\s]/g, '_');
   const map: Record<string, number> = {
     'dpd': 11636590,
+    'dpd_domestic': 11636590,
+    'dpd_pickup': 11636590,
+    'dpd_international': 11636590,
     'ups': 11636592,
+    'ups_domestic': 11636592,
     'inpost': 11636595,
+    'inpost_paczkomat': 11636595,
+    'inpost_international': 11636595,
     'orlen': 11636596,
+    'orlen_paczka': 11636596,
     'dhl': 11636597,
+    'dhl_domestic': 11636597,
+    'dhl_pop': 11636597,
     'fedex': 11636591,
+    'fedex_domestic': 11636591,
     'poczta': 11636594,
+    'poczta_polska': 11636594,
     'gls': 11636593,
+    'gls_domestic': 11636593,
   };
+
+  if (cleanCarrier.includes('inpost')) return 11636595;
+  if (cleanCarrier.includes('orlen')) return 11636596;
+  if (cleanCarrier.includes('dhl')) return 11636597;
+  if (cleanCarrier.includes('ups')) return 11636592;
+  if (cleanCarrier.includes('gls')) return 11636593;
+  if (cleanCarrier.includes('fedex')) return 11636591;
+
   return map[cleanCarrier] || 11636590;
 }
 
 function isPointToPoint(carrier: string): boolean {
-  return POINT_TO_POINT_CARRIERS.has((carrier || '').trim().toLowerCase());
+  const clean = (carrier || '').trim().toLowerCase().replace(/[-\s]/g, '_');
+  if (clean.includes('inpost') || clean.includes('orlen') || clean.includes('pickup') || clean.includes('pop')) return true;
+  return POINT_TO_POINT_CARRIERS.has(clean);
 }
 
 export async function POST(req: Request) {
@@ -209,10 +234,14 @@ export async function POST(req: Request) {
 
 
     // 8. Determine Carrier / Service ID
-    let carrier = 'dpd';
-    if (selectedPoint?.courier) {
-      carrier = selectedPoint.courier;
-    }
+    let carrier = (selectedPoint?.courier || selectedPoint?.service || selectedPoint?.name || orderShippingAddr?.carrier || orderShippingAddr?.shippingLabel || 'dpd').toLowerCase();
+    if (carrier.includes('inpost') || carrier.includes('paczkomat')) carrier = 'inpost';
+    else if (carrier.includes('orlen')) carrier = 'orlen';
+    else if (carrier.includes('dhl')) carrier = 'dhl';
+    else if (carrier.includes('ups')) carrier = 'ups';
+    else if (carrier.includes('gls')) carrier = 'gls';
+    else if (carrier.includes('dpd')) carrier = 'dpd';
+
     const serviceId = getServiceId(carrier);    // 9. Calculate Parcel Dimensions and Weight safely
     const rawWeight = parseWeightToGrams(offer?.weight);
     const validWeightGrams = typeof rawWeight === 'number' && !isNaN(rawWeight) && rawWeight >= 100 ? rawWeight : 500;

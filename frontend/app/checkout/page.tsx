@@ -472,6 +472,39 @@ function CheckoutInner() {
       return;
     }
 
+    if (hasShippable) {
+      // 1. First & Last Name Validation
+      const cleanName = (formData.fullName || '').trim();
+      const nameParts = cleanName.split(/\s+/).filter(p => p.length >= 2);
+      if (nameParts.length < 2) {
+        alert('Please enter your valid full First and Last Name (at least two words, e.g. "Jean Dupont"). Pseudonyms or single names are not accepted for courier delivery.');
+        return;
+      }
+
+      // 2. Phone Number Validation & E.164 Formatting
+      const rawPhone = (formData.phone || '').trim().replace(/[^\d+]/g, '');
+      const digitsOnly = rawPhone.replace(/\D/g, '');
+      const country = (formData.country || 'PL').toUpperCase();
+
+      if (digitsOnly.length < 7) {
+        alert('Please enter a valid phone number with international country code (e.g. +33 6 12 34 56 78 for France).');
+        return;
+      }
+
+      if (country === 'FR' && (rawPhone.startsWith('+1') || digitsOnly.length < 9)) {
+        alert('Please enter a valid French mobile phone number starting with +33 (e.g. +33 6 12 34 56 78).');
+        return;
+      }
+
+      // 3. Postal Code Validation
+      if (country === 'FR' || country === 'DE' || country === 'IT' || country === 'ES') {
+        if (digitsOnly.length !== 5) {
+          alert(`Postal code for ${country} must contain exactly 5 digits (e.g. 69003 for Lyon).`);
+          return;
+        }
+      }
+    }
+
     isSubmittingRef.current = true;
     setLoading(true);
     const currentRate = rates?.[currency] || 1;
