@@ -349,18 +349,26 @@ export async function processOrder(orderId: string, userId: string) {
       console.log(`📦 Job listing ${jobListingId} marked as fulfilled (stock → 0)`);
 
       // 3. System messages explaining next steps
+      // Set 3-day shipping deadline for print jobs
+      const shipByDeadlineJob = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      await supabase.from('order_items').update({ ship_by_deadline: shipByDeadlineJob.toISOString() }).eq('id', item.id);
+      const deadlineLabelJob = shipByDeadlineJob.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
       await supabase.from('messages').insert({
         chat_id: chatId,
         sender_id: userId,
-        content: `📧 The 3D file has been sent to the printer's email. The printer now has 4 days to print and ship the item. Track the progress below.`,
-        message_type: 'system',
+        content: JSON.stringify({ type: 'order_confirmed', ship_by_deadline: shipByDeadlineJob.toISOString(), deadline_label: deadlineLabelJob }),
+        message_type: 'status_order_confirmed',
       });
     } else {
+      // Set 3-day shipping deadline for physical items
+      const shipByDeadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      await supabase.from('order_items').update({ ship_by_deadline: shipByDeadline.toISOString() }).eq('id', item.id);
+      const deadlineStr = shipByDeadline.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
       await supabase.from('messages').insert({
         chat_id: chatId,
         sender_id: userId,
-        content: `The seller has 4 days to ship the item. If not shipped within this time, the order will be cancelled. Use the confirmation buttons below to track delivery progress.`,
-        message_type: 'system',
+        content: JSON.stringify({ type: 'order_confirmed', ship_by_deadline: shipByDeadline.toISOString(), deadline_label: deadlineStr }),
+        message_type: 'status_order_confirmed',
       });
     }
 

@@ -262,7 +262,7 @@ function MessagesInner() {
             if (chat.order_id && chat.offer_id) {
                 const { data: rawItems } = await supabase
                     .from('order_items')
-                    .select('id, status, quantity, price_at_purchase, tracking_code, furgonetka_package_id, label_url, offer_id, offers(parent_offer_id)')
+                    .select('id, status, quantity, price_at_purchase, tracking_code, furgonetka_package_id, label_url, offer_id, seller_id, ship_by_deadline, tracking_number, carrier, estimated_delivery_date, delivered_at, buyer_confirm_deadline, buyer_confirmed_at, extension_requested_at, extension_approved, extension_denied, offers(parent_offer_id)')
                     .eq('order_id', chat.order_id)
                     .eq('seller_id', chat.seller_id);
 
@@ -697,6 +697,56 @@ function MessagesInner() {
         } catch (err) {
             console.error('Confirm shipment error:', err);
             alert('Network error occurred.');
+        } finally {
+            setConfirmingShipment(false);
+        }
+    };
+
+    const handleConfirmReceipt = async (itemId: string) => {
+        if (!itemId) return;
+        setConfirmingShipment(true);
+        try {
+            const res = await fetch('/api/order/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'confirm_receipt', itemId, chatId: activeChatId, userId: currentUser?.id }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setChats(prev => prev.map(c =>
+                    c.id === activeChatId ? { ...c, orderItem: { ...c.orderItem, status: 'completed', buyer_confirmed_at: new Date().toISOString() } } : c
+                ));
+                loadMessages(activeChatId as string);
+            } else {
+                alert(data.error || 'Could not confirm receipt.');
+            }
+        } catch {
+            alert('Network error. Please try again.');
+        } finally {
+            setConfirmingShipment(false);
+        }
+    };
+
+    const handleExtensionAction = async (action: 'approve_extension' | 'deny_extension', itemId: string) => {
+        if (!itemId) return;
+        setConfirmingShipment(true);
+        try {
+            const res = await fetch('/api/order/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, itemId, chatId: activeChatId, userId: currentUser?.id }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setChats(prev => prev.map(c =>
+                    c.id === activeChatId ? { ...c, orderItem: { ...c.orderItem, extension_approved: action === 'approve_extension', extension_denied: action === 'deny_extension' } } : c
+                ));
+                loadMessages(activeChatId as string);
+            } else {
+                alert(data.error || 'Action failed.');
+            }
+        } catch {
+            alert('Network error. Please try again.');
         } finally {
             setConfirmingShipment(false);
         }
@@ -1792,6 +1842,14 @@ function MessagesInner() {
                 label: 'System',
                 accent: 'from-blue-500 to-blue-600',
             },
+            status_order_confirmed: {
+                bg: 'bg-gradient-to-r from-slate-50 to-indigo-50/40',
+                border: 'border-indigo-200/60',
+                icon: <Package size={16} />,
+                iconColor: 'text-indigo-500',
+                label: 'Order Confirmed',
+                accent: 'from-indigo-500 to-blue-600',
+            },
             status_shipped: {
                 bg: 'bg-gradient-to-r from-blue-50 to-indigo-50/50',
                 border: 'border-blue-200',
@@ -1799,6 +1857,14 @@ function MessagesInner() {
                 iconColor: 'text-blue-600',
                 label: 'Shipped',
                 accent: 'from-blue-500 to-indigo-500',
+            },
+            status_tracking: {
+                bg: 'bg-gradient-to-r from-teal-50 to-cyan-50/50',
+                border: 'border-teal-200',
+                icon: <Truck size={16} />,
+                iconColor: 'text-teal-600',
+                label: 'Tracking Update',
+                accent: 'from-teal-500 to-cyan-500',
             },
             status_delivered: {
                 bg: 'bg-gradient-to-r from-emerald-50 to-teal-50/50',
@@ -1813,7 +1879,7 @@ function MessagesInner() {
                 border: 'border-green-200',
                 icon: <CheckCircle2 size={16} />,
                 iconColor: 'text-green-600',
-                label: 'Completed',
+                label: 'Sale Complete',
                 accent: 'from-green-500 to-emerald-500',
             },
             status_disputed: {
@@ -1847,6 +1913,46 @@ function MessagesInner() {
                 iconColor: 'text-orange-500',
                 label: 'Cancellation Request',
                 accent: 'from-orange-500 to-amber-500',
+            },
+            extension_request: {
+                bg: 'bg-gradient-to-r from-amber-50 to-yellow-50/60',
+                border: 'border-amber-200',
+                icon: <Clock size={16} />,
+                iconColor: 'text-amber-600',
+                label: 'Extension Requested',
+                accent: 'from-amber-500 to-yellow-500',
+            },
+            extension_approved: {
+                bg: 'bg-gradient-to-r from-emerald-50 to-green-50/50',
+                border: 'border-emerald-200',
+                icon: <Check size={16} />,
+                iconColor: 'text-emerald-600',
+                label: 'Extension Approved',
+                accent: 'from-emerald-500 to-green-500',
+            },
+            extension_denied: {
+                bg: 'bg-gradient-to-r from-slate-50 to-gray-100/80',
+                border: 'border-slate-300',
+                icon: <X size={16} />,
+                iconColor: 'text-slate-500',
+                label: 'Extension Denied',
+                accent: 'from-slate-500 to-gray-600',
+            },
+            system_deadline_warning: {
+                bg: 'bg-gradient-to-r from-orange-50 to-amber-50/60',
+                border: 'border-orange-300',
+                icon: <AlertTriangle size={16} />,
+                iconColor: 'text-orange-500',
+                label: 'Shipping Deadline',
+                accent: 'from-orange-500 to-amber-500',
+            },
+            system_deadline_urgent: {
+                bg: 'bg-gradient-to-r from-red-50 to-orange-50/60',
+                border: 'border-red-300',
+                icon: <AlertTriangle size={16} />,
+                iconColor: 'text-red-600',
+                label: '⚠️ Urgent — Ship Now',
+                accent: 'from-red-500 to-orange-600',
             },
             shipment_confirmation_request: {
                 bg: 'bg-gradient-to-r from-indigo-50 to-blue-50/50',
@@ -2020,6 +2126,243 @@ function MessagesInner() {
                                 <p className="text-[11px] font-black text-indigo-600 uppercase tracking-wide text-center">⏳ Awaiting buyer's confirmation...</p>
                             )}
                         </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (messageType === 'status_order_confirmed') {
+            let ocData: any = {};
+            try { ocData = JSON.parse(msg.content); } catch {}
+            const deadlineDate = ocData.ship_by_deadline ? new Date(ocData.ship_by_deadline) : null;
+            const deadlineStr = ocData.deadline_label || (deadlineDate ? deadlineDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : '');
+            const isSeller_ = activeChatData && String(currentUser?.id) === String(activeChatData.seller_id);
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-gradient-to-r from-indigo-50 to-blue-50/50 border border-indigo-200/60 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-gradient-to-r from-indigo-500 to-blue-600 px-4 py-2 flex items-center gap-2">
+                            <Package size={14} className="text-white/90" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">Order Confirmed</span>
+                            <span className="ml-auto text-[9px] text-white/60 font-bold">{new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="px-4 py-3 space-y-2">
+                            <p className="text-sm font-bold text-slate-800">✅ Payment confirmed. Your order is now in progress.</p>
+                            {deadlineStr && (
+                                <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black ${isSeller_ ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                    <Clock size={13} className="shrink-0" />
+                                    {isSeller_ ? `⏰ Ship by ${deadlineStr}` : `Seller must ship by ${deadlineStr}`}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (messageType === 'status_tracking') {
+            let td: any = {};
+            try { td = JSON.parse(msg.content); } catch {}
+            const eventLabels: Record<string, string> = {
+                in_transit: '🚚 Package In Transit',
+                out_for_delivery: '🚴 Out For Delivery Today',
+                in_transit_update: '📍 Transit Update',
+            };
+            const etaDate = td.estimated_delivery ? new Date(td.estimated_delivery) : null;
+            const etaStr = etaDate ? etaDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : null;
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-gradient-to-r from-teal-50 to-cyan-50/50 border border-teal-200 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 py-2 flex items-center gap-2">
+                            <Truck size={14} className="text-white/90" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">{eventLabels[td.event] || 'Tracking Update'}</span>
+                            <span className="ml-auto text-[9px] text-white/60 font-bold">{new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="px-4 py-3 space-y-2">
+                            {td.carrier && <p className="text-[11px] font-black uppercase text-teal-700 tracking-wider">{td.carrier}</p>}
+                            {td.tracking_number && (
+                                <div className="flex items-center gap-2 bg-white rounded-xl border border-teal-100 px-3 py-2">
+                                    <span className="text-[10px] text-slate-400 font-black uppercase">Tracking:</span>
+                                    <span className="font-mono text-xs font-black text-slate-800">{td.tracking_number}</span>
+                                </div>
+                            )}
+                            {td.location && <p className="text-xs text-slate-600 font-medium">📍 {td.location}</p>}
+                            {etaStr && (
+                                <div className="flex items-center gap-2 px-3 py-2 bg-cyan-50 rounded-xl border border-cyan-100">
+                                    <Clock size={12} className="text-cyan-600" />
+                                    <span className="text-xs font-black text-cyan-800">Estimated delivery: {etaStr}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (messageType === 'status_delivered') {
+            let dd: any = {};
+            try { dd = JSON.parse(msg.content); } catch {}
+            const isBuyer_ = activeChatData && String(currentUser?.id) === String(activeChatData.buyer_id);
+            const isAlreadyCompleted = ['completed', 'disputed'].includes(activeChatData?.orderItem?.status || '');
+            const confirmDeadlineDate = dd.confirm_deadline ? new Date(dd.confirm_deadline) : null;
+            const confirmDeadlineStr = confirmDeadlineDate ? confirmDeadlineDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : null;
+            const deliveredDate = dd.delivered_at ? new Date(dd.delivered_at) : new Date(msg.created_at);
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-gradient-to-r from-emerald-50 to-teal-50/50 border-2 border-emerald-300 rounded-2xl overflow-hidden shadow-md">
+                        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 flex items-center gap-2">
+                            <PackageCheck size={16} className="text-white" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white">✅ Delivered</span>
+                            <span className="ml-auto text-[9px] text-white/70 font-bold">{deliveredDate.toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="px-4 py-4 space-y-3">
+                            <p className="text-sm font-black text-slate-800">Your package has been delivered by the courier.</p>
+                            {dd.carrier && <p className="text-[11px] font-black uppercase text-teal-700 tracking-wider">{dd.carrier} · {dd.tracking_number}</p>}
+                            {!isAlreadyCompleted && isBuyer_ && (
+                                <>
+                                    <p className="text-xs text-slate-500 font-medium">Please confirm you received the item. If there's an issue, you can open a dispute instead.</p>
+                                    {confirmDeadlineStr && (
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl border border-amber-200">
+                                            <Clock size={12} className="text-amber-600 shrink-0" />
+                                            <span className="text-xs font-black text-amber-800">Auto-confirmed by {confirmDeadlineStr} if no action is taken.</span>
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => handleConfirmReceipt(activeChatData?.orderItem?.id)}
+                                        disabled={confirmingShipment}
+                                        className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {confirmingShipment ? <Loader2 size={14} className="animate-spin" /> : <PackageCheck size={14} />}
+                                        I Received My Order — Confirm Receipt
+                                    </button>
+                                </>
+                            )}
+                            {isAlreadyCompleted && (
+                                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl border border-green-200">
+                                    <CheckCircle2 size={13} className="text-green-600" />
+                                    <span className="text-xs font-black text-green-800">Receipt confirmed. Transaction complete.</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (messageType === 'status_completed') {
+            let cd: any = {};
+            try { cd = JSON.parse(msg.content); } catch {}
+            const autoConfirmed = cd.confirmed_by === 'auto';
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-gradient-to-r from-green-50 to-emerald-50/50 border-2 border-emerald-300 rounded-2xl overflow-hidden shadow-md">
+                        <div className="bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-2.5 flex items-center gap-2">
+                            <CheckCircle2 size={16} className="text-white" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white">🏁 Sale Complete</span>
+                            <span className="ml-auto text-[9px] text-white/70 font-bold">{new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="px-4 py-4 space-y-2">
+                            <p className="text-sm font-black text-slate-800">
+                                {autoConfirmed ? 'Transaction automatically completed — no dispute was raised within 2 days.' : '✅ Buyer confirmed receipt. Transaction complete.'}
+                            </p>
+                            <p className="text-xs text-slate-500 font-medium">Funds have been released to the seller's balance. Thank you for using Printis!</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (messageType === 'extension_request') {
+            let ed: any = {};
+            try { ed = JSON.parse(msg.content); } catch {}
+            const isBuyer_ = activeChatData && String(currentUser?.id) === String(activeChatData.buyer_id);
+            const alreadyActed = activeChatData?.orderItem?.extension_approved || activeChatData?.orderItem?.extension_denied;
+            const originalDeadline = ed.current_deadline ? new Date(ed.current_deadline).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : null;
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-4 px-4">
+                    <div className="w-full max-w-md bg-gradient-to-r from-amber-50 to-yellow-50/60 border border-amber-200 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2 flex items-center gap-2">
+                            <Clock size={14} className="text-white/90" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">Shipping Extension Requested</span>
+                            <span className="ml-auto text-[9px] text-white/60 font-bold">{new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="px-4 py-3 space-y-3">
+                            <p className="text-sm font-bold text-slate-800">The seller has requested 3 extra days to ship your order.</p>
+                            {originalDeadline && <p className="text-xs text-slate-500 font-medium">Original deadline: {originalDeadline}</p>}
+                            {isBuyer_ && !alreadyActed ? (
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleExtensionAction('approve_extension', activeChatData?.orderItem?.id)}
+                                        disabled={confirmingShipment}
+                                        className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                    >
+                                        {confirmingShipment ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                        Approve (+3 days)
+                                    </button>
+                                    <button
+                                        onClick={() => handleExtensionAction('deny_extension', activeChatData?.orderItem?.id)}
+                                        disabled={confirmingShipment}
+                                        className="flex-1 py-2.5 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-red-500 hover:to-red-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                    >
+                                        {confirmingShipment ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                                        Deny
+                                    </button>
+                                </div>
+                            ) : alreadyActed ? (
+                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide text-center">✓ {activeChatData?.orderItem?.extension_approved ? 'Extension approved.' : 'Extension denied.'}</p>
+                            ) : (
+                                <p className="text-[11px] font-black text-amber-700 uppercase tracking-wide text-center">⏳ Awaiting buyer's response...</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (messageType === 'extension_approved') {
+            let ed: any = {};
+            try { ed = JSON.parse(msg.content); } catch {}
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-3 px-4">
+                    <div className="w-full max-w-md bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3">
+                        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
+                            <Check size={14} className="text-emerald-700" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-black text-emerald-900">Extension Approved</p>
+                            <p className="text-xs text-emerald-700 font-medium">New shipping deadline: {ed.deadline_label || 'extended by 3 days'}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (messageType === 'extension_denied') {
+            let ed: any = {};
+            try { ed = JSON.parse(msg.content); } catch {}
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-3 px-4">
+                    <div className="w-full max-w-md bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center shrink-0">
+                            <X size={14} className="text-slate-600" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-black text-slate-800">Extension Denied</p>
+                            <p className="text-xs text-slate-500 font-medium">Original deadline applies: {ed.deadline_label || 'no extension granted'}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (messageType === 'system_deadline_warning' || messageType === 'system_deadline_urgent') {
+            let wd: any = {};
+            try { wd = JSON.parse(msg.content); } catch {}
+            const isUrgent = messageType === 'system_deadline_urgent';
+            return (
+                <div key={msg.id || idx} className="flex justify-center my-3 px-4">
+                    <div className={`w-full max-w-md border rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3 ${isUrgent ? 'bg-red-50 border-red-300' : 'bg-orange-50 border-orange-200'}`}>
+                        <AlertTriangle size={16} className={`shrink-0 ${isUrgent ? 'text-red-500' : 'text-orange-500'}`} />
+                        <p className={`text-xs font-black ${isUrgent ? 'text-red-800' : 'text-orange-800'}`}>{wd.message || msg.content}</p>
                     </div>
                 </div>
             );
@@ -3429,6 +3772,82 @@ function MessagesInner() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* ═══ VINTED-STYLE ORDER PROGRESS BAR ═══ */}
+                            {activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (() => {
+                                const oi = activeChatData.orderItem;
+                                const status = oi?.status || 'pending';
+                                const isSeller_ = currentUser?.id === activeChatData.seller_id;
+                                const shipDeadline = oi?.ship_by_deadline ? new Date(oi.ship_by_deadline) : null;
+                                const now = new Date();
+                                const daysLeft = shipDeadline ? Math.ceil((shipDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+                                const deadlinePassed = shipDeadline && shipDeadline < now;
+
+                                const steps = [
+                                    { key: 'pending', label: 'Ordered', icon: '🛒' },
+                                    { key: 'shipped', label: 'Shipped', icon: '📦' },
+                                    { key: 'in_transit', label: 'In Transit', icon: '🚚' },
+                                    { key: 'delivered', label: 'Delivered', icon: '✅' },
+                                    { key: 'completed', label: 'Complete', icon: '🏁' },
+                                ];
+                                const statusOrder = ['pending', 'shipped', 'in_transit', 'delivered', 'completed'];
+                                const currentIdx = statusOrder.indexOf(status) >= 0 ? statusOrder.indexOf(status) : (status === 'disputed' ? 3 : 0);
+
+                                return (
+                                    <div className="px-4 pt-3 pb-2 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white">
+                                        {/* Progress Steps */}
+                                        <div className="flex items-center justify-between mb-1">
+                                            {steps.map((step, i) => {
+                                                const isDone = i < currentIdx;
+                                                const isCurrent = i === currentIdx;
+                                                const isFuture = i > currentIdx;
+                                                return (
+                                                    <div key={step.key} className="flex flex-col items-center gap-1 flex-1 relative">
+                                                        {i < steps.length - 1 && (
+                                                            <div className={`absolute top-3 left-1/2 w-full h-0.5 ${isDone ? 'bg-emerald-400' : 'bg-gray-200'}`} style={{ left: '50%', width: '100%', zIndex: 0 }} />
+                                                        )}
+                                                        <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center text-[10px] transition-all ${
+                                                            isDone ? 'bg-emerald-500 shadow-md shadow-emerald-200' :
+                                                            isCurrent ? 'bg-blue-500 shadow-md shadow-blue-200 ring-2 ring-blue-200 animate-pulse' :
+                                                            'bg-gray-200'
+                                                        }`}>
+                                                            {isDone ? '✓' : <span className="text-[9px]">{step.icon}</span>}
+                                                        </div>
+                                                        <span className={`text-[8px] font-black uppercase tracking-wide ${
+                                                            isDone ? 'text-emerald-600' : isCurrent ? 'text-blue-600' : 'text-gray-300'
+                                                        }`}>{step.label}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Seller Deadline Countdown */}
+                                        {isSeller_ && status === 'pending' && shipDeadline && (
+                                            <div className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-black ${deadlinePassed ? 'bg-red-50 border border-red-300 text-red-800' : daysLeft !== null && daysLeft <= 1 ? 'bg-amber-50 border border-amber-300 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800'}`}>
+                                                <Clock size={12} className="shrink-0" />
+                                                {deadlinePassed
+                                                    ? '⚠️ Shipping deadline has passed — ship immediately!'
+                                                    : `⏰ Ship by ${shipDeadline.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}`}
+                                                {!oi.extension_requested_at && !deadlinePassed && (
+                                                    <button
+                                                        className="ml-auto text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-current hover:opacity-75 transition cursor-pointer"
+                                                        onClick={() => {
+                                                            fetch('/api/order/status', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ action: 'request_extension', itemId: oi.id, chatId: activeChatId, userId: currentUser?.id })
+                                                            }).then(r => r.json()).then(d => { if (d.success) loadMessages(activeChatId as string); else alert(d.error); });
+                                                        }}
+                                                    >Request Extension</button>
+                                                )}
+                                                {oi.extension_requested_at && !oi.extension_approved && !oi.extension_denied && (
+                                                    <span className="ml-auto text-[9px] text-amber-600 font-black">Extension request pending...</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             <div className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 sm:px-6 sm:py-6 space-y-3.5">
                                 {loadingMessages ? (

@@ -77,23 +77,44 @@ export async function POST(req: Request) {
     const activeTracking = trackingNumber || item.tracking_code || packageId.toString();
 
     // 5. Map Furgonetka status & trigger updates
+    const estimatedDelivery = payload.estimated_delivery_date || payload.eta || null;
     let messageContent = '';
     let messageType = 'system';
     let newStatus: string | null = null;
     let emailPromise: Promise<any> | null = null;
 
+    // Always persist tracking number and carrier if we have them
+    const trackingUpdates: Record<string, any> = {};
+    if (trackingNumber && !item.tracking_number) {
+      trackingUpdates.tracking_number = trackingNumber;
+    }
+    const carrierName = payload.carrier || payload.service || payload.courier || null;
+    if (carrierName && !item.carrier) {
+      trackingUpdates.carrier = carrierName;
+    }
+    if (estimatedDelivery) {
+      trackingUpdates.estimated_delivery_date = estimatedDelivery;
+    }
+
     switch (state) {
       case 'in_transit':
       case 'shipped':
         newStatus = 'shipped';
-        messageContent = `The package is in transit. Tracking number: ${activeTracking}`;
-        messageType = 'status_shipped';
-        
+        messageType = 'status_tracking';
+        messageContent = JSON.stringify({
+          type: 'tracking_update',
+          event: 'in_transit',
+          carrier: carrierName || 'Courier',
+          tracking_number: activeTracking,
+          estimated_delivery: estimatedDelivery,
+          location: payload.location || payload.description || null,
+        });
+
         // Notify buyer if not already shipped
         if (item.status !== 'shipped' && shipping?.email) {
           emailPromise = sendEmail({
             to: shipping.email,
-            subject: `🚚 Your package is in transit! (${productTitle})`,
+            subject: `🚚 Your package is on its way! (${productTitle})`,
             html: EmailTemplates.trackingAddedBuyer(buyerName, productTitle, activeTracking)
           });
         }
@@ -101,31 +122,50 @@ export async function POST(req: Request) {
 
       case 'out_for_delivery':
         newStatus = 'shipped'; // Keep state as shipped
-        messageContent = `🚚 The package is out for delivery today!`;
-        messageType = 'status_shipped';
-        
+        messageType = 'status_tracking';
+        messageContent = JSON.stringify({
+          type: 'tracking_update',
+          event: 'out_for_delivery',
+          carrier: carrierName || 'Courier',
+          tracking_number: activeTracking,
+          estimated_delivery: null,
+          location: payload.location || null,
+        });
+
         if (shipping?.email) {
           emailPromise = sendEmail({
             to: shipping.email,
-            subject: `🚚 Delivery today! (${productTitle})`,
+            subject: `📦 Delivery today! (${productTitle})`,
             html: EmailTemplates.packageOutForDelivery(buyerName, productTitle, activeTracking)
           });
         }
         break;
 
-      case 'delivered':
+      case 'delivered': {
         newStatus = 'delivered';
-        messageContent = `📬 The package has been delivered by the courier.`;
+        const deliveredAt = new Date();
+        const confirmDeadline = new Date(deliveredAt.getTime() + 2 * 24 * 60 * 60 * 1000); // 2 days
+        trackingUpdates.delivered_at = deliveredAt.toISOString();
+        trackingUpdates.buyer_confirm_deadline = confirmDeadline.toISOString();
         messageType = 'status_delivered';
-        
-        if (sellerProfile?.email) {
+        messageContent = JSON.stringify({
+          type: 'delivered',
+          carrier: carrierName || 'Courier',
+          tracking_number: activeTracking,
+          delivered_at: deliveredAt.toISOString(),
+          confirm_deadline: confirmDeadline.toISOString(),
+        });
+
+        // FIX: email goes to BUYER (not seller) — prompts them to confirm receipt
+        if (shipping?.email) {
           emailPromise = sendEmail({
-            to: sellerProfile.email,
-            subject: `📬 Package delivered: ${productTitle}`,
-            html: EmailTemplates.orderDelivered(sellerName, buyerName, productTitle)
+            to: shipping.email,
+            subject: `✅ Your package has been delivered! (${productTitle})`,
+            html: EmailTemplates.orderDelivered(buyerName, sellerName, productTitle)
           });
         }
         break;
+      }
 
       case 'failed_attempt':
         newStatus = 'shipped'; // Keep state as shipped
@@ -160,14 +200,18 @@ export async function POST(req: Request) {
         break;
     }
 
-    // 6. Persist changes to database
+    // 6. Persist status + tracking fields to database
+    const dbUpdate: Record<string, any> = { ...trackingUpdates };
     if (newStatus && item.status !== newStatus) {
+      dbUpdate.status = newStatus;
+    }
+    if (Object.keys(dbUpdate).length > 0) {
       const { error: dbError } = await supabase
         .from('order_items')
-        .update({ status: newStatus })
+        .update(dbUpdate)
         .eq('id', item.id);
       if (dbError) throw dbError;
-      console.log(`[Furgonetka Webhook] Updated item ${item.id} status to: ${newStatus}`);
+      console.log(`[Furgonetka Webhook] Updated item ${item.id}:`, dbUpdate);
     }
 
     // Insert Chat message
