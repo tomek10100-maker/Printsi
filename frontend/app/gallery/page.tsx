@@ -802,78 +802,58 @@ function MarketplaceContent() {
                         </div>
                       )}
 
-                      {/* Small Round Quick Action Buttons (Buy Now, Add to Cart, Favorite) */}
-                      <div className="absolute top-2 right-2 flex items-center gap-1.5 z-30">
-                        {!offerSoldOut && (
-                          <>
-                            {/* Small Round Buy Now Button */}
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
-                              title="Buy Now"
-                              className="w-7 h-7 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white transition-all shadow-md hover:scale-110 flex items-center justify-center cursor-pointer active:scale-90"
-                            >
-                              <Zap size={12} className="fill-white" />
-                            </button>
-
-                            {/* Small Round Add to Cart Button */}
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(offer); }}
-                              title="Add to Cart"
-                              className="w-7 h-7 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-md hover:scale-110 flex items-center justify-center cursor-pointer active:scale-90"
-                            >
-                              <ShoppingCart size={12} />
-                            </button>
-                          </>
-                        )}
-
-                        {/* Small Round Favorite Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
-                          title="Favorite"
-                          className="w-7 h-7 bg-white/95 backdrop-blur rounded-full hover:bg-white transition-all shadow-md hover:scale-110 flex items-center justify-center cursor-pointer active:scale-90"
-                        >
-                          <Heart size={13} className={`transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
-                        </button>
-                      </div>
                     </div>
 
                     {/* Vinted Card Info */}
                     <div className="p-2.5 flex flex-col flex-grow justify-between gap-1">
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-sm font-black text-gray-900 dark:text-white whitespace-nowrap">{formatPrice(offer.price)}</span>
-                        <div className="flex items-center gap-0.5 text-gray-400 text-[10px] font-bold shrink-0">
-                          <Heart size={11} className={isLiked ? 'fill-red-500 text-red-500' : ''} />
-                          <span>{isLiked ? 1 : 0}</span>
-                        </div>
+                        
+                        {/* Heart / Favorite Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
+                          title="Favorite"
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700/60 transition-all cursor-pointer group active:scale-90"
+                        >
+                          <Heart size={12} className={`transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400'}`} />
+                          <span className="text-[10px] font-extrabold text-gray-500 dark:text-gray-300">{isLiked ? 1 : 0}</span>
+                        </button>
                       </div>
 
                       <p className="text-xs font-bold text-gray-800 dark:text-gray-200 line-clamp-1 group-hover:text-blue-600 transition-colors">{offer.title}</p>
                       
-                      <div className="flex items-center justify-between gap-1 mt-0.5 pt-1 border-t border-gray-100 dark:border-white/5">
+                      <div className="flex items-center justify-between gap-1 mt-0.5 pt-1.5 border-t border-gray-100 dark:border-white/5">
                         <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider truncate">
                           {offer.material || offer.category}
                         </span>
 
                         {!offerSoldOut && (
-                          <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* +CART Button */}
                             <button
                               type="button"
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(offer); }}
                               title="Add to Cart"
-                              className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[9px] font-black uppercase transition-all flex items-center gap-0.5 cursor-pointer"
+                              className="px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-600 text-blue-600 dark:text-blue-300 hover:text-white border border-blue-200 dark:border-blue-800/60 hover:border-blue-600 text-[9px] font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95"
                             >
-                              <ShoppingCart size={10} /> +Cart
+                              <ShoppingCart size={11} /> +CART
                             </button>
+
+                            {/* BUY NOW Button with Moving Animated Border */}
                             <button
                               type="button"
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
                               title="Buy Now"
-                              className="px-2 py-0.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-black uppercase transition-all flex items-center gap-0.5 cursor-pointer"
+                              className="relative group/buy p-[1.5px] rounded-full overflow-hidden transition-all duration-300 hover:scale-105 active:scale-95 shadow-md shadow-emerald-950/30 cursor-pointer"
                             >
-                              <Zap size={10} className="fill-white" /> Buy
+                              {/* Rotating Conic Gradient Border */}
+                              <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#10b981_0%,#34d399_25%,#059669_50%,#34d399_75%,#10b981_100%)] opacity-90 group-hover/buy:opacity-100" />
+                              
+                              {/* Inner Button Label */}
+                              <span className="relative flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-600 dark:bg-[#064e3b] hover:bg-emerald-500 dark:hover:bg-[#047857] text-white text-[9px] font-black uppercase tracking-wider transition-colors">
+                                <Zap size={11} className="fill-white animate-pulse" /> BUY
+                              </span>
                             </button>
                           </div>
                         )}
