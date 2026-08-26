@@ -265,6 +265,9 @@ function CheckoutInner() {
           weightGrams: parcel.weightGrams,
           fromCountry: fromCode,
           toCountry: toCode,
+          toZip: formData.zip || selectedPoint?.zip || (selectedPoint as any)?.postcode || '',
+          toCity: formData.city || selectedPoint?.city || '',
+          selectedPointCode: selectedPoint?.code || '',
           plnToEurRate: plnRate, // Pass live PLN→EUR rate so server uses correct conversion
           disabledCouriers: combinedDisabledCouriers,
         }),
@@ -303,7 +306,7 @@ function CheckoutInner() {
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, sellerDisabledCouriers, formData.country, rates, sellerDataLoaded]);
+  }, [hasShippable, items, offerWeights, offerDimensions, sellerCountries, sellerDisabledCouriers, formData.country, formData.zip, formData.city, selectedPoint, rates, sellerDataLoaded]);
 
   useEffect(() => {
     fetchShippingOptions();
