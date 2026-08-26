@@ -694,9 +694,11 @@ function FilamentCard({ filament, onEdit, onToggle, onDelete, onUpdateStock }: {
     const light = isLight(filament.color_hex);
     // price_per_gram is always stored in EUR – use formatPrice to convert
     const { formatPrice } = useCurrency();
-    const displayPrice = filament.price_unit === 'kg'
-        ? `${formatPrice(filament.price_per_gram * 1000)}/kg`
-        : `${formatPrice(filament.price_per_gram * 1000)}/kg`; // always show per kg for readability
+    const displayPrice = filament.price_unit === 'g'
+        ? `${formatPrice(filament.price_per_gram)}/g`
+        : filament.price_unit === 'lbs'
+        ? `${formatPrice(filament.price_per_gram * 453.592)}/lbs`
+        : `${formatPrice(filament.price_per_gram * 1000)}/kg`;
 
     return (
         <div className={`relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all group ${!filament.is_active ? 'opacity-60' : ''}`}>

@@ -925,25 +925,35 @@ export default function OfferDetailsPage() {
                     </div>
                   ) : (
                     <>
-                      {/* Download & Fulfill Button */}
-                      <button
-                        onClick={handleFulfillJob}
-                        disabled={downloadingFile}
-                        className={`w-full py-5 rounded-[24px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 group relative overflow-hidden whitespace-nowrap ${
-                          fileDownloaded
-                            ? 'bg-emerald-600 text-white shadow-emerald-500/30'
-                            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:-translate-y-1 active:scale-95 shadow-blue-500/30'
-                        }`}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                        {downloadingFile ? (
-                          <><Loader2 size={22} className="animate-spin shrink-0" /> <span className="whitespace-nowrap">Preparing...</span></>
-                        ) : fileDownloaded ? (
-                          <><Check size={22} className="shrink-0" /> <span className="whitespace-nowrap">File Downloaded — Opening Chat...</span></>
-                        ) : (
-                          <><Download size={22} className="group-hover:animate-bounce shrink-0" /> <span className="whitespace-nowrap">Download 3D File & Fulfill</span></>  
-                        )}
-                      </button>
+                       <div className="flex flex-col sm:flex-row gap-3 w-full">
+                        <button
+                          onClick={handleFulfillJob}
+                          disabled={downloadingFile || fileDownloaded}
+                          className={`flex-1 relative overflow-hidden group py-4 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${
+                            fileDownloaded
+                              ? 'bg-emerald-600 text-white'
+                              : downloadingFile
+                              ? 'bg-blue-600/70 text-white cursor-wait'
+                              : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:-translate-y-0.5 active:scale-95 shadow-blue-500/30'
+                          }`}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                          {downloadingFile ? (
+                            <><Loader2 size={22} className="animate-spin shrink-0" /> <span className="whitespace-nowrap">Preparing...</span></>
+                          ) : fileDownloaded ? (
+                            <><Check size={22} className="shrink-0" /> <span className="whitespace-nowrap">File Downloaded — Opening Chat...</span></>
+                          ) : (
+                            <><Download size={22} className="group-hover:animate-bounce shrink-0" /> <span className="whitespace-nowrap">Download 3D File & Fulfill</span></>  
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDeclineJob}
+                          className="px-5 py-4 bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 border border-gray-200"
+                        >
+                          <X size={16} /> Decline
+                        </button>
+                      </div>
 
                       {/* Info hint */}
                       <div className="flex items-start gap-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">

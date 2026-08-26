@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import {
-  User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins, AlertCircle, Loader2, MapPin, UploadCloud
+  User, Shield, LayoutGrid, LogOut, Check, ChevronRight, Eye, Trash2, Globe, Menu, X, Coins, AlertCircle, Loader2, MapPin, UploadCloud, CheckCircle2,
 } from 'lucide-react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { DHL_COUNTRIES } from '../lib/dhlRates';
@@ -34,6 +34,7 @@ export default function SettingsPage() {
 
   const { currency, setCurrency, formatPrice } = useCurrency();
   const [exchangeModal, setExchangeModal] = useState<{ show: boolean; newCode: string; fee: number } | null>(null);
+  const [showContactSales, setShowContactSales] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
@@ -406,6 +407,7 @@ export default function SettingsPage() {
                     onClick={() => toggleRole('business')}
                     disabled={true}
                     badge="Contact Sales"
+                    onContactSales={() => setShowContactSales(true)}
                   />
                 </div>
               </div>
@@ -553,6 +555,7 @@ export default function SettingsPage() {
         )}
 
       </div>
+      <ContactSalesModal isOpen={showContactSales} onClose={() => setShowContactSales(false)} userEmail={user?.email} />
     </main>
   );
 }
@@ -573,12 +576,12 @@ function SidebarItem({ icon, label, id, active, set }: any) {
   );
 }
 
-function RoleCard({ title, desc, active, onClick, disabled, badge }: any) {
+function RoleCard({ title, desc, active, onClick, disabled, badge, onContactSales }: any) {
   return (
     <div
-      onClick={disabled ? undefined : onClick}
+      onClick={disabled && onContactSales ? onContactSales : disabled ? undefined : onClick}
       className={`p-6 rounded-3xl border-2 transition-all relative overflow-hidden ${disabled
-        ? 'border-gray-200 bg-gray-50/80 opacity-60 cursor-not-allowed'
+        ? 'border-amber-200/80 bg-amber-50/20 cursor-pointer hover:border-amber-400 hover:shadow-lg'
         : active
         ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600 cursor-pointer hover:scale-[1.02]'
         : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-lg cursor-pointer hover:scale-[1.02]'
@@ -593,7 +596,7 @@ function RoleCard({ title, desc, active, onClick, disabled, badge }: any) {
       <p className="text-xs text-gray-500 mt-3 leading-relaxed font-bold">{desc}</p>
       {disabled ? (
         <div className="mt-4 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-amber-600">
-          🔒 Temporarily Disabled — Contact Sales
+          💬 Click to Contact Sales
         </div>
       ) : active ? (
         <div className="mt-4 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-blue-600"><Check size={14} strokeWidth={4} /> Selected</div>
@@ -626,6 +629,126 @@ function ActionButtons({ onSave, saving, saveSuccess }: any) {
         >
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ContactSalesModal({ isOpen, onClose, userEmail }: { isOpen: boolean; onClose: () => void; userEmail?: string }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState(userEmail || '');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email || !message) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    setSending(true);
+    setError('');
+    try {
+      const res = await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: 'business_inquiry',
+          subject: `Business Inquiry from ${name}`,
+          message: `Company / Name: ${name}\nContact: ${email}\n\nMessage:\n${message}`,
+          contact: email,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to send inquiry');
+      setSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 relative text-gray-900">
+        <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 cursor-pointer">
+          <X size={20} />
+        </button>
+        
+        {sent ? (
+          <div className="text-center py-6">
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} />
+            </div>
+            <h3 className="text-xl font-black text-gray-900 mb-2">Inquiry Sent!</h3>
+            <p className="text-xs text-gray-500 font-medium mb-6">Our sales team will contact your company within 24 hours.</p>
+            <button onClick={onClose} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-black uppercase text-xs tracking-widest cursor-pointer">
+              Close
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full border border-amber-200">
+                Business & Enterprise
+              </span>
+              <h3 className="text-xl font-black text-gray-900 mt-2">Contact Sales</h3>
+              <p className="text-xs text-gray-500 font-medium mt-1">Interested in a custom business account or volume manufacturing?</p>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold">{error}</div>
+            )}
+
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1 block">Company / Your Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. Acme 3D Studio"
+                required
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1 block">Work Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="contact@acme.com"
+                required
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1 block">Message / Fleet Requirements</label>
+              <textarea
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder="Tell us about your company, volume, or custom integrations needed..."
+                rows={3}
+                required
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-blue-500 resize-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={sending}
+              className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {sending ? <Loader2 size={16} className="animate-spin" /> : 'Send Inquiry'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

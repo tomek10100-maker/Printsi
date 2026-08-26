@@ -222,72 +222,14 @@ export default function CartPage() {
               <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl sticky top-24">
                 {/* NOTE: Cart displays individual items only. Total price and shipping will be shown on the checkout page. */}
 
-                {/* BALANCE INFO */}
-                <div className={`rounded-xl p-4 mb-6 border ${balanceLoading
-                  ? 'bg-gray-50 border-gray-200'
-                  : canPayWithBalance
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-orange-50 border-orange-200'
-                  }`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Wallet size={16} className={balanceLoading ? 'text-gray-400' : canPayWithBalance ? 'text-green-600' : 'text-orange-500'} />
-                    <span className="text-xs font-black uppercase tracking-widest text-gray-600">Printis Balance</span>
-                  </div>
-
-                  {balanceLoading ? (
-                    <div className="flex items-center gap-2 mt-1">
-                      <Loader2 size={14} className="animate-spin text-gray-400" />
-                      <span className="text-xs text-gray-400">Loading balance...</span>
-                    </div>
-                  ) : userBalance === null ? (
-                    <p className="text-xs text-gray-500 mt-1">Log in to use your balance</p>
-                  ) : (
-                    <>
-                      <p className={`text-xl font-black mt-1 ${canPayWithBalance ? 'text-green-700' : 'text-orange-600'}`}>
-                        {formatPrice(userBalance)}
-                      </p>
-                      <p className="text-[11px] mt-1 font-medium text-gray-500">
-                        {canPayWithBalance
-                          ? '✅ Enough to cover this order!'
-                          : `❌ Not enough — need ${formatPrice(cartTotal - userBalance)} more`}
-                      </p>
-                    </>
-                  )}
-                </div>
-
-                {/* PAYMENT OPTIONS */}
+                {/* PAYMENT ACTIONS */}
                 <div className="mt-6 flex flex-col gap-3">
-                  {balanceLoading ? (
-                    <div className="w-full py-4 bg-gray-100 rounded-xl flex items-center justify-center gap-2 text-gray-400 font-black uppercase tracking-widest">
-                      <Loader2 size={18} className="animate-spin" /> Loading...
-                    </div>
-                  ) : (
-                    <>
-                      {/* Zawsze pokazuj guzik płatności kartą jako główny, albo na równi */}
-                      <Link
-                        href="/checkout?method=stripe"
-                        className="w-full py-4 bg-gray-900 hover:bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
-                      >
-                        <CreditCard size={18} /> Pay with Card <ArrowRight size={18} />
-                      </Link>
-
-                      {/* Guzik płatności balansem (tylko zalogowani) */}
-                      {userBalance !== null && (
-                        canPayWithBalance ? (
-                          <Link
-                            href="/checkout?method=balance"
-                            className="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
-                          >
-                            <Wallet size={18} /> Pay with Balance
-                          </Link>
-                        ) : (
-                          <div className="w-full py-4 bg-gray-100 text-gray-400 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 border border-gray-200 cursor-not-allowed hidden">
-                            <Wallet size={18} /> Not enough balance
-                          </div>
-                        )
-                      )}
-                    </>
-                  )}
+                  <Link
+                    href="/checkout"
+                    className="w-full py-4 bg-gray-900 hover:bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
+                  >
+                    Proceed to Checkout <ArrowRight size={18} />
+                  </Link>
                 </div>
 
 

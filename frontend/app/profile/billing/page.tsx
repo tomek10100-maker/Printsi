@@ -108,7 +108,7 @@ function BillingContent() {
     setLoading(false);
 
     // Determine if seller using fresh data instead of stale state
-    const isUserSeller = profileData?.roles?.includes('cad') || profileData?.roles?.includes('printer') || profileData?.roles?.includes('designer');
+    const isUserSeller = profileData?.roles?.includes('designer') || profileData?.roles?.includes('printer');
 
     // Check Stripe Status
     if (isUserSeller) {
@@ -184,7 +184,7 @@ function BillingContent() {
   const netBalanceEur = Math.max(0, stats.earned - stats.spent - stats.withdrawn);
   const rate = (currency !== 'EUR' && rates && rates[currency]) ? rates[currency] : 1;
   const netBalanceUserCurr = Math.round((netBalanceEur * rate) * 100) / 100;
-  const isSeller = profile?.roles?.includes('cad') || profile?.roles?.includes('printer');
+  const isSeller = profile?.roles?.includes('designer') || profile?.roles?.includes('printer');
 
   const getThemeStyles = () => {
     switch (theme) {

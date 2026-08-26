@@ -281,7 +281,7 @@ function MarketplaceContent() {
       material: firstVariant ? firstVariant.plastic_type : offer.material,
       weight: fvWeight2,
     }, offer.category === 'digital' ? 1 : 1);
-    router.push('/cart');
+    router.push('/checkout');
   };
 
   const confirmVariantAndAdd = () => {
@@ -306,7 +306,7 @@ function MarketplaceContent() {
     }, colorPickerOffer.category === 'digital' ? 1 : 1);
     if (colorPickerMode === 'buy') {
       setColorPickerOffer(null);
-      router.push('/cart');
+      router.push('/checkout');
     } else {
       setLastAddedItem(colorPickerOffer);
       setColorPickerOffer(null);

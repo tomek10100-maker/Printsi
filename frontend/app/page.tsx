@@ -144,7 +144,7 @@ export default function HomePage() {
                   <div className="h-[1px] bg-gray-200 flex-1" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <StatCard icon={<Zap size={22} />} label="Printed" value={stats.printers} color="blue" />
+                  <StatCard icon={<Zap size={22} />} label="Print Makers" value={stats.printers} color="blue" />
                   <StatCard icon={<Globe size={22} />} label="CAD Makers" value={stats.designers} color="indigo" />
                   <StatCard icon={<Users size={22} />} label="Customers" value={stats.customers} color="green" />
                 </div>

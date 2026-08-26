@@ -455,15 +455,18 @@ function CheckoutInner() {
     // Auto-save phone number & delivery details to user profile & localStorage
     try {
       const cleanHomeAddr = sanitizeSavedAddress(formData.address);
-      if (user && (formData.phone || cleanHomeAddr)) {
-        await supabase.from('profiles').update({
+      if (user) {
+        const profileUpdates: any = {
           phone: formData.phone,
           phone_number: formData.phone,
-          address: cleanHomeAddr,
-          city: formData.city,
-          zip_code: formData.zip,
           country: formData.country,
-        }).eq('id', user.id);
+        };
+        if (!isPickupOption && cleanHomeAddr) {
+          profileUpdates.address = cleanHomeAddr;
+          profileUpdates.city = formData.city;
+          profileUpdates.zip_code = formData.zip;
+        }
+        await supabase.from('profiles').update(profileUpdates).eq('id', user.id);
       }
       localStorage.setItem('printsi_delivery_defaults', JSON.stringify({
         fullName: formData.fullName,

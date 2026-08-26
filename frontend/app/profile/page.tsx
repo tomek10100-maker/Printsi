@@ -393,7 +393,7 @@ export default function ProfilePage() {
         {/* --- BALANCE STATS CARDS GRID --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 w-full">
           {/* Total Sales Value — only for printer/cad roles */}
-          {(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) && (
+          {(profile?.roles?.includes('printer') || profile?.roles?.includes('designer')) && (
             <>
               <div className="bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl shadow-lg flex items-center gap-4 transition-all hover:shadow-xl w-full min-w-0">
                 <div className="p-3.5 bg-green-100 text-green-600 rounded-xl shadow-inner flex-shrink-0">
@@ -426,7 +426,7 @@ export default function ProfilePage() {
 
           {/* Account Balance (available money, never below 0) */}
           <div className={`bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl shadow-lg flex items-center gap-4 transition-all hover:shadow-xl w-full min-w-0 ${
-            (profile?.roles?.includes('printer') || profile?.roles?.includes('cad'))
+            (profile?.roles?.includes('printer') || profile?.roles?.includes('designer'))
               ? 'col-span-1 sm:col-span-2 lg:col-span-1'
               : 'col-span-1'
           }`}>
@@ -489,7 +489,7 @@ export default function ProfilePage() {
                 <DashboardCard 
                   icon={<CreditCard size={24} />} 
                   title="Billing & Payouts" 
-                  subtitle={(profile?.roles?.includes('printer') || profile?.roles?.includes('cad')) ? "Manage cards & earnings" : "Wallet & Add Funds"} 
+                  subtitle={(profile?.roles?.includes('printer') || profile?.roles?.includes('designer')) ? "Manage cards & earnings" : "Wallet & Add Funds"} 
                   href="/profile/billing" 
                 />
                 <DashboardCard icon={<MapPin size={24} />} title="Shipping Address" subtitle="Your delivery address" href="/profile/address" />
@@ -1015,76 +1015,77 @@ export default function ProfilePage() {
                       </div>
                     )}
 
-                  {/* ── Stand-alone Custom Orders (e.g. from Jobs or deleted parents) ── */}
-                  {myOffers.some((o: any) => o.is_custom && o.stock > 0 && !myOffers.some(parent => parent.id === o.parent_offer_id)) && (
-                    <div className="mt-8">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="h-px bg-purple-100 flex-1" />
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400">Negotiations & Special Offers</h4>
-                        <div className="h-px bg-purple-100 flex-1" />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {myOffers
-                          .filter((o: any) => o.is_custom && o.stock > 0 && !myOffers.some(parent => parent.id === o.parent_offer_id))
-                          .map((co: any) => {
-                            const buyerName = co._buyer?.full_name || 'Unknown buyer';
-                            const buyerAvatar = co._buyer?.avatar_url;
-                            return (
-                              <div key={co.id} className="flex items-center gap-4 bg-white border-2 border-dashed border-purple-50 rounded-[32px] p-6 shadow-sm hover:shadow-md transition-all">
-                                <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center shrink-0 border border-purple-100">
-                                   <Handshake className="text-purple-400" size={24} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-purple-500 bg-purple-100/50 px-2 py-0.5 rounded-full">Custom Offer</span>
-                                    <span className="text-xs font-black text-gray-900 truncate">{co.title}</span>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-lg font-black text-gray-900">{formatPrice(co.price)}</span>
+                </div>
+              )}
+
+              {/* ── Stand-alone Custom Orders (e.g. from Jobs or custom negotiations) ── */}
+              {myOffers.some((o: any) => o.is_custom && o.stock > 0 && !myOffers.some(parent => parent.id === o.parent_offer_id)) && (
+                <div className="mt-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-px bg-purple-100 flex-1" />
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400">Negotiations & Special Offers</h4>
+                    <div className="h-px bg-purple-100 flex-1" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {myOffers
+                      .filter((o: any) => o.is_custom && o.stock > 0 && !myOffers.some(parent => parent.id === o.parent_offer_id))
+                      .map((co: any) => {
+                        const buyerName = co._buyer?.full_name || 'Unknown buyer';
+                        const buyerAvatar = co._buyer?.avatar_url;
+                        return (
+                          <div key={co.id} className="flex items-center gap-4 bg-white border-2 border-dashed border-purple-50 rounded-[32px] p-6 shadow-sm hover:shadow-md transition-all">
+                            <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center shrink-0 border border-purple-100">
+                               <Handshake className="text-purple-400" size={24} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-purple-500 bg-purple-100/50 px-2 py-0.5 rounded-full">Custom Offer</span>
+                                <span className="text-xs font-black text-gray-900 truncate">{co.title}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-lg font-black text-gray-900">{formatPrice(co.price)}</span>
+                                <span className="text-gray-300 mx-0.5">·</span>
+                                <span className="text-[10px] font-bold text-gray-400">
+                                  {co.stock === 0 ? <span className="text-emerald-500">Sold</span> : `${co.stock} pcs`}
+                                </span>
+                                {co.material && (
+                                  <>
                                     <span className="text-gray-300 mx-0.5">·</span>
-                                    <span className="text-[10px] font-bold text-gray-400">
-                                      {co.stock === 0 ? <span className="text-emerald-500">Sold</span> : `${co.stock} pcs`}
-                                    </span>
-                                    {co.material && (
-                                      <>
-                                        <span className="text-gray-300 mx-0.5">·</span>
-                                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">{co.material}</span>
-                                      </>
-                                    )}
-                                    <div className="flex items-center gap-1.5 ml-2">
-                                       {buyerAvatar
-                                         ? <img src={buyerAvatar} className="w-4 h-4 rounded-full border border-gray-200" alt="" />
-                                         : <div className="w-4 h-4 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center"><User size={9} className="text-gray-400" /></div>
-                                       }
-                                       <span className="text-xs font-bold text-gray-500">for <span className="text-gray-900">{buyerName}</span></span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Link href={`/offer/${co.id}`} className="p-3 bg-gray-50 text-gray-400 hover:text-gray-700 rounded-2xl transition-all">
-                                    <Eye size={18} />
-                                  </Link>
-                                  <button
-                                     onClick={() => {
-                                       setModal({
-                                         show: true,
-                                         type: 'confirm',
-                                         title: 'Cancel Custom Order?',
-                                         message: `This will remove the custom order for "${buyerName}".`,
-                                         action: () => executeDelete(co.id)
-                                       });
-                                     }}
-                                     className="p-3 bg-gray-50 text-gray-300 hover:text-red-500 rounded-2xl transition-all"
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
+                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-tight">{co.material}</span>
+                                  </>
+                                )}
+                                <div className="flex items-center gap-1.5 ml-2">
+                                   {buyerAvatar
+                                     ? <img src={buyerAvatar} className="w-4 h-4 rounded-full border border-gray-200" alt="" />
+                                     : <div className="w-4 h-4 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center"><User size={9} className="text-gray-400" /></div>
+                                   }
+                                   <span className="text-xs font-bold text-gray-500">for <span className="text-gray-900">{buyerName}</span></span>
                                 </div>
                               </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Link href={`/offer/${co.id}`} className="p-3 bg-gray-50 text-gray-400 hover:text-gray-700 rounded-2xl transition-all">
+                                <Eye size={18} />
+                              </Link>
+                              <button
+                                 onClick={() => {
+                                   setModal({
+                                     show: true,
+                                     type: 'confirm',
+                                     title: 'Cancel Custom Order?',
+                                     message: `This will remove the custom order for "${buyerName}".`,
+                                     action: () => executeDelete(co.id)
+                                   });
+                                 }}
+                                 className="p-3 bg-gray-50 text-gray-300 hover:text-red-500 rounded-2xl transition-all"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
               )}
 
