@@ -410,20 +410,22 @@ export default function CartPage() {
                   Order Summary
                 </h2>
 
-                {selectedSeller ? (
+                {selectedSellerId && selectedItems.length > 0 ? (
                   <div className="space-y-4">
                     {/* SELECTED SELLER BADGE */}
                     <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-blue-500/20 border border-blue-400/40 overflow-hidden flex items-center justify-center shrink-0">
-                        {selectedSeller.avatar_url ? (
-                          <img src={selectedSeller.avatar_url} alt={selectedSeller.full_name} className="w-full h-full object-cover" />
+                        {sellerProfiles[selectedSellerId]?.avatar_url ? (
+                          <img src={sellerProfiles[selectedSellerId].avatar_url!} alt="Seller" className="w-full h-full object-cover" />
                         ) : (
                           <Store size={16} className="text-blue-400" />
                         )}
                       </div>
                       <div className="min-w-0">
                         <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block">Seller Selected</span>
-                        <p className="text-sm font-black text-white truncate">{selectedSeller.full_name}</p>
+                        <p className="text-sm font-black text-white truncate">
+                          {sellerProfiles[selectedSellerId]?.full_name || 'Verified Seller'}
+                        </p>
                       </div>
                     </div>
 
