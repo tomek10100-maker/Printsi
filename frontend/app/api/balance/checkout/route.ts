@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     let totalEarned = 0;
     if (!salesError && sales) {
       sales.forEach(s => {
-        if (s.status === 'completed') {
+        if (s.status !== 'cancelled' && s.status !== 'refunded') {
           totalEarned += s.price_at_purchase * (s.quantity || 1);
         }
       });
@@ -61,11 +61,11 @@ export async function POST(req: Request) {
 
     const userBalance = Math.max(0, totalEarned - totalSpent - totalPayouts);
 
-    // 3. Check if user can afford the order
-    if (userBalance < orderTotalEur) {
+    // 3. Check if user can afford the order (allow minor float rounding epsilon)
+    if (userBalance + 0.01 < orderTotalEur) {
       return NextResponse.json({
         success: false,
-        error: `Insufficient Printis Balance. You have \u20ac${userBalance.toFixed(2)} but need \u20ac${orderTotalEur.toFixed(2)}`
+        error: `Insufficient Printis Balance. You have €${userBalance.toFixed(2)} but need €${orderTotalEur.toFixed(2)}`
       }, { status: 400 });
     }
 
@@ -75,6 +75,9 @@ export async function POST(req: Request) {
       .insert({
         buyer_id: userId,
         total_amount: orderTotalEur,
+        subtotal: cartTotalEur,
+        shipping_fee: shippingCostEur || 0,
+        protection_fee: 0,
         status: 'paid',
         shipping_address: {
           ...(shipping || {}),
@@ -161,19 +164,40 @@ export async function POST(req: Request) {
     // 7. Trigger chat creation + stock deduction + seller notifications
     console.log('Processing order post-payment logic...');
     let chatId: string | null = null;
+    
+    // Process order asynchronously with 2.5s fast timeout for chat creation
+    const processPromise = processOrder(newOrder.id, userId);
+
     try {
-      const confirmResult = await processOrder(newOrder.id, userId);
-      if (!confirmResult.success) {
-        console.error('Order confirm step had issues:', confirmResult);
-      } else {
-        const chatResult = confirmResult.results?.find((r: string) => r.startsWith('chat_created:') || r.startsWith('chat_updated:'));
+      const confirmResult: any = await Promise.race([
+        processPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500))
+      ]);
+      if (confirmResult?.results) {
+        const chatResult = confirmResult.results.find((r: string) => r.startsWith('chat_created:') || r.startsWith('chat_updated:'));
         if (chatResult) {
           chatId = chatResult.split(':')[1];
         }
       }
-    } catch (confirmErr) {
-      console.error('Order confirm threw error:', confirmErr);
-      // Non-fatal - order is created and paid, continue
+    } catch (raceErr) {
+      console.log('[Balance Checkout] processOrder running asynchronously in background...');
+      processPromise.catch(pErr => console.error('[Balance Checkout Background] Error:', pErr));
+    }
+
+    // Fallback: fetch chat directly if not returned yet
+    if (!chatId) {
+      const firstSellerId = items[0]?.seller_id;
+      if (firstSellerId) {
+        const { data: existingChat } = await supabase
+          .from('chats')
+          .select('id')
+          .eq('buyer_id', userId)
+          .eq('seller_id', firstSellerId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existingChat) chatId = existingChat.id;
+      }
     }
 
     console.log('Balance checkout complete!');
