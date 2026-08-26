@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  Loader2, Search, ShoppingBag, X, SlidersHorizontal,
+  Loader2, Search, ShoppingBag, ShoppingCart, X, SlidersHorizontal,
   ArrowUpDown, Package, ArrowRight, CheckCircle, Heart, Zap, MessageSquare, Palette, Check, Layers,
   Grid2X2, LayoutGrid, List, User
 } from 'lucide-react';
@@ -776,20 +776,20 @@ function MarketplaceContent() {
                     onClick={() => router.push(`/offer/${offer.id}`)}
                     className={`group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col relative cursor-pointer ${offerSoldOut ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1'}`}
                   >
-                    {/* Top Seller Bar */}
-                    <div className="px-2.5 py-1.5 flex items-center gap-1.5 bg-gray-50/80 border-b border-gray-100">
-                      <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
+                    {/* Top Seller Bar - HIGH CONTRAST */}
+                    <div className="px-3 py-2 flex items-center gap-2 bg-[#1e293b] border-b border-slate-700/60 shadow-inner">
+                      <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center overflow-hidden shrink-0 border border-blue-400/40">
                         {offer.sellerProfile?.avatar_url ? (
                           <img src={offer.sellerProfile.avatar_url} className="w-full h-full object-cover" alt="" />
                         ) : (
-                          <span className="text-[8px] font-black text-gray-500 uppercase">{offer.sellerProfile?.full_name?.[0] || 'U'}</span>
+                          <span className="text-[9px] font-black text-white uppercase">{offer.sellerProfile?.full_name?.[0] || 'U'}</span>
                         )}
                       </div>
-                      <span className="text-[10px] font-bold text-gray-600 truncate">{offer.sellerProfile?.full_name?.split(' ')[0] || 'Seller'}</span>
+                      <span className="text-xs font-black text-white truncate tracking-wide">{offer.sellerProfile?.full_name?.split(' ')[0] || 'Seller'}</span>
                     </div>
 
                     {/* Image Container */}
-                    <div className="relative aspect-square bg-gray-100 overflow-hidden">
+                    <div className="relative aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden">
                       {offer.image_urls?.[0] ? (
                         <img src={offer.image_urls[0]} alt={offer.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                       ) : (
@@ -802,31 +802,81 @@ function MarketplaceContent() {
                         </div>
                       )}
 
-                      {/* Like Button */}
-                      <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
-                        className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur rounded-full hover:bg-white transition-all shadow-sm z-30"
-                      >
-                        <Heart size={14} className={`transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
-                      </button>
+                      {/* Small Round Quick Action Buttons (Buy Now, Add to Cart, Favorite) */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5 z-30">
+                        {!offerSoldOut && (
+                          <>
+                            {/* Small Round Buy Now Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
+                              title="Buy Now"
+                              className="w-7 h-7 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white transition-all shadow-md hover:scale-110 flex items-center justify-center cursor-pointer active:scale-90"
+                            >
+                              <Zap size={12} className="fill-white" />
+                            </button>
+
+                            {/* Small Round Add to Cart Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(offer); }}
+                              title="Add to Cart"
+                              className="w-7 h-7 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-md hover:scale-110 flex items-center justify-center cursor-pointer active:scale-90"
+                            >
+                              <ShoppingCart size={12} />
+                            </button>
+                          </>
+                        )}
+
+                        {/* Small Round Favorite Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
+                          title="Favorite"
+                          className="w-7 h-7 bg-white/95 backdrop-blur rounded-full hover:bg-white transition-all shadow-md hover:scale-110 flex items-center justify-center cursor-pointer active:scale-90"
+                        >
+                          <Heart size={13} className={`transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Vinted Card Info */}
                     <div className="p-2.5 flex flex-col flex-grow justify-between gap-1">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-sm font-black text-gray-900 whitespace-nowrap">{formatPrice(offer.price)}</span>
+                        <span className="text-sm font-black text-gray-900 dark:text-white whitespace-nowrap">{formatPrice(offer.price)}</span>
                         <div className="flex items-center gap-0.5 text-gray-400 text-[10px] font-bold shrink-0">
                           <Heart size={11} className={isLiked ? 'fill-red-500 text-red-500' : ''} />
                           <span>{isLiked ? 1 : 0}</span>
                         </div>
                       </div>
 
-                      <p className="text-xs font-bold text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">{offer.title}</p>
+                      <p className="text-xs font-bold text-gray-800 dark:text-gray-200 line-clamp-1 group-hover:text-blue-600 transition-colors">{offer.title}</p>
                       
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider truncate">
+                      <div className="flex items-center justify-between gap-1 mt-0.5 pt-1 border-t border-gray-100 dark:border-white/5">
+                        <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider truncate">
                           {offer.material || offer.category}
                         </span>
+
+                        {!offerSoldOut && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(offer); }}
+                              title="Add to Cart"
+                              className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[9px] font-black uppercase transition-all flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <ShoppingCart size={10} /> +Cart
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
+                              title="Buy Now"
+                              className="px-2 py-0.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-black uppercase transition-all flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <Zap size={10} className="fill-white" /> Buy
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -851,27 +901,51 @@ function MarketplaceContent() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                        <div className="w-5 h-5 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-600 flex items-center justify-center">
                           {offer.sellerProfile?.avatar_url ? (
                             <img src={offer.sellerProfile.avatar_url} className="w-full h-full object-cover" alt="" />
                           ) : (
-                            <span className="text-[7px] font-black text-gray-500 uppercase flex items-center justify-center h-full">{offer.sellerProfile?.full_name?.[0] || 'U'}</span>
+                            <span className="text-[8px] font-black text-white uppercase">{offer.sellerProfile?.full_name?.[0] || 'U'}</span>
                           )}
                         </div>
-                        <span className="text-[10px] font-bold text-gray-500 truncate">{offer.sellerProfile?.full_name || 'Seller'}</span>
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate">{offer.sellerProfile?.full_name || 'Seller'}</span>
                       </div>
-                      <h4 className="font-bold text-sm text-gray-900 truncate group-hover:text-blue-600 transition-colors">{offer.title}</h4>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{offer.material || offer.category}</p>
+                      <h4 className="font-bold text-sm text-gray-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">{offer.title}</h4>
+                      <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider mt-0.5">{offer.material || offer.category}</p>
                     </div>
 
-                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                      <span className="text-base font-black text-gray-900 whitespace-nowrap">{formatPrice(offer.price)}</span>
-                      <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
-                        className="p-1.5 rounded-full hover:bg-gray-100 transition"
-                      >
-                        <Heart size={16} className={isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
-                      </button>
+                    <div className="text-right shrink-0 flex flex-col items-end gap-2">
+                      <span className="text-base font-black text-gray-900 dark:text-white whitespace-nowrap">{formatPrice(offer.price)}</span>
+                      <div className="flex items-center gap-1.5">
+                        {!offerSoldOut && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyNow(offer); }}
+                              title="Buy Now"
+                              className="w-7 h-7 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-md flex items-center justify-center cursor-pointer active:scale-90"
+                            >
+                              <Zap size={12} className="fill-white" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(offer); }}
+                              title="Add to Cart"
+                              className="w-7 h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md flex items-center justify-center cursor-pointer active:scale-90"
+                            >
+                              <ShoppingCart size={12} />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
+                          title="Favorite"
+                          className="w-7 h-7 rounded-full hover:bg-gray-100 transition flex items-center justify-center cursor-pointer"
+                        >
+                          <Heart size={15} className={isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
