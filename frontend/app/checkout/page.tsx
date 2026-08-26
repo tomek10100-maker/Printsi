@@ -162,6 +162,7 @@ function CheckoutInner() {
   };
 
   const getPickupLabels = () => {
+    const courierName = selectedPoint?.courier ? selectedPoint.courier.toUpperCase() : (selectedShipping?.carrier || 'Pickup Point');
     if (selectedShipping?.id === 'dpd_pickup') {
       return {
         title: 'Selected DPD Pickup Point',
@@ -172,10 +173,10 @@ function CheckoutInner() {
     }
     if (selectedShipping?.id === 'dhl_pop') {
       return {
-        title: 'Selected Furgonetka.pl Pickup Point',
-        placeholder: 'No pickup point selected. Use the map to select the nearest Furgonetka.pl point.',
-        error: 'Please select a Furgonetka.pl pickup point on the map before proceeding.',
-        button: selectedPoint ? 'Change Furgonetka.pl Point' : 'Select on map'
+        title: 'Selected DHL POP Pickup Point',
+        placeholder: 'No pickup point selected. Use the map to select the nearest DHL point.',
+        error: 'Please select a DHL pickup point on the map before proceeding.',
+        button: selectedPoint ? 'Change DHL Point' : 'Select on map'
       };
     }
     if (selectedShipping?.id === 'orlen_paczka') {
@@ -187,10 +188,10 @@ function CheckoutInner() {
       };
     }
     return {
-      title: 'Selected InPost Paczkomat',
-      placeholder: 'No pickup point selected. Use the map to select the nearest Paczkomat.',
-      error: 'Please select a Paczkomat on the map before proceeding.',
-      button: selectedPoint ? 'Change Paczkomat' : 'Select on map'
+      title: `Selected ${courierName} Pickup Point`,
+      placeholder: 'No pickup point selected. Use the map to select the nearest pickup point.',
+      error: 'Please select a pickup point on the map before proceeding.',
+      button: selectedPoint ? 'Change Pickup Point' : 'Select on map'
     };
   };
 

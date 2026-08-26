@@ -12,18 +12,27 @@ const supabase = createClient(
 );
 
 const countryCodeMap: Record<string, string> = {
-  'poland': 'PL',
-  'polska': 'PL',
-  'germany': 'DE',
-  'deutschland': 'DE',
-  'france': 'FR',
-  'usa': 'US',
-  'united states': 'US',
+  'poland': 'PL', 'polska': 'PL', 'pl': 'PL',
+  'germany': 'DE', 'deutschland': 'DE', 'de': 'DE',
+  'austria': 'AT', 'österreich': 'AT', 'oesterreich': 'AT', 'at': 'AT',
+  'france': 'FR', 'fr': 'FR',
+  'spain': 'ES', 'españa': 'ES', 'es': 'ES',
+  'italy': 'IT', 'italia': 'IT', 'it': 'IT',
+  'netherlands': 'NL', 'nederland': 'NL', 'nl': 'NL',
+  'belgium': 'BE', 'belgië': 'BE', 'be': 'BE',
+  'czechia': 'CZ', 'czech republic': 'CZ', 'cesko': 'CZ', 'cz': 'CZ',
+  'slovakia': 'SK', 'slovensko': 'SK', 'sk': 'SK',
+  'hungary': 'HU', 'magyarorszag': 'HU', 'hu': 'HU',
+  'usa': 'US', 'united states': 'US', 'us': 'US',
+  'uk': 'GB', 'united kingdom': 'GB', 'gb': 'GB', 'great britain': 'GB',
 };
 
 function getCountryCode(countryStr: string): string {
+  if (!countryStr) return 'PL';
   const clean = (countryStr || '').trim().toLowerCase();
-  return countryCodeMap[clean] || (clean.length === 2 ? clean.toUpperCase() : 'PL');
+  if (countryCodeMap[clean]) return countryCodeMap[clean];
+  if (clean.length === 2) return clean.toUpperCase();
+  return 'PL';
 }
 
 /** Carriers that use point-to-point delivery (require pickup.point + receiver.point) */
@@ -285,27 +294,26 @@ export async function POST(req: Request) {
     const pickupName = sanitizeName(senderProfile.full_name, 'Jan Kowalski');
     const receiverName = sanitizeName(shippingDetails.full_name, 'Jan Kowalski');
 
-    const receiverCountryCode = getCountryCode(shippingDetails.country);
+    const pointCountry = isPickupPoint ? (selectedPoint.country || selectedPoint.country_code || shippingDetails?.country) : shippingDetails?.country;
+    const receiverCountryCode = getCountryCode(pointCountry);
 
     let receiverPostcode: string;
     let receiverCity: string;
     let receiverStreet: string;
 
     if (isPickupPoint) {
-      // For paczkomat/pickup point shipments, receiver.point is what directs the parcel to the locker.
-      // Address fields are required by Furgonetka - sanitize street to ensure valid format (e.g. "Marszałkowska 1").
-      const rawPostcode = selectedPoint.zip || selectedPoint.postcode || shippingDetails?.zip_code || '02-222';
-      const rawCity = selectedPoint.city || shippingDetails?.city || 'Warszawa';
-      const rawStreet = selectedPoint.street || shippingDetails?.address || 'Marszałkowska 1';
+      const rawPostcode = (selectedPoint.zip || selectedPoint.postcode || shippingDetails?.zip_code || '').trim();
+      const rawCity = (selectedPoint.city || shippingDetails?.city || 'City').trim();
+      const rawStreet = (selectedPoint.street || selectedPoint.name || shippingDetails?.address || 'Main Street 1').trim();
 
-      receiverPostcode = formatPolishPostcode(rawPostcode);
-      receiverCity = ((rawCity || '').trim().length >= 2 ? rawCity : 'Warszawa').substring(0, 40);
-      receiverStreet = sanitizeStreet(rawStreet, 'Marszałkowska 1');
+      receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawPostcode) : (rawPostcode || '00-000');
+      receiverCity = (rawCity.length >= 2 ? rawCity : 'City').substring(0, 40);
+      receiverStreet = sanitizeStreet(rawStreet, 'Main Street 1');
     } else {
       const rawReceiverPostcode = (shippingDetails?.zip_code || shippingDetails?.zip || '')?.trim();
-      receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : (rawReceiverPostcode || '02-222');
-      receiverCity = (((shippingDetails?.city || '')?.trim()).length >= 2 ? shippingDetails.city : 'Warszawa').substring(0, 40);
-      receiverStreet = sanitizeStreet(shippingDetails?.address || '', 'Marszałkowska 1');
+      receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : (rawReceiverPostcode || '00-000');
+      receiverCity = (((shippingDetails?.city || '')?.trim()).length >= 2 ? shippingDetails.city : 'City').substring(0, 40);
+      receiverStreet = sanitizeStreet(shippingDetails?.address || '', 'Main Street 1');
     }
 
     let pickupPostcode = formatPolishPostcode(cleanZipCode);
@@ -408,32 +416,24 @@ export async function POST(req: Request) {
         }
       } else {
         console.warn('[CreatePackage Route] Initial create failed. Error:', errMsg);
-        console.warn('[CreatePackage Route] Retrying with fully safe hardcoded Warsaw DPD fallback...');
-        // Complete safe override — guaranteed valid for Furgonetka sandbox and production
-        furgonetkaPayload.pickup = {
-          name: pickupName,
-          street: 'Borkowska 1',
-          postcode: '02-222',
-          city: 'Warszawa',
-          country_code: 'PL',
-          phone: pickupPhone,
-          email: user.email || 'sender@printis.store'
-        };
+        console.warn('[CreatePackage Route] Retrying with DPD Courier fallback using actual receiver address...');
+        furgonetkaPayload.service_id = 11636590; // DPD Courier
+        // Keep actual receiver address and country code!
         furgonetkaPayload.receiver = {
           name: receiverName,
-          street: 'Marszalkowska 1',
-          postcode: '00-001',
-          city: 'Warszawa',
-          country_code: 'PL',
+          street: receiverStreet,
+          postcode: receiverPostcode,
+          city: receiverCity,
+          country_code: receiverCountryCode,
           phone: receiverPhone,
           email: shippingDetails?.email || 'recipient@printis.store'
         };
-        furgonetkaPayload.service_id = 11636590; // DPD Courier
-        console.log('[CreatePackage Route] Retry payload (fully safe):', JSON.stringify(furgonetkaPayload, null, 2));
+        delete furgonetkaPayload.receiver.point;
+        console.log('[CreatePackage Route] Retry payload (with real address):', JSON.stringify(furgonetkaPayload, null, 2));
         try {
           createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
         } catch (retryErr: any) {
-          console.error('[CreatePackage Route] Universal fallback creation also failed:', retryErr?.message || retryErr);
+          console.error('[CreatePackage Route] Fallback creation failed:', retryErr?.message || retryErr);
           throw retryErr;
         }
       }
