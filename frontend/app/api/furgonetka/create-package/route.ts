@@ -250,14 +250,44 @@ export async function POST(req: Request) {
     const pickupPhone = sanitizePhone(senderProfile.phone_number || (senderProfile as any).phone, '500600700');
     const receiverPhone = sanitizePhone(shippingDetails.phone, '600700800');
 
-    const formatPolishPostcode = (zip: string): string => {
-      // Strip ALL dashes/spaces before reformatting to avoid double-dash or missing-dash issues
+    const formatPostcodeForCountry = (zip: string, countryCode: string): string => {
       const clean = (zip || '').trim().replace(/[-\s]/g, '');
-      if (/^\d{5}$/.test(clean)) {
-        return `${clean.substring(0, 2)}-${clean.substring(2)}`;
+      const digitsOnly = clean.replace(/\D/g, '');
+
+      if (countryCode === 'PL') {
+        if (digitsOnly.length === 5) {
+          return `${digitsOnly.substring(0, 2)}-${digitsOnly.substring(2)}`;
+        }
+        return '02-222';
       }
-      return '02-222'; // Default fallback
+
+      if (countryCode === 'AT') {
+        // Austria requires 4 digits (e.g. 1010, 4020, 2421)
+        if (digitsOnly.length === 4) return digitsOnly;
+        if (digitsOnly.length > 4) return digitsOnly.substring(0, 4);
+        if (digitsOnly.length > 0) return digitsOnly.padStart(4, '0');
+        return '1010';
+      }
+
+      if (countryCode === 'DE' || countryCode === 'FR' || countryCode === 'ES' || countryCode === 'IT') {
+        // 5 digits required without hyphen
+        if (digitsOnly.length === 5) return digitsOnly;
+        if (digitsOnly.length > 5) return digitsOnly.substring(0, 5);
+        if (digitsOnly.length > 0) return digitsOnly.padStart(5, '0');
+        return countryCode === 'DE' ? '10115' : '75001';
+      }
+
+      if (countryCode === 'CZ' || countryCode === 'SK') {
+        if (digitsOnly.length === 5) return digitsOnly;
+        if (digitsOnly.length > 5) return digitsOnly.substring(0, 5);
+        if (digitsOnly.length > 0) return digitsOnly.padStart(5, '0');
+        return '11000';
+      }
+
+      return clean || digitsOnly || '00000';
     };
+
+    const formatPolishPostcode = (zip: string): string => formatPostcodeForCountry(zip, 'PL');
 
     const sanitizeStreet = (streetStr: string, defaultStreet: string = 'Marszałkowska 1'): string => {
       let str = (streetStr || '').trim();
@@ -302,16 +332,24 @@ export async function POST(req: Request) {
     let receiverStreet: string;
 
     if (isPickupPoint) {
-      const rawPostcode = (selectedPoint.zip || selectedPoint.postcode || shippingDetails?.zip_code || '').trim();
-      const rawCity = (selectedPoint.city || shippingDetails?.city || 'City').trim();
+      let rawPostcode = (selectedPoint.zip || selectedPoint.postcode || shippingDetails?.zip_code || '').trim();
+      let rawCity = (selectedPoint.city || shippingDetails?.city || 'City').trim();
       const rawStreet = (selectedPoint.street || selectedPoint.name || shippingDetails?.address || 'Main Street 1').trim();
 
-      receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawPostcode) : (rawPostcode || '00-000');
+      // Extract 4-digit zip code from point name if Austrian point (e.g. "AT_AT983642P - Hauptplatz, 24-21 Kittsee")
+      if (selectedPoint?.name) {
+        const zipMatch = selectedPoint.name.match(/\b\d{4}\b/);
+        if (zipMatch && receiverCountryCode === 'AT') {
+          rawPostcode = zipMatch[0];
+        }
+      }
+
+      receiverPostcode = formatPostcodeForCountry(rawPostcode, receiverCountryCode);
       receiverCity = (rawCity.length >= 2 ? rawCity : 'City').substring(0, 40);
       receiverStreet = sanitizeStreet(rawStreet, 'Main Street 1');
     } else {
       const rawReceiverPostcode = (shippingDetails?.zip_code || shippingDetails?.zip || '')?.trim();
-      receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : (rawReceiverPostcode || '00-000');
+      receiverPostcode = formatPostcodeForCountry(rawReceiverPostcode, receiverCountryCode);
       receiverCity = (((shippingDetails?.city || '')?.trim()).length >= 2 ? shippingDetails.city : 'City').substring(0, 40);
       receiverStreet = sanitizeStreet(shippingDetails?.address || '', 'Main Street 1');
     }
