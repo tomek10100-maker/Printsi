@@ -3382,21 +3382,35 @@ function MessagesInner() {
                             )}
 
                             {showDisputeModal && activeChatData && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
-                                    <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                                        <div className="flex justify-between items-center mb-6">
+                                <div
+                                    className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-4 overflow-y-auto animate-in fade-in duration-200"
+                                    onClick={(e) => { if (e.target === e.currentTarget) setShowDisputeModal(false); }}
+                                >
+                                    <div
+                                        className="bg-white p-6 sm:p-8 rounded-3xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full animate-in zoom-in-95 duration-200 relative border border-gray-100"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pt-1 pb-2 z-10 border-b border-gray-100">
                                             <div>
-                                                <h3 className="font-black text-gray-900 text-lg flex items-center gap-2"><ShieldAlert size={20} className="text-red-500" /> Open a Dispute</h3>
-                                                <p className="text-xs text-gray-500 font-medium mt-1">Describe your problem.</p>
+                                                <h3 className="font-black text-gray-900 text-lg flex items-center gap-2">
+                                                    <ShieldAlert size={20} className="text-red-500 shrink-0" /> Open a Dispute
+                                                </h3>
+                                                <p className="text-xs text-gray-500 font-medium mt-0.5">Describe your problem.</p>
                                             </div>
-                                            <button onClick={() => setShowDisputeModal(false)} className="text-gray-400 hover:text-gray-900 p-1 bg-gray-100 rounded-full"><X size={16} /></button>
+                                            <button
+                                                onClick={() => setShowDisputeModal(false)}
+                                                className="text-gray-400 hover:text-gray-900 p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors shrink-0"
+                                                title="Close modal"
+                                            >
+                                                <X size={18} />
+                                            </button>
                                         </div>
                                         <div className="space-y-5">
                                             <div>
                                                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-2 tracking-wider">Type of Problem</label>
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {PROBLEM_TYPES.filter(pt => activeChatData?.offers?.category === 'digital' ? pt.digital : !pt.digital || pt.value === 'other').map(pt => (
-                                                        <button key={pt.value} onClick={() => setDisputeProblemType(pt.value)} className={`p-3 rounded-xl border-2 text-left transition-all ${disputeProblemType === pt.value ? 'border-red-400 bg-red-50' : 'border-gray-100 bg-white'}`}>
+                                                        <button key={pt.value} onClick={() => setDisputeProblemType(pt.value)} className={`p-3 rounded-xl border-2 text-left transition-all ${disputeProblemType === pt.value ? 'border-red-400 bg-red-50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
                                                             <div className="text-base mb-0.5">{pt.icon}</div>
                                                             <div className="text-xs font-bold text-gray-700">{pt.label}</div>
                                                         </button>
@@ -3405,7 +3419,7 @@ function MessagesInner() {
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-1 tracking-wider">Describe your problem</label>
-                                                <textarea value={disputeDescription} onChange={e => setDisputeDescription(e.target.value)} rows={4} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-red-400 rounded-xl text-sm font-medium outline-none resize-none" placeholder="Explain what went wrong..." />
+                                                <textarea value={disputeDescription} onChange={e => setDisputeDescription(e.target.value)} rows={3} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:border-red-400 rounded-xl text-sm font-medium outline-none resize-none" placeholder="Explain what went wrong..." />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-black uppercase text-gray-400 block mb-1 tracking-wider">Contact Email</label>
@@ -3416,13 +3430,21 @@ function MessagesInner() {
                                                     {formError}
                                                 </div>
                                             )}
-                                            <button 
-                                                onClick={handleDisputeSubmit} 
-                                                disabled={!disputeProblemType || !disputeDescription.trim() || !disputeEmail.trim() || disputeSubmitting} 
-                                                className="w-full py-4 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 hover:bg-red-700 transition-all shadow-lg flex items-center justify-center gap-2 transform active:scale-95"
-                                            >
-                                                {disputeSubmitting ? <Loader2 size={16} className="animate-spin" /> : <><ShieldAlert size={16} /> Submit Dispute</>}
-                                            </button>
+                                            <div className="flex gap-2 pt-1">
+                                                <button 
+                                                    onClick={handleDisputeSubmit} 
+                                                    disabled={!disputeProblemType || !disputeDescription.trim() || !disputeEmail.trim() || disputeSubmitting} 
+                                                    className="flex-1 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 transition-all shadow-lg flex items-center justify-center gap-2 text-xs"
+                                                >
+                                                    {disputeSubmitting ? <Loader2 size={16} className="animate-spin" /> : <><ShieldAlert size={16} /> Submit Dispute</>}
+                                                </button>
+                                                <button 
+                                                    onClick={() => setShowDisputeModal(false)} 
+                                                    className="px-4 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-black uppercase tracking-widest text-xs transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -4640,8 +4662,8 @@ function MessagesInner() {
 
         {/* ─── CANCEL ORDER MODAL ─────────────────────────────────── */}
         {showCancelModal && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowCancelModal(false)}>
-                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowCancelModal(false)}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-y-auto max-h-[90vh] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full border border-gray-100" onClick={e => e.stopPropagation()}>
 
                     {/* Header */}
                     <div className={`px-6 py-5 flex items-center gap-3 ${cancelInitiator === 'seller' ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-orange-500 to-amber-500'}`}>
@@ -4751,8 +4773,8 @@ function MessagesInner() {
 
         {/* ─── REPORT A PROBLEM MODAL ──────────────────────────── */}
         {showReportModal && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowReportModal(false)}>
-                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowReportModal(false)}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-y-auto max-h-[90vh] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full border border-gray-100" onClick={e => e.stopPropagation()}>
                     {/* Header */}
                     <div className="px-6 py-5 flex items-center gap-3 bg-gradient-to-r from-amber-500 to-orange-600">
                         <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
