@@ -121,7 +121,6 @@ export default function CartPage() {
       <nav className="bg-[#0f131d]/90 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <Link href="/" className="flex items-center gap-2">
           <img src="/logo.jpg" alt="Printis" className="h-8 w-auto rounded-xl object-cover" />
-          <span className="font-black text-lg tracking-wider text-white">PRINTIS</span>
         </Link>
         <Link
           href="/gallery"
