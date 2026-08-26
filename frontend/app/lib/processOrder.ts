@@ -157,6 +157,59 @@ async function recalculateOffersStockForFilaments(sellerId: string, affectedFila
 }
 
 
+async function decrementOfferStock(offerId: string, quantity: number, variantName?: string) {
+  try {
+    // 1. Decrement top-level stock
+    await supabase.rpc('decrement_stock', { row_id: offerId, quantity_amt: quantity });
+
+    // 2. Fetch offer to update color_variants stock
+    const { data: offer } = await supabase
+      .from('offers')
+      .select('id, stock, color_variants')
+      .eq('id', offerId)
+      .single();
+
+    if (offer && Array.isArray(offer.color_variants) && offer.color_variants.length > 0) {
+      let updated = false;
+
+      const updatedVariants = offer.color_variants.map((v: any) => {
+        const isMatch = variantName
+          ? (v.label === variantName || v.variantId === variantName || v.color_name === variantName)
+          : true;
+
+        if (isMatch && !updated) {
+          updated = true;
+          const currentVarStock = parseInt(String(v.stock ?? 0)) || 0;
+          return { ...v, stock: Math.max(0, currentVarStock - quantity) };
+        }
+        return v;
+      });
+
+      if (!updated && offer.color_variants.length > 0) {
+        const first = updatedVariants[0];
+        const currentVarStock = parseInt(String(first.stock ?? 0)) || 0;
+        updatedVariants[0] = { ...first, stock: Math.max(0, currentVarStock - quantity) };
+      }
+
+      const newTotalStock = updatedVariants.reduce((sum: number, v: any) => {
+        return sum + (parseInt(String(v.stock ?? 0)) || 0);
+      }, 0);
+
+      await supabase
+        .from('offers')
+        .update({
+          color_variants: updatedVariants,
+          stock: newTotalStock
+        })
+        .eq('id', offerId);
+
+      console.log(`📉 Offer ${offerId} variant stock decremented by ${quantity} → new stock: ${newTotalStock}`);
+    }
+  } catch (err) {
+    console.error(`❌ Failed to decrement offer stock for ${offerId}:`, err);
+  }
+}
+
 /**
  * Core order processing: creates chats, sends messages, notifications, decrements stock.
  * Called after a confirmed payment (balance or Stripe).
@@ -393,9 +446,9 @@ export async function processOrder(orderId: string, userId: string) {
 
     // 6. Decrement offer stock (Physical items only)
     if (offer.category !== 'digital') {
-      await supabase.rpc('decrement_stock', { row_id: item.offer_id, quantity_amt: item.quantity });
+      await decrementOfferStock(item.offer_id, item.quantity, item.variant_name);
       if (isCustom && parentOfferId) {
-        await supabase.rpc('decrement_stock', { row_id: parentOfferId, quantity_amt: item.quantity });
+        await decrementOfferStock(parentOfferId, item.quantity, item.variant_name);
       }
     }
 

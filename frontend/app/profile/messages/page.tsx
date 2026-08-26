@@ -3915,8 +3915,8 @@ function MessagesInner() {
                                             <div className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-black ${deadlinePassed ? 'bg-red-50 border border-red-300 text-red-800' : daysLeft !== null && daysLeft <= 1 ? 'bg-amber-50 border border-amber-300 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800'}`}>
                                                 <Clock size={12} className="shrink-0" />
                                                 {deadlinePassed
-                                                    ? '⚠️ Shipping deadline has passed — ship immediately!'
-                                                    : `⏰ Ship by ${shipDeadline.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}`}
+                                                    ? '⚠️ Deadline has passed — send photos & ship immediately!'
+                                                    : `⏰ Send photos & ship by ${shipDeadline.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}`}
                                                 {!oi.extension_requested_at && !deadlinePassed && (
                                                     <button
                                                         className="ml-auto text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-current hover:opacity-75 transition cursor-pointer"
