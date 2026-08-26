@@ -522,13 +522,21 @@ function DigitalReceiptModal({ tx, onClose, formatPrice }: any) {
   const items = tx.rawOrder?.items || (tx.rawSale ? [tx.rawSale] : []);
   const shippingAddr = parentOrder?.shipping_address || {};
 
+  const calculatedItemsSubtotal = items.reduce((sum: number, it: any) => {
+    const qty = it.quantity || 1;
+    const price = it.price_at_purchase || it.price || 0;
+    return sum + (price * qty);
+  }, 0);
+
   const itemSubtotal = isSale
     ? (tx.rawSale?.price_at_purchase * (tx.rawSale?.quantity || 1))
-    : (parentOrder?.subtotal || (Math.abs(tx.amount) - (parentOrder?.shipping_fee || 0) - (parentOrder?.protection_fee || 0)));
+    : (calculatedItemsSubtotal > 0 ? calculatedItemsSubtotal : (parentOrder?.subtotal || Math.abs(tx.amount)));
 
-  const shippingFee = parentOrder?.shipping_fee || 0;
+  const totalPaidByBuyer = parentOrder?.total_amount || (isPurchase ? Math.abs(tx.amount) : (itemSubtotal + (parentOrder?.shipping_fee || 0) + (parentOrder?.protection_fee || 0)));
   const protectionFee = parentOrder?.protection_fee || 0;
-  const totalPaidByBuyer = parentOrder?.total_amount || (isPurchase ? Math.abs(tx.amount) : (itemSubtotal + shippingFee + protectionFee));
+  
+  // Calculate explicit courier shipping fee if not explicitly stored, so delivery cost is ALWAYS shown as a separate line!
+  const shippingFee = parentOrder?.shipping_fee || Math.max(0, Math.round((totalPaidByBuyer - itemSubtotal - protectionFee) * 100) / 100);
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
@@ -623,34 +631,34 @@ function DigitalReceiptModal({ tx, onClose, formatPrice }: any) {
         </div>
 
         {/* Financial Totals Box */}
-        <div className="bg-blue-950/40 border border-blue-500/20 rounded-2xl p-4 mb-5 space-y-2">
-          {/* 1. Item Subtotal */}
+        <div className="bg-blue-950/40 border border-blue-500/20 rounded-2xl p-4 mb-5 space-y-2.5">
+          {/* 1. Products Subtotal */}
           <div className="flex justify-between text-xs text-gray-300">
-            <span>Item Price (Wartość przedmiotu)</span>
+            <span>Products Subtotal</span>
             <span className="font-bold text-white">{formatPrice(itemSubtotal)}</span>
           </div>
 
           {/* 2. Courier Shipping Fee */}
           {shippingFee > 0 && (
             <div className="flex justify-between text-xs text-gray-300">
-              <span>Delivery Fee (Koszt dostawy)</span>
+              <span>Courier Delivery Fee</span>
               <span className="font-bold text-white">{formatPrice(shippingFee)}</span>
             </div>
           )}
 
-          {/* 3. Buyer Protection Fee */}
+          {/* 3. Printis Protection & Service Fee */}
           {protectionFee > 0 && (
             <div className="flex justify-between text-xs text-gray-300">
-              <span>Buyer Protection Fee (Ochrona Kupującego)</span>
+              <span>Printis Buyer Protection & Service Fee</span>
               <span className="font-bold text-white">{formatPrice(protectionFee)}</span>
             </div>
           )}
 
           {/* 4. Total Amount Paid by Buyer */}
           {totalPaidByBuyer > 0 && (
-            <div className="flex justify-between items-center pt-2 border-t border-blue-500/20">
+            <div className="flex justify-between items-center pt-2.5 border-t border-blue-500/20">
               <span className="text-xs font-black uppercase text-gray-300 tracking-wider">
-                Total Paid by Buyer (Wpłacono brutto)
+                TOTAL PAID BY BUYER
               </span>
               <span className="text-xl font-black text-emerald-400 tracking-tight">
                 {formatPrice(totalPaidByBuyer)}
@@ -660,9 +668,9 @@ function DigitalReceiptModal({ tx, onClose, formatPrice }: any) {
 
           {/* 5. Seller Net Earnings (if Sale) */}
           {isSale && (
-            <div className="flex justify-between items-center pt-2 border-t border-emerald-500/20 bg-emerald-500/10 p-2.5 rounded-xl mt-2">
+            <div className="flex justify-between items-center pt-2.5 border-t border-emerald-500/20 bg-emerald-500/10 p-3 rounded-xl mt-3">
               <span className="text-xs font-black uppercase text-emerald-300 tracking-wider">
-                Seller Net Payout (Zarobek Sprzedawcy)
+                SELLER NET PAYOUT
               </span>
               <span className="text-xl font-black text-emerald-300 tracking-tight">
                 {formatPrice(Math.abs(tx.amount))}
