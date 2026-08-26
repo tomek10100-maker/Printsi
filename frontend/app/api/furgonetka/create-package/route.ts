@@ -324,12 +324,17 @@ export async function POST(req: Request) {
     const pointToPoint = isPointToPoint(carrier);
 
     // For point-to-point carriers, get the seller's drop-off point.
-    const sandboxPickupPoint = process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01';
+    const sandboxPickupPoint = process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01M';
     const productionPickupPoint = process.env.FURGONETKA_PICKUP_POINT || '';
     const isSandbox = (process.env.FURGONETKA_ENV || 'sandbox') === 'sandbox';
-    const pickupPointCode = isSandbox
+    let pickupPointCode = isSandbox
       ? sandboxPickupPoint
       : productionPickupPoint;
+
+    // Normalize InPost point code (e.g. WAW01 -> WAW01M)
+    if (carrier.toLowerCase() === 'inpost' && pickupPointCode && /^[A-Z]{3}\d{2,4}$/i.test(pickupPointCode.trim())) {
+      pickupPointCode = `${pickupPointCode.trim()}M`;
+    }
 
     // For point-to-point, validate we have a pickup point code
     if (pointToPoint && !pickupPointCode) {
@@ -377,15 +382,22 @@ export async function POST(req: Request) {
         furgonetkaPayload.pickup.point = pickupPointCode;
       }
       if (selectedPoint?.code) {
-        furgonetkaPayload.receiver.point = selectedPoint.code;
+        let rxPoint = selectedPoint.code.trim();
+        if (carrier.toLowerCase() === 'inpost' && /^[A-Z]{3}\d{2,4}$/i.test(rxPoint)) {
+          rxPoint = `${rxPoint}M`;
+        }
+        furgonetkaPayload.receiver.point = rxPoint;
       }
     } else if (
       selectedPoint?.code && 
       selectedPoint?.courier && 
       selectedPoint.courier.toLowerCase() === carrier.toLowerCase()
     ) {
-      // Only attach receiver.point if the courier matches
-      furgonetkaPayload.receiver.point = selectedPoint.code;
+      let rxPoint = selectedPoint.code.trim();
+      if (carrier.toLowerCase() === 'inpost' && /^[A-Z]{3}\d{2,4}$/i.test(rxPoint)) {
+        rxPoint = `${rxPoint}M`;
+      }
+      furgonetkaPayload.receiver.point = rxPoint;
     }
 
     console.log('[CreatePackage Route] Sending payload to Furgonetka:', JSON.stringify(furgonetkaPayload, null, 2));
@@ -408,6 +420,8 @@ export async function POST(req: Request) {
         await furgonetkaClient.acceptRegulations();
         // Fall back to DPD Courier (Service ID: 11636590) to guarantee shipment success
         furgonetkaPayload.service_id = 11636590;
+        delete furgonetkaPayload.pickup.point;
+        delete furgonetkaPayload.receiver.point;
         try {
           createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
         } catch (termsRetryErr: any) {
@@ -428,7 +442,9 @@ export async function POST(req: Request) {
           phone: receiverPhone,
           email: shippingDetails?.email || 'recipient@printis.store'
         };
+        // DPD Courier is door-to-door, so remove both pickup.point AND receiver.point!
         delete furgonetkaPayload.receiver.point;
+        delete furgonetkaPayload.pickup.point;
         console.log('[CreatePackage Route] Retry payload (with real address):', JSON.stringify(furgonetkaPayload, null, 2));
         try {
           createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
