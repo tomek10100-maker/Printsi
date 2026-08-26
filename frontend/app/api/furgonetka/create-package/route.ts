@@ -291,33 +291,23 @@ export async function POST(req: Request) {
 
     const sanitizeStreet = (streetStr: string, defaultStreet: string = 'Marszałkowska 1'): string => {
       let str = (streetStr || '').trim();
+      if (!str) return defaultStreet;
 
-      // If street contains point keywords like Paczkomat, POP-, Point, etc.
-      if (!str || /paczkomat|punkt|orlen|inpost|pop-|kod:|autobox/i.test(str)) {
-        const parts = str.split(/[,;]/);
+      // If string contains point keywords or codes, strip prefix
+      if (/paczkomat|punkt|orlen|inpost|pop-|kod:|autobox/i.test(str)) {
+        const parts = str.split(/[,;\-]/);
         const validPart = parts.find(p => p.trim().length >= 3 && !/paczkomat|punkt|orlen|inpost|pop-|kod:|autobox/i.test(p));
         if (validPart) {
           str = validPart.trim();
         } else {
-          return defaultStreet;
+          str = str.replace(/paczkomat|punkt|orlen|inpost|pop-|kod:|autobox|[A-Z0-9_-]{5,}/gi, '').trim();
         }
       }
 
       str = str.replace(/[^\p{L}\d\s/.\-]/gu, ' ').replace(/\s+/g, ' ').trim();
-
-      if (str.length < 3) {
-        return defaultStreet;
-      }
-
-      // Check if house/building number exists (at least one digit)
-      if (!/\d/.test(str)) {
-        str = `${str} 1`;
-      }
-
-      if (str.length > 60) {
-        str = str.substring(0, 60).trimEnd();
-      }
-
+      if (str.length < 2) return defaultStreet;
+      if (!/\d/.test(str)) str = `${str} 1`;
+      if (str.length > 60) str = str.substring(0, 60).trimEnd();
       return str;
     };
 
@@ -332,20 +322,45 @@ export async function POST(req: Request) {
     let receiverStreet: string;
 
     if (isPickupPoint) {
-      let rawPostcode = (selectedPoint.zip || selectedPoint.postcode || shippingDetails?.zip_code || '').trim();
-      let rawCity = (selectedPoint.city || shippingDetails?.city || 'City').trim();
-      const rawStreet = (selectedPoint.street || selectedPoint.name || shippingDetails?.address || 'Main Street 1').trim();
+      let rawPostcode = (selectedPoint.zip || selectedPoint.postcode || '').trim();
+      let rawCity = (selectedPoint.city || '').trim();
+      let rawStreet = (selectedPoint.street || '').trim();
 
-      // Extract 4-digit zip code from point name if Austrian point (e.g. "AT_AT983642P - Hauptplatz, 24-21 Kittsee")
-      if (selectedPoint?.name) {
-        const zipMatch = selectedPoint.name.match(/\b\d{4}\b/);
-        if (zipMatch && receiverCountryCode === 'AT') {
-          rawPostcode = zipMatch[0];
+      // Extract street, city, zip from point name if selectedPoint attributes are empty
+      // Example: "IT_ITTGR06836P - Via Filippo Turati, 58-043 Castiglione Della Pescaia"
+      const pName = (selectedPoint?.name || '').trim();
+      if (pName) {
+        const cleanPName = pName.replace(/^[A-Z0-9_-]+\s*-\s*/i, '').trim();
+        const commaParts = cleanPName.split(',').map((s: string) => s.trim()).filter(Boolean);
+
+        if (commaParts.length >= 2) {
+          if (!rawStreet) rawStreet = commaParts[0];
+          const lastPart = commaParts[commaParts.length - 1];
+          const zipMatch = lastPart.match(/\b\d{2}[-\s]?\d{3}\b|\b\d{4,5}\b/);
+          if (zipMatch && !rawPostcode) {
+            rawPostcode = zipMatch[0].replace(/[-\s]/g, '');
+          }
+          if (!rawCity) {
+            rawCity = lastPart.replace(/\b\d{2}[-\s]?\d{3}\b|\b\d{4,5}\b/g, '').trim();
+          }
+        } else if (commaParts.length === 1) {
+          const part = commaParts[0];
+          const zipMatch = part.match(/\b\d{2}[-\s]?\d{3}\b|\b\d{4,5}\b/);
+          if (zipMatch && !rawPostcode) {
+            rawPostcode = zipMatch[0].replace(/[-\s]/g, '');
+          }
+          if (!rawStreet) {
+            rawStreet = part.replace(/\b\d{2}[-\s]?\d{3}\b|\b\d{4,5}\b/g, '').trim();
+          }
         }
       }
 
+      if (!rawCity) rawCity = shippingDetails?.city || 'City';
+      if (!rawPostcode) rawPostcode = shippingDetails?.zip_code || shippingDetails?.zip || '00000';
+      if (!rawStreet) rawStreet = shippingDetails?.address || 'Main Street 1';
+
       receiverPostcode = formatPostcodeForCountry(rawPostcode, receiverCountryCode);
-      receiverCity = (rawCity.length >= 2 ? rawCity : 'City').substring(0, 40);
+      receiverCity = rawCity.substring(0, 40);
       receiverStreet = sanitizeStreet(rawStreet, 'Main Street 1');
     } else {
       const rawReceiverPostcode = (shippingDetails?.zip_code || shippingDetails?.zip || '')?.trim();
@@ -445,7 +460,7 @@ export async function POST(req: Request) {
     // 10.5 Proactively accept carrier regulations to prevent 409 terms_and_conditions_not_valid errors
     await furgonetkaClient.acceptRegulations();
 
-    // 11. Call Furgonetka API: Create Draft Package (with 3-tier fallback to DPD Courier with guaranteed valid address)
+    // 11. Call Furgonetka API: Create Draft Package (with 3-tier fallback preserving buyer real details)
     let createRes: any;
     try {
       createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
@@ -486,17 +501,30 @@ export async function POST(req: Request) {
         try {
           createRes = await furgonetkaClient.createPackage(tier2Payload);
         } catch (tier2Err: any) {
-          console.warn('[CreatePackage Route] Tier 2 fallback failed. Attempting Tier 3 guaranteed domestic DPD fallback...');
+          console.warn('[CreatePackage Route] Tier 2 fallback failed. Attempting Tier 3 fallback with buyer real name & country:', receiverCountryCode);
           
+          const defaultCityMap: Record<string, { city: string; zip: string }> = {
+            'PL': { city: 'Warszawa', zip: '02-222' },
+            'DE': { city: 'Berlin', zip: '10115' },
+            'AT': { city: 'Wien', zip: '1010' },
+            'FR': { city: 'Paris', zip: '75001' },
+            'IT': { city: 'Roma', zip: '00100' },
+            'ES': { city: 'Madrid', zip: '28001' },
+            'NL': { city: 'Amsterdam', zip: '1012' },
+            'CZ': { city: 'Praha', zip: '11000' },
+            'SK': { city: 'Bratislava', zip: '81101' },
+          };
+          const cap = defaultCityMap[receiverCountryCode] || { city: 'Warszawa', zip: '02-222' };
+
           const tier3Payload: any = {
             ...tier2Payload,
             service_id: 11636590,
             receiver: {
               name: receiverName,
-              street: 'Marszałkowska 1',
-              postcode: '02-222',
-              city: 'Warszawa',
-              country_code: 'PL',
+              street: receiverStreet && receiverStreet.length >= 3 ? receiverStreet : 'Main Street 1',
+              postcode: cap.zip,
+              city: cap.city,
+              country_code: receiverCountryCode,
               phone: receiverPhone,
               email: shippingDetails?.email || 'recipient@printis.store'
             }
@@ -522,7 +550,7 @@ export async function POST(req: Request) {
     let packageId = createRes.package_id;
     console.log(`[CreatePackage Route] Created Furgonetka draft package ID: ${packageId}`);
 
-    // 12. Call Furgonetka API: Confirm/Order Package (with auto-acceptance retry for terms & guaranteed DPD fallback)
+    // 12. Call Furgonetka API: Confirm/Order Package (with auto-acceptance retry for terms & guaranteed fallback)
     let orderRes: any;
     try {
       orderRes = await furgonetkaClient.orderPackage(packageId);
@@ -535,16 +563,16 @@ export async function POST(req: Request) {
         await furgonetkaClient.acceptRegulations();
         orderRes = await furgonetkaClient.orderPackage(packageId);
       } else {
-        console.warn('[CreatePackage Route] Order failed on carrier API. Creating guaranteed DPD Courier fallback package...');
+        console.warn('[CreatePackage Route] Order failed on carrier API. Creating DPD Courier fallback package with real buyer details...');
         const fallbackDpdPayload: any = {
           ...furgonetkaPayload,
           service_id: 11636590, // DPD Courier (Service ID: 11636590)
           receiver: {
             name: receiverName,
-            street: 'Marszałkowska 1',
-            postcode: '02-222',
-            city: 'Warszawa',
-            country_code: 'PL',
+            street: receiverStreet && receiverStreet.length >= 3 ? receiverStreet : 'Main Street 1',
+            postcode: receiverPostcode,
+            city: receiverCity,
+            country_code: receiverCountryCode,
             phone: receiverPhone,
             email: shippingDetails?.email || 'recipient@printis.store'
           }
@@ -552,11 +580,11 @@ export async function POST(req: Request) {
         delete fallbackDpdPayload.pickup.point;
         delete fallbackDpdPayload.receiver.point;
 
-        console.log('[CreatePackage Route] Guaranteed DPD Courier fallback payload:', JSON.stringify(fallbackDpdPayload, null, 2));
+        console.log('[CreatePackage Route] DPD Courier fallback payload:', JSON.stringify(fallbackDpdPayload, null, 2));
         const dpdRes = await furgonetkaClient.createPackage(fallbackDpdPayload);
         if (dpdRes && dpdRes.package_id) {
           packageId = dpdRes.package_id;
-          console.log(`[CreatePackage Route] Created guaranteed DPD Courier package ID: ${packageId}. Now ordering...`);
+          console.log(`[CreatePackage Route] Created DPD Courier package ID: ${packageId}. Now ordering...`);
           await furgonetkaClient.acceptRegulations();
           orderRes = await furgonetkaClient.orderPackage(packageId);
         } else {
