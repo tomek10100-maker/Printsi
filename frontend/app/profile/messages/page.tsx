@@ -658,6 +658,27 @@ function MessagesInner() {
                 message_type: 'shipment_confirmation_request',
             });
 
+            // Trigger Email Notification to Buyer (in English, professional design)
+            try {
+                const buyerId = activeChatData?.buyer_id;
+                const productTitle = activeChatData?.orderItem?.offers?.title || activeChatData?.offer?.title || '3D Printed Item';
+                const sellerName = currentUser?.user_metadata?.full_name || currentUser?.email || 'Seller';
+                if (buyerId) {
+                    await fetch('/api/order/verification-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            buyerId,
+                            productTitle,
+                            sellerName,
+                            photoCount: photoUrls.length
+                        })
+                    });
+                }
+            } catch (emailErr) {
+                console.error('Failed to trigger verification ready email:', emailErr);
+            }
+
             setVerificationFiles([]);
             loadMessages(activeChatId);
         } catch (err) {

@@ -962,5 +962,43 @@ export const EmailTemplates = {
       body
     );
   },
+
+  // ────────────────────────────────────────
+  // 21. PRINT VERIFICATION READY (buyer)
+  // ────────────────────────────────────────
+  printVerificationReady: (buyerName: string, productTitle: string, sellerName: string, photoCount: number) => {
+    const body = `
+      <p style="margin:0 0 12px;color:#1e293b;font-size:20px;font-weight:700;">Hello ${buyerName}! 📸</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
+        Your 3D printed item <strong>"${productTitle}"</strong> has been completed by <strong>${sellerName}</strong>!
+      </p>
+
+      <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:20px;padding:32px;margin:28px 0;border:1px solid #bfdbfe;text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">📸</div>
+        <div style="color:#1e40af;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Status Update</div>
+        <div style="color:#1d4ed8;font-size:22px;font-weight:900;">READY FOR QUALITY VERIFICATION</div>
+        <div style="color:#3b82f6;font-size:13px;font-weight:700;margin-top:8px;background:#ffffff;display:inline-block;padding:6px 16px;border-radius:100px;border:1px solid #bfdbfe;">
+          ${photoCount} Verification Photo${photoCount === 1 ? '' : 's'} Attached
+        </div>
+      </div>
+
+      <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
+        Please log in to your Printis account and review the print verification photos in the chat. Once you confirm that the quality looks great, the seller will generate the courier shipping label and dispatch your order.
+      </p>
+
+      ${ctaButton('Review & Confirm Print Quality', `${SITE_URL}/profile/messages`, '#2563eb')}
+
+      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;text-align:center;">
+        If you have any questions or special requests, you can message the seller directly in your order chat thread.
+      </p>
+    `;
+
+    return emailWrapper(
+      'linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%)',
+      '📸 Verification Ready',
+      'Print Inspection Requested',
+      body
+    );
+  },
 };
 

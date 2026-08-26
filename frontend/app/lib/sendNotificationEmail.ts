@@ -522,3 +522,27 @@ export async function sendDisputeResolutionEmail(
     console.error('❌ Failed to send dispute resolution emails:', err);
   }
 }
+
+/**
+ * Send "print verification ready" email to buyer when seller attaches print photos.
+ */
+export async function sendVerificationReadyEmail(
+  buyerId: string,
+  productTitle: string,
+  sellerName: string,
+  photoCount: number
+) {
+  try {
+    const buyer = await getUserEmailInfo(buyerId);
+    if (!buyer?.email) return;
+
+    await sendEmail({
+      to: buyer.email,
+      subject: `📸 Your order "${productTitle}" is ready for print verification!`,
+      html: EmailTemplates.printVerificationReady(buyer.name, productTitle, sellerName, photoCount),
+    });
+    console.log(`✅ Verification ready email sent to buyer ${buyer.email} for product ${productTitle}`);
+  } catch (err) {
+    console.error('❌ Failed to send verification ready email:', err);
+  }
+}
