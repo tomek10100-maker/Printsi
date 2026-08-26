@@ -566,7 +566,19 @@ export async function POST(req: Request) {
       if (errStr.includes('terms_and_conditions_not_valid')) {
         console.warn('[CreatePackage Route] Regulations not accepted during ordering. Attempting auto-acceptance...');
         await furgonetkaClient.acceptRegulations();
-        orderRes = await furgonetkaClient.orderPackage(packageId);
+        try {
+          orderRes = await furgonetkaClient.orderPackage(packageId);
+        } catch (retryErr: any) {
+          if (retryErr.message?.includes('saldo') || retryErr.message?.includes('Cena przesyłek jest większa') || retryErr.message?.includes('balance')) {
+            console.warn('[CreatePackage Route] Furgonetka account balance insufficient. Preserving draft package ID:', packageId);
+            orderRes = { status: 'draft_created', package_id: packageId, is_draft: true };
+          } else {
+            throw retryErr;
+          }
+        }
+      } else if (errStr.includes('saldo') || errStr.includes('Cena przesyłek jest większa') || errStr.includes('balance')) {
+        console.warn('[CreatePackage Route] Furgonetka account balance insufficient. Preserving draft package ID:', packageId);
+        orderRes = { status: 'draft_created', package_id: packageId, is_draft: true };
       } else {
         console.warn('[CreatePackage Route] Order failed on carrier API. Creating DPD Courier fallback package with real buyer details...');
         const fallbackDpdPayload: any = {
@@ -591,7 +603,16 @@ export async function POST(req: Request) {
           packageId = dpdRes.package_id;
           console.log(`[CreatePackage Route] Created DPD Courier package ID: ${packageId}. Now ordering...`);
           await furgonetkaClient.acceptRegulations();
-          orderRes = await furgonetkaClient.orderPackage(packageId);
+          try {
+            orderRes = await furgonetkaClient.orderPackage(packageId);
+          } catch (dpdOrderErr: any) {
+            if (dpdOrderErr.message?.includes('saldo') || dpdOrderErr.message?.includes('Cena przesyłek jest większa') || dpdOrderErr.message?.includes('balance')) {
+              console.warn('[CreatePackage Route] DPD fallback package created as draft (balance insufficient):', packageId);
+              orderRes = { status: 'draft_created', package_id: packageId, is_draft: true };
+            } else {
+              throw dpdOrderErr;
+            }
+          }
         } else {
           throw err;
         }
