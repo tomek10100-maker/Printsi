@@ -805,23 +805,31 @@ function MarketplaceContent() {
                     </div>
 
                     {/* Vinted Card Info */}
-                    <div className="p-2.5 flex flex-col flex-grow justify-between gap-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-sm font-black text-gray-900 dark:text-white whitespace-nowrap">{formatPrice(offer.price)}</span>
-                        
+                    <div className="p-2.5 flex flex-col flex-grow justify-between gap-1.5">
+                      {/* Top row: Title (Larger) + Heart Button (Larger & Clickable) */}
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-500 transition-colors flex-1">
+                          {offer.title}
+                        </h3>
+
                         {/* Heart / Favorite Button */}
                         <button
                           type="button"
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(offer.id); }}
-                          title="Favorite"
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700/60 transition-all cursor-pointer group active:scale-90"
+                          title={isLiked ? "Remove from Favorites" : "Add to Favorites"}
+                          className="group/heart flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 hover:bg-red-500/20 dark:bg-red-950/40 dark:hover:bg-red-900/60 border border-red-500/20 transition-all duration-200 cursor-pointer active:scale-90 hover:scale-110 shrink-0"
                         >
-                          <Heart size={12} className={`transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400'}`} />
-                          <span className="text-[10px] font-extrabold text-gray-500 dark:text-gray-300">{isLiked ? 1 : 0}</span>
+                          <Heart size={16} className={`transition-all duration-200 ${isLiked ? 'fill-red-500 text-red-500 drop-shadow-xs scale-110' : 'text-gray-400 dark:text-gray-400 group-hover/heart:text-red-500'}`} />
+                          <span className={`text-[11px] font-black transition-colors ${isLiked ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400 group-hover/heart:text-red-500'}`}>{isLiked ? 1 : 0}</span>
                         </button>
                       </div>
 
-                      <p className="text-xs font-bold text-gray-800 dark:text-gray-200 line-clamp-1 group-hover:text-blue-600 transition-colors">{offer.title}</p>
+                      {/* Second row: Price (Smaller) */}
+                      <div className="flex items-center">
+                        <span className="text-xs sm:text-sm font-extrabold text-slate-500 dark:text-slate-300 whitespace-nowrap">
+                          {formatPrice(offer.price)}
+                        </span>
+                      </div>
                       
                       <div className="flex items-center justify-between gap-1 mt-0.5 pt-1.5 border-t border-gray-100 dark:border-white/5">
                         <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider truncate">
