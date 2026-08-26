@@ -222,10 +222,10 @@ export async function POST(req: Request) {
     const parsedDims = parseDimensionString(offer?.dimensions);
     const parcel = calculateParcel(parsedDims, totalWeightGrams);
 
-    const safeWeightKg = Math.max(1, Math.ceil(totalWeightGrams / 1000));
-    const safeWidth = Math.max(15, Math.round(parcel.widthCm || 15));
-    const safeHeight = Math.max(11, Math.round(parcel.heightCm || 11));
-    const safeDepth = Math.max(5, Math.round(parcel.lengthCm || 5));
+    const safeWeightKg = Math.min(31, Math.max(1, Math.ceil(totalWeightGrams / 1000)));
+    const safeWidth = Math.min(60, Math.max(15, Math.round(parcel.widthCm || 15)));
+    const safeHeight = Math.min(60, Math.max(11, Math.round(parcel.heightCm || 11)));
+    const safeDepth = Math.min(60, Math.max(5, Math.round(parcel.lengthCm || 5)));
 
     // 10. Format Furgonetka POST /packages payload
     // Helper function to sanitize phone numbers for Furgonetka (requires + prefix and country code e.g. +48500600700)
