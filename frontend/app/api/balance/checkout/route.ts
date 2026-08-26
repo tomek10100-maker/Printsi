@@ -75,9 +75,7 @@ export async function POST(req: Request) {
       .insert({
         buyer_id: userId,
         total_amount: orderTotalEur,
-        subtotal: cartTotalEur,
-        shipping_fee: shippingCostEur || 0,
-        protection_fee: 0,
+        shipping_cost_eur: Number(shippingCostEur) || 0,
         status: 'paid',
         shipping_address: {
           ...(shipping || {}),
