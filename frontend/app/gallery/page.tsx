@@ -956,7 +956,7 @@ function MarketplaceContent() {
                   </button>
 
                   {!offerSoldOut && (!currentUser || currentUser.id !== offer.user_id) && (offer.category !== 'job' || userRoles.includes('printer')) && (() => {
-                    const isAlreadyInCart = offer.category === 'digital' && items.some(i => i.id === offer.id);
+                    const isAlreadyInCart = items.some(i => i.id === offer.id);
                     return (
                       <button
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); isAlreadyInCart ? router.push('/cart') : handleAddToCart(offer); }}
