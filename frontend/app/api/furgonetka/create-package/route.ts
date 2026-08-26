@@ -213,12 +213,19 @@ export async function POST(req: Request) {
     if (selectedPoint?.courier) {
       carrier = selectedPoint.courier;
     }
-    const serviceId = getServiceId(carrier);
+    const serviceId = getServiceId(carrier);    // 9. Calculate Parcel Dimensions and Weight safely
+    const rawWeight = parseWeightToGrams(offer?.weight);
+    const validWeightGrams = typeof rawWeight === 'number' && !isNaN(rawWeight) && rawWeight >= 100 ? rawWeight : 500;
+    const qty = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
+    const totalWeightGrams = validWeightGrams * qty;
 
-    // 9. Calculate Parcel Dimensions and Weight
-    const weightGrams = parseWeightToGrams(offer?.weight) || 500;
     const parsedDims = parseDimensionString(offer?.dimensions);
-    const parcel = calculateParcel(parsedDims, weightGrams * item.quantity);
+    const parcel = calculateParcel(parsedDims, totalWeightGrams);
+
+    const safeWeightKg = Math.max(1, Math.ceil(totalWeightGrams / 1000));
+    const safeWidth = Math.max(15, Math.round(parcel.widthCm || 15));
+    const safeHeight = Math.max(11, Math.round(parcel.heightCm || 11));
+    const safeDepth = Math.max(5, Math.round(parcel.lengthCm || 5));
 
     // 10. Format Furgonetka POST /packages payload
     // Helper function to sanitize phone numbers for Furgonetka (requires + prefix and country code e.g. +48500600700)
@@ -239,7 +246,7 @@ export async function POST(req: Request) {
     const sanitizeName = (name: string, defaultName: string = 'Jan Kowalski'): string => {
       let clean = (name || '').replace(/[^\p{L}\s]/gu, '').replace(/\s+/g, ' ').trim();
       if (!clean || clean.length < 3) return defaultName;
-      const parts = clean.split(' ').filter(p => p.length >= 2);
+      const parts = clean.split(' ').filter((p: string) => p.length >= 2);
       if (parts.length === 0) return defaultName;
       if (parts.length === 1) {
         return `${parts[0]} Kowalski`;
@@ -419,10 +426,10 @@ export async function POST(req: Request) {
       },
       parcels: [
         {
-          width: Math.max(15, Math.round(parcel.widthCm || 15)),
-          height: Math.max(11, Math.round(parcel.heightCm || 11)),
-          depth: Math.max(5, Math.round(parcel.lengthCm || 5)), // depth is used as length
-          weight: Math.max(1, Math.ceil((parcel.weightGrams || 500) / 1000)), // weight in full integer kg
+          width: safeWidth,
+          height: safeHeight,
+          depth: safeDepth,
+          weight: safeWeightKg,
           type: 'package'
         }
       ],
