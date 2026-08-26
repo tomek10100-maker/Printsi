@@ -2504,8 +2504,10 @@ function MessagesInner() {
 
         const showShipCard = status === 'pending' && isPrinter;
         const showWaitCard = status === 'pending' && isCustomer;
-        const showConfirmDelivery = status === 'shipped' && isCustomer;
-        const showShippedWait = status === 'shipped' && isPrinter;
+        const showInTransitCustomer = (status === 'shipped' || status === 'in_transit') && !isDigital && isCustomer;
+        const showInTransitPrinter = (status === 'shipped' || status === 'in_transit') && !isDigital && isPrinter;
+        const showDeliveredCustomer = (status === 'delivered' || (status === 'shipped' && isDigital)) && isCustomer;
+        const showDeliveredPrinter = (status === 'delivered' || (status === 'shipped' && isDigital)) && isPrinter;
 
         const pendingVerificationRequest = messages.some((m: any) => m.message_type === 'shipment_confirmation_request');
 
@@ -2715,25 +2717,76 @@ function MessagesInner() {
             );
         }
 
-        if (showConfirmDelivery) {
-            const digitalFileUrl = chatData?.offers?.file_url;
+        if (showInTransitCustomer) {
+            const trackingNo = orderItem.tracking_number || orderItem.tracking_code;
+            const carrier = orderItem.carrier || 'Courier';
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-200 rounded-2xl p-5 text-center shadow-sm space-y-3">
-                            <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center">
-                                {isDigital ? <Mail size={18} className="text-emerald-600" /> : <PackageCheck size={18} className="text-emerald-600" />}
+                        <div className="w-full max-w-md bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-200 rounded-2xl p-5 text-center shadow-sm space-y-3">
+                            <div className="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner">
+                                <Truck size={20} className="animate-pulse" />
                             </div>
-                            <p className="text-sm font-bold text-gray-800">
-                                {isJob ? 'Your printed item is on its way!' : isDigital ? 'Files delivered!' : 'Package on its way!'}
+                            <p className="text-sm font-black text-slate-800">
+                                📦 Package In Transit ({carrier.toUpperCase()})
                             </p>
-                            <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                                {isJob
-                                    ? "The printer has shipped your item. Have you received it? Confirm delivery below."
-                                    : isDigital
-                                        ? "Your digital file purchase is complete. Click below to download your 3D model."
-                                        : "The seller has shipped your order. Have you received the package? Confirm delivery below."}
+                            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                                The seller has shipped your order. Your package is currently on its way with the courier. You will be able to verify and confirm receipt once the package is delivered.
                             </p>
+                            {trackingNo && (
+                                <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-white rounded-xl border border-blue-200 text-xs font-mono font-bold text-blue-700 shadow-xs mx-auto">
+                                    <span>Tracking #: {trackingNo}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (showInTransitPrinter) {
+            return (
+                <div className="flex flex-col gap-2 my-4">
+                    <div className="flex justify-center px-4 w-full">
+                        <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
+                            <p className="text-xs font-bold text-blue-700">
+                                📦 Package shipped! Handed over to the courier. Waiting for delivery to the customer...
+                            </p>
+                            {isPrinter && (orderItem.furgonetka_package_id || orderItem.tracking_code || orderItem.label_url) && (
+                                <button
+                                    onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
+                                    className="mt-3 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 mx-auto transition-all shadow-md active:scale-95 cursor-pointer"
+                                >
+                                    <Printer size={14} /> 📥 Download Courier Shipping Label (PDF)
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (showDeliveredCustomer) {
+            const digitalFileUrl = chatData?.offers?.file_url;
+            const confirmDeadline = orderItem.buyer_confirm_deadline ? new Date(orderItem.buyer_confirm_deadline) : null;
+            return (
+                <div className="flex flex-col gap-2 my-4">
+                    <div className="flex justify-center px-4 w-full">
+                        <div className="w-full max-w-md bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white border-2 border-emerald-300 rounded-2xl p-5 text-center shadow-md space-y-3.5">
+                            <div className="w-12 h-12 mx-auto bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-inner">
+                                {isDigital ? <Download size={22} /> : <CheckCircle2 size={24} />}
+                            </div>
+                            <div>
+                                <h4 className="text-base font-black text-slate-900">
+                                    {isDigital ? '📦 Your 3D File is Ready!' : '✅ Package Delivered — Is Everything OK?'}
+                                </h4>
+                                <p className="text-xs text-slate-600 font-medium leading-relaxed mt-1">
+                                    {isDigital
+                                        ? 'Your digital purchase is ready for download.'
+                                        : 'The courier has delivered your package. Please inspect your item. If everything is fine with your order, confirm below to release payment to the seller.'}
+                                </p>
+                            </div>
+
                             {isDigital && digitalFileUrl && (
                                 <a
                                     href={digitalFileUrl}
@@ -2744,21 +2797,35 @@ function MessagesInner() {
                                     <Download size={18} /> 📥 Download 3D File (STL / 3MF)
                                 </a>
                             )}
-                            <div className="flex gap-3 justify-center pt-1">
-                                <button
-                                    onClick={() => handleStatusUpdate('completed')}
-                                    disabled={statusUpdating}
-                                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
-                                >
-                                    {statusUpdating ? <Loader2 size={14} className="inline mr-2 animate-spin" /> : <CheckCircle2 size={14} className="inline mr-2 -mt-0.5" />} {isDigital ? 'Accept Files' : 'I Received It'}
-                                </button>
-                                <button
-                                    onClick={() => handleStatusUpdate('disputed')}
-                                    disabled={statusUpdating}
-                                    className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-500/20 disabled:opacity-50"
-                                >
-                                    <AlertTriangle size={14} className="inline mr-2 -mt-0.5" /> Problem
-                                </button>
+
+                            <div className="space-y-2 pt-1">
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleConfirmReceipt(orderItem.id)}
+                                        disabled={confirmingShipment}
+                                        className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                        {confirmingShipment ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
+                                        EVERYTHING IS OK! CONFIRM
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setDisputeEmail(currentUser?.email || '');
+                                            setDisputeProblemType('quality_issue');
+                                            setDisputeDescription('Item arrived damaged / not as described / issue with package.');
+                                            setShowDisputeModal(true);
+                                        }}
+                                        disabled={confirmingShipment}
+                                        className="px-3.5 py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-red-500/20 disabled:opacity-50 flex items-center justify-center gap-1 cursor-pointer"
+                                    >
+                                        <ShieldAlert size={14} /> Problem
+                                    </button>
+                                </div>
+                                {confirmDeadline && (
+                                    <p className="text-[10px] text-emerald-700 font-bold">
+                                        ⏰ Auto-confirms on {confirmDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} if no issue is reported.
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -2766,23 +2833,14 @@ function MessagesInner() {
             );
         }
 
-        if (showShippedWait) {
+        if (showDeliveredPrinter) {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
-                            <p className="text-xs font-bold text-blue-700">
-                                {isJob ? '📦 Item shipped! Waiting for the customer to confirm delivery...'
-                                    : isDigital ? '📧 Files sent! Waiting for the buyer to accept them...' : '📦 Package sent! Waiting for the buyer to confirm delivery...'}
+                        <div className="w-full max-w-md bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-center">
+                            <p className="text-xs font-bold text-emerald-800">
+                                ✅ Package delivered to customer! Waiting for buyer confirmation or automatic payout release in 2 days.
                             </p>
-                            {isPrinter && (orderItem.furgonetka_package_id || orderItem.tracking_code || orderItem.label_url) && (
-                                <button
-                                    onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
-                                    className="mt-3 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 mx-auto transition-all shadow-md active:scale-95 cursor-pointer"
-                                >
-                                    <Printer size={14} /> 📥 Download Courier Shipping Label (PDF)
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
