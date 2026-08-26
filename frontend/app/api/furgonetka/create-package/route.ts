@@ -257,18 +257,50 @@ export async function POST(req: Request) {
     const safeDepth = Math.min(60, Math.max(5, Math.round(parcel.lengthCm || 5)));
 
     // 10. Format Furgonetka POST /packages payload
-    // Helper function to sanitize phone numbers for Furgonetka (requires + prefix and country code e.g. +48500600700)
-    const sanitizePhone = (phone: string, defaultPhone: string): string => {
-      const raw = (phone || '').trim();
-      if (raw.startsWith('+') && raw.replace(/\D/g, '').length >= 9) {
-        return `+${raw.replace(/\D/g, '')}`;
+    // Helper function to sanitize phone numbers for Furgonetka
+    const sanitizePhone = (phone: string, targetCountry: string = 'PL', defaultPhone: string = '600700800'): string => {
+      let raw = (phone || '').trim();
+      const country = (targetCountry || 'PL').toUpperCase();
+      const digitsOnly = raw.replace(/\D/g, '');
+
+      const prefixMap: Record<string, string> = {
+        'PL': '+48',
+        'FR': '+33',
+        'DE': '+49',
+        'ES': '+34',
+        'IT': '+39',
+        'AT': '+43',
+        'CZ': '+420',
+        'SK': '+421',
+        'US': '+1',
+        'GB': '+44',
+      };
+      const defaultPrefix = prefixMap[country] || '+48';
+
+      // If user typed E.164 with + and valid digits length
+      if (raw.startsWith('+')) {
+        if (digitsOnly.length >= 9 && digitsOnly.length <= 15) {
+          return `+${digitsOnly}`;
+        }
       }
-      const digits = raw.replace(/\D/g, '');
-      if (digits.length >= 9) {
-        const last9 = digits.slice(-9);
-        return `+48${last9}`;
+
+      // If country code is already included in digits
+      if (country === 'FR' && digitsOnly.startsWith('33') && digitsOnly.length >= 11) {
+        return `+${digitsOnly}`;
       }
-      return `+48${defaultPhone}`;
+      if (country === 'PL' && digitsOnly.startsWith('48') && digitsOnly.length === 11) {
+        return `+${digitsOnly}`;
+      }
+
+      // If user typed 9-digit national subscriber number
+      if (digitsOnly.length >= 9) {
+        const last9 = digitsOnly.slice(-9);
+        return `${defaultPrefix}${last9}`;
+      }
+
+      // Fallback for short/invalid numbers to prevent Furgonetka invalidFromToLimit 400 error
+      const fallbackSubscriber = country === 'FR' ? '612345678' : defaultPhone;
+      return `${defaultPrefix}${fallbackSubscriber}`;
     };
 
     // Helper function to sanitize names for Furgonetka (only letters and spaces, at least 2 words, each word >= 2 letters)
@@ -283,8 +315,11 @@ export async function POST(req: Request) {
       return parts.join(' ');
     };
 
-    const pickupPhone = sanitizePhone(senderProfile.phone_number || (senderProfile as any).phone, '500600700');
-    const receiverPhone = sanitizePhone(shippingDetails.phone, '600700800');
+    const pointCountry = isPickupPoint ? (selectedPoint.country || selectedPoint.country_code || shippingDetails?.country) : shippingDetails?.country;
+    const receiverCountryCode = getCountryCode(pointCountry);
+
+    const pickupPhone = sanitizePhone(senderProfile.phone_number || (senderProfile as any).phone, 'PL', '500600700');
+    const receiverPhone = sanitizePhone(shippingDetails.phone, receiverCountryCode, '600700800');
 
     const formatPostcodeForCountry = (zip: string, countryCode: string): string => {
       const clean = (zip || '').trim().replace(/[-\s]/g, '');
@@ -357,9 +392,6 @@ export async function POST(req: Request) {
 
     const pickupName = sanitizeName(senderProfile.full_name, 'Jan Kowalski');
     const receiverName = sanitizeName(shippingDetails.full_name, 'Jan Kowalski');
-
-    const pointCountry = isPickupPoint ? (selectedPoint.country || selectedPoint.country_code || shippingDetails?.country) : shippingDetails?.country;
-    const receiverCountryCode = getCountryCode(pointCountry);
 
     let receiverPostcode: string;
     let receiverCity: string;

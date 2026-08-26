@@ -578,6 +578,20 @@ function CheckoutInner() {
         });
         const data = await response.json();
 
+        const userFriendlyError = (rawErr: string): string => {
+          if (!rawErr) return 'Checkout error. Please try again.';
+          if (rawErr.includes('/receiver/phone') || rawErr.includes('invalidFromToLimit') || rawErr.includes('liczba znaków')) {
+            return 'Invalid recipient phone number. Please enter a valid 9-digit mobile phone number.';
+          }
+          if (rawErr.includes('postcode') || rawErr.includes('postal code') || rawErr.includes('City name')) {
+            return 'City name and postal code do not match. Please verify location details.';
+          }
+          if (rawErr.includes('saldo') || rawErr.includes('Cena przesyłek jest większa')) {
+            return 'Carrier account balance notice. Package draft created.';
+          }
+          return rawErr.replace(/\[DEBUG\].*?Details:\s*\{.*/gi, '').trim() || rawErr;
+        };
+
         if (data.success) {
           // Remove only purchased seller's items from cart
           const sellerToClear = items[0]?.seller_id || selectedSellerId;
@@ -590,7 +604,7 @@ function CheckoutInner() {
           // Sukces płatności balansem - przekierowanie do wiadomości lub zamówień
           window.location.href = data.chatId ? `/profile/messages?chat=${data.chatId}` : `/profile/messages`;
         } else {
-          alert('Error: ' + data.error);
+          alert('Error: ' + userFriendlyError(data.error));
           setLoading(false);
           isSubmittingRef.current = false;
         }
