@@ -496,11 +496,13 @@ function CheckoutInner() {
         return;
       }
 
-      // 3. Postal Code Validation
-      if (country === 'FR' || country === 'DE' || country === 'IT' || country === 'ES') {
-        if (digitsOnly.length !== 5) {
-          alert(`Postal code for ${country} must contain exactly 5 digits (e.g. 69003 for Lyon).`);
-          return;
+      // 3. Postal Code Validation (strictly required ONLY for home address delivery, bypassed for pickup points!)
+      if (!isPickupOption) {
+        if (country === 'FR' || country === 'DE' || country === 'IT' || country === 'ES') {
+          if (digitsOnly.length !== 5) {
+            alert(`Postal code for ${country} must contain exactly 5 digits (e.g. 69003 for Lyon).`);
+            return;
+          }
         }
       }
     }
@@ -551,6 +553,18 @@ function CheckoutInner() {
           country: formData.country
         } : undefined;
 
+        // Sanitize pickup point zip code (e.g. 74-210 -> 74210 for France)
+        const pointZipRaw = (selectedPoint?.zip || (selectedPoint as any)?.postcode || '').trim();
+        const sanitizedPointZip = (formData.country === 'FR' || formData.country === 'DE' || formData.country === 'IT' || formData.country === 'ES')
+          ? pointZipRaw.replace(/\D/g, '')
+          : pointZipRaw;
+
+        const cleanPoint = selectedPoint ? {
+          ...selectedPoint,
+          zip: sanitizedPointZip,
+          postcode: sanitizedPointZip
+        } : undefined;
+
         const response = await fetch('/api/balance/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -559,7 +573,7 @@ function CheckoutInner() {
             items,
             shipping: shippingDetails,
             shippingCostEur: shippingEur || 0,
-            selectedPoint: selectedPoint || undefined
+            selectedPoint: cleanPoint
           }),
         });
         const data = await response.json();
@@ -585,6 +599,18 @@ function CheckoutInner() {
         if (sellerToClear) {
           try { sessionStorage.setItem('printis_purchased_seller_id', sellerToClear); } catch {}
         }
+
+        const pointZipRaw = (selectedPoint?.zip || (selectedPoint as any)?.postcode || '').trim();
+        const sanitizedPointZip = (formData.country === 'FR' || formData.country === 'DE' || formData.country === 'IT' || formData.country === 'ES')
+          ? pointZipRaw.replace(/\D/g, '')
+          : pointZipRaw;
+
+        const cleanPoint = selectedPoint ? {
+          ...selectedPoint,
+          zip: sanitizedPointZip,
+          postcode: sanitizedPointZip
+        } : undefined;
+
         const body = isTopup
           ? { userId: user.id, isTopup: true, topupAmount: numericTopup, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate }
           : {
@@ -597,7 +623,7 @@ function CheckoutInner() {
                 name: formData.fullName,
                 address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country }
               } : undefined,
-              selectedPoint: selectedPoint || undefined
+              selectedPoint: cleanPoint
             };
 
         const response = await fetch('/api/stripe/checkout', {
