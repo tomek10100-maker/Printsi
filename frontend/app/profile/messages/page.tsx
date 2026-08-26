@@ -18,6 +18,58 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+export type DeliveryType = 'COURIER' | 'PICKUP_POINT' | 'PARCEL_LOCKER';
+
+export interface TrackingStatusView {
+  badgeText: string;
+  title: string;
+  description: string;
+}
+
+export function getTrackingStatusInfo(
+  status: string,
+  deliveryType: DeliveryType,
+  pointName?: string,
+  carrierName?: string
+): TrackingStatusView {
+  const isLocker = deliveryType === 'PICKUP_POINT' || deliveryType === 'PARCEL_LOCKER';
+  const displayCarrier = (carrierName || 'Courier').toUpperCase();
+
+  switch ((status || '').toUpperCase()) {
+    case 'IN_TRANSIT':
+    case 'SHIPPED':
+      return {
+        badgeText: isLocker ? 'PARCEL LOCKER' : 'COURIER',
+        title: `Package In Transit (${isLocker ? 'LOCKER' : 'COURIER'})`,
+        description: isLocker
+          ? `The seller has shipped your order. Your package is on its way to the selected parcel locker${pointName ? ` (${pointName})` : ''}.`
+          : `The seller has shipped your order. Your package is currently on its way with ${displayCarrier}.`,
+      };
+    case 'OUT_FOR_DELIVERY':
+    case 'READY_FOR_PICKUP':
+      return {
+        badgeText: isLocker ? 'READY FOR PICKUP' : 'OUT FOR DELIVERY',
+        title: isLocker ? 'Ready for Pickup' : 'Out for Delivery',
+        description: isLocker
+          ? `Your parcel is waiting for pickup at ${pointName || 'the locker'}.`
+          : `The courier is delivering your parcel today.`,
+      };
+    case 'DELIVERED':
+    case 'COMPLETED':
+      return {
+        badgeText: 'DELIVERED',
+        title: 'Package Delivered',
+        description: 'Your package has been successfully collected.',
+      };
+    default:
+      return {
+        badgeText: 'PROCESSING',
+        title: 'Order Processing',
+        description: 'Your package is being prepared.',
+      };
+  }
+}
+
 const PROBLEM_TYPES = [
     { value: 'damaged', label: 'Damaged Item', icon: '📦💥', digital: false },
     { value: 'wrong_item', label: 'Wrong Item Received', icon: '🔄', digital: false },
@@ -2785,6 +2837,18 @@ function MessagesInner() {
         if (showInTransitCustomer) {
             const trackingNo = orderItem.tracking_number || orderItem.tracking_code;
             const carrier = orderItem.carrier || 'Courier';
+            const selectedPoint = orderItem?.shipping_address?.selected_point || orderItem?.selected_point;
+            const isLocker = !!selectedPoint?.code || ['inpost_paczkomat', 'dpd_pickup', 'dhl_pop', 'orlen_paczka'].includes(orderItem?.shipping_method_id || '');
+            const deliveryType: DeliveryType = isLocker ? 'PARCEL_LOCKER' : 'COURIER';
+            const pointName = selectedPoint?.name || selectedPoint?.code;
+
+            const statusInfo = getTrackingStatusInfo(
+                orderItem.status || 'IN_TRANSIT',
+                deliveryType,
+                pointName,
+                carrier
+            );
+
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
@@ -2793,10 +2857,10 @@ function MessagesInner() {
                                 <Truck size={20} className="animate-pulse" />
                             </div>
                             <p className="text-sm font-black text-slate-800">
-                                📦 Package In Transit ({carrier.toUpperCase()})
+                                📦 {statusInfo.title}
                             </p>
                             <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                                The seller has shipped your order. Your package is currently on its way with the courier. You will be able to verify and confirm receipt once the package is delivered.
+                                {statusInfo.description}
                             </p>
                             {trackingNo && (
                                 <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-white rounded-xl border border-blue-200 text-xs font-mono font-bold text-blue-700 shadow-xs mx-auto">
@@ -2810,12 +2874,19 @@ function MessagesInner() {
         }
 
         if (showInTransitPrinter) {
+            const selectedPoint = orderItem?.shipping_address?.selected_point || orderItem?.selected_point;
+            const isLocker = !!selectedPoint?.code || ['inpost_paczkomat', 'dpd_pickup', 'dhl_pop', 'orlen_paczka'].includes(orderItem?.shipping_method_id || '');
+            const pointName = selectedPoint?.name || selectedPoint?.code;
+
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
                             <p className="text-xs font-bold text-blue-700">
-                                📦 Package shipped! Handed over to the courier. Waiting for delivery to the customer...
+                                {isLocker
+                                  ? `📦 Package shipped! Handed over for delivery to locker${pointName ? ` (${pointName})` : ''}. Waiting for customer pickup...`
+                                  : '📦 Package shipped! Handed over to the courier. Waiting for delivery to customer...'
+                                }
                             </p>
                             {isPrinter && (orderItem.furgonetka_package_id || orderItem.tracking_code || orderItem.label_url) && (
                                 <button
