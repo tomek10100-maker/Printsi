@@ -374,6 +374,41 @@ export default function EditOfferPage() {
   };
   const removeImage = (i: number) => setPreviewImages(prev => prev.filter((_, idx) => idx !== i));
 
+  // Handle Ctrl+V image paste anywhere on edit page
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const clipboardItems = e.clipboardData?.items;
+      if (!clipboardItems) return;
+
+      const pastedImageFiles: File[] = [];
+      for (let i = 0; i < clipboardItems.length; i++) {
+        const item = clipboardItems[i];
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            const ext = file.type.split('/')[1] || 'png';
+            const renamedFile = new File([file], `pasted_listing_${Date.now()}_${i}.${ext}`, { type: file.type });
+            pastedImageFiles.push(renamedFile);
+          }
+        }
+      }
+
+      if (pastedImageFiles.length > 0) {
+        setPreviewImages(prev => {
+          if (prev.length + existingImages.length + pastedImageFiles.length > 5) {
+            setFormError('Max 5 photos allowed.');
+            return prev;
+          }
+          setFormError('');
+          return [...prev, ...pastedImageFiles];
+        });
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [existingImages]);
+
   const computeVariantEUR = useCallback((v: ColorVariant) => {
     let materialEUR = 0;
     for (const l of v.layers) {

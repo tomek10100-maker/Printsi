@@ -535,6 +535,42 @@ export default function AddOfferPage() {
   };
   const removeImage = (i: number) => setPreviewImages(prev => prev.filter((_, idx) => idx !== i));
 
+  // Handle Ctrl+V image paste anywhere on the upload page
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      // Don't intercept if user is typing in a text input / textarea unless pasting image
+      const clipboardItems = e.clipboardData?.items;
+      if (!clipboardItems) return;
+
+      const pastedImageFiles: File[] = [];
+      for (let i = 0; i < clipboardItems.length; i++) {
+        const item = clipboardItems[i];
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            const ext = file.type.split('/')[1] || 'png';
+            const renamedFile = new File([file], `pasted_listing_${Date.now()}_${i}.${ext}`, { type: file.type });
+            pastedImageFiles.push(renamedFile);
+          }
+        }
+      }
+
+      if (pastedImageFiles.length > 0) {
+        setPreviewImages(prev => {
+          if (prev.length + pastedImageFiles.length > 5) {
+            setFormError('Max 5 photos allowed.');
+            return prev;
+          }
+          setFormError('');
+          return [...prev, ...pastedImageFiles];
+        });
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
+
   // ─── VARIANT MUTATIONS ────────────────────────────────────────────────────────
   const updateVariant = (variantId: string, patch: Partial<ColorVariant>) =>
     setVariants(prev => prev.map(v => v.variantId === variantId ? { ...v, ...patch } : v));
@@ -1179,8 +1215,11 @@ export default function AddOfferPage() {
                 </div>
               )}
               <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
-                <ImageIcon className="mb-3 text-gray-400 group-hover:text-blue-500" size={32} />
-                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Min 1, Max 5)</span>
+                <ImageIcon className="mb-2 text-gray-400 group-hover:text-blue-500" size={32} />
+                <span className="text-xs font-black uppercase text-gray-600">Upload or Paste Photos (Min 1, Max 5)</span>
+                <span className="text-[10px] font-bold text-blue-500 mt-1 flex items-center gap-1">
+                  📋 Paste images directly with <kbd className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded border border-blue-200 font-mono text-[9px]">Ctrl + V</kbd>
+                </span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
               </label>
               {previewImages.length > 0 && (

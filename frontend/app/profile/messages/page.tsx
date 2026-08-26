@@ -155,6 +155,34 @@ function MessagesInner() {
     const [verificationUploading, setVerificationUploading] = useState(false);
     const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
 
+    // Handle Ctrl+V image paste for verification photos
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            const clipboardItems = e.clipboardData?.items;
+            if (!clipboardItems) return;
+
+            const pastedImageFiles: File[] = [];
+            for (let i = 0; i < clipboardItems.length; i++) {
+                const item = clipboardItems[i];
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        const ext = file.type.split('/')[1] || 'png';
+                        const renamedFile = new File([file], `verification_photo_${Date.now()}_${i}.${ext}`, { type: file.type });
+                        pastedImageFiles.push(renamedFile);
+                    }
+                }
+            }
+
+            if (pastedImageFiles.length > 0) {
+                setVerificationFiles(prev => [...prev, ...pastedImageFiles].slice(0, 5));
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => window.removeEventListener('paste', handlePaste);
+    }, []);
+
     // Tracking code state
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
     const [swappedLayers, setSwappedLayers] = useState<any[]>([]);
@@ -2617,7 +2645,7 @@ function MessagesInner() {
                                             className="w-full py-2.5 px-3 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 rounded-xl text-xs font-bold text-indigo-700 flex items-center justify-center gap-2 cursor-pointer transition-all mb-3"
                                         >
                                             <Upload size={14} />
-                                            {verificationFiles.length === 0 ? 'Upload Print Photos (Max 5)' : 'Add More Photos'}
+                                            {verificationFiles.length === 0 ? 'Upload or Paste Photos (Ctrl+V, Max 5)' : 'Add More Photos (Ctrl+V)'}
                                         </label>
                                     )}
                                 </div>
