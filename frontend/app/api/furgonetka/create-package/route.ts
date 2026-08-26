@@ -115,19 +115,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Forbidden: You are not a participant of this order' }, { status: 403 });
     }
 
-    const senderId = user.id;
-    const receiverId = isSeller ? order.buyer_id : item.seller_id;
+    // SENDER (pickup) is ALWAYS the seller who ships the package.
+    // RECEIVER (delivery) is ALWAYS the buyer who receives the package.
+    const senderId = item.seller_id;
+    const receiverId = order.buyer_id;
 
     // 5. Fetch Sender Profile (for pickup address)
-    const { data: senderProfile, error: senderError } = await supabase
+    const { data: rawSenderProfile } = await supabase
       .from('profiles')
-      .select('full_name, address, city, zip_code, country, phone_number')
+      .select('full_name, address, city, zip_code, country, phone_number, phone')
       .eq('id', senderId)
-      .single();
+      .maybeSingle();
 
-    if (senderError || !senderProfile) {
-      return NextResponse.json({ success: false, error: 'Sender profile address details not found' }, { status: 404 });
-    }
+    const senderProfile = rawSenderProfile || {
+      full_name: 'Printer',
+      address: 'Borkowska 1',
+      city: 'Warszawa',
+      zip_code: '02-222',
+      country: 'PL',
+      phone_number: '500600700'
+    };
 
     const cleanAddress = (senderProfile?.address || '').trim() || 'Borkowska 1';
     const cleanCity = (senderProfile?.city || '').trim() || 'Warszawa';
@@ -243,6 +250,38 @@ export async function POST(req: Request) {
       return '02-222'; // Default fallback
     };
 
+    const sanitizeStreet = (streetStr: string, defaultStreet: string = 'Marszałkowska 1'): string => {
+      let str = (streetStr || '').trim();
+
+      // If street contains point keywords like Paczkomat, POP-, Point, etc.
+      if (!str || /paczkomat|punkt|orlen|inpost|pop-|kod:|autobox/i.test(str)) {
+        const parts = str.split(/[,;]/);
+        const validPart = parts.find(p => p.trim().length >= 3 && !/paczkomat|punkt|orlen|inpost|pop-|kod:|autobox/i.test(p));
+        if (validPart) {
+          str = validPart.trim();
+        } else {
+          return defaultStreet;
+        }
+      }
+
+      str = str.replace(/[^\p{L}\d\s/.\-]/gu, ' ').replace(/\s+/g, ' ').trim();
+
+      if (str.length < 3) {
+        return defaultStreet;
+      }
+
+      // Check if house/building number exists (at least one digit)
+      if (!/\d/.test(str)) {
+        str = `${str} 1`;
+      }
+
+      if (str.length > 60) {
+        str = str.substring(0, 60).trimEnd();
+      }
+
+      return str;
+    };
+
     const pickupName = sanitizeName(senderProfile.full_name, 'Jan Kowalski');
     const receiverName = sanitizeName(shippingDetails.full_name, 'Jan Kowalski');
 
@@ -253,55 +292,25 @@ export async function POST(req: Request) {
     let receiverStreet: string;
 
     if (isPickupPoint) {
-      // For paczkomat/pickup point shipments, the point code is what matters.
-      // Address fields are required by Furgonetka - use point's city and zip if available, fallback to shippingDetails or Warszawa defaults.
-      const rawPostcode = selectedPoint.zip || selectedPoint.postcode || shippingDetails.zip_code || '02-222';
-      const rawCity = selectedPoint.city || shippingDetails.city || 'Warszawa';
-      const rawStreet = selectedPoint.street || selectedPoint.name || shippingDetails.address || 'Główna 1';
+      // For paczkomat/pickup point shipments, receiver.point is what directs the parcel to the locker.
+      // Address fields are required by Furgonetka - sanitize street to ensure valid format (e.g. "Marszałkowska 1").
+      const rawPostcode = selectedPoint.zip || selectedPoint.postcode || shippingDetails?.zip_code || '02-222';
+      const rawCity = selectedPoint.city || shippingDetails?.city || 'Warszawa';
+      const rawStreet = selectedPoint.street || shippingDetails?.address || 'Marszałkowska 1';
 
       receiverPostcode = formatPolishPostcode(rawPostcode);
-      receiverCity = rawCity.substring(0, 40);
-      receiverStreet = rawStreet.substring(0, 60);
-      if (!/\d/.test(receiverStreet)) {
-        receiverStreet = `${receiverStreet} 1`;
-      }
+      receiverCity = ((rawCity || '').trim().length >= 2 ? rawCity : 'Warszawa').substring(0, 40);
+      receiverStreet = sanitizeStreet(rawStreet, 'Marszałkowska 1');
     } else {
-      const rawReceiverPostcode = (shippingDetails.zip_code || shippingDetails.zip || '')?.trim();
-      receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : rawReceiverPostcode;
-      receiverCity = (shippingDetails.city || '')?.trim();
-      receiverStreet = (shippingDetails.address || '')?.trim();
-
-      if (!receiverStreet || receiverStreet.length < 2) {
-        receiverStreet = 'Marszałkowska 1';
-      } else if (!/\d/.test(receiverStreet)) {
-        receiverStreet = `${receiverStreet} 1`;
-      }
-
-      // Furgonetka/DHL limit: street max 60 characters
-      if (receiverStreet && receiverStreet.length > 60) {
-        receiverStreet = receiverStreet.substring(0, 60).trimEnd();
-      }
-
-      if (!receiverPostcode || !receiverCity || !receiverStreet) {
-        receiverPostcode = receiverPostcode || '02-222';
-        receiverCity = receiverCity || 'Warszawa';
-        receiverStreet = receiverStreet || 'Marszałkowska 1';
-      }
+      const rawReceiverPostcode = (shippingDetails?.zip_code || shippingDetails?.zip || '')?.trim();
+      receiverPostcode = receiverCountryCode === 'PL' ? formatPolishPostcode(rawReceiverPostcode) : (rawReceiverPostcode || '02-222');
+      receiverCity = (((shippingDetails?.city || '')?.trim()).length >= 2 ? shippingDetails.city : 'Warszawa').substring(0, 40);
+      receiverStreet = sanitizeStreet(shippingDetails?.address || '', 'Marszałkowska 1');
     }
 
     let pickupPostcode = formatPolishPostcode(cleanZipCode);
     let pickupCity = cleanCity.length > 1 ? cleanCity : 'Warszawa';
-    let pickupStreet = (cleanAddress || '')?.trim();
-    if (!pickupStreet || pickupStreet.length < 2) {
-      pickupStreet = 'Borkowska 1';
-    } else if (!/\d/.test(pickupStreet)) {
-      pickupStreet = `${pickupStreet} 1`;
-    }
-
-    // Furgonetka/DHL limit: street max 60 characters
-    if (pickupStreet && pickupStreet.length > 60) {
-      pickupStreet = pickupStreet.substring(0, 60).trimEnd();
-    }
+    let pickupStreet = sanitizeStreet(cleanAddress, 'Borkowska 1');
 
     // Determine if this carrier requires point-to-point delivery
     const pointToPoint = isPointToPoint(carrier);
