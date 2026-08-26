@@ -318,6 +318,14 @@ export async function POST(req: Request) {
       return str;
     };
 
+    const sanitizeCity = (cityName: string, defaultCity: string = 'City'): string => {
+      let clean = (cityName || '').trim();
+      clean = clean.replace(/\s*\(\d+[-\s]?\d*\)/g, '').replace(/\b\d{2}[-\s]?\d{3}\b|\b\d{4,5}\b/g, '').trim();
+      clean = clean.replace(/[^\p{L}\s.\-]/gu, '').replace(/\s+/g, ' ').trim();
+      if (clean.length < 2) return defaultCity;
+      return clean.substring(0, 40);
+    };
+
     const pickupName = sanitizeName(senderProfile.full_name, 'Jan Kowalski');
     const receiverName = sanitizeName(shippingDetails.full_name, 'Jan Kowalski');
 
@@ -334,7 +342,6 @@ export async function POST(req: Request) {
       let rawStreet = (selectedPoint.street || '').trim();
 
       // Extract street, city, zip from point name if selectedPoint attributes are empty
-      // Example: "IT_ITTGR06836P - Via Filippo Turati, 58-043 Castiglione Della Pescaia"
       const pName = (selectedPoint?.name || '').trim();
       if (pName) {
         const cleanPName = pName.replace(/^[A-Z0-9_-]+\s*-\s*/i, '').trim();
@@ -362,22 +369,22 @@ export async function POST(req: Request) {
         }
       }
 
-      if (!rawCity) rawCity = shippingDetails?.city || 'City';
-      if (!rawPostcode) rawPostcode = shippingDetails?.zip_code || shippingDetails?.zip || '00000';
+      if (!rawCity || rawCity.length < 2) rawCity = shippingDetails?.city || 'City';
+      if (!rawPostcode || rawPostcode === '00000') rawPostcode = shippingDetails?.zip_code || shippingDetails?.zip || '02-222';
       if (!rawStreet) rawStreet = shippingDetails?.address || 'Main Street 1';
 
       receiverPostcode = formatPostcodeForCountry(rawPostcode, receiverCountryCode);
-      receiverCity = rawCity.substring(0, 40);
+      receiverCity = sanitizeCity(rawCity, shippingDetails?.city || 'City');
       receiverStreet = sanitizeStreet(rawStreet, 'Main Street 1');
     } else {
       const rawReceiverPostcode = (shippingDetails?.zip_code || shippingDetails?.zip || '')?.trim();
       receiverPostcode = formatPostcodeForCountry(rawReceiverPostcode, receiverCountryCode);
-      receiverCity = (((shippingDetails?.city || '')?.trim()).length >= 2 ? shippingDetails.city : 'City').substring(0, 40);
+      receiverCity = sanitizeCity(shippingDetails?.city || '', 'City');
       receiverStreet = sanitizeStreet(shippingDetails?.address || '', 'Main Street 1');
     }
 
     let pickupPostcode = formatPolishPostcode(cleanZipCode);
-    let pickupCity = cleanCity.length > 1 ? cleanCity : 'Warszawa';
+    let pickupCity = sanitizeCity(cleanCity, 'Warszawa');
     let pickupStreet = sanitizeStreet(cleanAddress, 'Borkowska 1');
 
     // Determine if this carrier requires point-to-point delivery
@@ -422,7 +429,7 @@ export async function POST(req: Request) {
         city: receiverCity,
         country_code: receiverCountryCode,
         phone: receiverPhone,
-        email: shippingDetails.email || 'recipient@printis.store'
+        email: shippingDetails?.email || 'recipient@printis.store'
       },
       parcels: [
         {
@@ -451,8 +458,6 @@ export async function POST(req: Request) {
     }
 
     console.log('[CreatePackage Route] Sending payload to Furgonetka:', JSON.stringify(furgonetkaPayload, null, 2));
-    console.log('[CreatePackage Route] Environment:', process.env.FURGONETKA_ENV || 'sandbox');
-    console.log('[CreatePackage Route] Pickup street:', pickupStreet, '| Receiver street:', receiverStreet);
 
     // 10.5 Proactively accept carrier regulations to prevent 409 terms_and_conditions_not_valid errors
     await furgonetkaClient.acceptRegulations();
@@ -476,6 +481,22 @@ export async function POST(req: Request) {
         } catch (termsRetryErr: any) {
           console.error('[CreatePackage Route] Terms retry failed:', termsRetryErr);
           throw termsRetryErr;
+        }
+      } else if (errMsg.includes('postcode') || errMsg.includes('postal code') || errMsg.includes('City name')) {
+        console.warn('[CreatePackage Route] City/Postcode mismatch error detected. Retrying with buyer home address details...');
+        const postcodeRetryPayload = {
+          ...furgonetkaPayload,
+          receiver: {
+            ...furgonetkaPayload.receiver,
+            city: sanitizeCity(shippingDetails?.city || 'Warszawa', 'Warszawa'),
+            postcode: formatPostcodeForCountry(shippingDetails?.zip_code || shippingDetails?.zip || '02-222', receiverCountryCode),
+            street: sanitizeStreet(shippingDetails?.address || 'Main Street 1', 'Main Street 1')
+          }
+        };
+        try {
+          createRes = await furgonetkaClient.createPackage(postcodeRetryPayload);
+        } catch (postcodeRetryErr: any) {
+          console.warn('[CreatePackage Route] Postcode retry failed, falling back to DPD tier 2...', postcodeRetryErr?.message);
         }
       } else {
         console.warn('[CreatePackage Route] Initial create failed. Attempting Tier 2 DPD Courier fallback with real receiver address...');
