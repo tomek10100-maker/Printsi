@@ -7,7 +7,8 @@ import Link from 'next/link';
 import {
   CreditCard, Wallet, TrendingUp, DollarSign, ArrowLeft,
   Plus, History, Shield, Info, ArrowUpRight, ArrowDownLeft,
-  Loader2, ExternalLink, CheckCircle2, AlertCircle, Sparkles
+  Loader2, ExternalLink, CheckCircle2, AlertCircle, Sparkles,
+  FileText, Printer, X
 } from 'lucide-react';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { useTheme } from '../../../context/ThemeContext';
@@ -28,6 +29,7 @@ function BillingContent() {
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
 
   const [stats, setStats] = useState({ spent: 0, earned: 0, pendingEarned: 0, withdrawn: 0 });
   const [payoutAmount, setPayoutAmount] = useState('');
@@ -58,8 +60,8 @@ function BillingContent() {
     const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     setProfile(profileData);
     const [{ data: spentOrders }, { data: sales }, { data: payouts }] = await Promise.all([
-      supabase.from('orders').select('total_amount, created_at, id, stripe_payment_intent_id').eq('buyer_id', user.id),
-      supabase.from('order_items').select('price_at_purchase, quantity, status, created_at, id').eq('seller_id', user.id),
+      supabase.from('orders').select('*, items:order_items(*, offers(*))').eq('buyer_id', user.id),
+      supabase.from('order_items').select('*, orders(*), offers(*)').eq('seller_id', user.id),
       supabase.from('payouts').select('*').eq('user_id', user.id)
     ]);
     // Only subtract orders from the wallet balance if they were paid using the balance
@@ -83,8 +85,8 @@ function BillingContent() {
       withdrawn: totalPayoutsAmt
     });
     const unified: any[] = [];
-    spentOrders?.forEach(o => unified.push({ id: o.id, type: 'spent', amount: o.total_amount, date: o.created_at, label: 'Purchase' }));
-    sales?.forEach(s => unified.push({ id: s.id, type: 'earned', amount: s.price_at_purchase * (s.quantity || 1), date: s.created_at, label: 'Sale', status: s.status }));
+    spentOrders?.forEach(o => unified.push({ id: o.id, type: 'spent', amount: o.total_amount, date: o.created_at, label: 'Purchase', rawOrder: o }));
+    sales?.forEach(s => unified.push({ id: s.id, type: 'earned', amount: s.price_at_purchase * (s.quantity || 1), date: s.created_at, label: 'Sale', status: s.status, rawSale: s }));
     payouts?.forEach(p => {
       // Try to parse enriched topup notes to extract exact paid amount
       let parsedNotes: any = null;
@@ -102,6 +104,7 @@ function BillingContent() {
         date: p.created_at,
         label: 'Payout',
         status: p.status,
+        rawPayout: p
       });
     });
     setTransactions(unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
@@ -305,7 +308,11 @@ function BillingContent() {
                     <p className="font-bold uppercase tracking-widest text-xs">No transactions recorded</p>
                   </div>
                 ) : transactions.map(tx => (
-                  <div key={tx.id} className={`flex items-center justify-between p-4 sm:p-6 gap-3 border rounded-[28px] transition-all group ${styles.itemBg} ${styles.itemHover} ${styles.cardBorder}`}>
+                  <div
+                    key={tx.id}
+                    onClick={() => setSelectedReceipt(tx)}
+                    className={`flex items-center justify-between p-4 sm:p-6 gap-3 border rounded-[28px] transition-all cursor-pointer group hover:scale-[1.01] hover:border-blue-500/40 active:scale-[0.99] ${styles.itemBg} ${styles.itemHover} ${styles.cardBorder}`}
+                  >
                     <div className="flex items-center gap-3 sm:gap-6">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? 'bg-emerald-500/10 text-emerald-400' :
                           tx.type === 'payout' ? 'bg-orange-500/10 text-orange-400' :
@@ -317,9 +324,14 @@ function BillingContent() {
                               <CreditCard size={26} />}
                       </div>
                       <div>
-                        <p className={`font-black text-base tracking-tight ${styles.textTitle}`}>
-                          {tx.type === 'payout' && tx.amount < 0 ? 'Wallet Top-up' : tx.label}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className={`font-black text-base tracking-tight ${styles.textTitle}`}>
+                            {tx.type === 'payout' && tx.amount < 0 ? 'Wallet Top-up' : tx.label}
+                          </p>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full group-hover:bg-blue-500 group-hover:text-white transition-all">
+                            <FileText size={10} /> Receipt
+                          </span>
+                        </div>
                         <p className={`text-[11px] font-bold uppercase tracking-[0.15em] ${styles.textMuted}`}>{new Date(tx.date).toLocaleDateString()}</p>
                       </div>
                     </div>
@@ -336,6 +348,9 @@ function BillingContent() {
                             )
                           : formatPrice(Math.abs(tx.amount))
                         }
+                      </p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5 group-hover:text-blue-400 transition-colors">
+                        Click for receipt →
                       </p>
                     </div>
                   </div>
@@ -447,6 +462,13 @@ function BillingContent() {
           )}
         </div>
       </div>
+      {selectedReceipt && (
+        <DigitalReceiptModal
+          tx={selectedReceipt}
+          onClose={() => setSelectedReceipt(null)}
+          formatPrice={formatPrice}
+        />
+      )}
     </div>
   );
 }
@@ -475,5 +497,167 @@ export default function BillingPage() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#020617]"><Loader2 className="animate-spin text-blue-600" size={40} /></div>}>
       <BillingContent />
     </Suspense>
+  );
+}
+
+function DigitalReceiptModal({ tx, onClose, formatPrice }: any) {
+  if (!tx) return null;
+
+  const isPurchase = tx.type === 'spent';
+  const isSale = tx.type === 'earned';
+  const isTopup = tx.type === 'payout' && tx.amount < 0;
+  const isPayout = tx.type === 'payout' && tx.amount >= 0;
+
+  const receiptNo = `PRT-REC-${(tx.id || '').substring(0, 8).toUpperCase()}`;
+  const formattedDate = new Date(tx.date).toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  // Extract items info safely
+  const items = tx.rawOrder?.items || (tx.rawSale ? [tx.rawSale] : []);
+  const shippingAddr = tx.rawOrder?.shipping_address || tx.rawSale?.orders?.shipping_address || {};
+  const shippingFee = tx.rawOrder?.shipping_fee || 0;
+  const protectionFee = tx.rawOrder?.protection_fee || 0;
+
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-[#0b1329] border border-blue-500/30 shadow-[0_0_60px_rgba(59,130,246,0.2)] rounded-3xl p-6 sm:p-8 text-white overflow-hidden font-sans">
+        
+        {/* Decorative Top Accent Gradient */}
+        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400" />
+        
+        {/* Top Header */}
+        <div className="flex items-start justify-between border-b border-white/10 pb-5 mb-5">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">
+                Official Settlement Proof
+              </span>
+            </div>
+            <h2 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+              PRINTIS <span className="text-[10px] font-black px-2.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-400/30">RECEIPT</span>
+            </h2>
+            <p className="text-[11px] font-mono text-gray-400 mt-1">
+              {receiptNo} • {formattedDate}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-400 hover:text-white transition-all border border-white/10"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Transaction Summary Card */}
+        <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 mb-5 space-y-3">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-gray-400 font-bold uppercase tracking-wider">Transaction Type:</span>
+            <span className="font-black text-white uppercase tracking-wider">
+              {isPurchase ? '🛒 Buyer Purchase' : isSale ? '💰 Seller Sale' : isTopup ? '💳 Wallet Refill' : '💸 Bank Withdrawal'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-gray-400 font-bold uppercase tracking-wider">Escrow Protection:</span>
+            <span className="inline-flex items-center gap-1 font-black text-emerald-400 uppercase text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <CheckCircle2 size={12} /> VERIFIED & PROTECTED
+            </span>
+          </div>
+          {shippingAddr?.fullName && (
+            <div className="flex justify-between items-start text-xs border-t border-white/5 pt-2">
+              <span className="text-gray-400 font-bold uppercase tracking-wider">Delivery Address:</span>
+              <span className="font-bold text-gray-200 text-right">
+                {shippingAddr.fullName} <br />
+                <span className="text-[10px] text-gray-400 font-normal">
+                  {[shippingAddr.address, shippingAddr.city, shippingAddr.zip, shippingAddr.country].filter(Boolean).join(', ')}
+                </span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Itemized Table */}
+        <div className="mb-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-400 mb-2.5">Itemized Order Breakdown</p>
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            {items.length > 0 ? (
+              items.map((it: any, idx: number) => {
+                const title = it.offers?.title || it.title || '3D Printed Custom Item';
+                const qty = it.quantity || 1;
+                const unitPrice = it.price_at_purchase || it.price || (tx.amount / qty);
+                return (
+                  <div key={idx} className="flex justify-between items-center text-xs p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <div>
+                      <p className="font-bold text-white tracking-tight">{title}</p>
+                      <p className="text-[10px] text-gray-400">Qty: {qty} × {formatPrice(unitPrice)}</p>
+                    </div>
+                    <span className="font-black text-white">{formatPrice(unitPrice * qty)}</span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="flex justify-between items-center text-xs p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="font-bold text-white">{tx.label || 'Digital Settlement'}</span>
+                <span className="font-black text-white">{formatPrice(Math.abs(tx.amount))}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Financial Totals Box */}
+        <div className="bg-blue-950/40 border border-blue-500/20 rounded-2xl p-4 mb-5 space-y-2">
+          {shippingFee > 0 && (
+            <div className="flex justify-between text-xs text-gray-300">
+              <span>Shipping Fee (Courier Delivery)</span>
+              <span>{formatPrice(shippingFee)}</span>
+            </div>
+          )}
+          {protectionFee > 0 && (
+            <div className="flex justify-between text-xs text-gray-300">
+              <span>Buyer Protection Fee</span>
+              <span>{formatPrice(protectionFee)}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center pt-2 border-t border-blue-500/20">
+            <span className="text-xs font-black uppercase text-gray-300 tracking-wider">Total Settled</span>
+            <span className="text-2xl font-black text-emerald-400 tracking-tight">
+              {formatPrice(Math.abs(tx.amount))}
+            </span>
+          </div>
+        </div>
+
+        {/* Footer & Action Buttons */}
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <button
+            onClick={handlePrint}
+            className="flex-1 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all border border-white/10"
+          >
+            <Printer size={14} /> Print / Save PDF
+          </button>
+          <button
+            onClick={onClose}
+            className="py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-600/30"
+          >
+            Close
+          </button>
+        </div>
+
+        <p className="text-[9px] font-mono text-center text-gray-500 mt-4 uppercase tracking-widest">
+          Printis Escrow Platform • Official Digital Settlement Receipt
+        </p>
+
+      </div>
+    </div>
   );
 }
