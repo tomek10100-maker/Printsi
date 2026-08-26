@@ -497,18 +497,54 @@ export async function POST(req: Request) {
       throw new Error(`Failed to create package draft: ${JSON.stringify(createRes)}`);
     }
 
-    const packageId = createRes.package_id;
+    let packageId = createRes.package_id;
     console.log(`[CreatePackage Route] Created Furgonetka draft package ID: ${packageId}`);
 
-    // 12. Call Furgonetka API: Confirm/Order Package (with auto-acceptance retry for terms)
+    // 12. Call Furgonetka API: Confirm/Order Package (with auto-acceptance retry for terms & inactive point fallback)
     let orderRes: any;
     try {
       orderRes = await furgonetkaClient.orderPackage(packageId);
     } catch (err: any) {
-      if (err.message && err.message.includes('terms_and_conditions_not_valid')) {
+      const errStr = err.message || '';
+      console.warn('[CreatePackage Route] Order package failed:', errStr);
+
+      if (errStr.includes('terms_and_conditions_not_valid')) {
         console.warn('[CreatePackage Route] Regulations not accepted during ordering. Attempting auto-acceptance...');
         await furgonetkaClient.acceptRegulations();
         orderRes = await furgonetkaClient.orderPackage(packageId);
+      } else if (
+        errStr.includes('Punkt odbioru nieaktywny') ||
+        errStr.includes('carrierValidationError') ||
+        errStr.includes('nieaktywny') ||
+        errStr.includes('punkt')
+      ) {
+        console.warn('[CreatePackage Route] Selected pickup point is inactive/invalid on carrier API. Creating DPD Courier door-to-door fallback...');
+        const fallbackDpdPayload: any = {
+          ...furgonetkaPayload,
+          service_id: 11636590, // DPD Courier (Service ID: 11636590)
+          receiver: {
+            name: receiverName,
+            street: receiverStreet,
+            postcode: receiverPostcode,
+            city: receiverCity,
+            country_code: receiverCountryCode,
+            phone: receiverPhone,
+            email: shippingDetails?.email || 'recipient@printis.store'
+          }
+        };
+        delete fallbackDpdPayload.pickup.point;
+        delete fallbackDpdPayload.receiver.point;
+
+        console.log('[CreatePackage Route] DPD Courier fallback payload:', JSON.stringify(fallbackDpdPayload, null, 2));
+        const dpdRes = await furgonetkaClient.createPackage(fallbackDpdPayload);
+        if (dpdRes && dpdRes.package_id) {
+          packageId = dpdRes.package_id;
+          console.log(`[CreatePackage Route] Created DPD Courier fallback package ID: ${packageId}. Now ordering...`);
+          await furgonetkaClient.acceptRegulations();
+          orderRes = await furgonetkaClient.orderPackage(packageId);
+        } else {
+          throw err;
+        }
       } else {
         throw err;
       }
