@@ -19,7 +19,7 @@ function SuccessContent() {
   const type = searchParams.get('type'); 
   const router = useRouter();
 
-  const { clearCart, items } = useCart();
+  const { clearCart, removeSellerItems, items } = useCart();
   const { formatPrice } = useCurrency();
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -28,6 +28,18 @@ function SuccessContent() {
   const confirmed = useRef(false);
 
   const isTopup = type === 'topup';
+
+  const clearPurchasedCartItems = () => {
+    if (typeof window !== 'undefined') {
+      const purchasedSellerId = sessionStorage.getItem('printis_purchased_seller_id');
+      if (purchasedSellerId) {
+        removeSellerItems(purchasedSellerId);
+        sessionStorage.removeItem('printis_purchased_seller_id');
+        return;
+      }
+    }
+    clearCart();
+  };
 
   useEffect(() => {
     if (!sessionId) {
@@ -41,7 +53,7 @@ function SuccessContent() {
     }
 
     if (sessionId === 'balance_pay') {
-      clearCart();
+      clearPurchasedCartItems();
       setStatus('done');
       return;
     }
@@ -99,7 +111,7 @@ function SuccessContent() {
             setChatId(data.chatId);
           }
           if (typeof window !== 'undefined') sessionStorage.setItem(storageKey, '1');
-          clearCart();
+          clearPurchasedCartItems();
           setStatus('done');
         } else {
           setErrorMessage(data.error || 'Failed to verify order.');

@@ -35,6 +35,7 @@ function sanitizeSavedAddress(addr: string | null | undefined): string {
 function CheckoutInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const selectedSellerId = searchParams.get('sellerId');
   const isTopup = searchParams.get('type') === 'topup';
 
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'balance'>(isTopup ? 'stripe' : ((searchParams.get('method') as 'stripe' | 'balance') || 'stripe'));
@@ -42,7 +43,19 @@ function CheckoutInner() {
 
   const { currency, rates, formatPrice } = useCurrency();
   const cart = useCart();
-  const items = cart?.items || [];
+  const rawItems = cart?.items || [];
+
+  const items = useMemo(() => {
+    if (isTopup) return [];
+    if (selectedSellerId) {
+      return rawItems.filter(i => i.seller_id === selectedSellerId);
+    }
+    if (rawItems.length > 0) {
+      const firstSellerId = rawItems[0].seller_id;
+      return rawItems.filter(i => i.seller_id === firstSellerId);
+    }
+    return [];
+  }, [rawItems, selectedSellerId, isTopup]);
 
   const [topupAmount, setTopupAmount] = useState<string>('10');
 
@@ -508,8 +521,13 @@ function CheckoutInner() {
         const data = await response.json();
 
         if (data.success) {
-          // Czyszczenie koszyka z localStorage / Contextu
-          cart.clearCart();
+          // Remove only purchased seller's items from cart
+          const sellerToClear = items[0]?.seller_id || selectedSellerId;
+          if (sellerToClear) {
+            cart.removeSellerItems(sellerToClear);
+          } else {
+            cart.clearCart();
+          }
 
           // Sukces płatności balansem - przekierowanie do wiadomości lub zamówień
           window.location.href = data.chatId ? `/profile/messages?chat=${data.chatId}` : `/profile/messages`;
@@ -519,6 +537,10 @@ function CheckoutInner() {
           isSubmittingRef.current = false;
         }
       } else {
+        const sellerToClear = items[0]?.seller_id || selectedSellerId;
+        if (sellerToClear) {
+          try { sessionStorage.setItem('printis_purchased_seller_id', sellerToClear); } catch {}
+        }
         const body = isTopup
           ? { userId: user.id, isTopup: true, topupAmount: numericTopup, email: formData.email, selectedCurrency: currency, exchangeRate: currentRate }
           : {

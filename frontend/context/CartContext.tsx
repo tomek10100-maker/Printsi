@@ -32,6 +32,8 @@ type CartContextType = {
   addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
   updateQuantity: (id: string, amount: number, variant_name?: string) => void;
   removeItem: (id: string, variant_name?: string) => void;
+  removeSellerItems: (sellerId: string) => void;
+  removeItemsByIds: (ids: string[]) => void;
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
@@ -171,6 +173,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => prev.filter((item) => !(item.id === id && item.variant_name === variant_name)));
   };
 
+  const removeSellerItems = (sellerId: string) => {
+    setItems((prev) => prev.filter((item) => item.seller_id !== sellerId));
+  };
+
+  const removeItemsByIds = (ids: string[]) => {
+    const idSet = new Set(ids);
+    setItems((prev) => prev.filter((item) => !idSet.has(item.id)));
+  };
+
   const clearCart = () => {
     setItems([]);
   };
@@ -179,7 +190,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const cartCount = items.reduce((count, item) => count + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, updateQuantity, removeItem, clearCart, cartTotal, cartCount }}>
+    <CartContext.Provider value={{ items, addItem, updateQuantity, removeItem, removeSellerItems, removeItemsByIds, clearCart, cartTotal, cartCount }}>
       {children}
     </CartContext.Provider>
   );
