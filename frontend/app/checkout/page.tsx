@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Script from 'next/script';
 import { supabase } from '../lib/supabase';
@@ -90,9 +90,16 @@ function CheckoutInner() {
 
   const isPickupOption = selectedShipping?.id === 'inpost_paczkomat' || selectedShipping?.id === 'dpd_pickup' || selectedShipping?.id === 'dhl_pop' || selectedShipping?.id === 'orlen_paczka';
 
+  const prevShippingIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    setSelectedPoint(null);
-    setShowMapError(false);
+    const currentId = selectedShipping?.id || null;
+    if (prevShippingIdRef.current && prevShippingIdRef.current !== currentId) {
+      // Only reset selected pickup point if user manually switched shipping carrier/method!
+      setSelectedPoint(null);
+      setShowMapError(false);
+    }
+    prevShippingIdRef.current = currentId;
   }, [selectedShipping]);
 
   const openFurgonetkaMap = () => {
