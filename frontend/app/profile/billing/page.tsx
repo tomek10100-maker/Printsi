@@ -517,11 +517,18 @@ function DigitalReceiptModal({ tx, onClose, formatPrice }: any) {
     minute: '2-digit',
   });
 
-  // Extract items info safely
+  // Extract parent order details safely (whether buyer purchase or seller sale)
+  const parentOrder = tx.rawOrder || (Array.isArray(tx.rawSale?.orders) ? tx.rawSale?.orders[0] : tx.rawSale?.orders);
   const items = tx.rawOrder?.items || (tx.rawSale ? [tx.rawSale] : []);
-  const shippingAddr = tx.rawOrder?.shipping_address || tx.rawSale?.orders?.shipping_address || {};
-  const shippingFee = tx.rawOrder?.shipping_fee || 0;
-  const protectionFee = tx.rawOrder?.protection_fee || 0;
+  const shippingAddr = parentOrder?.shipping_address || {};
+
+  const itemSubtotal = isSale
+    ? (tx.rawSale?.price_at_purchase * (tx.rawSale?.quantity || 1))
+    : (parentOrder?.subtotal || (Math.abs(tx.amount) - (parentOrder?.shipping_fee || 0) - (parentOrder?.protection_fee || 0)));
+
+  const shippingFee = parentOrder?.shipping_fee || 0;
+  const protectionFee = parentOrder?.protection_fee || 0;
+  const totalPaidByBuyer = parentOrder?.total_amount || (isPurchase ? Math.abs(tx.amount) : (itemSubtotal + shippingFee + protectionFee));
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
@@ -617,24 +624,51 @@ function DigitalReceiptModal({ tx, onClose, formatPrice }: any) {
 
         {/* Financial Totals Box */}
         <div className="bg-blue-950/40 border border-blue-500/20 rounded-2xl p-4 mb-5 space-y-2">
+          {/* 1. Item Subtotal */}
+          <div className="flex justify-between text-xs text-gray-300">
+            <span>Item Price (Wartość przedmiotu)</span>
+            <span className="font-bold text-white">{formatPrice(itemSubtotal)}</span>
+          </div>
+
+          {/* 2. Courier Shipping Fee */}
           {shippingFee > 0 && (
             <div className="flex justify-between text-xs text-gray-300">
-              <span>Shipping Fee (Courier Delivery)</span>
-              <span>{formatPrice(shippingFee)}</span>
+              <span>Delivery Fee (Koszt dostawy)</span>
+              <span className="font-bold text-white">{formatPrice(shippingFee)}</span>
             </div>
           )}
+
+          {/* 3. Buyer Protection Fee */}
           {protectionFee > 0 && (
             <div className="flex justify-between text-xs text-gray-300">
-              <span>Buyer Protection Fee</span>
-              <span>{formatPrice(protectionFee)}</span>
+              <span>Buyer Protection Fee (Ochrona Kupującego)</span>
+              <span className="font-bold text-white">{formatPrice(protectionFee)}</span>
             </div>
           )}
-          <div className="flex justify-between items-center pt-2 border-t border-blue-500/20">
-            <span className="text-xs font-black uppercase text-gray-300 tracking-wider">Total Settled</span>
-            <span className="text-2xl font-black text-emerald-400 tracking-tight">
-              {formatPrice(Math.abs(tx.amount))}
-            </span>
-          </div>
+
+          {/* 4. Total Amount Paid by Buyer */}
+          {totalPaidByBuyer > 0 && (
+            <div className="flex justify-between items-center pt-2 border-t border-blue-500/20">
+              <span className="text-xs font-black uppercase text-gray-300 tracking-wider">
+                Total Paid by Buyer (Wpłacono brutto)
+              </span>
+              <span className="text-xl font-black text-emerald-400 tracking-tight">
+                {formatPrice(totalPaidByBuyer)}
+              </span>
+            </div>
+          )}
+
+          {/* 5. Seller Net Earnings (if Sale) */}
+          {isSale && (
+            <div className="flex justify-between items-center pt-2 border-t border-emerald-500/20 bg-emerald-500/10 p-2.5 rounded-xl mt-2">
+              <span className="text-xs font-black uppercase text-emerald-300 tracking-wider">
+                Seller Net Payout (Zarobek Sprzedawcy)
+              </span>
+              <span className="text-xl font-black text-emerald-300 tracking-tight">
+                {formatPrice(Math.abs(tx.amount))}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Footer & Action Buttons */}
