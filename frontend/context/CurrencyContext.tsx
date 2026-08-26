@@ -94,7 +94,13 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       convertedAmount = amount * rates[currency];
     }
 
-    const roundedAmount = Math.round(convertedAmount * 100) / 100;
+    let roundedAmount = Math.round(convertedAmount * 100) / 100;
+
+    // Smart integer-snapping: snap amounts within 0.02 of a whole number (e.g. 99.99 -> 100.00, 1000.01 -> 1000.00)
+    const diffToInteger = Math.abs(roundedAmount - Math.round(roundedAmount));
+    if (diffToInteger > 0 && diffToInteger <= 0.02) {
+      roundedAmount = Math.round(roundedAmount);
+    }
 
     const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',

@@ -330,7 +330,10 @@ function BillingContent() {
                         }`}>
                         {tx.type === 'earned' || (tx.type === 'payout' && tx.amount < 0) ? '+' : '-'}
                         {(tx.type === 'payout' && tx.amount < 0 && tx.paidAmount && tx.paidCurrency)
-                          ? `${tx.paidCurrency} ${Number(tx.paidAmount).toFixed(2)}`
+                          ? (tx.paidCurrency === currency
+                              ? formatPrice(tx.paidAmount, true)
+                              : `${tx.paidCurrency} ${Number(tx.paidAmount).toFixed(2)}`
+                            )
                           : formatPrice(Math.abs(tx.amount))
                         }
                       </p>

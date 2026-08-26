@@ -694,44 +694,54 @@ function CheckoutInner() {
                         onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                         className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
                       />
-                      <input
-                        name="address"
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        placeholder="Street Address"
-                        required={!isPickupOption}
-                        title="Please fill out this field"
-                        onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
-                        onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
-                      />
-                      <div className="grid grid-cols-2 gap-4">
-                        <input
-                          name="city"
-                          value={formData.city}
-                          onChange={handleInputChange}
-                          placeholder="City"
-                          required={!isPickupOption}
-                          title="Please fill out this field"
-                          onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
-                          onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-                          className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900"
-                        />
-                        <input
-                          name="zip"
-                          value={formData.zip}
-                          onChange={handleInputChange}
-                          placeholder="ZIP / Postal Code"
-                          required={!isPickupOption}
-                          title="Please fill out this field"
-                          onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
-                          onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-                          className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900"
-                        />
-                      </div>
                       <select name="country" value={formData.country} onChange={handleInputChange} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900">
                         {DHL_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                       </select>
+
+                      {!isPickupOption ? (
+                        <>
+                          <input
+                            name="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                            placeholder="Street Address"
+                            required
+                            title="Please fill out this field"
+                            onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                            onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none font-bold text-gray-900"
+                          />
+                          <div className="grid grid-cols-2 gap-4">
+                            <input
+                              name="city"
+                              value={formData.city}
+                              onChange={handleInputChange}
+                              placeholder="City"
+                              required
+                              title="Please fill out this field"
+                              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                              className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900"
+                            />
+                            <input
+                              name="zip"
+                              value={formData.zip}
+                              onChange={handleInputChange}
+                              placeholder="ZIP / Postal Code"
+                              required
+                              title="Please fill out this field"
+                              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Please fill out this field.')}
+                              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
+                              className="p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-900"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl flex items-center gap-3 text-indigo-900 text-xs font-bold shadow-2xs">
+                          <MapPin size={16} className="text-indigo-600 shrink-0" />
+                          <span>Pickup point selected — home street address not required.</span>
+                        </div>
+                      )}
                     </>
                   )}
                 </form>
@@ -904,68 +914,62 @@ function CheckoutInner() {
 
                       {/* PICKUP POINT PANEL */}
                       {isPickupOption && (
-                        <div className="mt-3 bg-gradient-to-br from-[#0a0f1e] to-[#111827] border border-indigo-500/25 rounded-[20px] p-4 sm:p-5 shadow-lg shadow-indigo-500/10">
-                          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <h3 style={{ color: '#818cf8', fontWeight: 900, fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                                <MapPin size={14} style={{ color: '#6366f1', flexShrink: 0 }} />
+                        <div className="mt-4 bg-gradient-to-br from-[#0a0f1e] to-[#111827] border border-indigo-500/30 rounded-[24px] p-5 shadow-xl shadow-indigo-500/10">
+                          <div className="flex flex-col gap-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <h3 className="text-indigo-400 font-black text-xs uppercase tracking-[0.15em] flex items-center gap-2">
+                                <MapPin size={16} className="text-indigo-500 shrink-0" />
                                 {pickupLabels.title}
                               </h3>
-                              {selectedPoint ? (
-                                <div style={{
-                                  marginTop: 12,
-                                  background: 'rgba(99,102,241,0.08)',
-                                  border: '1px solid rgba(99,102,241,0.2)',
-                                  borderRadius: '14px',
-                                  padding: '14px 16px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: 4
-                                }}>
-                                  <p style={{ color: '#818cf8', fontWeight: 900, fontSize: '13px', margin: 0 }}>
-                                    ✓ &nbsp;{selectedPoint.code}
-                                  </p>
-                                  <p style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '12px', margin: 0 }}>{selectedPoint.name}</p>
-                                  <p style={{ color: '#6b7280', fontWeight: 600, fontSize: '11px', margin: 0 }}>{selectedPoint.street}, {selectedPoint.zip} {selectedPoint.city}</p>
-                                </div>
-                              ) : (
-                                <p style={{ color: '#6b7280', fontWeight: 600, fontSize: '12px', margin: '8px 0 0' }}>
-                                  {pickupLabels.placeholder}
-                                </p>
-                              )}
-                              {showMapError && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
-                                  <AlertCircle size={13} style={{ color: '#ef4444', flexShrink: 0 }} />
-                                  <p style={{ color: '#ef4444', fontWeight: 800, fontSize: '11px', margin: 0 }}>
-                                    {pickupLabels.error}
-                                  </p>
-                                </div>
+                              {selectedPoint && (
+                                <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shrink-0">
+                                  Selected
+                                </span>
                               )}
                             </div>
+
+                            {selectedPoint ? (
+                              <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex flex-col gap-1.5 transition-all">
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                  <span className="bg-indigo-600 text-white font-black text-xs px-2.5 py-0.5 rounded-md tracking-wider shadow-2xs">
+                                    ✓ {selectedPoint.code}
+                                  </span>
+                                  {selectedPoint.name && selectedPoint.name !== selectedPoint.code && (
+                                    <span className="text-white font-bold text-sm truncate">{selectedPoint.name}</span>
+                                  )}
+                                </div>
+                                {selectedPoint.street && (
+                                  <p className="text-gray-200 font-bold text-xs leading-snug break-words">
+                                    {selectedPoint.street}
+                                  </p>
+                                )}
+                                {(selectedPoint.zip || selectedPoint.city) && (
+                                  <p className="text-gray-400 font-semibold text-xs leading-snug break-words">
+                                    {selectedPoint.zip} {selectedPoint.city}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="bg-white/5 border border-dashed border-white/10 rounded-2xl p-4 text-center">
+                                <p className="text-gray-400 font-bold text-xs leading-relaxed">
+                                  {pickupLabels.placeholder}
+                                </p>
+                              </div>
+                            )}
+
+                            {showMapError && (
+                              <div className="flex items-center gap-2 text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
+                                <AlertCircle size={15} className="shrink-0" />
+                                <p className="font-bold text-xs">{pickupLabels.error}</p>
+                              </div>
+                            )}
+
                             <button
                               type="button"
                               onClick={openFurgonetkaMap}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '11px 20px',
-                                background: selectedPoint
-                                  ? 'linear-gradient(135deg,#4f46e5,#7c3aed)'
-                                  : 'linear-gradient(135deg,#6366f1,#4f46e5)',
-                                color: '#fff',
-                                fontWeight: 900,
-                                fontSize: '11px',
-                                letterSpacing: '0.1em',
-                                textTransform: 'uppercase',
-                                border: 'none',
-                                borderRadius: '12px',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                boxShadow: '0 4px 16px rgba(99,102,241,0.4)',
-                                transition: 'all 0.2s',
-                                flexShrink: 0,
-                              }}
+                              className="w-full sm:w-auto self-stretch sm:self-end px-5 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer"
                             >
-                              <Zap size={13} />
+                              <Zap size={14} />
                               {pickupLabels.button}
                             </button>
                           </div>
