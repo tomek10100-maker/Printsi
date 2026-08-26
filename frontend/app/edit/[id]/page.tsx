@@ -365,49 +365,76 @@ export default function EditOfferPage() {
   const addManualVariant = () => setManualVariants(prev => [...prev.map(v => ({ ...v, expanded: false })), defaultManualVariant()]);
   const removeManualVariant = (id: string) => setManualVariants(prev => prev.length > 1 ? prev.filter(v => v.id !== id) : prev);
 
+  const processPastedItems = (items: DataTransferItemList) => {
+    const MAX_PHOTOS = 5;
+    const currentTotal = previewImages.length + existingImages.length;
+    const remainingSlots = MAX_PHOTOS - currentTotal;
+
+    if (remainingSlots <= 0) {
+      setFormError(`Maximum limit of ${MAX_PHOTOS} photos reached.`);
+      return;
+    }
+
+    const pastedImageFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          const ext = file.type.split('/')[1] || 'png';
+          const renamedFile = new File([file], `pasted_listing_${Date.now()}_${i}.${ext}`, { type: file.type });
+          pastedImageFiles.push(renamedFile);
+        }
+      }
+    }
+
+    if (pastedImageFiles.length > 0) {
+      const allowedFiles = pastedImageFiles.slice(0, remainingSlots);
+      if (pastedImageFiles.length > remainingSlots) {
+        setFormError(`Only ${remainingSlots} more photo(s) allowed (Max ${MAX_PHOTOS} total). Added ${allowedFiles.length}.`);
+      } else {
+        setFormError('');
+      }
+      setPreviewImages(prev => [...prev, ...allowedFiles]);
+    }
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      if (newFiles.length + previewImages.length + existingImages.length > 5) { setFormError('Max 5 photos allowed.'); return; }
-      setPreviewImages(prev => [...prev, ...newFiles]);
+      const MAX_PHOTOS = 5;
+      const currentTotal = previewImages.length + existingImages.length;
+      const remainingSlots = MAX_PHOTOS - currentTotal;
+
+      if (remainingSlots <= 0) {
+        setFormError(`Maximum limit of ${MAX_PHOTOS} photos reached.`);
+        return;
+      }
+
+      const allowedFiles = newFiles.slice(0, remainingSlots);
+      if (newFiles.length > remainingSlots) {
+        setFormError(`Only ${remainingSlots} more photo(s) allowed (Max ${MAX_PHOTOS} total). Added ${allowedFiles.length}.`);
+      } else {
+        setFormError('');
+      }
+
+      setPreviewImages(prev => [...prev, ...allowedFiles]);
     }
+    e.target.value = '';
   };
   const removeImage = (i: number) => setPreviewImages(prev => prev.filter((_, idx) => idx !== i));
 
   // Handle Ctrl+V image paste anywhere on edit page
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
-      const clipboardItems = e.clipboardData?.items;
-      if (!clipboardItems) return;
-
-      const pastedImageFiles: File[] = [];
-      for (let i = 0; i < clipboardItems.length; i++) {
-        const item = clipboardItems[i];
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) {
-            const ext = file.type.split('/')[1] || 'png';
-            const renamedFile = new File([file], `pasted_listing_${Date.now()}_${i}.${ext}`, { type: file.type });
-            pastedImageFiles.push(renamedFile);
-          }
-        }
-      }
-
-      if (pastedImageFiles.length > 0) {
-        setPreviewImages(prev => {
-          if (prev.length + existingImages.length + pastedImageFiles.length > 5) {
-            setFormError('Max 5 photos allowed.');
-            return prev;
-          }
-          setFormError('');
-          return [...prev, ...pastedImageFiles];
-        });
+      if (e.clipboardData?.items) {
+        processPastedItems(e.clipboardData.items);
       }
     };
 
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [existingImages]);
+  }, [existingImages.length, previewImages.length]);
 
   const computeVariantEUR = useCallback((v: ColorVariant) => {
     let materialEUR = 0;
@@ -678,11 +705,52 @@ export default function EditOfferPage() {
 
             <section className="space-y-4">
               <SectionLabel label="3. Attachments" />
-              <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group">
-                <ImageIcon className="mb-3 text-gray-400 group-hover:text-blue-500" size={32} />
-                <span className="text-xs font-black uppercase text-gray-500">Upload Photos (Min 1, Max 5 Total)</span>
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
-              </label>
+              <div className="p-6 border-2 border-dashed border-gray-300 rounded-2xl bg-white/5 space-y-4">
+                <div className="flex flex-col items-center justify-center text-center">
+                  <ImageIcon className="mb-2 text-gray-400" size={36} />
+                  <span className="text-xs font-black uppercase tracking-wider text-gray-600">
+                    Upload or Paste Photos ({existingImages.length + previewImages.length} / 5)
+                  </span>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Select files from disk or paste screenshots directly from clipboard
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+                  {/* Disk Upload Button */}
+                  <label className={`w-full sm:w-1/2 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md ${
+                    existingImages.length + previewImages.length >= 5
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer'
+                  }`}>
+                    <Plus size={16} />
+                    <span>Choose from Disk</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleImageChange}
+                      disabled={existingImages.length + previewImages.length >= 5}
+                    />
+                  </label>
+
+                  {/* Dedicated Clipboard Paste Field */}
+                  <div className="w-full sm:w-1/2 relative">
+                    <input
+                      type="text"
+                      placeholder={existingImages.length + previewImages.length >= 5 ? 'Max 5 photos reached' : '📋 Click & press Ctrl+V to paste'}
+                      onPaste={(e) => {
+                        if (e.clipboardData?.items) {
+                          processPastedItems(e.clipboardData.items);
+                        }
+                      }}
+                      className="w-full py-3 px-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-xs text-gray-700 placeholder-gray-400 outline-none focus:border-blue-500 focus:bg-white transition-all text-center"
+                      readOnly={existingImages.length + previewImages.length >= 5}
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {existingImages.map((url, idx) => (
                     <div key={`old-${idx}`} className="relative h-24 rounded-xl overflow-hidden group border border-gray-200">

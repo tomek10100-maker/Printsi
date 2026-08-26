@@ -156,32 +156,41 @@ function MessagesInner() {
     const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
 
     // Handle Ctrl+V image paste for verification photos
-    useEffect(() => {
-        const handlePaste = (e: ClipboardEvent) => {
-            const clipboardItems = e.clipboardData?.items;
-            if (!clipboardItems) return;
+    const processPastedVerificationItems = (items: DataTransferItemList) => {
+        const MAX_PHOTOS = 5;
+        const currentTotal = verificationFiles.length;
+        const remainingSlots = MAX_PHOTOS - currentTotal;
+        if (remainingSlots <= 0) return;
 
-            const pastedImageFiles: File[] = [];
-            for (let i = 0; i < clipboardItems.length; i++) {
-                const item = clipboardItems[i];
-                if (item.type.startsWith('image/')) {
-                    const file = item.getAsFile();
-                    if (file) {
-                        const ext = file.type.split('/')[1] || 'png';
-                        const renamedFile = new File([file], `verification_photo_${Date.now()}_${i}.${ext}`, { type: file.type });
-                        pastedImageFiles.push(renamedFile);
-                    }
+        const pastedImageFiles: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (file) {
+                    const ext = file.type.split('/')[1] || 'png';
+                    const renamedFile = new File([file], `verification_photo_${Date.now()}_${i}.${ext}`, { type: file.type });
+                    pastedImageFiles.push(renamedFile);
                 }
             }
+        }
 
-            if (pastedImageFiles.length > 0) {
-                setVerificationFiles(prev => [...prev, ...pastedImageFiles].slice(0, 5));
+        if (pastedImageFiles.length > 0) {
+            const allowedFiles = pastedImageFiles.slice(0, remainingSlots);
+            setVerificationFiles(prev => [...prev, ...allowedFiles]);
+        }
+    };
+
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            if (e.clipboardData?.items) {
+                processPastedVerificationItems(e.clipboardData.items);
             }
         };
 
         window.addEventListener('paste', handlePaste);
         return () => window.removeEventListener('paste', handlePaste);
-    }, []);
+    }, [verificationFiles.length]);
 
     // Tracking code state
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
@@ -2640,13 +2649,28 @@ function MessagesInner() {
                                     />
 
                                     {verificationFiles.length < 5 && (
-                                        <label
-                                            htmlFor="verification-photo-input"
-                                            className="w-full py-2.5 px-3 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 rounded-xl text-xs font-bold text-indigo-700 flex items-center justify-center gap-2 cursor-pointer transition-all mb-3"
-                                        >
-                                            <Upload size={14} />
-                                            {verificationFiles.length === 0 ? 'Upload or Paste Photos (Ctrl+V, Max 5)' : 'Add More Photos (Ctrl+V)'}
-                                        </label>
+                                        <div className="flex flex-col sm:flex-row items-center gap-2 mb-3">
+                                            <label
+                                                htmlFor="verification-photo-input"
+                                                className="w-full sm:w-1/2 py-2.5 px-3 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 rounded-xl text-xs font-bold text-indigo-700 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                                            >
+                                                <Upload size={14} />
+                                                Choose from Disk ({verificationFiles.length}/5)
+                                            </label>
+                                            <div className="w-full sm:w-1/2 relative">
+                                                <input
+                                                    type="text"
+                                                    placeholder="📋 Click & press Ctrl+V to paste"
+                                                    onPaste={(e) => {
+                                                        if (e.clipboardData?.items) {
+                                                            processPastedVerificationItems(e.clipboardData.items);
+                                                        }
+                                                    }}
+                                                    className="w-full py-2.5 px-3 bg-indigo-50/40 border border-indigo-200 rounded-xl font-bold text-xs text-indigo-900 placeholder-indigo-400 outline-none focus:border-indigo-500 focus:bg-white transition-all text-center"
+                                                    readOnly={verificationFiles.length >= 5}
+                                                />
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             )}
