@@ -2934,14 +2934,14 @@ function MessagesInner() {
 
     return (
         <>
-            <main className="h-[calc(100dvh-32px)] sm:h-[calc(100dvh-36px)] overflow-hidden bg-gray-50 flex flex-col font-sans text-gray-900">
-            <div className="bg-white border-b border-gray-200 px-3.5 sm:px-6 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10 shrink-0">
-                <div className="flex items-center gap-4">
-                    <Link href="/profile" className="p-2 bg-gray-50 text-gray-500 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors">
-                        <ArrowLeft size={20} />
+            <main className="h-[calc(100dvh-60px)] overflow-hidden bg-slate-950 flex flex-col font-sans text-gray-900">
+            <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between sticky top-0 z-10 shrink-0 text-white">
+                <div className="flex items-center gap-3">
+                    <Link href="/profile" className="p-1.5 bg-slate-800 text-slate-300 rounded-full hover:bg-slate-700 hover:text-white transition-colors">
+                        <ArrowLeft size={18} />
                     </Link>
-                    <h1 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                        <MessageSquare className="text-blue-600" /> Messages
+                    <h1 className="text-base font-black uppercase tracking-tight flex items-center gap-2 text-white">
+                        <MessageSquare className="text-blue-400" size={18} /> Messages
                     </h1>
                 </div>
             </div>
@@ -2994,14 +2994,14 @@ function MessagesInner() {
                             <div key={chat.id} className="relative group/chatrow">
                                 <button
                                     onClick={() => setActiveChatId(chat.id)}
-                                    className={`w-full text-left p-4 border-b border-gray-50 transition-all flex gap-3 pr-10 ${
+                                    className={`w-full text-left p-3.5 border-b border-gray-100 dark:border-slate-800 transition-all flex gap-3 pr-10 ${
                                       isSupport
                                         ? activeChatId === chat.id
-                                          ? 'bg-gradient-to-r from-blue-900/15 via-indigo-900/15 to-slate-900/10 border-l-4 border-l-blue-600 font-bold shadow-xs'
-                                          : 'bg-gradient-to-r from-blue-950/5 via-indigo-950/5 to-transparent hover:bg-blue-50/70 border-l-4 border-l-blue-500'
+                                          ? 'bg-blue-900/30 border-l-4 border-l-blue-500 font-bold shadow-xs'
+                                          : 'hover:bg-blue-50/50 dark:hover:bg-slate-800/50 border-l-4 border-l-blue-500'
                                         : activeChatId === chat.id
-                                          ? 'bg-blue-50 border-l-4 border-l-blue-600'
-                                          : 'border-l-4 border-l-transparent hover:bg-blue-50/50'
+                                          ? 'bg-slate-900 text-white border-l-4 border-l-blue-500 shadow-md'
+                                          : 'border-l-4 border-l-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
                                     }`}
                                 >
                                     <div className={`w-10 h-10 rounded-full border overflow-hidden shrink-0 flex items-center justify-center ${
@@ -3019,7 +3019,7 @@ function MessagesInner() {
                                     </div>
                                     <div className="overflow-hidden flex-1 flex flex-col justify-center">
                                         <div className="flex items-center gap-1.5 min-w-0">
-                                            <h3 className={`truncate text-sm ${isSupport ? 'text-blue-600 font-black' : (chat.id === 'draft' ? 'text-blue-500 font-black' : (chat.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-700'))}`}>
+                                            <h3 className={`truncate text-sm ${activeChatId === chat.id ? 'text-white font-black' : isSupport ? 'text-blue-600 font-black' : (chat.id === 'draft' ? 'text-blue-500 font-black' : (chat.unreadCount > 0 ? 'font-black text-gray-900 dark:text-white' : 'font-extrabold text-gray-800 dark:text-slate-200'))}`}>
                                                 {isSupport ? 'Printis Support' : chat.otherUser?.full_name}
                                             </h3>
                                             {isSupport && (
@@ -3028,7 +3028,7 @@ function MessagesInner() {
                                               </span>
                                             )}
                                         </div>
-                                        <p className={`text-xs truncate mt-0.5 ${isSupport ? 'text-blue-600 font-black' : (chat.unreadCount > 0 ? 'text-gray-900 font-bold' : 'text-blue-600 font-bold')}`}>
+                                        <p className={`text-xs truncate mt-0.5 ${activeChatId === chat.id ? 'text-blue-300 font-bold' : isSupport ? 'text-blue-500 font-bold' : (chat.unreadCount > 0 ? 'text-gray-900 dark:text-slate-100 font-bold' : 'text-blue-600 font-semibold')}`}>
                                             {isSupport ? 'Official System Communication' : (chat.offers?.title || 'Unknown Item')}
                                         </p>
                                         {chat.order_id && (
@@ -3883,57 +3883,53 @@ function MessagesInner() {
                                 const currentIdx = statusOrder.indexOf(status) >= 0 ? statusOrder.indexOf(status) : (status === 'disputed' ? 3 : 0);
 
                                 return (
-                                    <div className="px-4 pt-3 pb-2 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white">
-                                        {/* Progress Steps */}
-                                        <div className="flex items-center justify-between mb-1">
-                                            {steps.map((step, i) => {
-                                                const isDone = i < currentIdx;
-                                                const isCurrent = i === currentIdx;
-                                                const isFuture = i > currentIdx;
-                                                return (
-                                                    <div key={step.key} className="flex flex-col items-center gap-1 flex-1 relative">
-                                                        {i < steps.length - 1 && (
-                                                            <div className={`absolute top-3 left-1/2 w-full h-0.5 ${isDone ? 'bg-emerald-400' : 'bg-gray-200'}`} style={{ left: '50%', width: '100%', zIndex: 0 }} />
-                                                        )}
-                                                        <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center text-[10px] transition-all ${
-                                                            isDone ? 'bg-emerald-500 shadow-md shadow-emerald-200' :
-                                                            isCurrent ? 'bg-blue-500 shadow-md shadow-blue-200 ring-2 ring-blue-200 animate-pulse' :
-                                                            'bg-gray-200'
-                                                        }`}>
-                                                            {isDone ? '✓' : <span className="text-[9px]">{step.icon}</span>}
+                                    <div className="px-3 py-1.5 border-b border-slate-800 bg-[#0f172a] text-white shrink-0">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            {/* Inline Compact Steps */}
+                                            <div className="flex items-center gap-1.5 sm:gap-3 flex-1 overflow-x-auto py-0.5 [&::-webkit-scrollbar]:hidden">
+                                                {steps.map((step, i) => {
+                                                    const isDone = i < currentIdx;
+                                                    const isCurrent = i === currentIdx;
+                                                    return (
+                                                        <div key={step.key} className="flex items-center gap-1 shrink-0">
+                                                            <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+                                                                isDone ? 'bg-emerald-500 text-white shadow-xs' :
+                                                                isCurrent ? 'bg-blue-500 text-white ring-2 ring-blue-400/40 animate-pulse' :
+                                                                'bg-slate-800 text-slate-500'
+                                                            }`}>
+                                                                {isDone ? '✓' : step.icon}
+                                                            </div>
+                                                            <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${
+                                                                isDone ? 'text-emerald-400' : isCurrent ? 'text-blue-400' : 'text-slate-500'
+                                                            }`}>{step.label}</span>
+                                                            {i < steps.length - 1 && (
+                                                                <span className={`text-[10px] ${isDone ? 'text-emerald-500' : 'text-slate-700'}`}>›</span>
+                                                            )}
                                                         </div>
-                                                        <span className={`text-[8px] font-black uppercase tracking-wide ${
-                                                            isDone ? 'text-emerald-600' : isCurrent ? 'text-blue-600' : 'text-gray-300'
-                                                        }`}>{step.label}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Seller Deadline Countdown */}
-                                        {isSeller_ && status === 'pending' && shipDeadline && (
-                                            <div className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-black ${deadlinePassed ? 'bg-red-50 border border-red-300 text-red-800' : daysLeft !== null && daysLeft <= 1 ? 'bg-amber-50 border border-amber-300 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800'}`}>
-                                                <Clock size={12} className="shrink-0" />
-                                                {deadlinePassed
-                                                    ? '⚠️ Deadline has passed — send photos & ship immediately!'
-                                                    : `⏰ Send photos & ship by ${shipDeadline.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}`}
-                                                {!oi.extension_requested_at && !deadlinePassed && (
-                                                    <button
-                                                        className="ml-auto text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-current hover:opacity-75 transition cursor-pointer"
-                                                        onClick={() => {
-                                                            fetch('/api/order/status', {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ action: 'request_extension', itemId: oi.id, chatId: activeChatId, userId: currentUser?.id })
-                                                            }).then(r => r.json()).then(d => { if (d.success) loadMessages(activeChatId as string); else alert(d.error); });
-                                                        }}
-                                                    >Request Extension</button>
-                                                )}
-                                                {oi.extension_requested_at && !oi.extension_approved && !oi.extension_denied && (
-                                                    <span className="ml-auto text-[9px] text-amber-600 font-black">Extension request pending...</span>
-                                                )}
+                                                    );
+                                                })}
                                             </div>
-                                        )}
+
+                                            {/* Compact Deadline Pill */}
+                                            {isSeller_ && status === 'pending' && shipDeadline && (
+                                                <div className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${deadlinePassed ? 'bg-red-500/20 text-red-300 border border-red-500/30' : daysLeft !== null && daysLeft <= 1 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>
+                                                    <Clock size={10} className="shrink-0" />
+                                                    <span>{deadlinePassed ? 'Deadline Passed' : `Ship in ${daysLeft}d (${shipDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`}</span>
+                                                    {!oi.extension_requested_at && !deadlinePassed && (
+                                                        <button
+                                                            className="ml-1 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-white/20 hover:bg-white/30 text-white transition cursor-pointer"
+                                                            onClick={() => {
+                                                                fetch('/api/order/status', {
+                                                                    method: 'POST',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ action: 'request_extension', itemId: oi.id, chatId: activeChatId, userId: currentUser?.id })
+                                                                }).then(r => r.json()).then(d => { if (d.success) loadMessages(activeChatId as string); else alert(d.error); });
+                                                            }}
+                                                        >+Ext</button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             })()}
