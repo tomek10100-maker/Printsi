@@ -181,16 +181,7 @@ function MessagesInner() {
         }
     };
 
-    useEffect(() => {
-        const handlePaste = (e: ClipboardEvent) => {
-            if (e.clipboardData?.items) {
-                processPastedVerificationItems(e.clipboardData.items);
-            }
-        };
-
-        window.addEventListener('paste', handlePaste);
-        return () => window.removeEventListener('paste', handlePaste);
-    }, [verificationFiles.length]);
+    // processPastedVerificationItems is called directly by the verification input onPaste event with e.stopPropagation()
 
     // Tracking code state
     const [trackingCodeInput, setTrackingCodeInput] = useState('');
@@ -2662,6 +2653,7 @@ function MessagesInner() {
                                                     type="text"
                                                     placeholder="📋 Click & press Ctrl+V to paste"
                                                     onPaste={(e) => {
+                                                        e.stopPropagation();
                                                         if (e.clipboardData?.items) {
                                                             processPastedVerificationItems(e.clipboardData.items);
                                                         }
