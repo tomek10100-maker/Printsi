@@ -698,7 +698,10 @@ function MessagesInner() {
                 ));
                 loadMessages(activeChatId as string);
             } else {
-                alert(data.error || 'Failed to generate shipping label.');
+                const errMsg = data.debug_raw
+                    ? `${data.error}\n\n[DEBUG] ${data.debug_raw}`
+                    : (data.error || 'Failed to generate shipping label.');
+                alert(errMsg);
             }
         } catch (err) {
             console.error('Confirm shipment error:', err);
