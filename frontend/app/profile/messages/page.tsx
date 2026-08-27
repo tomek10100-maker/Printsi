@@ -3230,26 +3230,26 @@ function MessagesInner() {
                         const status = (oi?.status || 'pending').toLowerCase();
                         const verificationApproved = messages.some((m: any) => m.message_type === 'verification_approved');
 
-                        let steps: { key: string; label: string; icon: string }[] = [];
+                        let steps: { key: string; label: string; Icon: any }[] = [];
                         let currentIdx = 0;
 
                         if (isDigital) {
                             steps = [
-                                { key: 'ordered', label: 'Ordered', icon: '🛒' },
-                                { key: 'sent', label: 'Sent to Email', icon: '📩' },
-                                { key: 'verify', label: 'Verify', icon: '🔍' },
-                                { key: 'complete', label: 'Complete', icon: '🏁' },
+                                { key: 'ordered', label: 'Ordered', Icon: ShoppingBag },
+                                { key: 'sent', label: 'Sent to Email', Icon: Mail },
+                                { key: 'verify', label: 'Verify', Icon: CheckCircle2 },
+                                { key: 'complete', label: 'Complete', Icon: Shield },
                             ];
                             currentIdx = status === 'completed' || status === 'transfer_completed' ? 3 : (status === 'delivered' || status === 'shipped' ? 2 : 1);
                         } else {
                             steps = [
-                                { key: 'ordered', label: 'Ordered', icon: '🛒' },
-                                { key: 'print_verify', label: 'Print Verify', icon: '📷' },
-                                { key: 'waiting_for_shipping', label: 'Waiting for Shipping', icon: '⏳' },
-                                { key: 'shipped', label: 'Shipped', icon: '📦' },
-                                { key: 'in_transit', label: 'In Transit', icon: '🚚' },
-                                { key: 'delivered', label: 'Delivery Verify', icon: '🔎' },
-                                { key: 'complete', label: 'Complete', icon: '🏁' },
+                                { key: 'ordered', label: 'Ordered', Icon: ShoppingBag },
+                                { key: 'print_verify', label: 'Print Verify', Icon: Camera },
+                                { key: 'waiting_for_shipping', label: 'Waiting for Shipping', Icon: Clock },
+                                { key: 'shipped', label: 'Shipped', Icon: Package },
+                                { key: 'in_transit', label: 'In Transit', Icon: Truck },
+                                { key: 'delivered', label: 'Delivery Verify', Icon: CheckCircle2 },
+                                { key: 'complete', label: 'Complete', Icon: Shield },
                             ];
                             if (status === 'completed' || status === 'transfer_completed') currentIdx = 6;
                             else if (status === 'delivered') currentIdx = 5;
@@ -3261,9 +3261,10 @@ function MessagesInner() {
 
                         return (
                             <div className="hidden md:flex items-center gap-1.5 pl-3 border-l border-slate-700/80 overflow-x-auto shrink-0 py-0.5">
-                                {steps.map((step, i) => {
+                                {steps.map((step: any, i: number) => {
                                     const isDone = i < currentIdx;
                                     const isCurrent = i === currentIdx;
+                                    const StepIcon = step.Icon;
                                     return (
                                         <div key={step.key} className="flex items-center gap-1 shrink-0">
                                             <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black transition-all ${
@@ -3271,7 +3272,7 @@ function MessagesInner() {
                                                 isCurrent ? 'bg-blue-500 text-white ring-2 ring-blue-400/40 animate-pulse' :
                                                 'bg-slate-800 text-slate-500'
                                             }`}>
-                                                {isDone ? '✓' : step.icon}
+                                                {isDone ? <Check size={9} strokeWidth={3} /> : <StepIcon size={9} />}
                                             </div>
                                             <span className={`text-[9px] font-black uppercase tracking-wider ${
                                                 isDone ? 'text-emerald-400' : isCurrent ? 'text-blue-400' : 'text-slate-500'

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Star, X, Loader2, Camera, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Star, X, Loader2, Camera, Upload, CheckCircle2, AlertCircle, Award, Sparkles } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -161,7 +161,8 @@ export default function ReviewModal({
         {/* Header */}
         <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-900/50">
           <div>
-            <h3 className="font-black text-lg text-gray-900 dark:text-white tracking-tight">
+            <h3 className="font-black text-lg text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+              <Award className="text-amber-400" size={20} />
               {existingReview ? 'Edit Your Review' : 'Rate & Review Your Purchase'}
             </h3>
             <p className="text-xs text-gray-500 dark:text-slate-400 font-semibold truncate max-w-xs mt-0.5">
@@ -195,8 +196,8 @@ export default function ReviewModal({
               )}
 
               {/* Star Rating Selection */}
-              <div className="text-center space-y-2 py-2 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
-                <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <div className="text-center space-y-3 py-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   How would you rate this item & print quality?
                 </p>
                 <div className="flex items-center justify-center gap-2">
@@ -223,13 +224,33 @@ export default function ReviewModal({
                     );
                   })}
                 </div>
-                <p className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                  {rating === 5 && '🌟 Excellent — Perfect quality!'}
-                  {rating === 4 && '👍 Very Good — High quality'}
-                  {rating === 3 && '😐 Average — Met expectations'}
-                  {rating === 2 && '👎 Below Average — Issues noticed'}
-                  {rating === 1 && '😞 Poor — Disappointed'}
-                </p>
+                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 pt-1">
+                  {rating === 5 && (
+                    <span className="flex items-center gap-1.5 text-amber-400 bg-amber-400/10 px-3 py-1 rounded-xl border border-amber-400/20 font-black uppercase tracking-wider text-[11px]">
+                      <Award size={14} className="shrink-0" /> Excellent — Exceptional Quality
+                    </span>
+                  )}
+                  {rating === 4 && (
+                    <span className="flex items-center gap-1.5 text-blue-400 bg-blue-400/10 px-3 py-1 rounded-xl border border-blue-400/20 font-black uppercase tracking-wider text-[11px]">
+                      <CheckCircle2 size={14} className="shrink-0" /> Very Good — High Standard Quality
+                    </span>
+                  )}
+                  {rating === 3 && (
+                    <span className="flex items-center gap-1.5 text-slate-300 bg-slate-800 px-3 py-1 rounded-xl border border-slate-700 font-black uppercase tracking-wider text-[11px]">
+                      <Sparkles size={14} className="shrink-0" /> Satisfactory — Meets Specifications
+                    </span>
+                  )}
+                  {rating === 2 && (
+                    <span className="flex items-center gap-1.5 text-amber-300 bg-amber-950/40 px-3 py-1 rounded-xl border border-amber-800/40 font-black uppercase tracking-wider text-[11px]">
+                      <AlertCircle size={14} className="shrink-0" /> Fair — Needs Minor Improvements
+                    </span>
+                  )}
+                  {rating === 1 && (
+                    <span className="flex items-center gap-1.5 text-red-400 bg-red-950/40 px-3 py-1 rounded-xl border border-red-800/40 font-black uppercase tracking-wider text-[11px]">
+                      <X size={14} className="shrink-0" /> Subpar — Did Not Meet Expectations
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Comment Text Area */}

@@ -132,7 +132,6 @@ export async function POST(req: Request) {
         rating: numRating,
         comment: comment ? comment.trim() : null,
         image_urls: Array.isArray(imageUrls) ? imageUrls : [],
-        updated_at: new Date().toISOString(),
       }, { onConflict: 'order_item_id, buyer_id' })
       .select()
       .single();
