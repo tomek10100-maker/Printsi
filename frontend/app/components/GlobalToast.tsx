@@ -37,7 +37,7 @@ export default function GlobalToast() {
         msgStr = "The selected pickup point code is invalid for this carrier.";
       } else if (msgStr.includes("Numer kierunkowy") || msgStr.includes("poprzedzony +")) {
         msgStr = "Phone number requires an international country code prefix (e.g. +48).";
-      } else if (msgStr.includes("access_denied") || msgStr.includes("user authentication") || msgStr.includes("invalid_grant") || msgStr.includes("refresh token") || msgStr.includes("FURGONETKA_REFRESH_TOKEN")) {
+      } else if (msgStr.toLowerCase().includes("furgonetka") && (msgStr.includes("invalid_grant") || msgStr.includes("refresh token") || msgStr.includes("FURGONETKA_REFRESH_TOKEN"))) {
         msgStr = "Shipping service authentication error. The carrier connection requires re-authorization.";
       }
 
