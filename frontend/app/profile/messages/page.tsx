@@ -816,7 +816,7 @@ function MessagesInner() {
         }
     };
 
-    // Called by buyer when they confirm shipping address & print photos are OK
+    // Called by buyer when they confirm shipping verification photos are OK
     const handleConfirmShipment = async (itemId: string) => {
         setConfirmingShipment(true);
         try {
@@ -830,55 +830,43 @@ function MessagesInner() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) { alert('Session expired. Please log in again.'); setConfirmingShipment(false); return; }
 
-            const res = await fetch('/api/furgonetka/create-package', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-                body: JSON.stringify({ itemId: targetItemId, chatId: activeChatId })
-            });
-            const data = await res.json();
-            if (data.success) {
-                setChats(prev => prev.map(c =>
-                    c.id === activeChatId ? {
-                        ...c,
-                        orderItem: {
-                            ...c.orderItem,
-                            status: 'shipped',
-                            tracking_code: data.trackingNumber || 'PENDING',
-                            furgonetka_package_id: data.packageId,
-                            label_url: data.labelUrl
-                        }
-                    } : c
-                ));
-                if (activeChatId) loadMessages(activeChatId);
-            } else {
-                console.warn('Furgonetka create-package returned error, triggering status update fallback:', data.error);
-                
-                // Fallback: update status to 'shipped' so order is never blocked by external carrier API errors
-                const fallbackRes = await fetch('/api/order/status', {
+            // Create shipping package & label via Furgonetka if available
+            try {
+                const res = await fetch('/api/furgonetka/create-package', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ itemId: targetItemId, newStatus: 'shipped', chatId: activeChatId, userId: currentUser?.id })
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                    body: JSON.stringify({ itemId: targetItemId, chatId: activeChatId })
                 });
-                const fallbackData = await fallbackRes.json();
-                if (fallbackData.success || fallbackRes.ok) {
+                const data = await res.json();
+                if (data.success) {
                     setChats(prev => prev.map(c =>
                         c.id === activeChatId ? {
                             ...c,
                             orderItem: {
                                 ...c.orderItem,
-                                status: 'shipped'
+                                tracking_code: data.trackingNumber || 'LABEL_READY',
+                                furgonetka_package_id: data.packageId,
+                                label_url: data.labelUrl
                             }
                         } : c
                     ));
-                    if (activeChatId) loadMessages(activeChatId);
-                    if (currentUser?.id) loadChats(currentUser.id);
-                } else {
-                    console.error('Shipment status fallback failed:', fallbackData);
                 }
+            } catch (furgErr) {
+                console.warn('Furgonetka package creation note:', furgErr);
             }
+
+            // Insert system message into chat
+            await supabase.from('messages').insert({
+                chat_id: activeChatId,
+                sender_id: currentUser?.id,
+                message_type: 'verification_approved',
+                content: '✅ Print verification photos approved by buyer! Seller can now download shipping label and hand over package to courier.'
+            });
+
+            if (activeChatId) loadMessages(activeChatId);
+            if (currentUser?.id) loadChats(currentUser.id);
         } catch (err) {
-            console.error('Confirm shipment error:', err);
-            alert('Network error occurred.');
+            console.error('Confirm verification error:', err);
         } finally {
             setConfirmingShipment(false);
         }

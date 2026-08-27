@@ -138,6 +138,21 @@ export async function GET(req: Request) {
 
     await supabase.from('chats').update({ completed_at: now.toISOString() }).eq('id', chat.id);
 
+    // Auto-generate 5-star review for the order item
+    try {
+      await supabase.from('reviews').upsert({
+        order_item_id: item.id,
+        offer_id: item.offer_id,
+        buyer_id: chat.buyer_id,
+        seller_id: item.seller_id,
+        rating: 5,
+        comment: 'Everything is fine with the order — automatic review.',
+        updated_at: now.toISOString(),
+      }, { onConflict: 'order_item_id, buyer_id' });
+    } catch (revErr) {
+      console.error('Auto-review creation error:', revErr);
+    }
+
     // Notify both parties
     const { data: offer } = await supabase.from('offers').select('title').eq('id', item.offer_id).single();
     const { data: sellerProfile } = await supabase.from('profiles').select('currency').eq('id', item.seller_id).single();

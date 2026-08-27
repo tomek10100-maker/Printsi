@@ -55,6 +55,34 @@ export default function AdminOrdersPage() {
     fetchOrders();
   }, []);
 
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+
+  const handleAdminStatusChange = async (orderItemId: string, newStatus: string) => {
+    setUpdatingItemId(orderItemId);
+    try {
+      const token = await getAdminToken();
+      if (!token) throw new Error('Admin session expired.');
+
+      const res = await fetch('/api/admin/orders/status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ orderItemId, newStatus })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Status change failed');
+
+      await fetchOrders();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update order status');
+    } finally {
+      setUpdatingItemId(null);
+    }
+  };
+
   const fmt = (n: number) => `€${Number(n).toFixed(2)}`;
 
   const handleResolveDispute = async (action: 'refund_buyer' | 'payout_seller') => {
@@ -189,11 +217,24 @@ export default function AdminOrdersPage() {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <span style={{ background: sc.bg, color: sc.text, fontSize: '9px', padding: '2px 8px', borderRadius: 999 }} className="font-black uppercase tracking-widest whitespace-nowrap">
-                              {item.status === 'transfer_completed' ? 'RESOLVED: PAID OUT' :
-                               item.status === 'cancelled' ? 'CANCELLED / REFUNDED' :
-                               item.status === 'disputed' ? 'DISPUTED' : item.status}
-                            </span>
+                            {/* Admin Status Selector */}
+                            <div style={{ background: '#0b1329', border: `1px solid ${sc.text}40` }} className="flex items-center gap-1.5 rounded-xl px-2.5 py-1">
+                              <select
+                                value={item.status || 'ordered'}
+                                disabled={updatingItemId === item.id}
+                                onChange={(e) => handleAdminStatusChange(item.id, e.target.value)}
+                                style={{ color: sc.text }}
+                                className="bg-transparent text-[11px] font-black uppercase tracking-wider outline-none cursor-pointer border-none"
+                              >
+                                <option value="ordered" className="bg-slate-900 text-amber-400 font-bold">1. ORDERED</option>
+                                <option value="shipped" className="bg-slate-900 text-purple-400 font-bold">2. SHIPPED</option>
+                                <option value="in_transit" className="bg-slate-900 text-blue-400 font-bold">3. IN TRANSIT</option>
+                                <option value="delivered" className="bg-slate-900 text-teal-400 font-bold">4. DELIVERED (48h)</option>
+                                <option value="completed" className="bg-slate-900 text-emerald-400 font-bold">5. COMPLETE</option>
+                                <option value="cancelled" className="bg-slate-900 text-red-400 font-bold">CANCELLED</option>
+                              </select>
+                              {updatingItemId === item.id && <Loader2 size={12} className="animate-spin text-blue-400" />}
+                            </div>
 
                             {/* Direct Admin Open Chat Button */}
                             {item.chat_id && (
