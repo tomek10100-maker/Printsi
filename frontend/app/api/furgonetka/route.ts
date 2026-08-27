@@ -11,25 +11,16 @@ const FURGONETKA_SECRET = process.env.FURGONETKA_WEBHOOK_SECRET || 'ZMIEN_MNIE_N
 
 // 1. Handle ping/GET verification from Furgonetka webhook settings validation
 export async function GET() {
-  return NextResponse.json({ status: 'ok', message: 'Furgonetka webhook endpoint active' }, { status: 200 });
+  return NextResponse.json({ status: 'ok', success: true, message: 'Furgonetka webhook endpoint active' }, { status: 200 });
 }
 
 export async function POST(req: Request) {
   try {
     const bodyText = await req.text();
 
-    // If Furgonetka sends empty POST test ping during URL validation
+    // Handle empty POST test ping from Furgonetka URL validation
     if (!bodyText || bodyText.trim() === '') {
-      return NextResponse.json({ status: 'ok', message: 'Validation ping received' }, { status: 200 });
-    }
-
-    // 1. Authorization Check (if secret is set & header is provided)
-    const authHeader = req.headers.get('authorization') || req.headers.get('x-furgonetka-token') || '';
-    const providedToken = authHeader.replace('Bearer ', '').trim();
-
-    if (FURGONETKA_SECRET && authHeader && providedToken !== FURGONETKA_SECRET) {
-      console.warn('[Furgonetka Webhook] Unauthorized request received:', { providedToken });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ status: 'ok', success: true, message: 'Validation ping received' }, { status: 200 });
     }
 
     // 2. Parse payload
@@ -38,7 +29,7 @@ export async function POST(req: Request) {
       payload = JSON.parse(bodyText);
     } catch (e) {
       console.warn('[Furgonetka Webhook] Non-JSON test payload received:', bodyText);
-      return NextResponse.json({ status: 'ok', message: 'Non-JSON payload acknowledged' }, { status: 200 });
+      return NextResponse.json({ status: 'ok', success: true, message: 'Non-JSON payload acknowledged' }, { status: 200 });
     }
 
     console.log('📦 Furgonetka Webhook Received:', JSON.stringify(payload, null, 2));
@@ -47,9 +38,19 @@ export async function POST(req: Request) {
     const state = payload.state || payload.status;
     const trackingNumber = payload.tracking_number || payload.waybill || payload.number;
 
-    if (!packageId) {
-      console.warn('[Furgonetka Webhook] Missing package_id in webhook payload (test ping)');
-      return NextResponse.json({ success: true, message: 'Missing package_id, acknowledged test ping' }, { status: 200 });
+    // Handle test pings when clicking "TESTUJ" or "ZAPISZ" in Furgonetka dashboard
+    if (!packageId || payload.test || payload.event === 'ping' || payload.action === 'test') {
+      console.warn('[Furgonetka Webhook] Acknowledged test ping from dashboard');
+      return NextResponse.json({ status: 'ok', success: true, message: 'Test ping acknowledged' }, { status: 200 });
+    }
+
+    // 3. Authorization Check (for actual package notifications)
+    const authHeader = req.headers.get('authorization') || req.headers.get('x-furgonetka-token') || req.headers.get('x-furgonetka-signature') || '';
+    const providedToken = authHeader.replace('Bearer ', '').trim();
+
+    if (FURGONETKA_SECRET && FURGONETKA_SECRET !== 'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123' && authHeader && providedToken !== FURGONETKA_SECRET) {
+      console.warn('[Furgonetka Webhook] Unauthorized request received:', { providedToken });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // 3. Find order item by Furgonetka package ID
