@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import {
-  MapPin, Calendar, Loader2, ArrowLeft,
+  MapPin, Calendar, Loader2, ArrowLeft, Star,
   Package, ShoppingBag, ArrowRight, User as UserIcon, Flag, X, CheckCircle, Handshake
 } from 'lucide-react';
 import { useCurrency } from '../../../context/CurrencyContext';
@@ -22,6 +22,7 @@ export default function PublicProfilePage() {
   const { formatPrice } = useCurrency();
   const [profile, setProfile] = useState<any>(null);
   const [offers, setOffers] = useState<any[]>([]);
+  const [sellerStats, setSellerStats] = useState<{ avgRating: number; count: number }>({ avgRating: 0, count: 0 });
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -60,6 +61,20 @@ export default function PublicProfilePage() {
         .eq('user_id', params.id)
         .or('is_custom.eq.false,is_custom.is.null')
         .order('created_at', { ascending: false });
+
+      // 3. Pobierz opinie i oblicz średnią gwiazdek sprzedającego
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('seller_id', params.id);
+
+      if (reviewsData && reviewsData.length > 0) {
+        const sum = reviewsData.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+        const avg = Math.round((sum / reviewsData.length) * 10) / 10;
+        setSellerStats({ avgRating: avg, count: reviewsData.length });
+      } else {
+        setSellerStats({ avgRating: 0, count: 0 });
+      }
 
       setProfile(profileData);
       setOffers(offersData || []);
@@ -126,7 +141,18 @@ export default function PublicProfilePage() {
 
           <div className="flex-1 mb-2">
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{profile?.full_name || 'Anonymous Maker'}</h1>
-            <div className="flex flex-wrap gap-4 mt-2 items-center">
+            <div className="flex flex-wrap gap-3 mt-2 items-center">
+              {sellerStats.count > 0 ? (
+                <span className="flex items-center gap-1.5 text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs">
+                  <Star size={14} className="fill-amber-400 text-amber-400" />
+                  <span>{sellerStats.avgRating.toFixed(1)}</span>
+                  <span className="text-gray-500 font-bold text-[11px]">({sellerStats.count} {sellerStats.count === 1 ? 'review' : 'reviews'})</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
+                  <Star size={14} className="text-gray-300" /> No reviews yet
+                </span>
+              )}
               {(() => {
                 const c = getCountryDisplay(profile?.country);
                 return (

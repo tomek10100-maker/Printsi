@@ -32,6 +32,7 @@ export default function OfferDetailsPage() {
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [showShareToast, setShowShareToast] = useState(false);
   const [sellerOffers, setSellerOffers] = useState<any[]>([]);
+  const [sellerStats, setSellerStats] = useState<{ avgRating: number; count: number }>({ avgRating: 0, count: 0 });
   const [creatingChat, setCreatingChat] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   // Materiały per warstwa: filament_id -> plastic_type
@@ -77,6 +78,22 @@ export default function OfferDetailsPage() {
           .limit(4);
         
         setSellerOffers(otherOffers || []);
+
+        // Pobierz średnią ocenę sprzedającego ze wszystkich jego produktów
+        if (data.user_id) {
+          const { data: reviewsData } = await supabase
+            .from('reviews')
+            .select('rating')
+            .eq('seller_id', data.user_id);
+
+          if (reviewsData && reviewsData.length > 0) {
+            const sum = reviewsData.reduce((acc: number, r: any) => acc + (Number(r.rating) || 5), 0);
+            const avg = Math.round((sum / reviewsData.length) * 10) / 10;
+            setSellerStats({ avgRating: avg, count: reviewsData.length });
+          } else {
+            setSellerStats({ avgRating: 0, count: 0 });
+          }
+        }
       }
 
       // 2. Sprawdź czy polubione i role usera
@@ -501,6 +518,21 @@ export default function OfferDetailsPage() {
             <div className="min-w-0 flex-1">
               <span className="block text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-1">Crafted by</span>
               <span className="font-black text-gray-900 dark:text-white text-base truncate block">{seller?.full_name || 'Anonymous Maker'}</span>
+              {sellerStats.count > 0 ? (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="flex items-center gap-1 text-amber-500 text-xs font-black">
+                    <Star size={12} className="fill-amber-400 text-amber-400" />
+                    <span>{sellerStats.avgRating.toFixed(1)}</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                    ({sellerStats.count} {sellerStats.count === 1 ? 'review' : 'reviews'})
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-gray-400 text-[10px] font-bold mt-0.5">
+                  <Star size={11} className="text-gray-300 dark:text-gray-600" /> No reviews yet
+                </div>
+              )}
             </div>
             <Link
               href={`/user/${offer.user_id}`}
