@@ -43,12 +43,17 @@ export default function AdminOrdersPage() {
   const [resolveError, setResolveError] = useState<string | null>(null);
 
   const fetchOrders = async () => {
-    const token = await getAdminToken();
-    if (!token) { setLoading(false); return; }
-    const res = await fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    setOrders(data.orders || []);
-    setLoading(false);
+    try {
+      const token = await getAdminToken();
+      if (!token) { setLoading(false); return; }
+      const res = await fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) setOrders(data.orders || []);
+    } catch (err) {
+      console.error('Fetch admin orders error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

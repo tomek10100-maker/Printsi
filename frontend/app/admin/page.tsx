@@ -84,14 +84,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const token = await getAdminToken();
-      if (!token) { setLoading(false); return; }
-      const res = await fetch('/api/admin/stats', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setStats(data);
-      setLoading(false);
+      try {
+        const token = await getAdminToken();
+        if (!token) { setLoading(false); return; }
+        const res = await fetch('/api/admin/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok) setStats(data);
+      } catch (err) {
+        console.error('Admin fetch stats error:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchStats();
   }, []);
