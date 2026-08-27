@@ -143,15 +143,28 @@ export default function PublicProfilePage() {
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{profile?.full_name || 'Anonymous Maker'}</h1>
             <div className="flex flex-wrap gap-3 mt-2 items-center">
               {sellerStats.count > 0 ? (
-                <span className="flex items-center gap-1.5 text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs">
-                  <Star size={14} className="fill-amber-400 text-amber-400" />
-                  <span>{sellerStats.avgRating.toFixed(1)}</span>
-                  <span className="text-gray-500 font-bold text-[11px]">({sellerStats.count} {sellerStats.count === 1 ? 'review' : 'reviews'})</span>
-                </span>
+                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl shadow-2xs">
+                  <div className="flex items-center gap-1 text-amber-500 text-xs font-black">
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          size={13}
+                          className={s <= Math.round(sellerStats.avgRating) ? 'fill-amber-400 text-amber-400' : 'text-gray-300 dark:text-gray-600'}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-amber-600 dark:text-amber-400 font-black text-xs ml-1">{sellerStats.avgRating.toFixed(1)}</span>
+                  </div>
+                  <span className="text-gray-300 dark:text-slate-600 font-bold text-xs">•</span>
+                  <span className="text-gray-600 dark:text-gray-300 text-xs font-bold">
+                    Based on <span className="font-black text-gray-900 dark:text-white">{sellerStats.count}</span> {sellerStats.count === 1 ? 'customer review' : 'customer reviews'}
+                  </span>
+                </div>
               ) : (
-                <span className="flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
-                  <Star size={14} className="text-gray-300" /> No reviews yet
-                </span>
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <Star size={13} className="text-gray-300 dark:text-gray-600" /> No reviews yet
+                </div>
               )}
               {(() => {
                 const c = getCountryDisplay(profile?.country);

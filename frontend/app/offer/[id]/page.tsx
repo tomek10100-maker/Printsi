@@ -520,17 +520,23 @@ export default function OfferDetailsPage() {
               <span className="font-black text-gray-900 dark:text-white text-base truncate block">{seller?.full_name || 'Anonymous Maker'}</span>
               {sellerStats.count > 0 ? (
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className="flex items-center gap-1 text-amber-500 text-xs font-black">
-                    <Star size={12} className="fill-amber-400 text-amber-400" />
-                    <span>{sellerStats.avgRating.toFixed(1)}</span>
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        size={11}
+                        className={s <= Math.round(sellerStats.avgRating) ? 'fill-amber-400 text-amber-400' : 'text-gray-300 dark:text-gray-600'}
+                      />
+                    ))}
                   </div>
-                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
-                    ({sellerStats.count} {sellerStats.count === 1 ? 'review' : 'reviews'})
+                  <span className="text-amber-500 dark:text-amber-400 text-xs font-black">{sellerStats.avgRating.toFixed(1)}</span>
+                  <span className="text-gray-400 dark:text-gray-500 font-bold text-[11px]">
+                    · Based on <span className="font-black text-gray-700 dark:text-gray-300">{sellerStats.count}</span> {sellerStats.count === 1 ? 'customer review' : 'customer reviews'}
                   </span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1 text-gray-400 text-[10px] font-bold mt-0.5">
-                  <Star size={11} className="text-gray-300 dark:text-gray-600" /> No reviews yet
+                  <Star size={11} className="text-gray-300 dark:text-gray-600" /> No seller reviews yet
                 </div>
               )}
             </div>
