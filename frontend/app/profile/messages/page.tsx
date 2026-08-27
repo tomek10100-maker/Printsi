@@ -3179,9 +3179,9 @@ function MessagesInner() {
 
     return (
         <>
-            <main className="h-[calc(100vh-64px)] sm:h-[calc(100vh-70px)] overflow-hidden bg-slate-950 flex flex-col font-sans text-gray-900">
-            <div className="bg-slate-900 border-b border-slate-800 px-3 sm:px-5 py-2 flex items-center justify-between sticky top-0 z-20 shrink-0 text-white min-h-[50px]">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <main className="h-[calc(100vh-60px)] overflow-hidden bg-slate-950 flex flex-col font-sans text-gray-900">
+            <div className="bg-slate-900 border-b border-slate-800 px-3 sm:px-5 py-2 flex items-center justify-between sticky top-0 z-20 shrink-0 text-white min-h-[48px]">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     <Link href="/profile" className="p-1.5 bg-slate-800 text-slate-300 rounded-full hover:bg-slate-700 hover:text-white transition-colors shrink-0">
                         <ArrowLeft size={16} />
                     </Link>
@@ -3191,7 +3191,7 @@ function MessagesInner() {
 
                     {/* Selected Active Chat Partner User Header Integrated in Top Bar */}
                     {activeChatData && (
-                        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-700/80 min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-700/80 min-w-0 shrink-0">
                             <div className={`w-7 h-7 rounded-full border overflow-hidden shrink-0 flex items-center justify-center ${
                                 activeChatData.isSupport
                                     ? 'bg-blue-600 border-blue-400 text-white shadow-sm'
@@ -3210,7 +3210,7 @@ function MessagesInner() {
                                     {activeChatData.isSupport ? 'Printis Support' : activeChatData.otherUser?.full_name}
                                 </span>
                                 {activeChatData.offers?.title && (
-                                    <Link href={`/offer/${activeChatData.offer_id}`} className="hidden md:inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:underline truncate max-w-[220px]">
+                                    <Link href={`/offer/${activeChatData.offer_id}`} className="hidden xl:inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:underline truncate max-w-[180px]">
                                         · <Package size={11} /> {activeChatData.offers.title}
                                     </Link>
                                 )}
@@ -3222,6 +3222,68 @@ function MessagesInner() {
                             </div>
                         </div>
                     )}
+
+                    {/* Integrated Timeline Steps Progress Bar */}
+                    {activeChatData?.orderItem && (() => {
+                        const oi = activeChatData.orderItem;
+                        const isDigital = activeChatData.offers?.category === 'digital';
+                        const status = (oi?.status || 'pending').toLowerCase();
+                        const verificationApproved = messages.some((m: any) => m.message_type === 'verification_approved');
+
+                        let steps: { key: string; label: string; icon: string }[] = [];
+                        let currentIdx = 0;
+
+                        if (isDigital) {
+                            steps = [
+                                { key: 'ordered', label: 'Ordered', icon: '🛒' },
+                                { key: 'sent', label: 'Sent to Email', icon: '📩' },
+                                { key: 'verify', label: 'Verify', icon: '🔍' },
+                                { key: 'complete', label: 'Complete', icon: '🏁' },
+                            ];
+                            currentIdx = status === 'completed' || status === 'transfer_completed' ? 3 : (status === 'delivered' || status === 'shipped' ? 2 : 1);
+                        } else {
+                            steps = [
+                                { key: 'ordered', label: 'Ordered', icon: '🛒' },
+                                { key: 'print_verify', label: 'Print Verify', icon: '📷' },
+                                { key: 'shipped', label: 'Shipped', icon: '📦' },
+                                { key: 'in_transit', label: 'In Transit', icon: '🚚' },
+                                { key: 'delivered', label: 'Delivery Verify', icon: '🔎' },
+                                { key: 'complete', label: 'Complete', icon: '🏁' },
+                            ];
+                            if (status === 'completed' || status === 'transfer_completed') currentIdx = 5;
+                            else if (status === 'delivered') currentIdx = 4;
+                            else if (status === 'in_transit') currentIdx = 3;
+                            else if (status === 'shipped') currentIdx = 2;
+                            else if (verificationApproved) currentIdx = 2;
+                            else currentIdx = 1;
+                        }
+
+                        return (
+                            <div className="hidden md:flex items-center gap-1.5 pl-3 border-l border-slate-700/80 overflow-x-auto shrink-0 py-0.5">
+                                {steps.map((step, i) => {
+                                    const isDone = i < currentIdx;
+                                    const isCurrent = i === currentIdx;
+                                    return (
+                                        <div key={step.key} className="flex items-center gap-1 shrink-0">
+                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black transition-all ${
+                                                isDone ? 'bg-emerald-500 text-white shadow-xs' :
+                                                isCurrent ? 'bg-blue-500 text-white ring-2 ring-blue-400/40 animate-pulse' :
+                                                'bg-slate-800 text-slate-500'
+                                            }`}>
+                                                {isDone ? '✓' : step.icon}
+                                            </div>
+                                            <span className={`text-[9px] font-black uppercase tracking-wider ${
+                                                isDone ? 'text-emerald-400' : isCurrent ? 'text-blue-400' : 'text-slate-500'
+                                            }`}>{step.label}</span>
+                                            {i < steps.length - 1 && (
+                                                <span className={`text-[9px] ${isDone ? 'text-emerald-500' : 'text-slate-700'}`}>›</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Negotiate button directly in top right if applicable */}
@@ -3378,66 +3440,15 @@ function MessagesInner() {
                         </div>
                     ) : (
                         <>
-                            {activeChatData && (() => {
-                                const isSupport = activeChatData.isSupport || (!activeChatData.offer_id && !activeChatData.order_id);
-                                return (
-                                <div className={`px-3 sm:px-5 py-2 border-b flex items-center gap-2 sm:gap-3 shrink-0 shadow-2xs ${
-                                  isSupport 
-                                    ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border-blue-500/30 text-white' 
-                                    : 'bg-white border-gray-100'
-                                }`}>
-                                    <button onClick={() => setActiveChatId(null)} className={`md:hidden p-2 -ml-2 ${isSupport ? 'text-slate-400 hover:text-white' : 'text-gray-400 hover:text-gray-900'}`}>
-                                        <ArrowLeft size={20} />
-                                    </button>
-                                    <div className={`w-10 h-10 rounded-full border overflow-hidden shrink-0 flex items-center justify-center ${
-                                      isSupport
-                                        ? 'bg-gradient-to-br from-blue-500 via-indigo-600 to-slate-900 border-blue-400 shadow-lg text-white'
-                                        : 'bg-gray-100 border-gray-200'
-                                    }`}>
-                                        {isSupport ? (
-                                            <Shield size={22} className="text-white drop-shadow-md" />
-                                        ) : activeChatData.otherUser?.avatar_url ? (
-                                            <img src={activeChatData.otherUser.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <User size={20} className="text-gray-400" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h2 className={`font-black text-base truncate ${isSupport ? 'text-white' : 'text-gray-900'}`}>
-                                              {isSupport ? 'Printis Support' : activeChatData.otherUser?.full_name}
-                                            </h2>
-                                            {isSupport && (
-                                              <span className="px-2 py-0.5 bg-blue-500/30 border border-blue-400/40 text-blue-300 text-[9px] font-black uppercase tracking-wider rounded-md flex items-center gap-1">
-                                                <Shield size={10} /> Verified Support
-                                              </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3 mt-0.5">
-                                            {isSupport ? (
-                                              <span className="text-xs font-medium text-slate-300 truncate">
-                                                Official Customer Support & System Communication
-                                              </span>
-                                            ) : (
-                                              <Link href={`/offer/${activeChatData.offer_id}`} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 w-fit">
-                                                  <Package size={12} /> {activeChatData.offers?.title}
-                                              </Link>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {!isSupport && !activeChatData.order_id && (
-                                        <button
-                                            type="button"
-                                            onClick={() => openProposalModal()}
-                                            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center gap-2 shrink-0 active:scale-95 border border-blue-400/20"
-                                            title="Negotiate custom price, material, size or color"
-                                        >
-                                            <Handshake size={16} /> Negotiate / Custom Offer
-                                        </button>
-                                    )}
-                                </div>
-                                );
-                            })()}
+                            {/* Mobile Back Button (shown only on small mobile screens when active chat is open) */}
+                            <div className="md:hidden bg-slate-900 border-b border-slate-800 px-3 py-1.5 flex items-center justify-between text-white shrink-0">
+                                <button onClick={() => setActiveChatId(null)} className="flex items-center gap-1 text-xs font-bold text-slate-300 hover:text-white">
+                                    <ArrowLeft size={16} /> Back to chats
+                                </button>
+                                {activeChatData && (
+                                    <span className="text-xs font-black truncate">{activeChatData.otherUser?.full_name}</span>
+                                )}
+                            </div>
                             <div className="shrink-0 border-b border-gray-200 bg-white relative z-20 shadow-sm">
                                 {(showJobProposalBanner || (activeChatData?.offers?.category === 'job')) && activeChatData && (() => {
                                     const isJobOffer = activeChatData.offers?.category === 'job';
@@ -4153,77 +4164,7 @@ function MessagesInner() {
                                 </div>
                             )}
 
-                            {/* ═══ VINTED-STYLE ORDER PROGRESS BAR ═══ */}
-                            {activeChatData?.orderItem && activeChatData?.offers?.category !== 'digital' && (() => {
-                                const oi = activeChatData.orderItem;
-                                const status = oi?.status || 'pending';
-                                const isSeller_ = currentUser?.id === activeChatData.seller_id;
-                                const shipDeadline = oi?.ship_by_deadline ? new Date(oi.ship_by_deadline) : null;
-                                const now = new Date();
-                                const daysLeft = shipDeadline ? Math.ceil((shipDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
-                                const deadlinePassed = shipDeadline && shipDeadline < now;
 
-                                const steps = [
-                                    { key: 'pending', label: 'Ordered', icon: '🛒' },
-                                    { key: 'shipped', label: 'Shipped', icon: '📦' },
-                                    { key: 'in_transit', label: 'In Transit', icon: '🚚' },
-                                    { key: 'delivered', label: 'Delivered', icon: '✅' },
-                                    { key: 'completed', label: 'Complete', icon: '🏁' },
-                                ];
-                                const statusOrder = ['pending', 'shipped', 'in_transit', 'delivered', 'completed'];
-                                const currentIdx = statusOrder.indexOf(status) >= 0 ? statusOrder.indexOf(status) : (status === 'disputed' ? 3 : 0);
-
-                                return (
-                                    <div className="px-3 py-1.5 border-b border-slate-800 bg-[#0f172a] text-white shrink-0">
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            {/* Inline Compact Steps */}
-                                            <div className="flex items-center gap-1.5 sm:gap-3 flex-1 overflow-x-auto py-0.5 [&::-webkit-scrollbar]:hidden">
-                                                {steps.map((step, i) => {
-                                                    const isDone = i < currentIdx;
-                                                    const isCurrent = i === currentIdx;
-                                                    return (
-                                                        <div key={step.key} className="flex items-center gap-1 shrink-0">
-                                                            <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
-                                                                isDone ? 'bg-emerald-500 text-white shadow-xs' :
-                                                                isCurrent ? 'bg-blue-500 text-white ring-2 ring-blue-400/40 animate-pulse' :
-                                                                'bg-slate-800 text-slate-500'
-                                                            }`}>
-                                                                {isDone ? '✓' : step.icon}
-                                                            </div>
-                                                            <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${
-                                                                isDone ? 'text-emerald-400' : isCurrent ? 'text-blue-400' : 'text-slate-500'
-                                                            }`}>{step.label}</span>
-                                                            {i < steps.length - 1 && (
-                                                                <span className={`text-[10px] ${isDone ? 'text-emerald-500' : 'text-slate-700'}`}>›</span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            {/* Compact Deadline Pill */}
-                                            {isSeller_ && status === 'pending' && shipDeadline && (
-                                                <div className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${deadlinePassed ? 'bg-red-500/20 text-red-300 border border-red-500/30' : daysLeft !== null && daysLeft <= 1 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>
-                                                    <Clock size={10} className="shrink-0" />
-                                                    <span>{deadlinePassed ? 'Deadline Passed' : `Ship in ${daysLeft}d (${shipDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`}</span>
-                                                    {!oi.extension_requested_at && !deadlinePassed && (
-                                                        <button
-                                                            className="ml-1 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-white/20 hover:bg-white/30 text-white transition cursor-pointer"
-                                                            onClick={() => {
-                                                                fetch('/api/order/status', {
-                                                                    method: 'POST',
-                                                                    headers: { 'Content-Type': 'application/json' },
-                                                                    body: JSON.stringify({ action: 'request_extension', itemId: oi.id, chatId: activeChatId, userId: currentUser?.id })
-                                                                }).then(r => r.json()).then(d => { if (d.success) loadMessages(activeChatId as string); else alert(d.error); });
-                                                            }}
-                                                        >+Ext</button>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })()}
 
                             <div className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 sm:px-6 sm:py-6 space-y-3.5">
                                 {loadingMessages ? (
