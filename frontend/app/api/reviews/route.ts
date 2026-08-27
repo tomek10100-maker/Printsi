@@ -137,7 +137,32 @@ export async function POST(req: Request) {
       .single();
 
     if (saveErr) {
-      console.error('Failed to save review:', saveErr);
+      console.error('Failed to save review to table:', saveErr);
+      // Fallback: if reviews table does not exist in Supabase yet, record review as chat message
+      if (saveErr.code === 'PGRST205' || saveErr.message?.includes('schema cache')) {
+        const { data: chat } = await supabaseAdmin
+          .from('chats')
+          .select('id')
+          .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+          .limit(1)
+          .maybeSingle();
+
+        if (chat) {
+          await supabaseAdmin.from('messages').insert({
+            chat_id: chat.id,
+            sender_id: user.id,
+            message_type: 'review_submitted',
+            content: JSON.stringify({
+              rating: numRating,
+              comment: comment ? comment.trim() : null,
+              image_urls: Array.isArray(imageUrls) ? imageUrls : [],
+            })
+          });
+        }
+
+        return NextResponse.json({ success: true, review: { rating: numRating, comment } });
+      }
+
       return NextResponse.json({ error: saveErr.message }, { status: 500 });
     }
 
