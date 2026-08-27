@@ -3245,15 +3245,16 @@ function MessagesInner() {
                             steps = [
                                 { key: 'ordered', label: 'Ordered', icon: '🛒' },
                                 { key: 'print_verify', label: 'Print Verify', icon: '📷' },
+                                { key: 'waiting_for_shipping', label: 'Waiting for Shipping', icon: '⏳' },
                                 { key: 'shipped', label: 'Shipped', icon: '📦' },
                                 { key: 'in_transit', label: 'In Transit', icon: '🚚' },
                                 { key: 'delivered', label: 'Delivery Verify', icon: '🔎' },
                                 { key: 'complete', label: 'Complete', icon: '🏁' },
                             ];
-                            if (status === 'completed' || status === 'transfer_completed') currentIdx = 5;
-                            else if (status === 'delivered') currentIdx = 4;
-                            else if (status === 'in_transit') currentIdx = 3;
-                            else if (status === 'shipped') currentIdx = 2;
+                            if (status === 'completed' || status === 'transfer_completed') currentIdx = 6;
+                            else if (status === 'delivered') currentIdx = 5;
+                            else if (status === 'in_transit') currentIdx = 4;
+                            else if (status === 'shipped') currentIdx = 3;
                             else if (verificationApproved) currentIdx = 2;
                             else currentIdx = 1;
                         }
