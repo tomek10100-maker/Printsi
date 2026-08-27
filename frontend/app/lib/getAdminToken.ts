@@ -19,6 +19,6 @@ export async function getAdminToken(): Promise<string | null> {
     setTimeout(() => {
       subscription.unsubscribe();
       resolve(null);
-    }, 3000);
+    }, 400);
   });
 }

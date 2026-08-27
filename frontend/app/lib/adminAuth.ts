@@ -49,7 +49,15 @@ export const UNAUTHORIZED = () =>
 export const FORBIDDEN = () =>
   NextResponse.json({ error: 'Forbidden — admin access only' }, { status: 403 });
 
+let cachedEmailMap: { map: Record<string, string>; expires: number } | null = null;
+let cachedUserMap: { map: Record<string, { email: string; createdAt: string }>; expires: number } | null = null;
+
 export async function getAuthEmailMap(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (cachedEmailMap && cachedEmailMap.expires > now) {
+    return cachedEmailMap.map;
+  }
+
   const emailMap: Record<string, string> = {};
   try {
     const res = await supabaseAdmin.auth.admin.listUsers();
@@ -58,6 +66,7 @@ export async function getAuthEmailMap(): Promise<Record<string, string>> {
         if (u.id && u.email) emailMap[u.id] = u.email;
       });
     }
+    cachedEmailMap = { map: emailMap, expires: now + 60000 };
   } catch (err) {
     console.warn('getAuthEmailMap failed:', err);
   }
@@ -65,6 +74,11 @@ export async function getAuthEmailMap(): Promise<Record<string, string>> {
 }
 
 export async function getAuthUserMap(): Promise<Record<string, { email: string; createdAt: string }>> {
+  const now = Date.now();
+  if (cachedUserMap && cachedUserMap.expires > now) {
+    return cachedUserMap.map;
+  }
+
   const userMap: Record<string, { email: string; createdAt: string }> = {};
   try {
     const res = await supabaseAdmin.auth.admin.listUsers();
@@ -78,6 +92,7 @@ export async function getAuthUserMap(): Promise<Record<string, { email: string; 
         }
       });
     }
+    cachedUserMap = { map: userMap, expires: now + 60000 };
   } catch (err) {
     console.warn('getAuthUserMap failed:', err);
   }
