@@ -30,8 +30,7 @@ export async function POST(req: Request) {
 
     const now = new Date();
     const updatePayload: Record<string, any> = {
-      status: newStatus,
-      updated_at: now.toISOString()
+      status: newStatus
     };
 
     if (trackingCode) updatePayload.tracking_code = trackingCode;
