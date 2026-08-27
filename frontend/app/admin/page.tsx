@@ -114,6 +114,27 @@ export default function AdminDashboard() {
         <p style={{ color: '#64748b' }} className="text-sm font-bold mt-1">Platform overview — all data in real time</p>
       </div>
 
+      {/* Furgonetka OAuth Re-authorization Action Banner */}
+      <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)' }} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-xl shrink-0">
+            🚚
+          </div>
+          <div>
+            <h3 className="font-black text-sm text-slate-100 uppercase tracking-wider">Furgonetka.pl Courier OAuth Connection</h3>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">Click to re-authorize carrier API connection whenever shipping label generation requires OAuth refresh.</p>
+          </div>
+        </div>
+        <a
+          href="/api/furgonetka/auth?secret=ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-600/30 transition-all shrink-0 cursor-pointer"
+        >
+          🔗 Re-Authorize Furgonetka
+        </a>
+      </div>
+
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard label="Total Users" value={stats?.totalUsers?.toLocaleString()} icon={Users} color="blue" href="/admin/users" />

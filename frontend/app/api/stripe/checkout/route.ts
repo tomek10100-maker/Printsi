@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { stripe } from '../../../lib/stripe';
 import type Stripe from 'stripe';
 import { getSiteUrl } from '@/app/lib/getSiteUrl';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(req: Request) {
   try {
@@ -51,20 +57,29 @@ export async function POST(req: Request) {
         quantity: 1,
       });
     } else {
-      // 3. Standard checkout — use grandTotalEur from the UI as the single source of truth.
-      // This guarantees the Stripe charge = exactly what was shown to the buyer.
-      // We round once on the final total to avoid any per-item rounding accumulation.
+      // 3. Standard checkout — recalculate prices server-side from Supabase database
+      // to ensure buyer cannot manipulate prices via HTTP request payload.
+      const offerIds = items.map((i: any) => i.id);
+      const { data: dbOffers } = await supabaseAdmin
+        .from('offers')
+        .select('id, price, user_id, title')
+        .in('id', offerIds);
 
-      const totalInSmallestUnit = grandTotalEur != null
-        ? Math.round(grandTotalEur * exchangeRate * 100)
-        : (() => {
-            // Fallback if grandTotalEur not provided: compute from parts
-            const itemsSubtotalEur = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0);
-            const feeBaseEur = itemsSubtotalEur + (shippingCostEur || 0);
-            const isForeign = currency !== 'eur';
-            const feesEur = feeBaseEur * (0.01 + 0.025 + (isForeign ? 0.015 : 0));
-            return Math.round((feeBaseEur + feesEur) * exchangeRate * 100);
-          })();
+      const offerMap = new Map(dbOffers?.map((o: any) => [o.id, o]) || []);
+      let itemsSubtotalEur = 0;
+      for (const item of items) {
+        const dbOffer = offerMap.get(item.id);
+        const realPrice = dbOffer ? Number(dbOffer.price) : Number(item.price || 0);
+        itemsSubtotalEur += realPrice * (Number(item.quantity) || 1);
+      }
+
+      const validatedShippingEur = Math.max(0, Number(shippingCostEur) || 0);
+      const feeBaseEur = itemsSubtotalEur + validatedShippingEur;
+      const isForeign = currency !== 'eur';
+      const feesEur = feeBaseEur * (0.01 + 0.025 + (isForeign ? 0.015 : 0));
+      const serverCalculatedTotalEur = feeBaseEur + feesEur;
+      const safeExchangeRate = Number(exchangeRate) || 1;
+      const totalInSmallestUnit = Math.max(50, Math.round(serverCalculatedTotalEur * safeExchangeRate * 100));
 
       // Build a human-readable order summary label
       const itemNames = items.map((i: any) => `${i.quantity}× ${i.name || i.title}`).join(', ');

@@ -1165,13 +1165,13 @@ export default function AddOfferPage() {
             <section className="space-y-4">
               <SectionLabel step="2" label="Basic Details" />
               <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required title="Please fill out this field"
-                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold outline-none focus:border-blue-600 focus:bg-white transition-all" />
+                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-slate-900 focus:text-slate-900 placeholder:text-gray-400 outline-none focus:border-blue-600 focus:bg-white transition-all" />
               <textarea
                 placeholder={category === 'job' ? 'Describe your project in detail. Mention the purpose, strength requirements, and any specifics to help the printer achieve the best result for you...' : 'Description'}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={4}
-                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium outline-none focus:border-blue-600 focus:bg-white transition-all resize-none" />
+                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-slate-900 focus:text-slate-900 placeholder:text-gray-400 outline-none focus:border-blue-600 focus:bg-white transition-all resize-none" />
 
               <div className="pt-1">
                 <div className="flex items-center gap-2 mb-2">
@@ -1185,7 +1185,7 @@ export default function AddOfferPage() {
                   value={assemblyTools}
                   onChange={e => setAssemblyTools(e.target.value)}
                   rows={2}
-                  className="w-full p-4 bg-amber-50/50 border border-amber-200/80 rounded-xl font-medium text-sm outline-none focus:border-amber-500 focus:bg-white transition-all resize-none shadow-xs"
+                  className="w-full p-4 bg-amber-50 border border-amber-200/80 rounded-xl font-semibold text-sm text-slate-900 focus:text-slate-900 placeholder:text-amber-800/40 outline-none focus:border-amber-500 focus:bg-white transition-all resize-none shadow-xs"
                 />
                 <p className="text-[10px] text-gray-400 font-medium mt-1">
                   Specify any non-3D printed hardware, screws, glue, electronics, or tools required to assemble this model.

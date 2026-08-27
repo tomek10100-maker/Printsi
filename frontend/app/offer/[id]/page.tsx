@@ -14,6 +14,7 @@ import { supabase } from '../../lib/supabase';
 
 import { formatOfferWeight } from '../../lib/offerHelpers';
 import { getMaterialInfo } from '../../lib/materialHelpers';
+import ReviewsSection from '../../components/ReviewsSection';
 
 export default function OfferDetailsPage() {
   const params = useParams();
@@ -1074,6 +1075,14 @@ export default function OfferDetailsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* --- REVIEWS & MAKES SECTION --- */}
+      <div className="max-w-7xl mx-auto px-6 py-12 border-t border-gray-100 dark:border-gray-800 mt-12">
+        <h2 className="text-2xl font-black uppercase tracking-tight text-gray-900 dark:text-white mb-8 flex items-center gap-3">
+          <Star className="text-amber-400 fill-amber-400" size={24} /> Customer Reviews & "Makes"
+        </h2>
+        <ReviewsSection offerId={offer.id} sellerId={offer.user_id} />
       </div>
 
       {/* --- MORE FROM THIS SELLER SECTION --- */}

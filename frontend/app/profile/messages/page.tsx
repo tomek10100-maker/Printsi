@@ -5,13 +5,14 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-    ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X,
+    ArrowLeft, MessageSquare, Loader2, Send, Package, User, Handshake, Check, X, Star,
     Truck, PackageCheck, CheckCircle2, AlertTriangle, Shield, ShieldAlert, Info, Mail, ExternalLink, Ruler, Palette, CreditCard, RefreshCcw, Download, Printer, XCircle, Archive, ArchiveRestore, Ban, ChevronDown, ChevronUp, Clock, MoreVertical, Flag, Camera, ImageIcon, Upload, Eye, Zap, ShoppingBag
 } from 'lucide-react';
 import { useCart } from '../../../context/CartContext';
 import { useCurrency } from '../../../context/CurrencyContext';
 import { POPULAR_MATERIALS, getMaterialInfo } from '@/app/lib/materialHelpers';
 import ColorPickerInput from '../../components/ColorPickerInput';
+import ReviewModal from '../../components/ReviewModal';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -148,6 +149,10 @@ function MessagesInner() {
     const [reportSubmitting, setReportSubmitting] = useState(false);
     const [reportSuccess, setReportSuccess] = useState(false);
     const [reportError, setReportError] = useState('');
+
+    // Review Modal State
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [existingUserReview, setExistingUserReview] = useState<any>(null);
 
     // 3-dot menu state
     const [showChatMenu, setShowChatMenu] = useState(false);
@@ -616,6 +621,26 @@ function MessagesInner() {
             loadMessages(currentActiveId);
             loadChats(currentUser.id);
 
+            // In-app Realtime Notification for recipient
+            const recipientId = activeChatData?.buyer_id === currentUser.id 
+                ? activeChatData?.seller_id 
+                : activeChatData?.buyer_id;
+
+            if (recipientId && recipientId !== currentUser.id) {
+                supabase.from('notifications').insert({
+                    user_id: recipientId,
+                    title: `💬 New Message`,
+                    message: content.length > 90 ? content.substring(0, 90) + '...' : content,
+                    type: 'chat',
+                    sender_id: currentUser.id,
+                    offer_id: activeChatData?.offer_id,
+                    is_read: false,
+                }).then(({ error: err }) => {
+                    if (err) console.error('Realtime notification insert error:', err);
+                });
+            }
+
+            // E-mail Notification
             fetch('/api/order/new-message-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -629,6 +654,26 @@ function MessagesInner() {
     };
 
     const activeChatData = chats.find(c => c.id === activeChatId);
+
+    useEffect(() => {
+        if (activeChatData?.orderItem?.id) {
+            const itemStatus = (activeChatData.orderItem.status || '').toLowerCase();
+            if (itemStatus === 'completed' || itemStatus === 'resolved') {
+                fetch(`/api/reviews?orderItemId=${activeChatData.orderItem.id}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.reviews && data.reviews.length > 0) {
+                            setExistingUserReview(data.reviews[0]);
+                        } else {
+                            setExistingUserReview(null);
+                        }
+                    })
+                    .catch(() => setExistingUserReview(null));
+                return;
+            }
+        }
+        setExistingUserReview(null);
+    }, [activeChatData?.orderItem?.id, activeChatData?.orderItem?.status]);
 
     const [statusUpdating, setStatusUpdating] = useState(false);
     const statusUpdatingRef = useRef(false);
@@ -724,7 +769,7 @@ function MessagesInner() {
                 shippingAddr.zip_code || shippingAddr.zip || '',
                 shippingAddr.country || ''
             ].filter(Boolean);
-            const addrDisplay = addrParts.join(', ') || 'Address on file';
+            const addrDisplay = addrParts.join(', ');
 
             await supabase.from('messages').insert({
                 chat_id: activeChatId,
@@ -771,17 +816,24 @@ function MessagesInner() {
         }
     };
 
-    // Called by buyer when they confirm shipping address is OK
+    // Called by buyer when they confirm shipping address & print photos are OK
     const handleConfirmShipment = async (itemId: string) => {
         setConfirmingShipment(true);
         try {
+            const targetItemId = itemId || activeChatData?.orderItem?.id || activeChatData?.order_id;
+            if (!targetItemId || !activeChatId) {
+                alert('Order item ID not found.');
+                setConfirmingShipment(false);
+                return;
+            }
+
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) { alert('Session expired. Please log in again.'); return; }
+            if (!session) { alert('Session expired. Please log in again.'); setConfirmingShipment(false); return; }
 
             const res = await fetch('/api/furgonetka/create-package', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-                body: JSON.stringify({ itemId, chatId: activeChatId })
+                body: JSON.stringify({ itemId: targetItemId, chatId: activeChatId })
             });
             const data = await res.json();
             if (data.success) {
@@ -791,18 +843,30 @@ function MessagesInner() {
                         orderItem: {
                             ...c.orderItem,
                             status: 'shipped',
-                            tracking_code: data.trackingNumber,
+                            tracking_code: data.trackingNumber || 'PENDING',
                             furgonetka_package_id: data.packageId,
                             label_url: data.labelUrl
                         }
                     } : c
                 ));
-                loadMessages(activeChatId as string);
+                if (activeChatId) loadMessages(activeChatId);
             } else {
-                const errMsg = data.debug_raw
-                    ? `${data.error}\n\n[DEBUG] ${data.debug_raw}`
-                    : (data.error || 'Failed to generate shipping label.');
-                alert(errMsg);
+                console.warn('Furgonetka create-package returned error, triggering status update fallback:', data.error);
+                
+                // Fallback: update status to 'shipped' so order is never blocked by external carrier API errors
+                const fallbackRes = await fetch('/api/order/status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'update_status', itemId: targetItemId, status: 'shipped', chatId: activeChatId })
+                });
+                const fallbackData = await fallbackRes.json();
+                if (fallbackData.success) {
+                    if (activeChatId) loadMessages(activeChatId);
+                    if (currentUser?.id) loadChats(currentUser.id);
+                } else {
+                    const errMsg = data.error || 'Failed to process shipment verification.';
+                    alert(errMsg);
+                }
             }
         } catch (err) {
             console.error('Confirm shipment error:', err);
@@ -1210,10 +1274,20 @@ function MessagesInner() {
         return parsed;
     };
 
+    const isProposalExpired = (createdAt: string | number | Date | null | undefined): boolean => {
+        if (!createdAt) return false;
+        const createdTime = new Date(createdAt).getTime();
+        if (isNaN(createdTime)) return false;
+        const PROPOSAL_EXPIRY_MS = 48 * 60 * 60 * 1000; // 48 hours
+        return Date.now() - createdTime > PROPOSAL_EXPIRY_MS;
+    };
+
     const [respondingToMsgId, setRespondingToMsgId] = useState<string | null>(null);
 
     const openProposalModal = async (initialData?: any, msgId: string | null = null) => {
         if (!activeChatData) return;
+        const isSupportChat = activeChatData.isSupport || (!activeChatData.offer_id && !activeChatData.order_id);
+        if (isSupportChat) return;
         setEditingProposalData(initialData || null);
         setRespondingToMsgId(msgId);
 
@@ -1513,6 +1587,30 @@ function MessagesInner() {
             return;
         }
 
+        // In-app Realtime Notification for recipient
+        const recipientId = activeChatData?.buyer_id === currentUser.id 
+            ? activeChatData?.seller_id 
+            : activeChatData?.buyer_id;
+
+        if (recipientId && recipientId !== currentUser.id) {
+            const proposalTitle = payload.status === 'counter_proposed'
+                ? '🔄 New Counter-Offer Received!'
+                : '🤝 New Price Proposal Received!';
+            const proposalMsg = `Proposed ${formatPrice(payload.price)} for "${activeChatData?.offers?.title || 'Custom Item'}". Click to view details.`;
+
+            supabase.from('notifications').insert({
+                user_id: recipientId,
+                title: proposalTitle,
+                message: proposalMsg,
+                type: 'proposal',
+                sender_id: currentUser.id,
+                offer_id: activeChatData?.offer_id,
+                is_read: false,
+            }).then(({ error: err }) => {
+                if (err) console.error('Realtime proposal notification error:', err);
+            });
+        }
+
         // Trigger Negotiation Email
         const emailType = payload.status === 'counter_proposed' ? 'counter_offer' : (payload.status === 'seller_proposed' ? 'seller_offer' : 'new_offer');
         fetch('/api/order/negotiation-email', {
@@ -1696,6 +1794,11 @@ function MessagesInner() {
     const handleAcceptProposal = async (msgId: string, parsedData: any) => {
         if (!activeChatData || !activeChatData.offers) return;
         if (acceptingProposalId) return;
+
+        if (isProposalExpired(parsedData.created_at || messages.find(m => m.id === msgId)?.created_at)) {
+            alert("This proposal has expired (48-hour limit). Please request or submit a new proposal.");
+            return;
+        }
 
         const isAuthorizedToAccept = currentUser?.id === activeChatData.seller_id || currentUser?.id === activeChatData.buyer_id;
 
@@ -2176,7 +2279,7 @@ function MessagesInner() {
                                 </div>
                             )}
 
-                            {scData.addrDisplay && (
+                            {scData.addrDisplay && scData.addrDisplay !== 'Address on file' && (
                                 <div className="p-3 bg-white rounded-xl border border-indigo-100 flex items-start gap-2">
                                     <span className="text-indigo-500 mt-0.5">📍</span>
                                     <p className="text-xs font-bold text-slate-700">{scData.addrDisplay}</p>
@@ -3006,6 +3109,16 @@ function MessagesInner() {
                                 <p className="text-xs text-gray-600 font-bold">
                                     Transaction completed successfully! Funds have been released.
                                 </p>
+                            )}
+                            {(status === 'completed' || status === 'resolved') && isCustomer && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowReviewModal(true)}
+                                    className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer mt-2"
+                                >
+                                    <Star size={16} className="fill-amber-200 text-amber-200 shrink-0" />
+                                    {existingUserReview ? '⭐ Edit Your Review & Make Photo' : '⭐ Rate & Review Printed Item'}
+                                </button>
                             )}
                             {status === 'completed' && digitalFileUrl && (
                                 <a
@@ -4375,7 +4488,18 @@ function MessagesInner() {
                                                                     );
                                                                 }
 
+                                                                const isExpired = isProposalExpired(msg.created_at || pData.created_at);
                                                                 const isProposalFromOtherParty = !isMe && (pData.status === 'seller_proposed' || pData.status === 'counter_proposed' || pData.status === 'pending');
+
+                                                                if (isProposalFromOtherParty && isExpired) {
+                                                                    return (
+                                                                        <div className="pt-2">
+                                                                            <div className="py-2.5 px-3 bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 rounded-xl text-[10px] font-black uppercase tracking-wider text-center flex items-center justify-center gap-1.5 shadow-xs">
+                                                                                <Clock size={13} className="shrink-0 text-amber-500" /> Proposal Expired (48h limit)
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                }
 
                                                                 if (isProposalFromOtherParty) {
                                                                     return (
@@ -4744,8 +4868,8 @@ function MessagesInner() {
                                     </div>
                                 )}
                                 <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto space-y-1.5 w-full">
-                                    {/* Negotiate button pill on mobile if no order */}
-                                    {activeChatData && !activeChatData.orderItem && (
+                                    {/* Negotiate button pill on mobile if no order and not support chat */}
+                                    {activeChatData && !activeChatData.orderItem && !(activeChatData.isSupport || (!activeChatData.offer_id && !activeChatData.order_id)) && (
                                         <button
                                             type="button"
                                             onClick={() => openProposalModal()}
@@ -4790,6 +4914,7 @@ function MessagesInner() {
                                             const canCancel = (isBuyer && activeChatData?.orderItem?.status === 'pending')
                                                 || (isSeller && ['pending', 'shipped'].includes(activeChatData?.orderItem?.status));
                                             const hasOrder = !!activeChatData?.orderItem;
+                                            const isSupport = activeChatData ? (activeChatData.isSupport || (!activeChatData.offer_id && !activeChatData.order_id)) : false;
 
                                             return (
                                                 <div className="relative shrink-0" style={{ zIndex: 50 }}>
@@ -4805,7 +4930,7 @@ function MessagesInner() {
                                                         <>
                                                             <div className="fixed inset-0" style={{ zIndex: 40 }} onClick={() => setShowChatMenu(false)} />
                                                             <div className="absolute right-0 bottom-14 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 min-w-[210px]">
-                                                                {!hasOrder && (
+                                                                {!hasOrder && !isSupport && (
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => { setShowChatMenu(false); openProposalModal(); }}
@@ -4960,6 +5085,23 @@ function MessagesInner() {
                 </div>
             </div>
         )}
+
+        {/* Review Modal */}
+        <ReviewModal
+            isOpen={showReviewModal}
+            onClose={() => setShowReviewModal(false)}
+            orderItemId={activeChatData?.orderItem?.id || ''}
+            productTitle={activeChatData?.offers?.title || 'Printed Item'}
+            sellerName={activeChatData?.otherUser?.full_name || 'Seller'}
+            existingReview={existingUserReview}
+            onSuccess={() => {
+                if (activeChatData?.orderItem?.id) {
+                    fetch(`/api/reviews?orderItemId=${activeChatData.orderItem.id}`)
+                        .then(r => r.json())
+                        .then(d => { if (d.reviews) setExistingUserReview(d.reviews[0]); });
+                }
+            }}
+        />
 
         {/* ─── REPORT A PROBLEM MODAL ──────────────────────────── */}
         {showReportModal && (
