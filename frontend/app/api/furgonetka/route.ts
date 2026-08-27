@@ -9,9 +9,31 @@ const supabase = createClient(
 
 const FURGONETKA_SECRET = process.env.FURGONETKA_WEBHOOK_SECRET || 'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123';
 
-// 1. Handle ping/GET verification from Furgonetka webhook settings validation
+// 1. Handle ping/GET/OPTIONS/HEAD verification from Furgonetka webhook settings validation
 export async function GET() {
-  return NextResponse.json({ status: 'ok', success: true, message: 'Furgonetka webhook endpoint active' }, { status: 200 });
+  return NextResponse.json({ status: 'ok', success: true, message: 'Furgonetka webhook endpoint active' }, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, HEAD',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-furgonetka-token, x-furgonetka-signature',
+    }
+  });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, HEAD',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-furgonetka-token, x-furgonetka-signature',
+    },
+  });
+}
+
+export async function HEAD() {
+  return new NextResponse(null, { status: 200 });
 }
 
 export async function POST(req: Request) {
