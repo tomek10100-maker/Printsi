@@ -3179,16 +3179,62 @@ function MessagesInner() {
 
     return (
         <>
-            <main className="h-[calc(100dvh-60px)] overflow-hidden bg-slate-950 flex flex-col font-sans text-gray-900">
-            <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between sticky top-0 z-10 shrink-0 text-white">
-                <div className="flex items-center gap-3">
-                    <Link href="/profile" className="p-1.5 bg-slate-800 text-slate-300 rounded-full hover:bg-slate-700 hover:text-white transition-colors">
-                        <ArrowLeft size={18} />
+            <main className="h-[calc(100vh-64px)] sm:h-[calc(100vh-70px)] overflow-hidden bg-slate-950 flex flex-col font-sans text-gray-900">
+            <div className="bg-slate-900 border-b border-slate-800 px-3 sm:px-5 py-2 flex items-center justify-between sticky top-0 z-20 shrink-0 text-white min-h-[50px]">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <Link href="/profile" className="p-1.5 bg-slate-800 text-slate-300 rounded-full hover:bg-slate-700 hover:text-white transition-colors shrink-0">
+                        <ArrowLeft size={16} />
                     </Link>
-                    <h1 className="text-base font-black uppercase tracking-tight flex items-center gap-2 text-white">
-                        <MessageSquare className="text-blue-400" size={18} /> Messages
+                    <h1 className="text-xs sm:text-sm font-black uppercase tracking-tight flex items-center gap-1.5 text-white shrink-0">
+                        <MessageSquare className="text-blue-400" size={16} /> Messages
                     </h1>
+
+                    {/* Selected Active Chat Partner User Header Integrated in Top Bar */}
+                    {activeChatData && (
+                        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-700/80 min-w-0 flex-1">
+                            <div className={`w-7 h-7 rounded-full border overflow-hidden shrink-0 flex items-center justify-center ${
+                                activeChatData.isSupport
+                                    ? 'bg-blue-600 border-blue-400 text-white shadow-sm'
+                                    : 'bg-slate-800 border-slate-700'
+                            }`}>
+                                {activeChatData.isSupport ? (
+                                    <Shield size={14} className="text-white" />
+                                ) : activeChatData.otherUser?.avatar_url ? (
+                                    <img src={activeChatData.otherUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                    <User size={14} className="text-slate-400" />
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 min-w-0 truncate">
+                                <span className="text-xs font-black text-slate-100 truncate">
+                                    {activeChatData.isSupport ? 'Printis Support' : activeChatData.otherUser?.full_name}
+                                </span>
+                                {activeChatData.offers?.title && (
+                                    <Link href={`/offer/${activeChatData.offer_id}`} className="hidden md:inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:underline truncate max-w-[220px]">
+                                        · <Package size={11} /> {activeChatData.offers.title}
+                                    </Link>
+                                )}
+                                {activeChatData.isSupport && (
+                                    <span className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[8px] font-black uppercase tracking-wider rounded shrink-0">
+                                        Support
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {/* Negotiate button directly in top right if applicable */}
+                {activeChatData && !activeChatData.isSupport && !activeChatData.order_id && (
+                    <button
+                        type="button"
+                        onClick={() => openProposalModal()}
+                        className="hidden sm:flex px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all items-center gap-1.5 shrink-0 active:scale-95 border border-blue-400/20"
+                        title="Negotiate custom price, material, size or color"
+                    >
+                        <Handshake size={14} /> Negotiate
+                    </button>
+                )}
             </div>
 
             <div className="flex flex-1 overflow-hidden min-h-0">
@@ -3335,7 +3381,7 @@ function MessagesInner() {
                             {activeChatData && (() => {
                                 const isSupport = activeChatData.isSupport || (!activeChatData.offer_id && !activeChatData.order_id);
                                 return (
-                                <div className={`px-3.5 sm:px-6 py-2.5 sm:py-4 border-b flex items-center gap-2 sm:gap-4 shrink-0 shadow-sm ${
+                                <div className={`px-3 sm:px-5 py-2 border-b flex items-center gap-2 sm:gap-3 shrink-0 shadow-2xs ${
                                   isSupport 
                                     ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border-blue-500/30 text-white' 
                                     : 'bg-white border-gray-100'
