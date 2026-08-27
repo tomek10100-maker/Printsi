@@ -857,15 +857,23 @@ function MessagesInner() {
                 const fallbackRes = await fetch('/api/order/status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'update_status', itemId: targetItemId, status: 'shipped', chatId: activeChatId })
+                    body: JSON.stringify({ itemId: targetItemId, newStatus: 'shipped', chatId: activeChatId, userId: currentUser?.id })
                 });
                 const fallbackData = await fallbackRes.json();
-                if (fallbackData.success) {
+                if (fallbackData.success || fallbackRes.ok) {
+                    setChats(prev => prev.map(c =>
+                        c.id === activeChatId ? {
+                            ...c,
+                            orderItem: {
+                                ...c.orderItem,
+                                status: 'shipped'
+                            }
+                        } : c
+                    ));
                     if (activeChatId) loadMessages(activeChatId);
                     if (currentUser?.id) loadChats(currentUser.id);
                 } else {
-                    const errMsg = data.error || 'Failed to process shipment verification.';
-                    alert(errMsg);
+                    console.error('Shipment status fallback failed:', fallbackData);
                 }
             }
         } catch (err) {
