@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 
     if (itemError || !item) {
       console.warn(`[Furgonetka Webhook] Package ID ${packageId} not linked to any order item in Printsi.`);
-      return NextResponse.json({ success: true, message: 'Package not found in records, acknowledged' });
+      return NextResponse.json({ status: 'ok', success: true, message: 'Package not found in records, acknowledged' }, { status: 200 });
     }
 
     // 4. Fetch Order, Buyer and Seller profiles
