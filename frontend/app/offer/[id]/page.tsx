@@ -457,140 +457,118 @@ export default function OfferDetailsPage() {
         </Link>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-16">
-        {/* LEWA STRONA (IMAGE) */}
-        <div className="space-y-6">
-          <div className="aspect-square bg-gray-50 rounded-[40px] overflow-hidden border border-gray-100 relative shadow-2xl">
-            {isOutOfStock && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/30 backdrop-blur-sm">
-                <div className="bg-red-600 text-white text-xl font-black uppercase tracking-[0.2em] py-4 px-12 -rotate-12 border-4 border-white shadow-2xl">Sold Out</div>
+      <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+        {/* ========================================================================= */}
+        {/* LEFT COLUMN: Gallery + Description + Assembly + Specs (7 cols)            */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-7 space-y-10">
+          {/* 1. Main Image & Gallery */}
+          <div className="space-y-4">
+            <div className="aspect-square bg-gray-50 rounded-[36px] overflow-hidden border border-gray-100 relative shadow-xl group">
+              {isOutOfStock && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/30 backdrop-blur-sm">
+                  <div className="bg-red-600 text-white text-xl font-black uppercase tracking-[0.2em] py-4 px-12 -rotate-12 border-4 border-white shadow-2xl">
+                    Sold Out
+                  </div>
+                </div>
+              )}
+              {selectedImage ? (
+                <img src={selectedImage} alt={offer.title} className="w-full h-full object-cover animate-in fade-in duration-500" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-200">
+                  <Box size={80} strokeWidth={1} />
+                </div>
+              )}
+              <div className="absolute top-5 left-5 px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-gray-900 shadow-sm border border-gray-100">
+                {offer.category}
+              </div>
+            </div>
+
+            {offer.image_urls && offer.image_urls.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {offer.image_urls.map((url: string, idx: number) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setSelectedImage(url)} 
+                    className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all flex-shrink-0 shadow-xs ${selectedImage === url ? 'border-blue-600 scale-105 shadow-blue-100 ring-2 ring-blue-500/20' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`}
+                  >
+                    <img src={url} className="w-full h-full object-cover" />
+                  </button>
+                ))}
               </div>
             )}
-            {selectedImage ? (
-              <img src={selectedImage} alt={offer.title} className="w-full h-full object-cover animate-in fade-in duration-500" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-200"><Box size={80} strokeWidth={1} /></div>
-            )}
-            <div className="absolute top-6 left-6 px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-gray-900 shadow-sm border border-gray-100">{offer.category}</div>
           </div>
-          {offer.image_urls && offer.image_urls.length > 1 && (
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-              {offer.image_urls.map((url: string, idx: number) => (
-                <button 
-                  key={idx} 
-                  onClick={() => setSelectedImage(url)} 
-                  className={`w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all flex-shrink-0 shadow-sm ${selectedImage === url ? 'border-blue-600 scale-105 shadow-blue-100' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`}
-                >
-                  <img src={url} className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* PRAWA STRONA (CONTENT) */}
-        <div className="flex flex-col">
-          <div className="mb-8">
-            <h1 className="text-5xl font-black uppercase tracking-tight text-gray-900 mb-4 leading-[1.1]">{offer.title}</h1>
-            
-            <div className="flex items-center gap-4">
-              {offer.is_negotiable ? (
-                 <div className="flex items-center gap-3 bg-indigo-500/20 px-5 py-3 rounded-2xl border border-indigo-400/30 animate-in fade-in slide-in-from-left-2 duration-500 shadow-lg shadow-indigo-500/20">
-                   <div className="w-2.5 h-2.5 bg-indigo-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(129,140,248,0.8)]" />
-                   <span className="text-2xl font-black text-indigo-300 uppercase tracking-tight">Negotiable Price</span>
-                 </div>
-              ) : (
-                <div className="text-4xl font-black text-blue-600 leading-none">
-                   {formatPrice(currentPrice)}
-                </div>
-              )}
+          {/* 2. Product Description */}
+          <div className="bg-gray-50/80 rounded-3xl p-6 sm:p-8 border border-gray-100/80 space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">About this Listing</h3>
+            <div className="prose prose-lg text-gray-700 max-w-none font-medium leading-relaxed whitespace-pre-line">
+              {offer.description?.split('🛠️ Additional Parts / Tools Needed:')[0]?.trim() || offer.description}
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 mb-6 p-4 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm hover:shadow-md transition-all">
-            <div className="w-11 h-11 bg-white dark:bg-slate-800 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center flex-shrink-0">
-              {seller?.avatar_url ? (
-                <img src={seller.avatar_url} alt={seller.full_name} className="w-full h-full object-cover" />
-              ) : (
-                <UserIcon className="text-gray-400 dark:text-gray-500" size={22} />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <span className="block text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-1">Crafted by</span>
-              <span className="font-black text-gray-900 dark:text-white text-base truncate block">{seller?.full_name || 'Anonymous Maker'}</span>
-              {sellerStats.count > 0 ? (
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className="flex items-center gap-0.5">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        size={11}
-                        className={s <= Math.round(sellerStats.avgRating) ? 'fill-amber-400 text-amber-400' : 'text-gray-300 dark:text-gray-600'}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-amber-500 dark:text-amber-400 text-xs font-black">{sellerStats.avgRating.toFixed(1)}</span>
-                  <span className="text-gray-400 dark:text-gray-500 font-bold text-[11px]">
-                    · Based on <span className="font-black text-gray-700 dark:text-gray-300">{sellerStats.count}</span> {sellerStats.count === 1 ? 'customer review' : 'customer reviews'}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-gray-400 text-[10px] font-bold mt-0.5">
-                  <Star size={11} className="text-gray-300 dark:text-gray-600" /> No seller reviews yet
-                </div>
-              )}
-            </div>
-            <Link
-              href={`/user/${offer.user_id}`}
-              className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white transition-all shadow-sm flex-shrink-0"
-            >
-              Profile
-            </Link>
-          </div>
-
-          <div className="prose prose-lg text-gray-600 dark:text-gray-300 mb-6 max-w-none font-medium leading-relaxed">
-            {offer.description?.split('🛠️ Additional Parts / Tools Needed:')[0]?.trim() || offer.description}
-          </div>
-
-          {/* ADDITIONAL PARTS & TOOLS NEEDED FOR ASSEMBLY */}
+          {/* 3. Additional Parts & Tools Needed for Assembly */}
           {(offer.assembly_tools || (offer.description && offer.description.includes('🛠️ Additional Parts / Tools Needed:'))) && (
-            <div className="p-5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900/40 mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="flex items-center gap-2 mb-2.5">
-                <div className="w-7 h-7 bg-amber-500 rounded-xl flex items-center justify-center shadow-md">
-                  <Wrench size={15} className="text-white" />
+            <div className="p-6 bg-amber-50/80 rounded-3xl border border-amber-200/80 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-amber-500 rounded-xl flex items-center justify-center shadow-md">
+                  <Wrench size={16} className="text-white" />
                 </div>
-                <span className="text-xs font-black uppercase text-amber-900 dark:text-amber-200 tracking-widest">
-                  Additional Parts / Tools Needed to Assemble
+                <span className="text-xs font-black uppercase text-amber-900 tracking-widest">
+                  Additional Parts / Tools Needed for Assembly
                 </span>
               </div>
-              <div className="bg-white dark:bg-slate-900/80 border border-amber-200/70 dark:border-amber-900/40 p-4 rounded-xl shadow-xs">
-                <p className="text-sm font-bold text-amber-950 dark:text-amber-100 leading-relaxed whitespace-pre-line">
+              <div className="bg-white border border-amber-200/70 p-4.5 rounded-2xl shadow-xs">
+                <p className="text-sm font-bold text-amber-950 leading-relaxed whitespace-pre-line">
                   {offer.assembly_tools || offer.description?.split('🛠️ Additional Parts / Tools Needed:')[1]?.trim()}
                 </p>
               </div>
             </div>
           )}
 
+          {/* 4. Technical Notes / Instructions */}
+          {offer.custom_instructions && (
+            <div className="p-6 bg-indigo-50/80 rounded-3xl border border-indigo-100 space-y-3 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <MessageSquare size={80} className="text-indigo-400" />
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center shadow-md">
+                  <MessageSquare size={16} className="text-white" />
+                </div>
+                <span className="text-xs font-black uppercase text-indigo-900 tracking-widest">
+                  Technical Notes & Requirements
+                </span>
+              </div>
+              <div className="bg-white border border-indigo-100 p-4.5 rounded-2xl shadow-xs">
+                <p className="text-sm font-bold text-gray-700 leading-relaxed whitespace-pre-line italic">
+                  {offer.custom_instructions}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 5. Comprehensive Specifications Grid */}
           {!isDigital && (
-            <div className="mb-8">
-              {/* Specifications Grid with items-start to avoid vertical stretching/empty space */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <div className="space-y-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Specifications & Technical Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
                 
-                {/* COLUMN 1: MATERIAL */}
+                {/* COLUMN A: MATERIAL & PROPERTIES */}
                 {(offer.material || (currentVariant?.layers && currentVariant.layers.length > 0)) && (
-                  <div className="p-4.5 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm transition-all">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Box size={15} className="text-blue-400" />
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Material</span>
+                  <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Box size={16} className="text-blue-500" />
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Material & Composition</span>
                     </div>
 
                     {(!currentVariant?.layers || currentVariant.layers.length === 0) && (
                       <div className="flex items-center justify-between gap-2">
-                         <span className="text-xl font-black text-gray-900 dark:text-white truncate">{offer.material}</span>
+                         <span className="text-xl font-black text-gray-900 truncate">{offer.material}</span>
                          {currentColor && (
-                           <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0">
-                             <div className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: currentColorHex || '#ccc' }} />
-                             <span className="text-[11px] font-black uppercase text-gray-700 dark:text-gray-300">{currentColor}</span>
+                           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-200 shadow-xs flex-shrink-0">
+                             <div className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs" style={{ backgroundColor: currentColorHex || '#ccc' }} />
+                             <span className="text-[11px] font-black uppercase text-gray-700">{currentColor}</span>
                            </div>
                          )}
                       </div>
@@ -601,15 +579,15 @@ export default function OfferDetailsPage() {
                         {currentVariant.layers.map((l: any, i: number) => {
                           const mat = l.filament_id ? layerMaterials[l.filament_id] : (currentVariant.plastic_type || offer.material);
                           return (
-                            <div key={i} className="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700/60 shadow-xs">
+                            <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100 shadow-xs">
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600 shadow-xs flex-shrink-0" style={{ backgroundColor: l.color_hex || '#ccc' }} />
+                                <div className="w-4 h-4 rounded-full border border-gray-300 shadow-xs flex-shrink-0" style={{ backgroundColor: l.color_hex || '#ccc' }} />
                                 <div className="min-w-0">
-                                  <span className="text-[11px] font-black text-gray-900 dark:text-white uppercase tracking-tight block leading-tight truncate">{l.color_name}</span>
+                                  <span className="text-[11px] font-black text-gray-900 uppercase tracking-tight block leading-tight truncate">{l.color_name}</span>
                                   {mat && <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate block">{mat}</span>}
                                 </div>
                               </div>
-                              <span className="text-xs font-black text-blue-600 dark:text-blue-400 flex-shrink-0 ml-2">{Math.max(1, Math.round(parseFloat(l.grams) || 0))}g</span>
+                              <span className="text-xs font-black text-blue-600 flex-shrink-0 ml-2">{Math.max(1, Math.round(parseFloat(l.grams) || 0))}g</span>
                             </div>
                           );
                         })}
@@ -633,45 +611,45 @@ export default function OfferDetailsPage() {
                       if (validInfos.length === 0) return null;
 
                       return (
-                        <div className="mt-3.5 space-y-2.5 pt-3 border-t border-gray-200/60 dark:border-gray-800">
+                        <div className="space-y-3 pt-3 border-t border-gray-200/60">
                           {validInfos.map((matInfo, idx) => (
-                            <div key={idx} className="p-3.5 bg-white/90 dark:bg-slate-800/90 border border-blue-100/80 dark:border-blue-900/40 rounded-xl shadow-xs space-y-2.5 animate-in fade-in duration-300">
+                            <div key={idx} className="p-4 bg-white border border-blue-100 rounded-2xl shadow-xs space-y-2.5">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                                   <span>{matInfo!.icon || '💡'}</span> {matInfo!.fullName}
                                 </span>
                               </div>
 
                               {matInfo!.desc && (
-                                <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
+                                <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
                                   {matInfo!.desc}
                                 </p>
                               )}
 
                               {matInfo!.properties && (
-                                <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-700/50">
+                                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
                                   {matInfo!.properties.strength && (
-                                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <div className="flex flex-col bg-slate-50 p-2 rounded-lg border border-slate-100">
                                       <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Strength</span>
-                                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{matInfo!.properties.strength}</span>
+                                      <span className="text-[10px] font-extrabold text-slate-800">{matInfo!.properties.strength}</span>
                                     </div>
                                   )}
                                   {matInfo!.properties.heatResistance && (
-                                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <div className="flex flex-col bg-slate-50 p-2 rounded-lg border border-slate-100">
                                       <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Heat Resistance</span>
-                                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{matInfo!.properties.heatResistance}</span>
+                                      <span className="text-[10px] font-extrabold text-slate-800">{matInfo!.properties.heatResistance}</span>
                                     </div>
                                   )}
                                   {matInfo!.properties.flexibility && (
-                                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <div className="flex flex-col bg-slate-50 p-2 rounded-lg border border-slate-100">
                                       <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Flexibility</span>
-                                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{matInfo!.properties.flexibility}</span>
+                                      <span className="text-[10px] font-extrabold text-slate-800">{matInfo!.properties.flexibility}</span>
                                     </div>
                                   )}
                                   {matInfo!.properties.uvResistance && (
-                                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    <div className="flex flex-col bg-slate-50 p-2 rounded-lg border border-slate-100">
                                       <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">UV Resistance</span>
-                                      <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200">{matInfo!.properties.uvResistance}</span>
+                                      <span className="text-[10px] font-extrabold text-slate-800">{matInfo!.properties.uvResistance}</span>
                                     </div>
                                   )}
                                 </div>
@@ -680,7 +658,7 @@ export default function OfferDetailsPage() {
                               {matInfo!.tags && matInfo!.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 pt-0.5">
                                   {matInfo!.tags.map((tag: string, tidx: number) => (
-                                    <span key={tidx} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800 rounded-md text-[8px] font-black uppercase tracking-wider">
+                                    <span key={tidx} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[8px] font-black uppercase tracking-wider">
                                       {tag}
                                     </span>
                                   ))}
@@ -694,17 +672,17 @@ export default function OfferDetailsPage() {
                   </div>
                 )}
 
-                {/* COLUMN 2: SCALE & SIZE + NET WEIGHT / QUANTITY */}
+                {/* COLUMN B: DIMENSIONS & WEIGHT */}
                 <div className="space-y-4">
                   {offer.dimensions && (
-                    <div className="p-4.5 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm transition-all">
-                      <div className="flex items-center gap-2 mb-2.5">
-                        <Ruler size={15} className="text-blue-400" />
-                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Scale & Size</span>
+                    <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Ruler size={16} className="text-blue-500" />
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Dimensions & Scale</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {offer.dimensions.split(',').map((dim: string, idx: number) => (
-                          <div key={idx} className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xs text-xs font-black text-gray-900 dark:text-white">
+                          <div key={idx} className="px-3.5 py-2 bg-white border border-gray-200 rounded-xl shadow-2xs text-xs font-black text-gray-900">
                             {dim.trim()}
                           </div>
                         ))}
@@ -713,20 +691,20 @@ export default function OfferDetailsPage() {
                   )}
 
                   {isJob ? (
-                    <div className="p-4.5 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm transition-all">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Box size={15} className="text-blue-400" />
+                    <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Box size={16} className="text-blue-500" />
                         <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity Requested</span>
                       </div>
-                      <span className="text-xl font-black text-gray-900 dark:text-white truncate block">{offer.stock || 1} pcs</span>
+                      <span className="text-xl font-black text-gray-900 block">{offer.stock || 1} pcs</span>
                     </div>
                   ) : currentWeight ? (
-                    <div className="p-4.5 bg-gray-50 dark:bg-slate-900/80 rounded-2xl border border-gray-100 dark:border-gray-800/80 shadow-sm transition-all">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Layers size={15} className="text-blue-400" />
-                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Weight</span>
+                    <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 shadow-sm space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Layers size={16} className="text-blue-500" />
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Estimated Net Weight</span>
                       </div>
-                      <span className="text-xl font-black text-gray-900 dark:text-white truncate block">{currentWeight}</span>
+                      <span className="text-xl font-black text-gray-900 block">{currentWeight}</span>
                     </div>
                   ) : null}
                 </div>
@@ -735,270 +713,260 @@ export default function OfferDetailsPage() {
             </div>
           )}
 
-          {offer.custom_instructions && (
-            <div className="p-5 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 animate-in fade-in slide-in-from-bottom-2 duration-500 relative overflow-hidden group mb-8">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <MessageSquare size={80} className="text-indigo-400" />
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 bg-indigo-500 rounded-xl flex items-center justify-center shadow-md">
-                  <MessageSquare size={15} className="text-white" />
+        </div>
+
+        {/* ========================================================================= */}
+        {/* RIGHT COLUMN: Buying Panel / Configurator (Sticky 5 cols)                  */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-5 flex flex-col space-y-6 lg:sticky lg:top-24 h-fit">
+          
+          {/* Header & Title & Price Card */}
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="px-3.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-100">
+                {offer.category}
+              </span>
+              {isOwner && (
+                <Link href={`/edit/${offer.id}`} className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-blue-600 transition">
+                  <Edit size={14} /> Edit Listing
+                </Link>
+              )}
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-gray-900 leading-tight">
+              {offer.title}
+            </h1>
+
+            <div className="pt-2 flex items-center gap-4">
+              {offer.is_negotiable ? (
+                 <div className="flex items-center gap-3 bg-indigo-50 px-5 py-3 rounded-2xl border border-indigo-200">
+                   <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse shadow-sm" />
+                   <span className="text-xl font-black text-indigo-700 uppercase tracking-tight">Price Negotiable</span>
+                 </div>
+              ) : (
+                <div className="text-4xl font-black text-blue-600 leading-none">
+                   {formatPrice(currentPrice)}
                 </div>
-                <span className="text-xs font-black uppercase text-indigo-900 dark:text-indigo-200 tracking-widest">Technical Notes / Adjustments</span>
+              )}
+            </div>
+
+            {/* Maker Profile Card */}
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden border border-gray-200 shadow-xs flex-shrink-0 flex items-center justify-center">
+                  {seller?.avatar_url ? (
+                    <img src={seller.avatar_url} alt={seller.full_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <UserIcon className="text-gray-400" size={20} />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-0.5">Maker</span>
+                  <span className="font-black text-gray-900 text-sm truncate block">{seller?.full_name || 'Anonymous Maker'}</span>
+                  {sellerStats.count > 0 ? (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Star size={11} className="fill-amber-400 text-amber-400" />
+                      <span className="text-amber-500 text-xs font-black">{sellerStats.avgRating.toFixed(1)}</span>
+                      <span className="text-gray-400 text-[10px] font-bold">({sellerStats.count})</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400 text-[10px] font-bold block">No reviews yet</span>
+                  )}
+                </div>
               </div>
-              <div className="bg-white dark:bg-slate-900/80 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-xl shadow-xs">
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line italic">
-                  {offer.custom_instructions}
-                </p>
+              <Link
+                href={`/user/${offer.user_id}`}
+                className="px-3.5 py-1.5 bg-gray-100 text-gray-800 hover:bg-gray-900 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xs flex-shrink-0"
+              >
+                Profile
+              </Link>
+            </div>
+          </div>
+
+          {/* Color Variants Selector Box (If exists) */}
+          {hasVariants && (
+            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Palette size={16} className="text-blue-500" />
+                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Color Variant</span>
+                </div>
+                <span className="text-xs font-black text-gray-900">{variants.length} available</span>
+              </div>
+
+              <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+                {variants.map((v: any, idx: number) => {
+                  const isSelected = selectedVariantIndex === idx;
+                  const isSoldOut = v.stock === 0;
+                  const weightG = v.layers?.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0);
+
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setSelectedVariantIndex(idx)}
+                      className={`relative flex items-center justify-between p-3.5 rounded-2xl transition-all text-left cursor-pointer border ${
+                        isSoldOut
+                          ? 'opacity-40 cursor-not-allowed grayscale bg-gray-50 border-gray-200'
+                          : isSelected
+                            ? 'bg-blue-50/60 border-blue-500 ring-2 ring-blue-500/20 shadow-sm'
+                            : 'bg-white hover:bg-gray-50 border-gray-200 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex -space-x-2 flex-shrink-0">
+                          {v.layers && v.layers.length > 0 ? (
+                            v.layers.map((l: any, li: number) => (
+                              <div
+                                key={li}
+                                className="w-7 h-7 rounded-full border-2 border-white shadow-xs"
+                                style={{ backgroundColor: l.color_hex || '#ccc', zIndex: 10 - li }}
+                              />
+                            ))
+                          ) : (
+                            <div
+                              className="w-7 h-7 rounded-full border-2 border-white shadow-xs"
+                              style={{ backgroundColor: v.primaryColor || v.layers?.[0]?.color_hex || '#ccc' }}
+                            />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block font-black text-xs text-gray-900 truncate">
+                            {v.layers && v.layers.length > 0 ? (
+                              v.layers.map((l: any, li: number) => (
+                                <React.Fragment key={li}>
+                                  {li > 0 && <span className="text-blue-500 mx-0.5">+</span>}
+                                  {l.color_name}
+                                </React.Fragment>
+                              ))
+                            ) : (
+                              v.label || v.color_name || 'Option'
+                            )}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-tight">
+                            <span>{isSoldOut ? 'Sold out' : (offer.category === 'digital' ? 'In Stock' : `${v.stock} in stock`)}</span>
+                            {weightG && weightG > 0 ? <span>· ~{Math.round(weightG)}g</span> : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right flex-shrink-0 pl-2">
+                        <div className={`text-xs font-black ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>
+                          {offer.is_negotiable ? 'Negotiable' : formatPrice(v.priceEUR)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-              {/* COLOR VARIANTS SELECTION */}
-              {hasVariants && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3 px-1">
-                    <Palette size={15} className="text-blue-400" />
-                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Color Variant</span>
-                  </div>
-                  <div className="p-2 bg-gray-100 dark:bg-slate-900/60 rounded-[32px] border border-gray-200 dark:border-gray-800">
-                    <div className="flex flex-col gap-2">
-                      {variants.map((v: any, idx: number) => {
-                        const isSelected = selectedVariantIndex === idx;
-                        const isSoldOut = v.stock === 0;
-                        const isVariantInCart = items.some(
-                          i => i.id === offer.id && i.variant_name === v.color_name
-                        );
-                        const weightG = v.layers?.reduce((acc: number, l: any) => acc + (parseFloat(l.grams) || 0), 0);
-
-                        return (
-                          <div
-                            key={idx}
-                            onClick={() => {
-                              setSelectedVariantIndex(idx);
-                            }}
-                            className={`relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-[24px] transition-all text-left cursor-pointer group/var ${
-                              isSoldOut
-                                ? 'opacity-40 cursor-not-allowed grayscale bg-gray-50 dark:bg-slate-800/40 border border-gray-200 dark:border-gray-800'
-                                : isSelected
-                                  ? 'bg-white dark:bg-slate-800 shadow-xl ring-2 ring-blue-600/20 border border-blue-200 dark:border-blue-700'
-                                  : 'bg-white/80 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 border border-gray-100 dark:border-gray-800 shadow-sm'
-                            }`}
-                          >
-                            {/* LEFT: COLOR CIRCLES + TITLE & STOCK */}
-                            <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                              <div className="flex -space-x-3 flex-shrink-0">
-                                {v.layers && v.layers.length > 0 ? (
-                                  v.layers.map((l: any, li: number) => (
-                                    <div
-                                      key={li}
-                                      className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 shadow-md transition-transform group-hover/var:scale-105"
-                                      style={{ backgroundColor: l.color_hex || '#ccc', zIndex: 10 - li }}
-                                    />
-                                  ))
-                                ) : (
-                                  <div
-                                    className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 shadow-md"
-                                    style={{ backgroundColor: v.primaryColor || v.layers?.[0]?.color_hex || '#ccc' }}
-                                  />
-                                )}
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <span className="block font-black text-sm tracking-tight text-gray-900 dark:text-white truncate">
-                                  {v.layers && v.layers.length > 0 ? (
-                                    v.layers.map((l: any, li: number) => (
-                                      <React.Fragment key={li}>
-                                        {li > 0 && <span className="text-blue-500 mx-1">+</span>}
-                                        {l.color_name}
-                                      </React.Fragment>
-                                    ))
-                                  ) : (
-                                    v.label || v.color_name || 'Individual Choice'
-                                  )}
-                                </span>
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-tight mt-0.5">
-                                  <span>{isSoldOut ? 'Sold out' : (offer.category === 'digital' ? '∞' : `${v.stock} pcs left`)}</span>
-                                  {weightG && weightG > 0 ? (
-                                    <>
-                                      <span>·</span>
-                                      <span className="text-blue-600 dark:text-blue-400 font-black">~{Math.round(weightG)}g</span>
-                                    </>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* RIGHT: PRICE & ACTION BUTTONS */}
-                            <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-gray-800">
-                              <div className="text-left sm:text-right mr-1">
-                                <div className={`text-base font-black transition-colors ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>
-                                  {offer.is_negotiable ? 'Negotiable' : formatPrice(v.priceEUR)}
-                                </div>
-                              </div>
-
-                              {!isOwner && (!isSoldOut ? (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedVariantIndex(idx);
-                                      handleAddVariantToCart(v, idx);
-                                    }}
-                                    disabled={isVariantInCart}
-                                    className={`px-3 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95 ${
-                                      isVariantInCart
-                                        ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                                        : 'bg-gray-900 dark:bg-white text-white dark:text-slate-900 hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white'
-                                    }`}
-                                    title="Add this variant to cart"
-                                  >
-                                    {isVariantInCart ? (
-                                      <><Check size={14} /> In Cart</>
-                                    ) : (
-                                      <><ShoppingBag size={14} /> Add to Cart</>
-                                    )}
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedVariantIndex(idx);
-                                      handleBuyVariantNow(v, idx);
-                                    }}
-                                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md shadow-blue-500/20 active:scale-95"
-                                    title="Buy this variant immediately"
-                                  >
-                                    <Zap size={14} /> Buy Now
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/50 text-red-500 font-black text-xs uppercase tracking-wider border border-red-100 dark:border-red-900">
-                                  Sold Out
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-          {/* QUANTITY & ACTIONS */}
-          <div className="mt-auto space-y-6">
+          {/* Purchasing Card (Quantity, Buy Now, Add to Cart, Negotiate, Actions) */}
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl space-y-5">
+            
+            {/* Quantity Selector (Physical non-job) */}
             {!isDigital && !isJob && !isOwner && !isOutOfStock && (
-              <div className="flex items-center justify-between p-5 bg-gray-50 rounded-[32px] border border-gray-100">
-                 <div className="flex flex-col">
-                   <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity</span>
-                   <span className="text-[10px] font-bold text-blue-600">
-                     {offer.category === 'digital' ? <span className="text-xl leading-none">∞</span> : `${currentStock} pcs`}
-                   </span>
-                 </div>
-                 <div className="flex items-center gap-6 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
-                    <button
-                      onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                      disabled={quantity <= 1}
-                      className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:active:scale-100"
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <input
-                      type="number"
-                      min={1}
-                      max={currentStock}
-                      value={quantity === 0 ? '' : quantity}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (raw === '') {
-                          setQuantity(0);
-                        } else {
-                          const parsed = parseInt(raw, 10);
-                          if (!isNaN(parsed)) {
-                            setQuantity(Math.min(currentStock, Math.max(1, parsed)));
-                          }
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!quantity || quantity < 1) {
-                          setQuantity(1);
-                        } else if (quantity > currentStock) {
-                          setQuantity(currentStock);
-                        }
-                      }}
-                      className="font-black text-2xl w-14 text-center bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-gray-900"
-                    />
-                    <button
-                      onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
-                      disabled={quantity >= currentStock}
-                      className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl hover:bg-gray-100 transition active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:active:scale-100"
-                    >
-                      <Plus size={16} />
-                    </button>
-                 </div>
+              <div className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Quantity</span>
+                  <span className="text-[10px] font-bold text-blue-600">
+                    {offer.category === 'digital' ? 'Unlimited' : `${currentStock} available`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 bg-white p-1 rounded-xl shadow-xs border border-gray-200">
+                  <button
+                    onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                    disabled={quantity <= 1}
+                    className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-lg hover:bg-gray-100 transition active:scale-90 disabled:opacity-30"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={currentStock}
+                    value={quantity === 0 ? '' : quantity}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') setQuantity(0);
+                      else {
+                        const parsed = parseInt(raw, 10);
+                        if (!isNaN(parsed)) setQuantity(Math.min(currentStock, Math.max(1, parsed)));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!quantity || quantity < 1) setQuantity(1);
+                      else if (quantity > currentStock) setQuantity(currentStock);
+                    }}
+                    className="font-black text-lg w-10 text-center bg-transparent focus:outline-none text-gray-900"
+                  />
+                  <button
+                    onClick={() => setQuantity(q => Math.min(currentStock, q + 1))}
+                    disabled={quantity >= currentStock}
+                    className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-lg hover:bg-gray-100 transition active:scale-90 disabled:opacity-30"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
               </div>
             )}
 
-            <div className="flex flex-col gap-3.5">
+            {/* Main Action Buttons */}
+            <div className="space-y-3">
               {isOwner ? (
                 <Link
                   href={`/edit/${offer.id}`}
-                  className="w-full py-5 rounded-[24px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 group border border-blue-400/30 whitespace-nowrap"
+                  className="w-full py-4 rounded-2xl font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2 group text-xs"
                 >
-                  <Edit size={22} className="group-hover:rotate-12 transition-transform" /> Manage Listing
+                  <Edit size={18} className="group-hover:rotate-12 transition-transform" /> Manage Listing
                 </Link>
               ) : isJob ? (
-                /* ── JOB FULFILLMENT PANEL ── */
-                <div className="w-full space-y-4">
+                /* JOB FULFILLMENT PANEL */
+                <div className="w-full space-y-3">
                   {!isPrinter ? (
-                    <div className="py-5 rounded-[24px] bg-gray-100 border-2 border-dashed border-gray-200 text-center">
-                      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Printer Role Required</p>
-                      <p className="text-xs text-gray-400 mt-1">Only verified printers can fulfill print jobs.</p>
+                    <div className="py-4 rounded-2xl bg-gray-100 border border-gray-200 text-center p-3">
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Printer Role Required</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Only verified printers can fulfill print requests.</p>
                     </div>
                   ) : isOutOfStock ? (
-                    <div className="py-5 rounded-[24px] bg-emerald-50 border border-emerald-200 text-center">
-                      <p className="text-sm font-black text-emerald-600 uppercase tracking-widest">✅ Job Already Fulfilled</p>
+                    <div className="py-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
+                      <p className="text-xs font-black text-emerald-600 uppercase tracking-widest">✅ Job Already Fulfilled</p>
                     </div>
                   ) : (
                     <>
-                       <div className="flex flex-col sm:flex-row gap-3 w-full">
+                       <div className="flex flex-col gap-2 w-full">
                         <button
                           onClick={handleFulfillJob}
                           disabled={downloadingFile || fileDownloaded}
-                          className={`flex-1 relative overflow-hidden group py-4 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${
+                          className={`w-full relative overflow-hidden py-4 px-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 ${
                             fileDownloaded
                               ? 'bg-emerald-600 text-white'
                               : downloadingFile
                               ? 'bg-blue-600/70 text-white cursor-wait'
-                              : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:-translate-y-0.5 active:scale-95 shadow-blue-500/30'
+                              : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:opacity-95 shadow-blue-500/20'
                           }`}
                         >
-                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                           {downloadingFile ? (
-                            <><Loader2 size={22} className="animate-spin shrink-0" /> <span className="whitespace-nowrap">Preparing...</span></>
+                            <><Loader2 size={18} className="animate-spin shrink-0" /> <span>Preparing File...</span></>
                           ) : fileDownloaded ? (
-                            <><Check size={22} className="shrink-0" /> <span className="whitespace-nowrap">File Downloaded — Opening Chat...</span></>
+                            <><Check size={18} className="shrink-0" /> <span>Opening Chat...</span></>
                           ) : (
-                            <><Download size={22} className="group-hover:animate-bounce shrink-0" /> <span className="whitespace-nowrap">Download 3D File & Fulfill</span></>  
+                            <><Download size={18} className="shrink-0" /> <span>Download 3D File & Fulfill</span></>  
                           )}
                         </button>
                         <button
                           type="button"
                           onClick={handleDeclineJob}
-                          className="px-5 py-4 bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 border border-gray-200"
+                          className="w-full py-3 bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 border border-gray-200"
                         >
-                          <X size={16} /> Decline
+                          <X size={14} /> Decline Print Request
                         </button>
                       </div>
 
-                      {/* Info hint */}
-                      <div className="flex items-start gap-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
-                        <Printer size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-[11px] text-blue-600/80 font-medium leading-relaxed">
-                          Download the 3D file to evaluate printability. Once downloaded, you'll open a chat to propose your price and terms to the customer.
+                      <div className="flex items-start gap-2 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
+                        <Printer size={15} className="text-blue-500 mt-0.5 shrink-0" />
+                        <p className="text-[10px] text-blue-700 font-medium leading-relaxed">
+                          Download the 3D file to assess print details and initiate price negotiations with the requester.
                         </p>
                       </div>
                     </>
@@ -1006,112 +974,114 @@ export default function OfferDetailsPage() {
                 </div>
               ) : (
                 <>
-                  {/* ROW 1: PRIMARY BUY NOW BUTTON (Full width, bold, single-line) */}
+                  {/* BUY NOW BUTTON */}
                   <button
                     onClick={handleBuyNow}
                     disabled={isOutOfStock}
-                    className={`w-full py-4.5 px-6 rounded-[22px] font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2.5 whitespace-nowrap active:scale-[0.99] ${
+                    className={`w-full py-4 px-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 active:scale-[0.99] ${
                       isOutOfStock
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                        : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white hover:from-blue-700 hover:to-indigo-800 shadow-blue-500/25 border border-blue-400/30'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/25'
                     }`}
                   >
-                    <Zap size={20} className="fill-white shrink-0" />
-                    <span className="whitespace-nowrap">Buy Now — {formatPrice(currentPrice)}</span>
+                    <Zap size={18} className="fill-white shrink-0" />
+                    <span>Buy Now — {formatPrice(currentPrice)}</span>
                   </button>
 
-                  {/* ROW 2: ADD TO CART + NEGOTIATE + ACTION ICONS */}
-                  <div className="flex flex-wrap items-center gap-2.5 w-full">
-                    {/* ADD TO CART */}
+                  {/* SECONDARY BUTTONS (ADD TO CART + NEGOTIATE) */}
+                  <div className="flex gap-2">
                     <button
                       onClick={handleAddToCart}
                       disabled={isOutOfStock || isAlreadyInCart}
-                      className={`flex-1 min-w-[130px] py-3.5 px-4 rounded-[18px] font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap ${
+                      className={`flex-1 py-3 px-4 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all shadow-xs flex items-center justify-center gap-1.5 ${
                         isOutOfStock
-                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           : isAlreadyInCart
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-none'
-                          : 'bg-gray-900 text-white hover:bg-gray-800 hover:-translate-y-0.5 active:scale-95'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-gray-900 text-white hover:bg-gray-800'
                       }`}
                     >
                       {isOutOfStock ? (
                         'Sold Out'
                       ) : isAlreadyInCart ? (
-                        <><Check size={18} className="shrink-0 text-emerald-600" /> <span className="whitespace-nowrap">In Cart</span></>
+                        <><Check size={15} className="shrink-0 text-emerald-600" /> In Cart</>
                       ) : (
-                        <><ShoppingBag size={18} className="shrink-0" /> <span className="whitespace-nowrap">Add to Cart</span></>
+                        <><ShoppingBag size={15} className="shrink-0" /> Add to Cart</>
                       )}
                     </button>
 
-                    {/* NEGOTIATE */}
                     <button
                       onClick={handleContactMaker}
-                      className="flex-1 min-w-[130px] py-3.5 px-4 rounded-[18px] font-black text-xs uppercase tracking-wider bg-white border-2 border-gray-100 text-gray-900 hover:bg-gray-50 hover:border-blue-200 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 whitespace-nowrap"
+                      className="flex-1 py-3 px-4 rounded-xl font-black text-[11px] uppercase tracking-wider bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 hover:border-blue-300 transition-all shadow-2xs flex items-center justify-center gap-1.5"
                     >
-                      <Handshake size={18} className="text-blue-600 shrink-0" />
-                      <span className="whitespace-nowrap">Negotiate</span>
+                      <Handshake size={15} className="text-blue-600 shrink-0" />
+                      <span>Negotiate</span>
                     </button>
-
-                    {/* FAVORITE ICON */}
-                    <button
-                      onClick={toggleFavorite}
-                      className={`w-12 h-12 rounded-[18px] border-2 transition-all flex items-center justify-center shrink-0 ${isFavorite ? 'bg-red-50 border-red-200 text-red-500 shadow-red-100 shadow-md' : 'bg-white hover:bg-gray-50 text-gray-400 border-gray-100'}`}
-                      title="Favorite"
-                    >
-                      <Heart size={20} className={isFavorite ? 'fill-red-500 animate-pulse' : ''} />
-                    </button>
-
-                    {/* SHARE ICON */}
-                    <button
-                      onClick={handleShare}
-                      className="w-12 h-12 rounded-[18px] border-2 border-gray-100 bg-white hover:bg-gray-50 text-gray-400 transition flex items-center justify-center group relative shrink-0"
-                      title="Share"
-                    >
-                      <Share2 size={20} className="group-hover:scale-110 transition-transform" />
-                      {showShareToast && (
-                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] font-black py-2 px-4 rounded-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap shadow-xl z-30">
-                          <CheckCircle size={12} className="text-green-400" /> Copied to Clipboard
-                        </div>
-                      )}
-                    </button>
-
-                    {/* REPORT ICON */}
-                    {currentUser && !isOwner && (
-                      <button
-                        onClick={() => { setReportDone(false); setReportReason(''); setReportDesc(''); setShowReportModal(true); }}
-                        title="Report this listing"
-                        className="w-12 h-12 rounded-[18px] border-2 border-gray-100 bg-white hover:bg-red-50 hover:border-red-200 text-gray-400 hover:text-red-500 transition flex items-center justify-center group shrink-0"
-                      >
-                        <Flag size={18} className="group-hover:scale-110 transition-transform" />
-                      </button>
-                    )}
                   </div>
                 </>
               )}
+
+              {/* ACTION ICONS (FAVORITE, SHARE, REPORT) */}
+              <div className="flex items-center justify-center gap-3 pt-2 border-t border-gray-100">
+                <button
+                  onClick={toggleFavorite}
+                  className={`flex-1 py-2.5 px-3 rounded-xl border transition-all flex items-center justify-center gap-1.5 text-xs font-bold ${
+                    isFavorite ? 'bg-red-50 border-red-200 text-red-500 shadow-xs' : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-600'
+                  }`}
+                  title="Favorite"
+                >
+                  <Heart size={16} className={isFavorite ? 'fill-red-500' : ''} />
+                  <span className="text-[10px] font-black uppercase tracking-wider">{isFavorite ? 'Saved' : 'Save'}</span>
+                </button>
+
+                <button
+                  onClick={handleShare}
+                  className="flex-1 py-2.5 px-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 transition flex items-center justify-center gap-1.5 text-xs font-bold relative"
+                  title="Share"
+                >
+                  <Share2 size={16} />
+                  <span className="text-[10px] font-black uppercase tracking-wider">Share</span>
+                  {showShareToast && (
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] font-black py-1.5 px-3 rounded-lg flex items-center gap-1 animate-in fade-in z-30 shadow-md">
+                      <CheckCircle size={11} className="text-green-400" /> Copied
+                    </div>
+                  )}
+                </button>
+
+                {currentUser && !isOwner && (
+                  <button
+                    onClick={() => { setReportDone(false); setReportReason(''); setReportDesc(''); setShowReportModal(true); }}
+                    title="Report this listing"
+                    className="p-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-200 text-gray-400 hover:text-red-500 transition flex items-center justify-center"
+                  >
+                    <Flag size={16} />
+                  </button>
+                )}
+              </div>
+
             </div>
 
-            <div className="flex flex-wrap items-center gap-y-4 gap-x-8 pt-4">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /> Direct from Master-Maker
+            {/* Trust Badges */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /> Direct from Maker
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                <ShieldCheck size={14} className="text-gray-300" /> Printis Escrow Protection
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck size={13} className="text-gray-400" /> Escrow Protected
               </div>
               {isDigital ? (
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase text-green-600 tracking-wider">
-                   <div className="w-2 h-2 rounded-full bg-green-500" /> Instant Download
-                </div>
-              ) : isJob ? (
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 tracking-wider">
-                   <Printer size={14} className="text-indigo-400" /> Print on Demand
+                <div className="flex items-center gap-1 text-green-600 font-bold">
+                   <div className="w-1.5 h-1.5 rounded-full bg-green-500" /> Instant Download
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                  <Truck size={14} className="text-gray-300" /> Furgonetka.pl
+                <div className="flex items-center gap-1 text-gray-500 font-bold">
+                  <Truck size={13} className="text-gray-400" /> Tracked Shipping
                 </div>
               )}
             </div>
+
           </div>
+
         </div>
       </div>
 

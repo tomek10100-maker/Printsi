@@ -572,12 +572,32 @@ export default function EditOfferPage() {
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-10">
             <section className="space-y-4">
-              <SectionLabel label="1. Listing Type" />
-              <div className="grid grid-cols-3 gap-4 pointer-events-none">
-                 <div className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-opacity ${category === 'job' ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-100 text-gray-300 opacity-40'}`}><Printer size={32}/><span className="font-black uppercase text-[10px]">Print Request</span></div>
-                 <div className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-opacity ${category === 'digital' ? 'border-purple-500 bg-purple-50 text-purple-600' : 'border-gray-100 text-gray-300 opacity-40'}`}><Layers size={32}/><span className="font-black uppercase text-[10px]">Digital File</span></div>
-                 <div className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-3 transition-opacity ${category === 'physical' ? 'border-orange-500 bg-orange-50 text-orange-600' : 'border-gray-100 text-gray-300 opacity-40'}`}><Box size={32}/><span className="font-black uppercase text-[10px]">3D Item</span></div>
+              <div className="flex items-center justify-between">
+                <SectionLabel label="1. Listing Type" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold rounded-xl shadow-2xs">
+                  🔒 Locked (Listing type cannot be changed)
+                </span>
               </div>
+              <div className="grid grid-cols-3 gap-4 select-none cursor-not-allowed">
+                 <div className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${category === 'job' ? 'border-blue-500 bg-blue-50/80 text-blue-600 shadow-sm' : 'border-gray-200 bg-gray-50/50 text-gray-400 opacity-40'}`}>
+                   <Printer size={28}/>
+                   <span className="font-black uppercase text-[10px] tracking-wider">Print Request</span>
+                   {category === 'job' && <span className="text-[9px] font-bold bg-blue-200/60 text-blue-800 px-2 py-0.5 rounded-full">Current Type</span>}
+                 </div>
+                 <div className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${category === 'digital' ? 'border-purple-500 bg-purple-50/80 text-purple-600 shadow-sm' : 'border-gray-200 bg-gray-50/50 text-gray-400 opacity-40'}`}>
+                   <Layers size={28}/>
+                   <span className="font-black uppercase text-[10px] tracking-wider">Digital File</span>
+                   {category === 'digital' && <span className="text-[9px] font-bold bg-purple-200/60 text-purple-800 px-2 py-0.5 rounded-full">Current Type</span>}
+                 </div>
+                 <div className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${category === 'physical' ? 'border-orange-500 bg-orange-50/80 text-orange-600 shadow-sm' : 'border-gray-200 bg-gray-50/50 text-gray-400 opacity-40'}`}>
+                   <Box size={28}/>
+                   <span className="font-black uppercase text-[10px] tracking-wider">3D Item</span>
+                   {category === 'physical' && <span className="text-[9px] font-bold bg-orange-200/60 text-orange-800 px-2 py-0.5 rounded-full">Current Type</span>}
+                 </div>
+              </div>
+              <p className="text-[11px] text-gray-400 font-medium italic">
+                The listing type is permanently set upon creation and cannot be changed during editing.
+              </p>
             </section>
 
             {category === 'job' && (
