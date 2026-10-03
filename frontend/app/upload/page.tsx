@@ -1143,24 +1143,6 @@ export default function AddOfferPage() {
               </div>
             </section>
 
-            {/* PRICING MODE toggle */}
-            {category === 'physical' && isPrinter && (
-              <section>
-                <SectionLabel step="" label="Pricing Mode" />
-                <div className="flex rounded-2xl overflow-hidden border-2 border-gray-200 mt-4">
-                  {([
-                    { mode: 'auto', label: 'AUTO – Calc from Filaments', Icon: Settings2 },
-                    { mode: 'manual', label: 'MANUAL – Hand-entered Variants', Icon: Wrench },
-                  ] as const).map(({ mode, label, Icon }) => (
-                    <button key={mode} type="button" onClick={() => setPricingMode(mode)}
-                      className={`flex-1 flex items-center justify-center gap-2 py-3.5 px-5 transition-all font-black text-sm ${pricingMode === mode ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                      <Icon size={16} /> {label}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* 2. DETAILS */}
             <section className="space-y-4">
               <SectionLabel step="2" label="Basic Details" />
@@ -1526,6 +1508,50 @@ export default function AddOfferPage() {
               )}
             </section>
 
+            {/* PRICING & FILAMENT MODE TOGGLE (AUTO / MANUAL) */}
+            {category === 'physical' && (
+              <section className="pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 bg-slate-900/60 border border-slate-700/80 rounded-2xl shadow-sm">
+                  <div>
+                    <span className="text-xs font-black uppercase text-blue-400 tracking-wider flex items-center gap-1.5">
+                      <Settings2 size={15} />
+                      Filaments & Pricing Mode
+                    </span>
+                    <p className="text-xs text-slate-400 font-medium mt-1">
+                      Choose <strong>AUTO</strong> (calculated from saved filament stock) or <strong>MANUAL</strong> (hand-enter colors, weights & prices directly).
+                    </p>
+                  </div>
+
+                  <div className="inline-flex rounded-xl overflow-hidden border border-slate-700 bg-slate-950 p-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPricingMode('auto')}
+                      className={`flex items-center gap-2 py-2.5 px-5 rounded-lg font-black text-xs transition-all cursor-pointer ${
+                        pricingMode === 'auto'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <Settings2 size={14} />
+                      AUTO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPricingMode('manual')}
+                      className={`flex items-center gap-2 py-2.5 px-5 rounded-lg font-black text-xs transition-all cursor-pointer ${
+                        pricingMode === 'manual'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <Wrench size={14} />
+                      MANUAL
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* 5. COLOR VARIANTS (auto physical) */}
             {isPhysicalAuto && (
               <section className="space-y-4">
@@ -1544,9 +1570,19 @@ export default function AddOfferPage() {
                 </div>
 
                 {myFilaments.length === 0 ? (
-                  <div className="p-5 bg-orange-50 border-2 border-dashed border-orange-200 rounded-2xl text-center">
-                    <p className="text-sm font-bold text-orange-600 mb-2">No filaments saved yet</p>
-                    <Link href="/profile/filaments" className="text-xs font-black text-orange-700 underline">Go to My Filaments →</Link>
+                  <div className="p-5 bg-orange-50 border-2 border-dashed border-orange-200 rounded-2xl text-center space-y-2">
+                    <p className="text-sm font-bold text-orange-600">No filaments saved yet</p>
+                    <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+                      <Link href="/profile/filaments" className="font-black text-orange-700 underline">Go to My Filaments →</Link>
+                      <span className="text-orange-400 font-bold">•</span>
+                      <button
+                        type="button"
+                        onClick={() => setPricingMode('manual')}
+                        className="font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                      >
+                        Switch to Manual Mode →
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
