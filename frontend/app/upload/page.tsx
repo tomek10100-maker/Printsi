@@ -1560,13 +1560,6 @@ export default function AddOfferPage() {
                     <SectionLabel step="5" label="Color Variants" />
                     <p className="text-xs text-gray-400 font-medium mt-1">Each variant = its own filament, price & stock. Add multiple filaments for multi-color prints.</p>
                   </div>
-                  <div className="flex -space-x-1 ml-4">
-                    {variants.slice(0, 8).map(v => (
-                      <div key={v.variantId}
-                        className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
-                        style={{ backgroundColor: v.layers[0]?.filament?.color_hex || '#e5e7eb' }} />
-                    ))}
-                  </div>
                 </div>
 
                 {myFilaments.length === 0 ? (
