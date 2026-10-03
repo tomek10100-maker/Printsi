@@ -401,12 +401,12 @@ export default function OnboardingPage() {
                                             onClick={() => setOpenSection(openSection === idx ? null : idx)}
                                             className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
                                         >
-                                            <span className="font-black text-xs sm:text-sm text-slate-900 dark:text-white uppercase tracking-wide group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{section.title}</span>
-                                            <ChevronDown size={16} className={`text-slate-500 dark:text-slate-400 transition-transform duration-300 flex-shrink-0 ml-3 ${openSection === idx ? 'rotate-180 text-blue-600' : ''}`} />
+                                            <span className="font-bold text-xs sm:text-sm text-gray-900 dark:text-white uppercase tracking-wide group-hover:text-blue-500 transition-colors">{section.title}</span>
+                                            <ChevronDown size={16} className={`text-gray-400 group-hover:text-blue-500 transition-transform duration-300 flex-shrink-0 ml-3 ${openSection === idx ? 'rotate-180 text-blue-500' : ''}`} />
                                         </button>
                                         {openSection === idx && (
-                                            <div className="px-5 pb-5 pt-3 bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
-                                                <p className="text-xs sm:text-sm text-slate-900 dark:text-slate-100 leading-relaxed font-bold whitespace-pre-line">{section.content}</p>
+                                            <div className="px-5 pb-5 pt-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                                                <p className="text-xs sm:text-sm text-gray-800 dark:text-slate-200 leading-relaxed font-normal whitespace-pre-line">{section.content}</p>
                                             </div>
                                         )}
                                     </div>
@@ -428,8 +428,8 @@ export default function OnboardingPage() {
                                             {tosAccepted && <Check size={12} className="text-white" strokeWidth={3} />}
                                         </div>
                                     </div>
-                                    <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
-                                        I have read and I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 dark:text-blue-400 font-black underline hover:opacity-80 transition-opacity">Printis Terms of Service</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 dark:text-blue-400 font-black underline hover:opacity-80 transition-opacity">Privacy Policy</a>. I understand that by using the Platform, I agree to be bound by these Terms.
+                                    <span className="text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 leading-relaxed">
+                                        I have read and I accept the <a href="/terms" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-500 dark:text-blue-400 font-bold underline hover:opacity-80 transition-opacity">Printis Terms of Service</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-500 dark:text-blue-400 font-bold underline hover:opacity-80 transition-opacity">Privacy Policy</a>. I understand that by using the Platform, I agree to be bound by these Terms.
                                     </span>
                                 </label>
 
@@ -446,8 +446,8 @@ export default function OnboardingPage() {
                                             {digitalConsent && <Check size={12} className="text-white" strokeWidth={3} />}
                                         </div>
                                     </div>
-                                    <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
-                                        I expressly consent to the immediate delivery of digital content (3D model files) before the expiry of the 14-day withdrawal period, and I acknowledge that by granting this consent, <a href="/terms#withdrawal" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-emerald-700 dark:text-emerald-400 font-black underline hover:opacity-80 transition-opacity">I lose my right to withdraw from the contract</a> for digital file purchases once the file has been delivered. (§7 of the Terms, Art. 38(13) of the Consumer Rights Act)
+                                    <span className="text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-100 leading-relaxed">
+                                        I expressly consent to the immediate delivery of digital content (3D model files) before the expiry of the 14-day withdrawal period, and I acknowledge that by granting this consent, <a href="/terms#withdrawal" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-emerald-500 dark:text-emerald-400 font-bold underline hover:opacity-80 transition-opacity">I lose my right to withdraw from the contract</a> for digital file purchases once the file has been delivered. (§7 of the Terms, Art. 38(13) of the Consumer Rights Act)
                                     </span>
                                 </label>
                             </div>

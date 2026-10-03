@@ -40,17 +40,16 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         html[data-theme='black'] .bg-gray-50 { background-color: #1a1a1a !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #f9fafb !important; }
         html[data-theme='black'] .bg-gray-100 { background-color: #27272a !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: #f9fafb !important; }
         html[data-theme='black'] .bg-gray-200 { background-color: #3f3f46 !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; color: #ffffff !important; }
-        html[data-theme='black'] .bg-gray-900 { background-color: #f3f4f6 !important; border: 1px solid #ffffff !important; color: #000000 !important; }
-        html[data-theme='black'] .text-gray-900, html[data-theme='black'] .text-gray-800 { color: #ffffff !important; }
-        html[data-theme='black'] .text-gray-700 { color: #f3f4f6 !important; }
-        html[data-theme='black'] .text-gray-600 { color: #d1d5db !important; }
-        html[data-theme='black'] .text-gray-500 { color: #9ca3af !important; }
-        html[data-theme='black'] .text-gray-400 { color: #6b7280 !important; }
+        html[data-theme='black'] .text-gray-900, html[data-theme='black'] .text-gray-800, html[data-theme='black'] .text-slate-900, html[data-theme='black'] .text-slate-800 { color: #ffffff !important; }
+        html[data-theme='black'] .text-gray-700, html[data-theme='black'] .text-slate-700 { color: #f3f4f6 !important; }
+        html[data-theme='black'] .text-gray-600, html[data-theme='black'] .text-slate-600 { color: #d1d5db !important; }
+        html[data-theme='black'] .text-gray-500, html[data-theme='black'] .text-slate-500 { color: #9ca3af !important; }
+        html[data-theme='black'] .text-gray-400, html[data-theme='black'] .text-slate-400 { color: #6b7280 !important; }
         html[data-theme='black'] .border-gray-100 { border-color: #27272a !important; }
         html[data-theme='black'] .border-gray-200 { border-color: #3f3f46 !important; }
         html[data-theme='black'] .border-gray-300 { border-color: #52525b !important; }
         html[data-theme='black'] .shadow-sm, html[data-theme='black'] .shadow-md, html[data-theme='black'] .shadow-lg, html[data-theme='black'] .shadow-xl, html[data-theme='black'] .shadow-2xl { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important; }
-        html[data-theme='black'] .bg-white\\/80, html[data-theme='black'] .bg-white\\/90 { background-color: rgba(17, 17, 17, 0.75) !important; backdrop-filter: blur(24px) saturate(150%); border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important; }
+        html[data-theme='black'] .bg-white\/80, html[data-theme='black'] .bg-white\/90 { background-color: rgba(17, 17, 17, 0.75) !important; backdrop-filter: blur(24px) saturate(150%); border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important; }
         
         /* CATEGORY OVERRIDES (Black) */
         html[data-theme='black'] .bg-active-light { background-color: #ffffff !important; }
@@ -61,8 +60,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         /* MIDNIGHT THEME */
         html[data-theme='midnight'] body { background-color: #020617 !important; color: #f8fafc !important; }
         html[data-theme='midnight'] .bg-white, html[data-theme='midnight'] .bg-gray-50, html[data-theme='midnight'] .bg-gray-100, html[data-theme='midnight'] .bg-gray-200 { background-color: #0f172a !important; border-color: #1e293b !important; color: #f1f5f9 !important; }
-        html[data-theme='midnight'] .text-gray-900, html[data-theme='midnight'] .text-gray-800, html[data-theme='midnight'] .text-gray-700 { color: #f8fafc !important; }
-        html[data-theme='midnight'] .text-gray-600, html[data-theme='midnight'] .text-gray-500, html[data-theme='midnight'] .text-gray-400 { color: #94a3b8 !important; }
+        html[data-theme='midnight'] .text-gray-900, html[data-theme='midnight'] .text-gray-800, html[data-theme='midnight'] .text-gray-700, html[data-theme='midnight'] .text-slate-900, html[data-theme='midnight'] .text-slate-800, html[data-theme='midnight'] .text-slate-700 { color: #f8fafc !important; }
+        html[data-theme='midnight'] .text-gray-600, html[data-theme='midnight'] .text-gray-500, html[data-theme='midnight'] .text-gray-400, html[data-theme='midnight'] .text-slate-600, html[data-theme='midnight'] .text-slate-500, html[data-theme='midnight'] .text-slate-400 { color: #94a3b8 !important; }
         html[data-theme='midnight'] .border-gray-100, html[data-theme='midnight'] .border-gray-200, html[data-theme='midnight'] .border-gray-300 { border-color: #1e293b !important; }
         html[data-theme='midnight'] .shadow-sm, html[data-theme='midnight'] .shadow-md, html[data-theme='midnight'] .shadow-lg, html[data-theme='midnight'] .shadow-xl, html[data-theme='midnight'] .shadow-2xl { box-shadow: 0 8px 32px rgba(56, 189, 248, 0.15) !important; }
         html[data-theme='midnight'] .bg-white\\/80, html[data-theme='midnight'] .bg-white\\/90 { background-color: rgba(15, 23, 42, 0.85) !important; backdrop-filter: blur(16px); }
