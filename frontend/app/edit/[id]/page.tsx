@@ -639,8 +639,8 @@ export default function EditOfferPage() {
 
               <div className="pt-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <Wrench size={15} className="text-amber-600" />
-                  <span className="text-[11px] font-black uppercase text-amber-800 tracking-widest">
+                  <Wrench size={15} className="text-amber-500" />
+                  <span className="text-[11px] font-black uppercase text-amber-500 tracking-widest">
                     Additional Parts / Tools Needed for Assembly (Optional)
                   </span>
                 </div>
@@ -649,7 +649,7 @@ export default function EditOfferPage() {
                   value={assemblyTools}
                   onChange={e => setAssemblyTools(e.target.value)}
                   rows={2}
-                  className="w-full p-4 bg-amber-50 border border-amber-200/80 rounded-xl font-semibold text-sm text-slate-900 focus:text-slate-900 placeholder:text-amber-800/40 outline-none focus:border-amber-500 focus:bg-white transition-all resize-none shadow-xs"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm text-slate-900 placeholder:text-gray-400 outline-none focus:border-amber-500 focus:bg-white transition-all resize-none shadow-xs"
                 />
                 <p className="text-[10px] text-gray-400 font-medium mt-1">
                   Specify any non-3D printed hardware, screws, glue, electronics, or tools required to assemble this model.
