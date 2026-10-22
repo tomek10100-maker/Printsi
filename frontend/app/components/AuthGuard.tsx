@@ -19,6 +19,14 @@ export function AuthGuard() {
                 '/verify',
                 '/verify-email',
                 '/onboarding',
+                '/terms',
+                '/terms-of-service',
+                '/privacy',
+                '/privacy-policy',
+                '/faq',
+                '/how-it-works',
+                '/about',
+                '/support',
             ];
 
             const isUnguarded = UNGUARDED_PATHS.some(path => 

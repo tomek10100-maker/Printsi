@@ -131,7 +131,10 @@ export default function TermsPage() {
             </div>
 
             {sections.map((section) => (
-              <section key={section.id} id={section.id} className="scroll-mt-8">
+              <section key={section.id} id={section.id} className="scroll-mt-8 relative">
+                {section.id === 'returns-and-refunds' && (
+                  <span id="withdrawal" className="absolute -top-20" />
+                )}
                 <div className="flex items-center gap-4 mb-5">
                   <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0 shadow-sm">
                     {section.icon}

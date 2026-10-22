@@ -192,12 +192,48 @@ export default function OnboardingPage() {
             if (profile?.roles?.length > 0) {
                 router.push('/');
             } else {
-                if (profile?.full_name) setFullName(profile.full_name);
+                try {
+                    const saved = sessionStorage.getItem('printis_onboarding_draft');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (parsed.step && parsed.step >= 1 && parsed.step <= 4) setStep(parsed.step);
+                        if (parsed.fullName) setFullName(parsed.fullName);
+                        else if (profile?.full_name) setFullName(profile.full_name);
+                        
+                        if (parsed.roles && Array.isArray(parsed.roles) && parsed.roles.length > 0) setRoles(parsed.roles);
+                        if (parsed.country) setCountry(parsed.country);
+                        if (parsed.localCurrency) setLocalCurrency(parsed.localCurrency);
+                        if (parsed.tosAccepted !== undefined) setTosAccepted(parsed.tosAccepted);
+                        if (parsed.digitalConsent !== undefined) setDigitalConsent(parsed.digitalConsent);
+                    } else if (profile?.full_name) {
+                        setFullName(profile.full_name);
+                    }
+                } catch (e) {
+                    if (profile?.full_name) setFullName(profile.full_name);
+                }
                 setLoading(false);
             }
         };
         init();
     }, [router]);
+
+    useEffect(() => {
+        if (!loading) {
+            try {
+                sessionStorage.setItem('printis_onboarding_draft', JSON.stringify({
+                    step,
+                    fullName,
+                    roles,
+                    country,
+                    localCurrency,
+                    tosAccepted,
+                    digitalConsent
+                }));
+            } catch (e) {
+                // Ignore storage errors
+            }
+        }
+    }, [step, fullName, roles, country, localCurrency, tosAccepted, digitalConsent, loading]);
 
     const toggleRole = (role: string) => {
         let newRoles = [...roles];
@@ -238,6 +274,9 @@ export default function OnboardingPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email, name: fullName || 'New User' }),
             }).catch(() => {});
+            try {
+                sessionStorage.removeItem('printis_onboarding_draft');
+            } catch (e) {}
             router.push('/');
         } catch (err: any) {
             alert(err.message);
