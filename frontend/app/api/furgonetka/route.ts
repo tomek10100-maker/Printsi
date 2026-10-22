@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail, EmailTemplates } from '@/app/lib/emailService';
+import { fetchFurgonetkaOrders } from './orders/route';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,8 +10,18 @@ const supabase = createClient(
 
 const FURGONETKA_SECRET = process.env.FURGONETKA_WEBHOOK_SECRET || 'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123';
 
-// 1. Handle ping/GET/OPTIONS/HEAD verification from Furgonetka webhook settings validation
-export async function GET() {
+// 1. Handle ping/GET/OPTIONS/HEAD verification from Furgonetka webhook settings validation, or orders query
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const tokenParam = url.searchParams.get('token');
+  const authHeader = req.headers.get('authorization') || req.headers.get('x-furgonetka-token') || '';
+  const providedToken = tokenParam || authHeader.replace('Bearer ', '').trim();
+
+  // If token is provided or date_from is passed, return orders
+  if (providedToken === 'printsi2026' || providedToken === FURGONETKA_SECRET || url.searchParams.has('date_from')) {
+    return fetchFurgonetkaOrders(req);
+  }
+
   return NextResponse.json({ status: 'ok', success: true, message: 'Furgonetka webhook endpoint active' }, {
     status: 200,
     headers: {

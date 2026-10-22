@@ -12,7 +12,7 @@ const VALID_TOKENS = [
   'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123',
 ].filter(Boolean);
 
-export async function GET(req: Request) {
+export async function fetchFurgonetkaOrders(req: Request) {
   try {
     const url = new URL(req.url);
     const tokenParam = url.searchParams.get('token');
@@ -30,6 +30,7 @@ export async function GET(req: Request) {
         id,
         created_at,
         total_amount,
+        shipping_cost_eur,
         status,
         shipping_address,
         order_shipping_details (
@@ -46,11 +47,12 @@ export async function GET(req: Request) {
           quantity,
           price_at_purchase,
           offers (
-            title
+            title,
+            weight
           )
         )
       `)
-      .in('status', ['paid_awaiting_transfer', 'processing'])
+      .in('status', ['paid', 'paid_awaiting_transfer', 'processing'])
       .order('created_at', { ascending: false });
 
     if (ordersError) {
@@ -58,47 +60,102 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
     }
 
-    // Format orders for Furgonetka
+    // Format orders for Furgonetka (supports both Wzór API e-commerce 1.0.0 and custom shop schemas)
     const formattedOrders = orders?.map(order => {
       const shipping = order.order_shipping_details?.[0] || {};
-      const [firstName, ...lastNameParts] = (shipping.full_name || 'Customer').split(' ');
-      const lastName = lastNameParts.join(' ') || '';
-
-      const shippingAddrJson = order.shipping_address as any;
+      const shippingAddrJson = (order.shipping_address as any) || {};
       const selectedPoint = shippingAddrJson?.selected_point;
 
+      let city = shipping.city || shippingAddrJson?.address?.city || selectedPoint?.city || '';
+      let postcode = shipping.zip_code || shippingAddrJson?.address?.postal_code || selectedPoint?.zip || selectedPoint?.postcode || '';
+      let street = (shipping.address || shippingAddrJson?.address?.line1 || selectedPoint?.street || selectedPoint?.name || '').replace(/,\s*\[object Object\]/g, '').trim();
+
+      // If city or postcode is missing, attempt to extract from point name (e.g. "MURÁNSKA DLHÁ LÚKA 111, 05-001 MURÁNSKA DLHÁ LÚKA")
+      if ((!city || !postcode) && selectedPoint?.name) {
+        const match = selectedPoint.name.match(/(\d{2}[-\s]?\d{3})\s+([^,]+)/);
+        if (match) {
+          if (!postcode) postcode = match[1].trim();
+          if (!city) city = match[2].trim();
+        }
+      }
+
+      const fullName = (shipping.full_name || shippingAddrJson?.name || 'Customer').trim();
+      const [firstName, ...lastNameParts] = fullName.split(' ');
+      const lastName = lastNameParts.join(' ') || firstName;
+      const email = shipping.email || shippingAddrJson?.email || '';
+      const phone = shipping.phone || shippingAddrJson?.phone || '';
+      const countryCode = shipping.country || shippingAddrJson?.address?.country || 'PL';
+
+      const courierService = selectedPoint?.courier || (selectedPoint ? 'inpost' : 'dpd');
+      const pointCode = selectedPoint?.code || '';
+
+      const products = order.order_items?.map((item: any) => ({
+        id: String(item.id),
+        product_id: String(item.id),
+        name: item.offers?.title || 'Produkt 3D',
+        quantity: Number(item.quantity) || 1,
+        price: Number(item.price_at_purchase) || 0,
+        weight: Number(item.offers?.weight) ? Number(item.offers.weight) / 1000 : 0.5
+      })) || [];
+
       return {
-        order_id: order.id,
+        // E-commerce API (1.0.0) format:
+        cartId: String(order.id),
+        datetimeOrder: order.created_at,
+        service: courierService,
+        point: pointCode,
+        codAmount: 0,
+        comment: '',
+        payment: {
+          paid: true,
+          method: 'online',
+          amount: Number(order.total_amount) || 0
+        },
+        shipping: {
+          method: courierService,
+          cost: Number(order.shipping_cost_eur || 0)
+        },
+        shippingAddress: {
+          firstname: firstName,
+          lastname: lastName,
+          name: fullName,
+          company: '',
+          street: street,
+          building: '',
+          apartment: '',
+          postcode: postcode,
+          city: city,
+          country: countryCode,
+          phone: phone,
+          email: email
+        },
+        // Backward-compatibility keys for alternative / legacy custom shop parsers:
+        id: String(order.id),
+        order_id: String(order.id),
         status: order.status,
         date_add: order.created_at,
-        total_amount: order.total_amount,
-        currency: 'EUR', // Or get from order if available
+        total_amount: Number(order.total_amount) || 0,
+        currency: 'EUR',
         customer: {
           firstname: firstName,
           lastname: lastName,
-          email: shipping.email || '',
-          phone: shipping.phone || ''
+          name: fullName,
+          email: email,
+          phone: phone
         },
         delivery_address: {
-          name: shipping.full_name || '',
+          name: fullName,
           company: '',
-          street: shipping.address || '',
-          city: shipping.city || '',
-          postcode: shipping.zip_code || '',
-          country_code: shipping.country || 'PL'
+          street: street,
+          city: city,
+          postcode: postcode,
+          country_code: countryCode,
+          phone: phone,
+          email: email
         },
-        // If there's a selected point (like Paczkomat), add it here for Furgonetka order import mapping
-        ...(selectedPoint ? {
-          pickup_point: selectedPoint.code,
-          pickup_point_name: selectedPoint.name,
-          service: selectedPoint.courier || 'inpost'
-        } : {}),
-        products: order.order_items?.map((item: any) => ({
-          product_id: item.id,
-          name: item.offers?.title || 'Produkt',
-          quantity: item.quantity,
-          price: item.price_at_purchase
-        })) || []
+        pickup_point: pointCode,
+        pickup_point_name: selectedPoint?.name || '',
+        products
       };
     }) || [];
 
@@ -109,4 +166,8 @@ export async function GET(req: Request) {
     console.error('Furgonetka orders fetch error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
+}
+
+export async function GET(req: Request) {
+  return fetchFurgonetkaOrders(req);
 }
