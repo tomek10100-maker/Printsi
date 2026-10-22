@@ -72,10 +72,13 @@ export async function POST(req: Request) {
         const dbOffer = offerMap.get(item.id);
         let realPrice = dbOffer ? Number(dbOffer.price) : Number(item.price || 0);
 
-        // If the offer has color variants, find the matching variant and use its price.
-        // This prevents the base offer price from being used when a variant with a
-        // different priceEUR was selected by the buyer.
-        if (dbOffer?.color_variants && item.variant_name) {
+        // If the offer has color variants, resolve the correct variant price server-side.
+        // Strategy:
+        //   1. If item.variant_name is set → find exact match by color_name.
+        //   2. If no variant_name but item.price matches a known variant priceEUR → accept it
+        //      (buyer selected a variant but cart didn't store the name, price is still DB-verified).
+        //   3. Otherwise fall back to the base offer.price.
+        if (dbOffer?.color_variants) {
           let variants: any[] = [];
           try {
             variants = typeof dbOffer.color_variants === 'string'
@@ -83,11 +86,24 @@ export async function POST(req: Request) {
               : dbOffer.color_variants;
           } catch (_) { /* keep base price */ }
 
-          const matchedVariant = variants.find(
-            (v: any) => v.color_name === item.variant_name
-          );
-          if (matchedVariant && typeof matchedVariant.priceEUR === 'number') {
-            realPrice = matchedVariant.priceEUR;
+          if (variants.length > 0) {
+            // Step 1: match by variant_name
+            if (item.variant_name) {
+              const byName = variants.find((v: any) => v.color_name === item.variant_name);
+              if (byName && typeof byName.priceEUR === 'number') {
+                realPrice = byName.priceEUR;
+              }
+            } else {
+              // Step 2: no name — verify the client-sent price exists in DB variant list
+              const clientPrice = Number(item.price);
+              const byPrice = variants.find(
+                (v: any) => typeof v.priceEUR === 'number' && Math.abs(v.priceEUR - clientPrice) < 0.01
+              );
+              if (byPrice) {
+                realPrice = byPrice.priceEUR; // use DB value (verified match)
+              }
+              // else: realPrice stays as offers.price (base)
+            }
           }
         }
 

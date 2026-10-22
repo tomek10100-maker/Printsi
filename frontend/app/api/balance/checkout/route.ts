@@ -33,8 +33,11 @@ export async function POST(req: Request) {
       const dbOffer = offerMapForBalance.get(item.id);
       let realPrice = dbOffer ? Number(dbOffer.price) : Number(item.price || 0);
 
-      // Resolve variant price if a named variant was selected
-      if (dbOffer?.color_variants && item.variant_name) {
+      // Resolve variant price server-side:
+      // 1. Match by variant_name if provided.
+      // 2. If no name, check if client-sent price matches a DB variant price (verify, don't trust blindly).
+      // 3. Fallback: use offers.price (base).
+      if (dbOffer?.color_variants) {
         let variants: any[] = [];
         try {
           variants = typeof dbOffer.color_variants === 'string'
@@ -42,9 +45,21 @@ export async function POST(req: Request) {
             : dbOffer.color_variants;
         } catch (_) { /* keep base price */ }
 
-        const matchedVariant = variants.find((v: any) => v.color_name === item.variant_name);
-        if (matchedVariant && typeof matchedVariant.priceEUR === 'number') {
-          realPrice = matchedVariant.priceEUR;
+        if (variants.length > 0) {
+          if (item.variant_name) {
+            const byName = variants.find((v: any) => v.color_name === item.variant_name);
+            if (byName && typeof byName.priceEUR === 'number') {
+              realPrice = byName.priceEUR;
+            }
+          } else {
+            const clientPrice = Number(item.price);
+            const byPrice = variants.find(
+              (v: any) => typeof v.priceEUR === 'number' && Math.abs(v.priceEUR - clientPrice) < 0.01
+            );
+            if (byPrice) {
+              realPrice = byPrice.priceEUR;
+            }
+          }
         }
       }
 
