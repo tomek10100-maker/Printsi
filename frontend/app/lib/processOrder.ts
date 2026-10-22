@@ -737,10 +737,15 @@ export async function processOrder(orderId: string, userId: string) {
       });
 
       // Auto-create Furgonetka shipment so it appears in "Zamówione" tab immediately after payment.
-      // Runs asynchronously — errors are non-fatal and do not block the order.
-      autoCreateFurgonetkaShipment(orderId, item.id, sellerId, userId, chatId).catch(e =>
-        console.error('[processOrder] autoCreateFurgonetkaShipment background error:', e)
-      );
+      // Awaited with a 25s timeout — long enough for Furgonetka polling but won't hang forever.
+      try {
+        await Promise.race([
+          autoCreateFurgonetkaShipment(orderId, item.id, sellerId, userId, chatId),
+          new Promise<void>(resolve => setTimeout(resolve, 25000)) // 25s max
+        ]);
+      } catch (e) {
+        console.error('[processOrder] autoCreateFurgonetkaShipment error:', e);
+      }
     }
 
     // 5. Notify seller
