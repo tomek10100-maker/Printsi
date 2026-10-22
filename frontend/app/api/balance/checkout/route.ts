@@ -20,8 +20,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'You cannot purchase your own listing.' }, { status: 400 });
     }
 
-    // 1. Calculate cart total & grand total (in EUR)
-    const cartTotalEur = items.reduce(
+    // 1. Validate item prices server-side from Supabase (never trust client-sent prices).
+    // Also resolve per-variant pricing from color_variants JSON in the offers table.
+    const offerIds = items.map((i: any) => i.id);
+    const { data: dbOffersForBalance } = await supabase
+      .from('offers')
+      .select('id, price, color_variants')
+      .in('id', offerIds);
+    const offerMapForBalance = new Map(dbOffersForBalance?.map((o: any) => [o.id, o]) || []);
+
+    const resolvedItems = items.map((item: any) => {
+      const dbOffer = offerMapForBalance.get(item.id);
+      let realPrice = dbOffer ? Number(dbOffer.price) : Number(item.price || 0);
+
+      // Resolve variant price if a named variant was selected
+      if (dbOffer?.color_variants && item.variant_name) {
+        let variants: any[] = [];
+        try {
+          variants = typeof dbOffer.color_variants === 'string'
+            ? JSON.parse(dbOffer.color_variants)
+            : dbOffer.color_variants;
+        } catch (_) { /* keep base price */ }
+
+        const matchedVariant = variants.find((v: any) => v.color_name === item.variant_name);
+        if (matchedVariant && typeof matchedVariant.priceEUR === 'number') {
+          realPrice = matchedVariant.priceEUR;
+        }
+      }
+
+      return { ...item, price: realPrice };
+    });
+
+    // 1b. Calculate cart total & grand total (in EUR) using server-validated prices
+    const cartTotalEur = resolvedItems.reduce(
       (total: number, item: any) => total + (item.price * item.quantity), 0
     );
     const orderTotalEur = cartTotalEur + (shippingCostEur || 0);
@@ -140,7 +171,8 @@ export async function POST(req: Request) {
     }
 
     // 6. Insert order items (z informacjami o wariancie do zmniejszania filamentu)
-    const orderItemsToInsert = items.map((item: any) => ({
+    // Use resolvedItems so price_at_purchase is the server-validated variant price.
+    const orderItemsToInsert = resolvedItems.map((item: any) => ({
       order_id: newOrder.id,
       offer_id: item.id,
       seller_id: item.seller_id,

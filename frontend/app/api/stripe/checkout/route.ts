@@ -59,17 +59,38 @@ export async function POST(req: Request) {
     } else {
       // 3. Standard checkout — recalculate prices server-side from Supabase database
       // to ensure buyer cannot manipulate prices via HTTP request payload.
+      // We also fetch color_variants JSON to validate per-variant pricing correctly.
       const offerIds = items.map((i: any) => i.id);
       const { data: dbOffers } = await supabaseAdmin
         .from('offers')
-        .select('id, price, user_id, title')
+        .select('id, price, user_id, title, color_variants')
         .in('id', offerIds);
 
       const offerMap = new Map(dbOffers?.map((o: any) => [o.id, o]) || []);
       let itemsSubtotalEur = 0;
       for (const item of items) {
         const dbOffer = offerMap.get(item.id);
-        const realPrice = dbOffer ? Number(dbOffer.price) : Number(item.price || 0);
+        let realPrice = dbOffer ? Number(dbOffer.price) : Number(item.price || 0);
+
+        // If the offer has color variants, find the matching variant and use its price.
+        // This prevents the base offer price from being used when a variant with a
+        // different priceEUR was selected by the buyer.
+        if (dbOffer?.color_variants && item.variant_name) {
+          let variants: any[] = [];
+          try {
+            variants = typeof dbOffer.color_variants === 'string'
+              ? JSON.parse(dbOffer.color_variants)
+              : dbOffer.color_variants;
+          } catch (_) { /* keep base price */ }
+
+          const matchedVariant = variants.find(
+            (v: any) => v.color_name === item.variant_name
+          );
+          if (matchedVariant && typeof matchedVariant.priceEUR === 'number') {
+            realPrice = matchedVariant.priceEUR;
+          }
+        }
+
         itemsSubtotalEur += realPrice * (Number(item.quantity) || 1);
       }
 
