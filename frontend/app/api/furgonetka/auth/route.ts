@@ -11,8 +11,8 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const secret = url.searchParams.get('secret');
     
-    // Verify that the caller knows the webhook secret
-    if (secret !== FURGONETKA_SECRET) {
+    // Verify that the caller knows the webhook secret or printsi2026
+    if (secret !== FURGONETKA_SECRET && secret !== 'printsi2026') {
       return NextResponse.json({ error: 'Unauthorized: Invalid secret' }, { status: 401 });
     }
 

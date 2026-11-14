@@ -65,6 +65,7 @@ async function clearStoredTokens(): Promise<void> {
 }
 
 let refreshPromise: Promise<string> | null = null;
+let cachedAccountServices: { items: any[]; fetchedAt: number } | null = null;
 
 async function refreshAccessToken(currentRefreshToken: string): Promise<string> {
   const clientId = process.env.FURGONETKA_CLIENT_ID;
@@ -417,5 +418,71 @@ export const furgonetkaClient = {
    */
   async getPackageDetails(packageId: number | string) {
     return apiRequest(`/packages/${packageId}`, 'GET');
+  },
+
+  /**
+   * Dynamically resolves the account-specific service_id for a given carrier
+   * (e.g. 'dpd', 'inpost', 'orlen', 'dhl', 'ups', 'gls', 'fedex', 'poczta')
+   * so switching Furgonetka accounts (e.g. to a private account) works automatically.
+   */
+  async resolveServiceId(carrier: string): Promise<number> {
+    const clean = (carrier || 'dpd').trim().toLowerCase();
+    let target = 'dpd';
+    if (clean.includes('inpost') || clean.includes('paczkomat')) target = 'inpost';
+    else if (clean.includes('orlen')) target = 'orlen';
+    else if (clean.includes('dhl')) target = 'dhl';
+    else if (clean.includes('ups')) target = 'ups';
+    else if (clean.includes('gls')) target = 'gls';
+    else if (clean.includes('fedex')) target = 'fedex';
+    else if (clean.includes('poczta')) target = 'poczta';
+
+    try {
+      const now = Date.now();
+      if (!cachedAccountServices || now - cachedAccountServices.fetchedAt > 10 * 60 * 1000) {
+        let items: any[] = [];
+        try {
+          const res = await apiRequest('/account/services', 'GET');
+          items = Array.isArray(res) ? res
+            : Array.isArray(res?.services) ? res.services
+            : Array.isArray(res?.data) ? res.data
+            : [];
+        } catch {
+          // Fallback: fetch service_ids from calculate-price
+          const calcRes = await apiRequest('/packages/calculate-price', 'POST', {
+            pickup: { name: 'Jan Kowalski', street: 'Marszalkowska 1', postcode: '00-001', city: 'Warszawa', country_code: 'PL', phone: '+48500600700', email: 'sender@printis.store' },
+            receiver: { name: 'Anna Nowak', street: 'Mila 5', postcode: '00-111', city: 'Warszawa', country_code: 'PL', phone: '+48600700800', email: 'buyer@printis.store' },
+            parcels: [{ width: 20, height: 15, depth: 10, weight: 1, type: 'package' }]
+          });
+          items = Array.isArray(calcRes?.services_prices) ? calcRes.services_prices
+            : Array.isArray(calcRes?.services) ? calcRes.services
+            : Array.isArray(calcRes) ? calcRes
+            : [];
+        }
+        if (items.length > 0) {
+          cachedAccountServices = { items, fetchedAt: now };
+        }
+      }
+
+      const servicesList = cachedAccountServices?.items || [];
+      if (servicesList.length > 0) {
+        const match = servicesList.find((s: any) => {
+          const sKey = String(s.service || s.courier || s.type || s.name || '').toLowerCase();
+          return sKey === target || sKey.includes(target);
+        });
+        const matchedId = match?.service_id || match?.id;
+        if (matchedId) {
+          console.log(`[FurgonetkaClient] Resolved service_id=${matchedId} for carrier=${target}`);
+          return Number(matchedId);
+        }
+      }
+    } catch (err) {
+      console.warn('[FurgonetkaClient] Dynamic service_id resolution failed, using fallback:', err);
+    }
+
+    const fallbackMap: Record<string, number> = {
+      dpd: 11636590, fedex: 11636591, ups: 11636592, gls: 11636593,
+      poczta: 11636594, inpost: 11636595, orlen: 11636596, dhl: 11636597,
+    };
+    return fallbackMap[target] || 11636590;
   }
 };

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { furgonetkaClient } from '@/app/lib/furgonetkaClient';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
     }
 
     // Verify secret
-    if (statePayload.secret !== FURGONETKA_SECRET) {
+    if (statePayload.secret !== FURGONETKA_SECRET && statePayload.secret !== 'printsi2026') {
       return NextResponse.json({ error: 'Unauthorized: State secret does not match' }, { status: 401 });
     }
 
@@ -87,6 +88,13 @@ export async function GET(req: Request) {
     if (dbError) {
       console.error('Failed to save tokens to database:', dbError);
       return NextResponse.json({ error: 'Failed to persist tokens', details: dbError }, { status: 500 });
+    }
+
+    // Automatically accept carrier regulations for the newly connected account
+    try {
+      await furgonetkaClient.acceptRegulations();
+    } catch (regErr) {
+      console.warn('Non-fatal: could not auto-accept regulations during callback:', regErr);
     }
 
     // Return success page

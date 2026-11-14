@@ -331,11 +331,8 @@ async function autoCreateFurgonetkaShipment(
     else if (carrier.includes('gls')) carrier = 'gls';
     else carrier = 'dpd';
 
-    const SERVICE_MAP: Record<string, number> = {
-      dpd: 11636590, ups: 11636592, gls: 11636593, poczta: 11636594,
-      inpost: 11636595, orlen: 11636596, dhl: 11636597,
-    };
-    const serviceId = SERVICE_MAP[carrier] || 11636590;
+    const serviceId = await furgonetkaClient.resolveServiceId(carrier);
+    const dpdFallbackId = await furgonetkaClient.resolveServiceId('dpd');
     const isPointToPoint = ['inpost', 'orlen', 'dhl'].includes(carrier) || !!selectedPoint?.code;
 
     // --- Parcel size ---
@@ -460,7 +457,7 @@ async function autoCreateFurgonetkaShipment(
     } catch (createErr: any) {
       console.warn('[AutoShipment] Package creation failed, trying DPD fallback:', createErr?.message);
       try {
-        const fallbackPayload = { ...furgoPayload, service_id: 11636590 };
+        const fallbackPayload = { ...furgoPayload, service_id: dpdFallbackId };
         delete (fallbackPayload.pickup as any).point;
         delete (fallbackPayload.receiver as any).point;
         const fallbackRes = await furgonetkaClient.createPackage(fallbackPayload);

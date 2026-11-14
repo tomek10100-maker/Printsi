@@ -242,7 +242,8 @@ export async function POST(req: Request) {
     else if (carrier.includes('gls')) carrier = 'gls';
     else if (carrier.includes('dpd')) carrier = 'dpd';
 
-    const serviceId = getServiceId(carrier);    // 9. Calculate Parcel Dimensions and Weight safely
+    const serviceId = await furgonetkaClient.resolveServiceId(carrier);
+    const dpdServiceId = await furgonetkaClient.resolveServiceId('dpd');    // 9. Calculate Parcel Dimensions and Weight safely
     const rawWeight = parseWeightToGrams(offer?.weight);
     const validWeightGrams = typeof rawWeight === 'number' && !isNaN(rawWeight) && rawWeight >= 100 ? rawWeight : 500;
     const qty = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
@@ -534,7 +535,7 @@ export async function POST(req: Request) {
       if (errMsg.includes('terms_and_conditions_not_valid')) {
         console.warn('[CreatePackage Route] Regulations not accepted for carrier. Attempting auto-acceptance and DPD fallback...');
         await furgonetkaClient.acceptRegulations();
-        furgonetkaPayload.service_id = 11636590;
+        furgonetkaPayload.service_id = dpdServiceId;
         delete furgonetkaPayload.pickup.point;
         delete furgonetkaPayload.receiver.point;
         try {
@@ -563,7 +564,7 @@ export async function POST(req: Request) {
         console.warn('[CreatePackage Route] Initial create failed. Attempting Tier 2 DPD Courier fallback with real receiver address...');
         const tier2Payload: any = {
           ...furgonetkaPayload,
-          service_id: 11636590, // DPD Courier
+          service_id: dpdServiceId, // DPD Courier
           receiver: {
             name: receiverName,
             street: receiverStreet,
@@ -584,7 +585,7 @@ export async function POST(req: Request) {
 
           const tier3Payload: any = {
             ...tier2Payload,
-            service_id: 11636590,
+            service_id: dpdServiceId,
             receiver: {
               name: receiverName,
               street: receiverStreet && receiverStreet.length >= 3 ? receiverStreet : 'Main Street 1',
@@ -644,7 +645,7 @@ export async function POST(req: Request) {
         console.warn('[CreatePackage Route] Order failed on carrier API. Creating DPD Courier fallback package with real buyer details...');
         const fallbackDpdPayload: any = {
           ...furgonetkaPayload,
-          service_id: 11636590, // DPD Courier (Service ID: 11636590)
+          service_id: dpdServiceId, // DPD Courier
           receiver: {
             name: receiverName,
             street: receiverStreet && receiverStreet.length >= 3 ? receiverStreet : 'Main Street 1',
