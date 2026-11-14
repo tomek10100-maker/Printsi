@@ -68,7 +68,7 @@ export default function ReviewsSection({ offerId, sellerId }: ReviewsSectionProp
         {/* Average Rating Big Display */}
         <div className="flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 pb-6 md:pb-0 md:pr-6">
           <div className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-            {stats.averageRating > 0 ? stats.averageRating.toFixed(1) : '5.0'}
+            {stats.totalCount > 0 ? stats.averageRating.toFixed(1) : '—'}
           </div>
           <div className="flex items-center gap-1 my-2">
             {[1, 2, 3, 4, 5].map(star => (
@@ -76,7 +76,7 @@ export default function ReviewsSection({ offerId, sellerId }: ReviewsSectionProp
                 key={star}
                 size={18}
                 className={
-                  star <= Math.round(stats.averageRating || 5)
+                  stats.totalCount > 0 && star <= Math.round(stats.averageRating)
                     ? 'text-amber-400 fill-amber-400'
                     : 'text-slate-300 dark:text-slate-700'
                 }
@@ -84,7 +84,7 @@ export default function ReviewsSection({ offerId, sellerId }: ReviewsSectionProp
             ))}
           </div>
           <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Based on {stats.totalCount} {stats.totalCount === 1 ? 'verified review' : 'verified reviews'}
+            {stats.totalCount > 0 ? `Based on ${stats.totalCount} ${stats.totalCount === 1 ? 'verified review' : 'verified reviews'}` : 'No reviews yet'}
           </p>
         </div>
 
