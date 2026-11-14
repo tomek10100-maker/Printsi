@@ -430,7 +430,7 @@ async function autoCreateFurgonetkaShipment(
     } as any;
 
     // Point-to-point codes
-    const isSandbox = (process.env.FURGONETKA_ENV || 'sandbox') === 'sandbox';
+    const isSandbox = process.env.FURGONETKA_FORCE_PRODUCTION !== 'true';
     const pickupPointCode = isSandbox
       ? (process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01M')
       : (process.env.FURGONETKA_PICKUP_POINT || '');

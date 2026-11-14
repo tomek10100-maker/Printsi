@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
-const ENV = process.env.FURGONETKA_ENV || 'sandbox';
+const ENV = process.env.FURGONETKA_FORCE_PRODUCTION === 'true' ? 'production' : 'sandbox';
 const BASE_URL = ENV === 'sandbox'
   ? 'https://api.sandbox.furgonetka.pl'
   : 'https://api.furgonetka.pl';
