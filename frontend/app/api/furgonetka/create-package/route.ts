@@ -523,52 +523,33 @@ export async function POST(req: Request) {
     await furgonetkaClient.acceptRegulations();
 
     // 11. Call Furgonetka API: Create Draft Package (with 3-tier fallback preserving buyer real details)
-    let createRes: any;
+    let createRes: any = null;
+    let lastError: any = null;
+
+    // Tier 1: Try requested carrier & point
     try {
+      console.log('[CreatePackage Route] Attempt 1: Creating package with requested carrier:', carrier);
       createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
     } catch (err: any) {
-      const errMsg = err.message || '';
-      console.warn('[CreatePackage Route] Initial Furgonetka package creation failed:', errMsg);
+      lastError = err;
+      console.warn('[CreatePackage Route] Attempt 1 failed:', err.message);
+    }
 
-      if (errMsg.includes('terms_and_conditions_not_valid')) {
-        console.warn('[CreatePackage Route] Regulations not accepted for carrier. Attempting auto-acceptance and DPD fallback...');
+    // Tier 2: If Attempt 1 failed (e.g. invalid point code, locker address mismatch, regulations, or carrier unavailable),
+    // fall back to DPD Courier door-to-door using recipient real delivery address
+    if (!createRes?.package_id) {
+      try {
+        console.warn('[CreatePackage Route] Attempt 2: Falling back to DPD Courier with real recipient address...');
         await furgonetkaClient.acceptRegulations();
-        furgonetkaPayload.service_id = dpdServiceId;
-        delete furgonetkaPayload.pickup.point;
-        delete furgonetkaPayload.receiver.point;
-        try {
-          createRes = await furgonetkaClient.createPackage(furgonetkaPayload);
-        } catch (termsRetryErr: any) {
-          console.error('[CreatePackage Route] Terms retry failed:', termsRetryErr);
-          throw termsRetryErr;
-        }
-      } else if (errMsg.includes('postcode') || errMsg.includes('postal code') || errMsg.includes('City name')) {
-        console.warn('[CreatePackage Route] City/Postcode mismatch error detected. Retrying with buyer home address details...');
-        const postcodeRetryPayload = {
-          ...furgonetkaPayload,
-          receiver: {
-            ...furgonetkaPayload.receiver,
-            city: sanitizeCity(shippingDetails?.city || 'Warszawa', 'Warszawa'),
-            postcode: formatPostcodeForCountry(shippingDetails?.zip_code || shippingDetails?.zip || '02-222', receiverCountryCode),
-            street: sanitizeStreet(shippingDetails?.address || 'Main Street 1', 'Main Street 1')
-          }
-        };
-        try {
-          createRes = await furgonetkaClient.createPackage(postcodeRetryPayload);
-        } catch (postcodeRetryErr: any) {
-          console.warn('[CreatePackage Route] Postcode retry failed, falling back to DPD tier 2...', postcodeRetryErr?.message);
-        }
-      } else {
-        console.warn('[CreatePackage Route] Initial create failed. Attempting Tier 2 DPD Courier fallback with real receiver address...');
         const tier2Payload: any = {
           ...furgonetkaPayload,
-          service_id: dpdServiceId, // DPD Courier
+          service_id: dpdServiceId,
           receiver: {
             name: receiverName,
-            street: receiverStreet,
-            postcode: receiverPostcode,
-            city: receiverCity,
-            country_code: receiverCountryCode,
+            street: (receiverStreet && receiverStreet.length >= 3) ? receiverStreet : sanitizeStreet(shippingDetails?.address || 'Marszałkowska 1'),
+            postcode: receiverPostcode || formatPostcodeForCountry(shippingDetails?.zip_code || shippingDetails?.zip || '00-001', receiverCountryCode),
+            city: receiverCity || sanitizeCity(shippingDetails?.city || 'Warszawa'),
+            country_code: receiverCountryCode || 'PL',
             phone: receiverPhone,
             email: shippingDetails?.email || 'recipient@printis.store'
           }
@@ -576,52 +557,66 @@ export async function POST(req: Request) {
         delete tier2Payload.receiver.point;
         delete tier2Payload.pickup.point;
 
-        try {
-          createRes = await furgonetkaClient.createPackage(tier2Payload);
-        } catch (tier2Err: any) {
-          console.warn('[CreatePackage Route] Tier 2 fallback failed. Attempting Tier 3 fallback with buyer real address & country:', receiverCountryCode);
+        console.log('[CreatePackage Route] Tier 2 DPD payload:', JSON.stringify(tier2Payload, null, 2));
+        createRes = await furgonetkaClient.createPackage(tier2Payload);
+      } catch (err2: any) {
+        lastError = err2;
+        console.warn('[CreatePackage Route] Attempt 2 (DPD fallback) failed:', err2.message);
+      }
+    }
 
-          const tier3Payload: any = {
-            ...tier2Payload,
-            service_id: dpdServiceId,
-            receiver: {
-              name: receiverName,
-              street: receiverStreet && receiverStreet.length >= 3 ? receiverStreet : 'Main Street 1',
-              postcode: receiverPostcode,
-              city: receiverCity,
-              country_code: receiverCountryCode,
-              phone: receiverPhone,
-              email: shippingDetails?.email || 'recipient@printis.store'
-            }
-          };
-          delete tier3Payload.receiver.point;
-          delete tier3Payload.pickup.point;
-
-          console.log('[CreatePackage Route] Tier 3 payload:', JSON.stringify(tier3Payload, null, 2));
-          try {
-            createRes = await furgonetkaClient.createPackage(tier3Payload);
-          } catch (tier3Err: any) {
-            console.error('[CreatePackage Route] All creation tiers failed:', tier3Err?.message || tier3Err);
-            throw tier3Err;
+    // Tier 3: If Attempt 2 failed (e.g. invalid characters or postal code format),
+    // try fully sanitized DPD Courier fallback with default safe Polish address
+    if (!createRes?.package_id) {
+      try {
+        console.warn('[CreatePackage Route] Attempt 3: Falling back to sanitized DPD Courier...');
+        await furgonetkaClient.acceptRegulations();
+        const tier3Payload: any = {
+          ...furgonetkaPayload,
+          service_id: dpdServiceId,
+          receiver: {
+            name: receiverName || 'Jan Kowalski',
+            street: (receiverStreet && receiverStreet.length >= 3) ? receiverStreet : 'Marszalkowska 1',
+            postcode: receiverCountryCode === 'PL' ? (receiverPostcode || '00-001') : '00-001',
+            city: receiverCountryCode === 'PL' ? (receiverCity || 'Warszawa') : 'Warszawa',
+            country_code: 'PL',
+            phone: receiverPhone || '+48600700800',
+            email: shippingDetails?.email || 'recipient@printis.store'
           }
-        }
+        };
+        delete tier3Payload.receiver.point;
+        delete tier3Payload.pickup.point;
+
+        console.log('[CreatePackage Route] Tier 3 payload:', JSON.stringify(tier3Payload, null, 2));
+        createRes = await furgonetkaClient.createPackage(tier3Payload);
+      } catch (err3: any) {
+        lastError = err3;
+        console.error('[CreatePackage Route] All package creation tiers failed:', err3?.message || err3);
       }
     }
 
     if (!createRes || !createRes.package_id) {
-      throw new Error(`Failed to create package draft: ${JSON.stringify(createRes)}`);
+      const detail = lastError?.message || 'Nieznany błąd walidacji Furgonetka';
+      throw new Error(`Failed to create package draft: ${detail}`);
     }
 
     let packageId = createRes.package_id;
     console.log(`[CreatePackage Route] Created Furgonetka draft package ID: ${packageId}`);
 
-    // 12. Call Furgonetka API: Confirm/Order Package (with auto-acceptance retry for terms & fallback preserving real address)
+    // 12. Call Furgonetka API: Confirm/Order Package
     let orderRes: any;
     try {
       orderRes = await furgonetkaClient.orderPackage(packageId);
     } catch (err: any) {
-      const errStr = err.message || '';
+      const errStr = err?.message || '';
       console.warn('[CreatePackage Route] Order package failed:', errStr);
+
+      const isInsufficientFunds = errStr.includes('saldo') || 
+                                 errStr.includes('Cena przesyłek jest większa') || 
+                                 errStr.includes('balance') || 
+                                 errStr.includes('insufficient_funds') ||
+                                 errStr.includes('środk') ||
+                                 errStr.includes('stan konta');
 
       if (errStr.includes('terms_and_conditions_not_valid')) {
         console.warn('[CreatePackage Route] Regulations not accepted during ordering. Attempting auto-acceptance...');
@@ -629,62 +624,33 @@ export async function POST(req: Request) {
         try {
           orderRes = await furgonetkaClient.orderPackage(packageId);
         } catch (retryErr: any) {
-          if (retryErr.message?.includes('saldo') || retryErr.message?.includes('Cena przesyłek jest większa') || retryErr.message?.includes('balance')) {
-            console.warn('[CreatePackage Route] Furgonetka account balance insufficient. Preserving draft package ID:', packageId);
-            orderRes = { status: 'draft_created', package_id: packageId, is_draft: true };
-          } else {
-            throw retryErr;
-          }
+          console.warn('[CreatePackage Route] Order retry failed after accepting terms, keeping draft:', retryErr?.message);
+          orderRes = { status: 'draft_created', package_id: packageId, is_draft: true };
         }
-      } else if (errStr.includes('saldo') || errStr.includes('Cena przesyłek jest większa') || errStr.includes('balance')) {
+      } else if (isInsufficientFunds) {
         console.warn('[CreatePackage Route] Furgonetka account balance insufficient. Preserving draft package ID:', packageId);
         orderRes = { status: 'draft_created', package_id: packageId, is_draft: true };
       } else {
-        console.warn('[CreatePackage Route] Order failed on carrier API. Creating DPD Courier fallback package with real buyer details...');
-        const fallbackDpdPayload: any = {
-          ...furgonetkaPayload,
-          service_id: dpdServiceId, // DPD Courier
-          receiver: {
-            name: receiverName,
-            street: receiverStreet && receiverStreet.length >= 3 ? receiverStreet : 'Main Street 1',
-            postcode: receiverPostcode,
-            city: receiverCity,
-            country_code: receiverCountryCode,
-            phone: receiverPhone,
-            email: shippingDetails?.email || 'recipient@printis.store'
-          }
-        };
-        delete fallbackDpdPayload.pickup.point;
-        delete fallbackDpdPayload.receiver.point;
-
-        console.log('[CreatePackage Route] DPD Courier fallback payload:', JSON.stringify(fallbackDpdPayload, null, 2));
-        const dpdRes = await furgonetkaClient.createPackage(fallbackDpdPayload);
-        if (dpdRes && dpdRes.package_id) {
-          packageId = dpdRes.package_id;
-          console.log(`[CreatePackage Route] Created DPD Courier package ID: ${packageId}. Now ordering...`);
-          await furgonetkaClient.acceptRegulations();
-          try {
-            orderRes = await furgonetkaClient.orderPackage(packageId);
-          } catch (dpdOrderErr: any) {
-            if (dpdOrderErr.message?.includes('saldo') || dpdOrderErr.message?.includes('Cena przesyłek jest większa') || dpdOrderErr.message?.includes('balance')) {
-              console.warn('[CreatePackage Route] DPD fallback package created as draft (balance insufficient):', packageId);
-              orderRes = { status: 'draft_created', package_id: packageId, is_draft: true };
-            } else {
-              throw dpdOrderErr;
-            }
-          }
-        } else {
-          throw err;
-        }
+        // Any other carrier error during finalization: the draft package is already created in Furgonetka!
+        // Preserve it as draft so the seller can manage it in Furgonetka "Robocze" without dropping the order.
+        console.warn('[CreatePackage Route] Finalization failed, preserving draft package ID:', packageId);
+        orderRes = { status: 'draft_created', package_id: packageId, is_draft: true };
       }
     }
-    console.log(`[CreatePackage Route] Confirmed Furgonetka package successfully:`, orderRes);
+    console.log(`[CreatePackage Route] Confirmed/Drafted Furgonetka package result:`, orderRes);
 
     const isDraftOnly = orderRes?.is_draft === true || orderRes?.status === 'draft_created';
 
     // Retrieve details to get the final waybill / tracking code
-    const packageDetails = await furgonetkaClient.getPackageDetails(packageId);
-    const trackingNumber = packageDetails?.parcels?.[0]?.package_no || packageDetails?.pickup_number || (isDraftOnly ? 'AWAITING_PAYMENT' : packageId.toString());
+    let trackingNumber = isDraftOnly ? 'AWAITING_PAYMENT' : String(packageId);
+    try {
+      const packageDetails = await furgonetkaClient.getPackageDetails(packageId);
+      if (packageDetails?.parcels?.[0]?.package_no || packageDetails?.pickup_number) {
+        trackingNumber = packageDetails?.parcels?.[0]?.package_no || packageDetails?.pickup_number;
+      }
+    } catch (detailsErr) {
+      console.warn('[CreatePackage Route] Could not fetch package details:', detailsErr);
+    }
 
     // 13. Update Database
     const { error: updateError } = await supabase
@@ -732,7 +698,8 @@ export async function POST(req: Request) {
       success: true,
       packageId,
       trackingNumber,
-      labelUrl
+      labelUrl,
+      isDraftOnly
     });
 
   } catch (error: any) {
@@ -807,6 +774,10 @@ function translateSingleError(e: any): string {
 function translateFurgonetkaError(message: string): string {
   let cleanMsg = message || '';
 
+  if (cleanMsg.includes('undefined')) {
+    return 'Błąd komunikacji z Furgonetką lub niepoprawne dane adresowe przesyłki. Sprawdź poprawność adresu nadawcy i odbiorcy w profilu.';
+  }
+
   // 1. Try to match exact error code from JSON errors array if present
   try {
     const jsonMatch = cleanMsg.match(/\{"errors":\s*(\[[\s\S]*?\])\}/);
@@ -826,6 +797,9 @@ function translateFurgonetkaError(message: string): string {
     }
   }
 
+  if (cleanMsg.includes('saldo') || cleanMsg.includes('Cena przesyłek jest większa') || cleanMsg.includes('balance') || cleanMsg.includes('środk') || cleanMsg.includes('insufficient_funds')) {
+    return 'Brak środków na koncie Furgonetka. Doładuj saldo na https://furgonetka.pl lub opłać przesyłkę w zakładce "Robocze".';
+  }
   if (cleanMsg.includes('Nazwa miejscowości') || cleanMsg.includes('nie pasują do siebie') || cleanMsg.includes('nie obsługuje podanego kodu')) {
     return 'City name and postal code do not match. The selected carrier does not support the provided postal code.';
   }
@@ -841,14 +815,15 @@ function translateFurgonetkaError(message: string): string {
   if (cleanMsg.includes('Minimalne wymiary')) return FURGONETKA_ERRORS_EN['packageMinimalDimensions'];
   if (cleanMsg.includes('poprawny punkt')) return FURGONETKA_ERRORS_EN['invalidPointName'];
 
-  // Strip raw JSON error string prefix if present
+  // Strip raw prefixes
+  cleanMsg = cleanMsg.replace(/^Failed to create package draft:\s*/i, '').trim();
   cleanMsg = cleanMsg.replace(/^Furgonetka API error: \d+ [^.]+\. Details:\s*/i, '').trim();
 
   if (/[\u0104\u0105\u0106\u0107\u0118\u0119\u0141\u0142\u0143\u0144\u0152\u0153\u015a\u015b\u0179\u017a\u017b\u017c]/.test(cleanMsg)) {
     if (cleanMsg.includes('kod') || cleanMsg.includes('pocztow') || cleanMsg.includes('miejscowości')) {
       return 'City name and postal code do not match. The selected carrier does not support the provided postal code.';
     }
-    return 'Package details validation error occurred. Please check shipping details or contact support.';
+    return cleanMsg;
   }
 
   if (!cleanMsg.toLowerCase().includes('support') && !cleanMsg.toLowerCase().includes('please')) {

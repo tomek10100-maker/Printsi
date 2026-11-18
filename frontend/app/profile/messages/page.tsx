@@ -761,7 +761,7 @@ function MessagesInner() {
                     ...c,
                     orderItem: {
                         ...c.orderItem,
-                        status: 'shipped',
+                        status: data.isDraftOnly ? 'waiting_for_shipping' : 'shipped',
                         tracking_code: data.trackingNumber || 'LABEL_READY',
                         furgonetka_package_id: String(data.packageId),
                         label_url: data.labelUrl || `/api/furgonetka/label/${data.packageId}`
@@ -769,7 +769,9 @@ function MessagesInner() {
                 } : c
             ));
 
-            if (data.packageId) {
+            if (data.isDraftOnly) {
+                alert(`⚠️ Przesyłka została utworzona w Furgonetce jako robocza (ID: ${data.packageId}). Aby pobrać etykietę kurierską, doładuj saldo konta lub opłać przesyłkę w zakładce "Robocze" na https://furgonetka.pl.`);
+            } else if (data.packageId) {
                 handleDownloadLabel(String(data.packageId));
             }
 
