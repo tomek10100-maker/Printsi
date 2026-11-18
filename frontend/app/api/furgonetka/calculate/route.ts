@@ -4,12 +4,13 @@ import { filterOptionsByDisabledCouriers } from '@/app/lib/shippingRates';
 
 // Maps Furgonetka service names → ShippingOption IDs used in checkout
 const SERVICE_MAP: Record<string, { id: string; carrier: string; service: string; icon: string; deliveryDays: string; description: string; isPickup: boolean }> = {
-  dhl:                { id: 'dhl_domestic',       carrier: 'Furgonetka.pl', service: 'Furgonetka Courier', icon: '📦', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
-  dhl_pop:            { id: 'dhl_pop',            carrier: 'Furgonetka.pl', service: 'Furgonetka Point / Box', icon: '📦', deliveryDays: '1-2', description: 'Parcel locker / Pickup point', isPickup: true },
+  dhl:                { id: 'dhl_domestic',       carrier: 'DHL',    service: 'DHL Courier',         icon: '📦', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
+  dhl_pop:            { id: 'dhl_pop',            carrier: 'DHL',    service: 'DHL POP / Box',       icon: '📦', deliveryDays: '1-2', description: 'Parcel locker / Pickup point', isPickup: true },
   dpd:                { id: 'dpd_domestic',       carrier: 'DPD',    service: 'DPD Classic',         icon: '🔴', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
   dpd_pickup:         { id: 'dpd_pickup',         carrier: 'DPD',    service: 'DPD Pickup Station',  icon: '🔴', deliveryDays: '1-2', description: 'Parcel locker / Pickup point', isPickup: true },
   dpd_international:  { id: 'dpd_international',  carrier: 'DPD',    service: 'DPD International',   icon: '🔴', deliveryDays: '3-5', description: 'Door-to-door delivery', isPickup: false },
   inpost:             { id: 'inpost_paczkomat',   carrier: 'InPost', service: 'Paczkomat',           icon: '🟢', deliveryDays: '1-2', description: 'Parcel locker pickup', isPickup: true },
+  inpostkurier:       { id: 'inpost_kurier',      carrier: 'InPost', service: 'InPost Kurier',       icon: '🟢', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
   orlen:              { id: 'orlen_paczka',       carrier: 'Orlen',  service: 'Orlen Paczka',        icon: '🟠', deliveryDays: '1-3', description: 'Parcel locker / Pickup point', isPickup: true },
   ups:                { id: 'ups_domestic',       carrier: 'UPS',    service: 'UPS Standard',        icon: '🟤', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
   gls:                { id: 'gls_domestic',       carrier: 'GLS',    service: 'GLS ParcelShop',      icon: '🔵', deliveryDays: '1-2', description: 'Door-to-door delivery', isPickup: false },
@@ -76,6 +77,7 @@ export async function POST(req: Request) {
           height: safeHeight,
           depth: safeDepth,
           weight: safeWeightKg,
+          quantity: 1,
           type: 'package',
         },
       ],

@@ -726,6 +726,64 @@ function MessagesInner() {
 
     const [furgonetkaLoading, setFurgonetkaLoading] = useState(false);
 
+    // Direct label generation for standard physical orders & approved custom orders
+    const handleDirectCreatePackage = async (itemId: string) => {
+        if (furgonetkaShippingRef.current || furgonetkaLoading) return;
+        furgonetkaShippingRef.current = true;
+        setFurgonetkaLoading(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert('Session expired. Please log in again.');
+                return;
+            }
+            if (!activeChatId || !currentUser) return;
+
+            const targetItemId = itemId || activeChatData?.orderItem?.id;
+            const res = await fetch('/api/furgonetka/create-package', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ itemId: targetItemId, chatId: activeChatId })
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                alert(`Furgonetka shipping error: ${data.error || 'Failed to create shipping package'}`);
+                return;
+            }
+
+            // Update local state
+            setChats(prev => prev.map(c =>
+                c.id === activeChatId ? {
+                    ...c,
+                    orderItem: {
+                        ...c.orderItem,
+                        status: 'shipped',
+                        tracking_code: data.trackingNumber || 'LABEL_READY',
+                        furgonetka_package_id: String(data.packageId),
+                        label_url: data.labelUrl || `/api/furgonetka/label/${data.packageId}`
+                    }
+                } : c
+            ));
+
+            if (data.packageId) {
+                handleDownloadLabel(String(data.packageId));
+            }
+
+            if (activeChatId) await loadMessages(activeChatId);
+            if (currentUser?.id) await loadChats(currentUser.id);
+        } catch (err: any) {
+            console.error('Direct package creation error:', err);
+            alert(`Failed to create shipment: ${err.message || err}`);
+        } finally {
+            furgonetkaShippingRef.current = false;
+            setFurgonetkaLoading(false);
+        }
+    };
+
     const handleFurgonetkaShip = async (itemId: string) => {
         if (furgonetkaShippingRef.current || verificationUploading) return;
         furgonetkaShippingRef.current = true;
@@ -818,6 +876,7 @@ function MessagesInner() {
 
     // Called by buyer when they confirm shipping verification photos are OK
     const handleConfirmShipment = async (itemId: string) => {
+        if (confirmingShipment) return;
         setConfirmingShipment(true);
         try {
             const targetItemId = itemId || activeChatData?.orderItem?.id || activeChatData?.order_id;
@@ -830,32 +889,7 @@ function MessagesInner() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) { alert('Session expired. Please log in again.'); setConfirmingShipment(false); return; }
 
-            // Create shipping package & label via Furgonetka if available
-            try {
-                const res = await fetch('/api/furgonetka/create-package', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-                    body: JSON.stringify({ itemId: targetItemId, chatId: activeChatId })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    setChats(prev => prev.map(c =>
-                        c.id === activeChatId ? {
-                            ...c,
-                            orderItem: {
-                                ...c.orderItem,
-                                tracking_code: data.trackingNumber || 'LABEL_READY',
-                                furgonetka_package_id: data.packageId,
-                                label_url: data.labelUrl
-                            }
-                        } : c
-                    ));
-                }
-            } catch (furgErr) {
-                console.warn('Furgonetka package creation note:', furgErr);
-            }
-
-            // Insert system message into chat
+            // 1. Post verification approved message to chat
             await supabase.from('messages').insert({
                 chat_id: activeChatId,
                 sender_id: currentUser?.id,
@@ -863,8 +897,44 @@ function MessagesInner() {
                 content: '✅ Print verification photos approved by buyer! Seller can now download shipping label and hand over package to courier.'
             });
 
-            if (activeChatId) loadMessages(activeChatId);
-            if (currentUser?.id) loadChats(currentUser.id);
+            // 2. Create shipping package & label via Furgonetka
+            let packageData: any = null;
+            try {
+                const res = await fetch('/api/furgonetka/create-package', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+                    body: JSON.stringify({ itemId: targetItemId, chatId: activeChatId })
+                });
+                packageData = await res.json();
+            } catch (furgErr) {
+                console.warn('Furgonetka package creation note:', furgErr);
+            }
+
+            // 3. Update order_items status in DB to 'shipped'
+            const updatePayload: any = { status: 'shipped' };
+            if (packageData?.success) {
+                if (packageData.trackingNumber) updatePayload.tracking_code = packageData.trackingNumber;
+                if (packageData.packageId) updatePayload.furgonetka_package_id = String(packageData.packageId);
+                if (packageData.labelUrl) updatePayload.label_url = packageData.labelUrl;
+            }
+            await supabase.from('order_items').update(updatePayload).eq('id', targetItemId);
+
+            // 4. Update local state
+            setChats(prev => prev.map(c =>
+                c.id === activeChatId ? {
+                    ...c,
+                    orderItem: {
+                        ...c.orderItem,
+                        status: 'shipped',
+                        tracking_code: packageData?.trackingNumber || c.orderItem?.tracking_code || 'LABEL_READY',
+                        furgonetka_package_id: packageData?.packageId || c.orderItem?.furgonetka_package_id,
+                        label_url: packageData?.labelUrl || c.orderItem?.label_url
+                    }
+                } : c
+            ));
+
+            if (activeChatId) await loadMessages(activeChatId);
+            if (currentUser?.id) await loadChats(currentUser.id);
         } catch (err) {
             console.error('Confirm verification error:', err);
         } finally {
@@ -2229,7 +2299,11 @@ function MessagesInner() {
             const isBuyer = activeChatData && String(currentUser?.id) === String(activeChatData.buyer_id);
             const isSeller = activeChatData && String(currentUser?.id) === String(activeChatData.seller_id);
             const orderStatus = activeChatData?.orderItem?.status;
-            const isConfirmedOrDone = ['shipped', 'delivered', 'completed', 'payout_completed'].includes(orderStatus || '');
+            const isApprovedInMessages = messages.some((m: any) =>
+                m.message_type === 'verification_approved' ||
+                (m.content && m.content.includes('Print verification photos approved'))
+            );
+            const isConfirmedOrDone = ['shipped', 'delivered', 'completed', 'payout_completed'].includes(orderStatus || '') || isApprovedInMessages;
             const isDisputed = orderStatus === 'disputed';
             const photos: string[] = Array.isArray(scData.photos) ? scData.photos : [];
 
@@ -2293,13 +2367,22 @@ function MessagesInner() {
                                         </p>
                                     </div>
 
-                                    {/* Direct Download Button for Seller / Maker */}
+                                    {/* Direct Download / Generate Button for Seller / Maker */}
                                     {isSeller && (
                                         <button
-                                            onClick={() => handleDownloadLabel(activeChatData?.orderItem?.furgonetka_package_id || activeChatData?.orderItem?.tracking_code || scData.itemId)}
-                                            className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-98 cursor-pointer"
+                                            onClick={() => {
+                                                const pkgId = activeChatData?.orderItem?.furgonetka_package_id || activeChatData?.orderItem?.tracking_code;
+                                                if (pkgId && pkgId !== 'LABEL_READY' && pkgId !== 'APPROVED') {
+                                                    handleDownloadLabel(pkgId);
+                                                } else {
+                                                    handleDirectCreatePackage(scData.itemId || activeChatData?.orderItem?.id);
+                                                }
+                                            }}
+                                            disabled={furgonetkaLoading}
+                                            className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-98 cursor-pointer disabled:opacity-50"
                                         >
-                                            <Printer size={16} /> 📥 Download Courier Shipping Label (PDF)
+                                            {furgonetkaLoading ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+                                            📥 Download Courier Shipping Label (PDF)
                                         </button>
                                     )}
                                 </div>
@@ -2690,6 +2773,8 @@ function MessagesInner() {
         const status = (orderItem.status || 'pending').toLowerCase();
         const isDigital = chatData?.offers?.category === 'digital';
         const isJob = chatData?.offers?.category === 'job';
+        const isCustom = isJob || chatData?.offers?.is_custom === true;
+        const isStandardPhysical = !isDigital && !isCustom;
         const jobPosterId = chatData?.offers?.user_id;
 
         // For Job Offers: Printer = not job poster, Customer = job poster
@@ -2709,9 +2794,77 @@ function MessagesInner() {
         const showDeliveredCustomer = (status === 'delivered' || (status === 'shipped' && isDigital)) && isCustomer;
         const showDeliveredPrinter = (status === 'delivered' || (status === 'shipped' && isDigital)) && isPrinter;
 
+        const isApprovedInMessages = messages.some((m: any) =>
+            m.message_type === 'verification_approved' ||
+            (m.content && m.content.includes('Print verification photos approved'))
+        );
         const pendingVerificationRequest = messages.some((m: any) => m.message_type === 'shipment_confirmation_request');
 
         if (showShipCard) {
+            // Standard Physical Order: NO verification required! Direct courier shipping.
+            if (isStandardPhysical) {
+                return (
+                    <div className="flex flex-col gap-2 my-4">
+                        <div className="flex justify-center px-4 w-full">
+                            <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-300 rounded-2xl p-5 text-center shadow-sm">
+                                <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
+                                    <Package size={20} className="text-emerald-600" />
+                                </div>
+                                <p className="text-sm font-bold text-gray-800 mb-1">
+                                    Ready to ship? (Standard Product Order)
+                                </p>
+                                <p className="text-xs text-gray-500 font-medium mb-4">
+                                    This is a standard physical product order — no 3D print photo verification is required. Pack the items securely and generate your official Furgonetka shipping label.
+                                </p>
+
+                                <button
+                                    onClick={() => handleDirectCreatePackage(orderItem.id)}
+                                    disabled={furgonetkaLoading}
+                                    className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
+                                >
+                                    {furgonetkaLoading ? <Loader2 size={16} className="animate-spin" /> : <PackageCheck size={16} />}
+                                    📦 Generate Courier Shipping Label & Ship
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Custom 3D Print Job: Buyer approved verification!
+            if (isApprovedInMessages) {
+                const pkgId = orderItem?.furgonetka_package_id || orderItem?.tracking_code;
+                return (
+                    <div className="flex justify-center px-4 w-full my-4">
+                        <div className="w-full max-w-md bg-emerald-50/90 border border-emerald-200 rounded-2xl p-5 text-center shadow-sm space-y-3">
+                            <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-2">
+                                <CheckCircle2 size={20} className="text-emerald-600" />
+                            </div>
+                            <p className="text-sm font-black text-emerald-900 mb-1">
+                                Print Verification Approved!
+                            </p>
+                            <p className="text-xs text-emerald-700 font-medium">
+                                The buyer approved your 3D print photos. Your Furgonetka shipping label is ready to download.
+                            </p>
+                            <button
+                                onClick={() => {
+                                    if (pkgId && pkgId !== 'LABEL_READY' && pkgId !== 'APPROVED') {
+                                        handleDownloadLabel(pkgId);
+                                    } else {
+                                        handleDirectCreatePackage(orderItem.id);
+                                    }
+                                }}
+                                disabled={furgonetkaLoading}
+                                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-98 cursor-pointer disabled:opacity-50"
+                            >
+                                {furgonetkaLoading ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+                                📥 Download Courier Shipping Label (PDF)
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
             if (pendingVerificationRequest) {
                 return (
                     <div className="flex justify-center px-4 w-full my-4">
@@ -2745,7 +2898,7 @@ function MessagesInner() {
                                     ? "You've received the 3D file via email. Print the item, attach photos of the print, and send for buyer verification."
                                     : isDigital
                                         ? "Once you've sent the files to the buyer's email, mark it as delivered below."
-                                        : "Pack the order securely, attach verification photos, and send for buyer verification before generating label."}
+                                        : "Pack the order securely, attach verification photos of the finished 3D print, and send for buyer verification before generating label."}
                             </p>
 
                             {/* Photo Upload Attachment Section */}
@@ -2922,11 +3075,15 @@ function MessagesInner() {
                 <div className="flex justify-center my-4 px-4 w-full">
                     <div className="w-full max-w-md bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-center">
                         <p className="text-xs font-bold text-amber-700">
-                            {pendingVerificationRequest
-                                ? '📦 The seller sent print verification photos! Please review them in the chat message above to generate the shipping label.'
-                                : isJob
-                                    ? '🖨️ The printer has received your 3D file and is working on it. Waiting for print verification photos...'
-                                    : '📸 Waiting for the seller to upload print verification photos before shipping...'}
+                            {isStandardPhysical
+                                ? '📦 Order confirmed! The seller is preparing and securely packing your items for courier shipping.'
+                                : isApprovedInMessages
+                                    ? '✅ Print photos approved! Seller is now generating the courier shipping label.'
+                                    : pendingVerificationRequest
+                                        ? '📦 The seller sent print verification photos! Please review them in the chat message above to approve shipping.'
+                                        : isJob
+                                            ? '🖨️ The printer has received your 3D file and is printing your model. Waiting for print verification photos...'
+                                            : '📸 Waiting for the seller to upload print verification photos before shipping...'}
                         </p>
                     </div>
                 </div>
@@ -3227,8 +3384,14 @@ function MessagesInner() {
                     {activeChatData?.orderItem && (() => {
                         const oi = activeChatData.orderItem;
                         const isDigital = activeChatData.offers?.category === 'digital';
+                        const isJob = activeChatData.offers?.category === 'job';
+                        const isCustom = isJob || activeChatData.offers?.is_custom === true;
+                        const isStandardPhysical = !isDigital && !isCustom;
                         const status = (oi?.status || 'pending').toLowerCase();
-                        const verificationApproved = messages.some((m: any) => m.message_type === 'verification_approved');
+                        const verificationApproved = messages.some((m: any) =>
+                            m.message_type === 'verification_approved' ||
+                            (m.content && m.content.includes('Print verification photos approved'))
+                        );
 
                         let steps: { key: string; label: string; Icon: any }[] = [];
                         let currentIdx = 0;
@@ -3241,6 +3404,19 @@ function MessagesInner() {
                                 { key: 'complete', label: 'Complete', Icon: Shield },
                             ];
                             currentIdx = status === 'completed' || status === 'transfer_completed' ? 3 : (status === 'delivered' || status === 'shipped' ? 2 : 1);
+                        } else if (isStandardPhysical) {
+                            steps = [
+                                { key: 'ordered', label: 'Ordered', Icon: ShoppingBag },
+                                { key: 'shipped', label: 'Shipped', Icon: Package },
+                                { key: 'in_transit', label: 'In Transit', Icon: Truck },
+                                { key: 'delivered', label: 'Delivery Verify', Icon: CheckCircle2 },
+                                { key: 'complete', label: 'Complete', Icon: Shield },
+                            ];
+                            if (status === 'completed' || status === 'transfer_completed') currentIdx = 4;
+                            else if (status === 'delivered') currentIdx = 3;
+                            else if (status === 'in_transit') currentIdx = 2;
+                            else if (status === 'shipped') currentIdx = 1;
+                            else currentIdx = 0;
                         } else {
                             steps = [
                                 { key: 'ordered', label: 'Ordered', Icon: ShoppingBag },

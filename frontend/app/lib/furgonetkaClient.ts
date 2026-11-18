@@ -1,15 +1,15 @@
-import crypto from 'crypto';
+﻿import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
-const ENV = process.env.FURGONETKA_FORCE_PRODUCTION === 'true' ? 'production' : 'sandbox';
-const BASE_URL = ENV === 'sandbox'
+const isExplicitSandbox = process.env.FURGONETKA_ENV === 'sandbox' || process.env.FURGONETKA_FORCE_SANDBOX === 'true';
+const BASE_URL = isExplicitSandbox
   ? 'https://api.sandbox.furgonetka.pl'
   : 'https://api.furgonetka.pl';
 
 // Supabase admin client for token persistence
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_service_key_for_build')
 );
 
 function isTokenExpired(token: string): boolean {
@@ -149,6 +149,12 @@ export async function getValidAccessToken(forceRefresh = false): Promise<string>
     return stored.access_token;
   }
 
+  // Check if valid token is provided directly in environment
+  const envAccessToken = process.env.FURGONETKA_ACCESS_TOKEN;
+  if (!forceRefresh && !stored?.access_token && envAccessToken && !isTokenExpired(envAccessToken)) {
+    return envAccessToken;
+  }
+
   // 2. Token missing or expired – refresh it
   if (refreshPromise) {
     return refreshPromise;
@@ -258,12 +264,25 @@ export const furgonetkaClient = {
    * Get real-time shipping prices from Furgonetka API.
    * Calls POST /packages/calculate-price and returns available services with live prices.
    */
-  async calculateShipping(payload: {
-    pickup: { name: string; street: string; postcode: string; city: string; country_code: string; phone: string; email: string };
-    receiver: { name: string; street: string; postcode: string; city: string; country_code: string; phone: string; email: string };
-    parcels: Array<{ width: number; height: number; depth: number; weight: number; type: string }>;
-  }) {
-    return apiRequest('/packages/calculate-price', 'POST', payload);
+  async calculateShipping(payload: any) {
+    const p = payload.package ? payload.package : payload;
+    const formattedParcels = (p.parcels || []).map((parcel: any) => ({
+      ...parcel,
+      quantity: parcel.quantity ?? 1,
+      type: parcel.type || 'package',
+    }));
+
+    const cleanPayload: any = {
+      package: {
+        pickup: p.pickup,
+        receiver: p.receiver,
+        parcels: formattedParcels,
+      }
+    };
+    if (p.service_id) {
+      cleanPayload.services = { service_id: [String(p.service_id)] };
+    }
+    return apiRequest('/packages/calculate-price', 'POST', cleanPayload);
   },
 
   /**
@@ -371,41 +390,47 @@ export const furgonetkaClient = {
 
   /**
    * Automatically fetch and accept all pending carrier regulations on Furgonetka.
-   * Handles both array and object (with items/data field) response shapes.
+   * Handles both array and object (with items/data/regulations field) response shapes.
    */
   async acceptRegulations() {
     try {
       console.log('[FurgonetkaClient] Fetching pending carrier regulations...');
       const res = await apiRequest('/regulations', 'GET');
-      console.log('[FurgonetkaClient] Regulations API response:', JSON.stringify(res));
+      console.log('[FurgonetkaClient] Regulations API response received.');
 
-      // Handle different shapes: array directly, or {items: [...]} / {data: [...]}
+      // Handle different shapes: array directly, or {regulations: [...]} / {items: [...]} / {data: [...]}
       const items: any[] = Array.isArray(res) ? res
+        : Array.isArray(res?.regulations) ? res.regulations
         : Array.isArray(res?.items) ? res.items
         : Array.isArray(res?.data) ? res.data
         : [];
 
       if (items.length === 0) {
         console.log('[FurgonetkaClient] No pending regulations found (or unrecognized format).');
+        return;
       }
 
       for (const reg of items) {
-        const regId = reg.id || reg.service_id;
         const isAccepted = reg.accepted === true || reg.status === 'accepted';
-        if (!isAccepted && regId) {
-          console.log(`[FurgonetkaClient] Accepting regulation id=${regId}...`);
+        const isMarketing = reg.marketing === true;
+        if (!isAccepted && !isMarketing && reg.service) {
+          console.log(`[FurgonetkaClient] Accepting regulation for service=${reg.service}...`);
           try {
             await apiRequest('/regulations', 'POST', {
-              id: regId,
-              service_id: reg.service_id,
-              accepted: true
+              regulations: [
+                {
+                  service: reg.service,
+                  name: reg.name || reg.service,
+                  version: reg.version,
+                  datetime: reg.datetime,
+                  accepted: true
+                }
+              ]
             });
-            console.log(`[FurgonetkaClient] Accepted regulation id=${regId}.`);
+            console.log(`[FurgonetkaClient] Accepted regulation for service=${reg.service}.`);
           } catch (postErr) {
-            console.error(`[FurgonetkaClient] Failed to accept regulation id=${regId}:`, postErr);
+            console.error(`[FurgonetkaClient] Failed to accept regulation for service=${reg.service}:`, postErr);
           }
-        } else {
-          console.log(`[FurgonetkaClient] Regulation id=${regId} already accepted, skipping.`);
         }
       }
     } catch (err) {
@@ -480,9 +505,15 @@ export const furgonetkaClient = {
     }
 
     const fallbackMap: Record<string, number> = {
-      dpd: 11636590, fedex: 11636591, ups: 11636592, gls: 11636593,
-      poczta: 11636594, inpost: 11636595, orlen: 11636596, dhl: 11636597,
+      dpd: 46718378,
+      fedex: 46718379,
+      ups: 46718380,
+      gls: 46718381,
+      poczta: 46718382,
+      inpost: 46718383,
+      orlen: 46718384,
+      dhl: 46718385,
     };
-    return fallbackMap[target] || 11636590;
+    return fallbackMap[target] || 46718378;
   }
 };

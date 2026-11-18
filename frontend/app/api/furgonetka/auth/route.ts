@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
 const FURGONETKA_SECRET = process.env.FURGONETKA_WEBHOOK_SECRET || 'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123';
-const ENV = process.env.FURGONETKA_FORCE_PRODUCTION === 'true' ? 'production' : 'sandbox';
-const BASE_URL = ENV === 'sandbox'
+const isExplicitSandbox = process.env.FURGONETKA_ENV === 'sandbox' || process.env.FURGONETKA_FORCE_SANDBOX === 'true';
+const BASE_URL = isExplicitSandbox
   ? 'https://api.sandbox.furgonetka.pl'
   : 'https://api.furgonetka.pl';
 

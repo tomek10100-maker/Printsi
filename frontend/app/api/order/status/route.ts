@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendShippedEmail, sendDeliveredEmail, sendCompletedEmail, getUserEmailInfo, sendTrackingAddedEmails } from '@/app/lib/sendNotificationEmail';
 
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_service_key_for_build')
 );
 
 const CURRENCY_SYMBOLS: Record<string, string> = {

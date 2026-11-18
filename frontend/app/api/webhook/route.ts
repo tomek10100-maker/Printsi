@@ -1,4 +1,4 @@
-import { headers } from 'next/headers';
+﻿import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { stripe } from '../../lib/stripe';
 import type Stripe from 'stripe';
@@ -10,7 +10,7 @@ import { sendOutOfStockEmail } from '../../lib/sendNotificationEmail';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_service_key_for_build')
 );
 
 const CURRENCY_SYMBOLS: Record<string, string> = {

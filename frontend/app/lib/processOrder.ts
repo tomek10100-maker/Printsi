@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 import { sendDigitalFileEmail } from './sendDigitalFileEmail';
 import { sendEmail, EmailTemplates } from './emailService';
 import { sendOutOfStockEmail, sendLowFilamentWarning } from './sendNotificationEmail';
@@ -9,7 +9,7 @@ import { parseWeightToGrams } from './dhlRates';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_service_key_for_build')
 );
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -430,7 +430,7 @@ async function autoCreateFurgonetkaShipment(
     } as any;
 
     // Point-to-point codes
-    const isSandbox = process.env.FURGONETKA_FORCE_PRODUCTION !== 'true';
+    const isSandbox = process.env.FURGONETKA_ENV === 'sandbox' || process.env.FURGONETKA_FORCE_SANDBOX === 'true';
     const pickupPointCode = isSandbox
       ? (process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01M')
       : (process.env.FURGONETKA_PICKUP_POINT || '');

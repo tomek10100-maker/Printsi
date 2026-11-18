@@ -1,15 +1,15 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { furgonetkaClient } from '@/app/lib/furgonetkaClient';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_service_key_for_build')
 );
 
 const FURGONETKA_SECRET = process.env.FURGONETKA_WEBHOOK_SECRET || 'ZMIEN_MNIE_NA_BEZPIECZNY_TOKEN_123';
-const ENV = process.env.FURGONETKA_FORCE_PRODUCTION === 'true' ? 'production' : 'sandbox';
-const BASE_URL = ENV === 'sandbox'
+const isExplicitSandbox = process.env.FURGONETKA_ENV === 'sandbox' || process.env.FURGONETKA_FORCE_SANDBOX === 'true';
+const BASE_URL = isExplicitSandbox
   ? 'https://api.sandbox.furgonetka.pl'
   : 'https://api.furgonetka.pl';
 
