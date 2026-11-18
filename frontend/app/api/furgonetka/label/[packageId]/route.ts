@@ -83,7 +83,52 @@ export async function GET(
 
     const targetPackageId = item.furgonetka_package_id || item.tracking_code || packageId;
     console.log(`[Label Endpoint] Fetching label for package ${targetPackageId} from Furgonetka...`);
-    const pdfBuffer = await furgonetkaClient.getLabel(targetPackageId);
+
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = await furgonetkaClient.getLabel(targetPackageId);
+    } catch (labelErr: any) {
+      const errMsg = labelErr.message || '';
+      console.warn(`[Label Endpoint] Initial getLabel failed for ${targetPackageId}:`, errMsg);
+
+      // If the package is in draft / waiting status, attempt to finalize and order it
+      if (errMsg.includes('status uniemożliwiający') || errMsg.includes('400')) {
+        console.log(`[Label Endpoint] Package ${targetPackageId} appears to be in draft/waiting state. Attempting to finalize order via orderPackage...`);
+        try {
+          await furgonetkaClient.acceptRegulations();
+          await furgonetkaClient.orderPackage(targetPackageId);
+
+          // Update tracking code with real carrier waybill
+          const pkgDetails = await furgonetkaClient.getPackageDetails(targetPackageId);
+          const realTracking = pkgDetails?.parcels?.[0]?.package_no || pkgDetails?.pickup_number;
+          if (realTracking && item.id) {
+            await supabase.from('order_items').update({
+              tracking_code: realTracking,
+              status: 'shipped'
+            }).eq('id', item.id);
+          }
+
+          pdfBuffer = await furgonetkaClient.getLabel(targetPackageId);
+        } catch (orderErr: any) {
+          const orderMsg = orderErr.message || '';
+          console.error(`[Label Endpoint] Finalizing order for package ${targetPackageId} failed:`, orderMsg);
+
+          if (orderMsg.includes('saldo') || orderMsg.includes('Cena przesyłek jest większa') || orderMsg.includes('balance') || orderMsg.includes('status uniemożliwiający')) {
+            return NextResponse.json({
+              error: 'Brak środków na koncie Furgonetka lub przesyłka oczekuje na opłacenie. Zaloguj się na https://furgonetka.pl, doładuj saldo konta lub opłać przesyłkę w zakładce "Robocze", aby pobrać oficjalną etykietę kurierską.',
+              code: 'INSUFFICIENT_FUNDS'
+            }, { status: 400 });
+          }
+
+          return NextResponse.json({
+            error: `Przesyłka w Furgonetce oczekuje na opłacenie/zamówienie. Zaloguj się na https://furgonetka.pl i opłać przesyłkę w zakładce "Robocze". Szczegóły: ${orderMsg}`,
+            code: 'ORDER_PENDING'
+          }, { status: 400 });
+        }
+      } else {
+        throw labelErr;
+      }
+    }
 
     return new Response(new Uint8Array(pdfBuffer), {
       status: 200,

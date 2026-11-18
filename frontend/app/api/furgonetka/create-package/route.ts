@@ -680,15 +680,17 @@ export async function POST(req: Request) {
     }
     console.log(`[CreatePackage Route] Confirmed Furgonetka package successfully:`, orderRes);
 
+    const isDraftOnly = orderRes?.is_draft === true || orderRes?.status === 'draft_created';
+
     // Retrieve details to get the final waybill / tracking code
     const packageDetails = await furgonetkaClient.getPackageDetails(packageId);
-    const trackingNumber = packageDetails?.parcels?.[0]?.package_no || packageDetails?.pickup_number || packageId.toString();
+    const trackingNumber = packageDetails?.parcels?.[0]?.package_no || packageDetails?.pickup_number || (isDraftOnly ? 'AWAITING_PAYMENT' : packageId.toString());
 
     // 13. Update Database
     const { error: updateError } = await supabase
       .from('order_items')
       .update({
-        status: 'shipped',
+        status: isDraftOnly ? 'waiting_for_shipping' : 'shipped',
         tracking_code: trackingNumber,
         furgonetka_package_id: String(packageId),
         label_url: `/api/furgonetka/label/${packageId}`
@@ -701,11 +703,15 @@ export async function POST(req: Request) {
 
     // 14. Insert System Message in Chat
     const labelUrl = `/api/furgonetka/label/${packageId}`;
+    const messageContent = isDraftOnly
+      ? `⚠️ Przesyłka została utworzona w Furgonetce jako robocza (ID: ${packageId}), ale wymaga opłacenia z salda konta. Zaloguj się na https://furgonetka.pl, doładuj saldo konta lub opłać przesyłkę w zakładce "Robocze", aby pobrać oficjalną etykietę kurierską.`
+      : `The seller has shipped the package via Furgonetka (${carrier.toUpperCase()}). Tracking number: ${trackingNumber}. You can download the shipping label below.`;
+
     await supabase.from('messages').insert({
       chat_id: chatId,
       sender_id: user.id,
-      content: `The seller has shipped the package via Furgonetka (${carrier.toUpperCase()}). Tracking number: ${trackingNumber}. You can download the shipping label below.`,
-      message_type: 'status_shipped'
+      content: messageContent,
+      message_type: isDraftOnly ? 'status_order_confirmed' : 'status_shipped'
     });
 
     // 15. Trigger emails
