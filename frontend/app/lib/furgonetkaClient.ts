@@ -143,16 +143,17 @@ async function requestClientCredentialsToken(): Promise<string> {
 }
 
 export async function getValidAccessToken(forceRefresh = false): Promise<string> {
-  // 1. Try Supabase-stored token first (persists across serverless invocations)
+  const envAccessToken = process.env.FURGONETKA_ACCESS_TOKEN;
   const stored = await getStoredTokens();
-  if (!forceRefresh && stored?.access_token && !isTokenExpired(stored.access_token)) {
-    return stored.access_token;
+
+  // If environment token is fresh, prioritize it (allows instant update via Vercel env)
+  if (!forceRefresh && envAccessToken && !isTokenExpired(envAccessToken)) {
+    return envAccessToken;
   }
 
-  // Check if valid token is provided directly in environment
-  const envAccessToken = process.env.FURGONETKA_ACCESS_TOKEN;
-  if (!forceRefresh && !stored?.access_token && envAccessToken && !isTokenExpired(envAccessToken)) {
-    return envAccessToken;
+  // 1. Try Supabase-stored token first (persists across serverless invocations)
+  if (!forceRefresh && stored?.access_token && !isTokenExpired(stored.access_token)) {
+    return stored.access_token;
   }
 
   // 2. Token missing or expired – refresh it
