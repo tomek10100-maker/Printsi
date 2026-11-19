@@ -145,9 +145,12 @@ export default function CartPage() {
           </div>
 
           {sellerIds.length > 1 && (
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
-              <Info size={16} className="shrink-0 text-amber-400" />
-              <span>Select one seller package below to proceed to checkout.</span>
+            <div className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium max-w-lg">
+              <Info size={18} className="shrink-0 text-amber-400 mt-0.5" />
+              <span>
+                <strong className="font-bold text-amber-200 block mb-0.5">Independent Maker Packages</strong>
+                Each maker produces and ships items directly from their own workshop. Select one seller package below to proceed to checkout.
+              </span>
             </div>
           )}
         </div>

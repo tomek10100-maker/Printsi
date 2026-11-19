@@ -30,6 +30,8 @@ export default function ProfilePage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [activeOrdersCount, setActiveOrdersCount] = useState(0);
+  const [totalBuyerSpent, setTotalBuyerSpent] = useState(0);
   const [myOffers, setMyOffers] = useState<any[]>([]);
   const [expandedOffers, setExpandedOffers] = useState<Record<string, boolean>>({});
 
@@ -108,6 +110,27 @@ export default function ProfilePage() {
         .eq('is_active', true)
         .lte('stock_grams', 100);
       setLowStockCount(lowStock || 0);
+    }
+
+    // 2d. Fetch Buyer Orders & Active Shipments Count
+    const { data: allBuyerOrders } = await supabase
+      .from('orders')
+      .select('id, total_amount')
+      .eq('buyer_id', user.id);
+
+    const bSpent = allBuyerOrders?.reduce((acc, order) => acc + (Number(order.total_amount) || 0), 0) || 0;
+    setTotalBuyerSpent(bSpent);
+
+    if (allBuyerOrders && allBuyerOrders.length > 0) {
+      const bOrderIds = allBuyerOrders.map(o => o.id);
+      const { count: actOrders } = await supabase
+        .from('order_items')
+        .select('*', { count: 'exact', head: true })
+        .in('order_id', bOrderIds)
+        .not('status', 'in', '("completed","transfer_completed","resolved","cancelled")');
+      setActiveOrdersCount(actOrders || 0);
+    } else {
+      setActiveOrdersCount(0);
     }
 
     // 3. FETCH OFFERS & INVENTORY
@@ -393,7 +416,7 @@ export default function ProfilePage() {
         {/* --- BALANCE STATS CARDS GRID --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 w-full">
           {/* Total Sales Value — only for printer/cad roles */}
-          {(profile?.roles?.includes('printer') || profile?.roles?.includes('designer')) && (
+          {(profile?.roles?.includes('printer') || profile?.roles?.includes('designer')) ? (
             <>
               <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:shadow-md w-full min-w-0">
                 <div className="p-3.5 bg-green-100 text-green-600 rounded-xl shadow-inner flex-shrink-0">
@@ -422,14 +445,40 @@ export default function ProfilePage() {
                 </div>
               </div>
             </>
+          ) : (
+            <>
+              {/* Buyer: Total Purchases */}
+              <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:shadow-md w-full min-w-0">
+                <div className="p-3.5 bg-blue-100 text-blue-600 rounded-xl shadow-inner flex-shrink-0">
+                  <ShoppingBag size={24} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Total Purchases</p>
+                  <p className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                    {formatPrice(totalBuyerSpent)}
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold mt-0.5">all-time 3D items & files</p>
+                </div>
+              </div>
+
+              {/* Buyer: Active Orders */}
+              <Link href="/profile/orders" className="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:shadow-md hover:border-blue-300 w-full min-w-0 group cursor-pointer">
+                <div className="p-3.5 bg-indigo-100 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors rounded-xl shadow-inner flex-shrink-0">
+                  <Package size={24} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Active Shipments</p>
+                  <p className="text-xl sm:text-2xl font-black text-indigo-600 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                    {activeOrdersCount} {activeOrdersCount === 1 ? 'order' : 'orders'}
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold mt-0.5">click to track packages →</p>
+                </div>
+              </Link>
+            </>
           )}
 
           {/* Account Balance (available money, never below 0) */}
-          <div className={`bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:shadow-md w-full min-w-0 ${
-            (profile?.roles?.includes('printer') || profile?.roles?.includes('designer'))
-              ? 'col-span-1 sm:col-span-2 lg:col-span-1'
-              : 'col-span-1'
-          }`}>
+          <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:shadow-md w-full min-w-0">
             <div className={`p-3.5 rounded-xl shadow-inner flex-shrink-0 ${netBalance > 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
               <Wallet size={24} />
             </div>
@@ -486,6 +535,14 @@ export default function ProfilePage() {
                 <ShoppingBag className="text-blue-600" /> Shop Dashboard
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DashboardCard 
+                  icon={<Package size={24} className="text-blue-600" />} 
+                  title="My Orders" 
+                  subtitle="Track purchases & shipments" 
+                  href="/profile/orders"
+                  badge={activeOrdersCount > 0 ? activeOrdersCount : null}
+                  accent
+                />
                 <DashboardCard 
                   icon={<CreditCard size={24} />} 
                   title="Billing & Payouts" 

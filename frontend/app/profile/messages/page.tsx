@@ -3176,9 +3176,11 @@ function MessagesInner() {
                     <div className="flex justify-center px-4 w-full">
                         <div className="w-full max-w-md bg-slate-900/95 border border-blue-500/40 rounded-2xl p-4 text-center shadow-lg">
                             <p className="text-xs font-bold text-blue-300">
-                                {isLocker
-                                  ? `📦 Package shipped! Handed over for delivery to locker${pointName ? ` (${pointName})` : ''}. Waiting for customer pickup...`
-                                  : '📦 Package shipped! Handed over to the courier. Waiting for delivery to customer...'
+                                {(['accepted', 'pending', 'label_created'].includes((orderItem.status || '').toLowerCase()))
+                                  ? '📦 Order confirmed! Courier shipping label generated. Preparing for dispatch...'
+                                  : isLocker
+                                    ? `📦 Package shipped! Handed over for delivery to locker${pointName ? ` (${pointName})` : ''}. Waiting for customer pickup...`
+                                    : '📦 Package shipped! Handed over to the courier. Waiting for delivery to customer...'
                                 }
                             </p>
                             {isPrinter && (orderItem.furgonetka_package_id || orderItem.tracking_code || orderItem.label_url) && (
@@ -3434,10 +3436,16 @@ function MessagesInner() {
                         const rawStatus = (oi?.status || 'pending').toLowerCase();
                         const hasTrackingMsg = messages.some((m: any) => m.message_type === 'status_tracking');
                         const hasDeliveredMsg = messages.some((m: any) => m.message_type === 'status_delivered');
+                        const hasCompletedMsg = messages.some((m: any) =>
+                            m.message_type === 'status_completed' ||
+                            (m.content && (m.content.includes('Sale Complete') || m.content.includes('Buyer confirmed receipt') || m.content.includes('Transaction Finalized')))
+                        );
                         let status = rawStatus;
-                        if (hasDeliveredMsg && !['completed', 'transfer_completed', 'payout_completed', 'resolved', 'disputed'].includes(rawStatus)) {
+                        if (hasCompletedMsg || ['completed', 'transfer_completed', 'payout_completed', 'resolved'].includes(rawStatus)) {
+                            status = 'completed';
+                        } else if (hasDeliveredMsg && !['disputed', 'cancelled'].includes(rawStatus)) {
                             status = 'delivered';
-                        } else if (hasTrackingMsg && rawStatus === 'shipped') {
+                        } else if (hasTrackingMsg && (rawStatus === 'shipped' || rawStatus === 'accepted')) {
                             status = 'in_transit';
                         }
                         const verificationApproved = messages.some((m: any) =>
@@ -3588,13 +3596,15 @@ function MessagesInner() {
                                           : 'border-l-4 border-l-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
                                     }`}
                                 >
-                                    <div className={`w-10 h-10 rounded-full border overflow-hidden shrink-0 flex items-center justify-center ${
+                                    <div className={`w-10 h-10 rounded-xl border overflow-hidden shrink-0 flex items-center justify-center relative ${
                                       isSupport
                                         ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 border-blue-400 shadow-md text-white'
                                         : 'bg-gray-100 border-gray-200'
                                     }`}>
                                         {isSupport ? (
                                             <Shield size={20} className="text-white drop-shadow-xs" />
+                                        ) : chat.offers?.image_urls?.[0] ? (
+                                            <img src={chat.offers.image_urls[0]} alt="product" className="w-full h-full object-cover" />
                                         ) : chat.otherUser?.avatar_url ? (
                                             <img src={chat.otherUser.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                                         ) : (
@@ -3611,6 +3621,16 @@ function MessagesInner() {
                                                 <Shield size={9} /> SUPPORT
                                               </span>
                                             )}
+                                            {chat.order_id && (
+                                              <span className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded shrink-0 ${activeChatId === chat.id ? 'bg-blue-800 text-blue-200' : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-300'}`}>
+                                                #{chat.order_id.slice(-5).toUpperCase()}
+                                              </span>
+                                            )}
+                                            {chat.updated_at && (
+                                              <span className={`text-[9px] font-medium ml-auto shrink-0 ${activeChatId === chat.id ? 'text-slate-400' : 'text-gray-400'}`}>
+                                                {new Date(chat.updated_at).toLocaleDateString([], { month: 'numeric', day: 'numeric' })}
+                                              </span>
+                                            )}
                                         </div>
                                         <p className={`text-xs truncate mt-0.5 ${activeChatId === chat.id ? 'text-blue-300 font-bold' : isSupport ? 'text-blue-500 font-bold' : (chat.unreadCount > 0 ? 'text-gray-900 dark:text-slate-100 font-bold' : 'text-blue-600 font-semibold')}`}>
                                             {isSupport ? 'Official System Communication' : (chat.offers?.title || 'Unknown Item')}
@@ -3622,16 +3642,20 @@ function MessagesInner() {
                                                 chat.orderItem?.status === 'in_transit' ? 'bg-cyan-950/60 text-cyan-300 border border-cyan-500/40' :
                                                 chat.orderItem?.status === 'delivered' ? 'bg-teal-950/60 text-teal-300 border border-teal-500/40' :
                                                 chat.orderItem?.status === 'shipped' ? 'bg-blue-950/60 text-blue-300 border border-blue-500/40' :
+                                                chat.orderItem?.status === 'accepted' || chat.orderItem?.status === 'label_created' ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-500/40' :
                                                 chat.orderItem?.status === 'cancelled' ? 'bg-rose-950/60 text-rose-300 border border-rose-500/40' :
                                                 'bg-amber-950/60 text-amber-300 border border-amber-500/40'
                                             }`}>
                                                 {(() => {
-                                                    const st = chat.orderItem?.status;
+                                                    const st = (chat.orderItem?.status || '').toLowerCase();
                                                     if (st === 'transfer_completed') return 'RESOLVED: PAID OUT';
                                                     if (st === 'cancelled') return 'RESOLVED: REFUNDED';
                                                     if (st === 'disputed') return 'DISPUTE IN REVIEW';
                                                     if (st === 'in_transit') return 'IN TRANSIT';
-                                                    return st || 'pending';
+                                                    if (st === 'delivered') return 'DELIVERED';
+                                                    if (st === 'shipped') return 'SHIPPED';
+                                                    if (st === 'accepted' || st === 'label_created') return 'PREPARING';
+                                                    return st || 'CONFIRMED';
                                                 })()}
                                             </span>
                                         )}
@@ -4412,7 +4436,7 @@ function MessagesInner() {
                                             let key = 'tracking';
                                             try {
                                                 const parsed = JSON.parse(m.content);
-                                                key = `tracking_${parsed.event || 'in_transit'}_${parsed.tracking_number || ''}`;
+                                                key = `tracking_${parsed.tracking_number || parsed.event || 'pkg'}`;
                                             } catch {
                                                 key = `tracking_${m.content}`;
                                             }

@@ -517,11 +517,11 @@ async function autoCreateFurgonetkaShipment(
       trackingNumber = details?.parcels?.[0]?.package_no || details?.pickup_number || String(packageId);
     } catch (_) { /* non-fatal */ }
 
-    // Update order_item in DB
+    // Update order_item in DB (label generated, ready for seller to prepare & dispatch)
     await supabase
       .from('order_items')
       .update({
-        status: 'shipped',
+        status: 'accepted',
         tracking_code: trackingNumber,
         furgonetka_package_id: String(packageId),
         label_url: `/api/furgonetka/label/${packageId}`,
@@ -532,7 +532,7 @@ async function autoCreateFurgonetkaShipment(
     await supabase.from('messages').insert({
       chat_id: chatId,
       sender_id: sellerId,
-      content: `Shipment automatically booked via Furgonetka (${carrier.toUpperCase()}). Tracking: ${trackingNumber}. Print label at /api/furgonetka/label/${packageId}`,
+      content: `Shipment booked via Furgonetka (${carrier.toUpperCase()}). Courier shipping label generated (Tracking: ${trackingNumber}). The maker is preparing your order for dispatch.`,
       message_type: 'status_shipped',
     });
 
