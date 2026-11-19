@@ -457,7 +457,7 @@ export async function POST(req: Request) {
     // For point-to-point carriers, get the seller's drop-off point.
     const sandboxPickupPoint = process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01M';
     const productionPickupPoint = process.env.FURGONETKA_PICKUP_POINT || process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01M';
-    const isSandbox = process.env.FURGONETKA_FORCE_PRODUCTION !== 'true';
+    const isSandbox = process.env.FURGONETKA_ENV === 'sandbox' || process.env.FURGONETKA_FORCE_SANDBOX === 'true' || process.env.FURGONETKA_FORCE_PRODUCTION !== 'true';
     let pickupPointCode = isSandbox
       ? sandboxPickupPoint
       : productionPickupPoint;
