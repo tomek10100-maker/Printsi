@@ -3253,14 +3253,21 @@ function MessagesInner() {
                                 </p>
                             )}
                             {(status === 'completed' || status === 'resolved') && isCustomer && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowReviewModal(true)}
-                                    className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer mt-2"
-                                >
-                                    <Star size={16} className="fill-amber-200 text-amber-200 shrink-0" />
-                                    {existingUserReview ? '⭐ Edit Your Review & Make Photo' : '⭐ Rate & Review Printed Item'}
-                                </button>
+                                existingUserReview ? (
+                                    <div className="w-full py-3 px-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-black text-emerald-800 flex items-center justify-center gap-2 mt-2 shadow-xs">
+                                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                                        <span>Review Submitted ({existingUserReview.rating}/5 ⭐) — Thank you!</span>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowReviewModal(true)}
+                                        className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer mt-2"
+                                    >
+                                        <Star size={16} className="fill-amber-200 text-amber-200 shrink-0" />
+                                        ⭐ Rate & Review Printed Item
+                                    </button>
+                                )
                             )}
                             {status === 'completed' && digitalFileUrl && (
                                 <a

@@ -118,13 +118,27 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // Check if review already exists for this order item & buyer (reviews cannot be edited once submitted)
+    const { data: existingReview } = await supabaseAdmin
+      .from('reviews')
+      .select('id')
+      .eq('order_item_id', orderItemId)
+      .eq('buyer_id', user.id)
+      .maybeSingle();
+
+    if (existingReview) {
+      return NextResponse.json({
+        error: 'You have already submitted a review for this purchase. Reviews are permanent and cannot be modified.'
+      }, { status: 400 });
+    }
+
     // Target the main offer ID or parent offer ID
     const targetOfferId = (orderItem.offers as any)?.parent_offer_id || orderItem.offer_id;
 
-    // 4. Upsert review
+    // 4. Insert review
     const { data: savedReview, error: saveErr } = await supabaseAdmin
       .from('reviews')
-      .upsert({
+      .insert({
         order_item_id: orderItemId,
         offer_id: targetOfferId,
         buyer_id: user.id,
@@ -132,7 +146,7 @@ export async function POST(req: Request) {
         rating: numRating,
         comment: comment ? comment.trim() : null,
         image_urls: Array.isArray(imageUrls) ? imageUrls : [],
-      }, { onConflict: 'order_item_id, buyer_id' })
+      })
       .select()
       .single();
 
