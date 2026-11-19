@@ -435,7 +435,7 @@ async function autoCreateFurgonetkaShipment(
       ? (process.env.FURGONETKA_SANDBOX_PICKUP_POINT || 'WAW01M')
       : (process.env.FURGONETKA_PICKUP_POINT || '');
 
-    if (isPointToPoint && pickupPointCode) pickupPayload.point = pickupPointCode;
+    if (isPointToPoint && carrier === 'inpost' && pickupPointCode) pickupPayload.point = pickupPointCode;
     if (isPointToPoint && selectedPoint?.code) receiverPayload.point = selectedPoint.code;
 
     const furgoPayload = {

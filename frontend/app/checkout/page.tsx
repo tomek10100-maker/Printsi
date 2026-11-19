@@ -136,23 +136,28 @@ function CheckoutInner() {
       callback: (params: any) => {
         if (params && params.point) {
           const p = params.point;
+          const pCity = (p.city || '').trim();
+          const pZip = (p.zip || p.postcode || '').trim();
+          const pStreet = (p.street || '').trim();
           const pointDetails = {
             code: p.code,
-            name: p.name || `${p.code} - ${p.street}`,
-            street: p.street || '',
-            city: p.city || '',
-            zip: p.zip || p.postcode || '',
+            name: p.name || `${p.code} - ${pStreet}`,
+            street: pStreet,
+            city: pCity,
+            zip: pZip,
             courier: p.courier || p.service || p.type || (selectedShipping?.id === 'dpd_pickup' ? 'dpd' : selectedShipping?.id === 'dhl_pop' ? 'dhl' : 'inpost'),
           };
           setSelectedPoint(pointDetails);
           setShowMapError(false);
 
-          // Keep user's physical home street address intact!
-          // Only update city/zip if empty in form
+          // For pickup points / lockers, update city and zip from point so fake/invalid form inputs don't break courier validation
           setFormData(prev => ({
             ...prev,
-            city: prev.city || pointDetails.city,
-            zip: prev.zip || pointDetails.zip,
+            city: pCity || prev.city,
+            zip: pZip || prev.zip,
+            address: (prev.address && prev.address.trim().length >= 3 && !/^\d+$/.test(prev.address.trim()))
+              ? prev.address
+              : (pStreet || prev.address)
           }));
         }
       }

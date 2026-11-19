@@ -341,27 +341,27 @@ export const furgonetkaClient = {
     // Poll the status command for completion
     console.log(`[FurgonetkaClient] Polling status of order command ${uuid} (retry ${retryCount})...`);
     let attempts = 0;
-    const maxAttempts = 8;
+    const maxAttempts = 6;
 
     while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       const statusRes = await apiRequest(`/order-commands/${uuid}`, 'GET');
 
-      console.log(`[FurgonetkaClient] Command status response (attempt ${attempts + 1}):`, statusRes.status);
+      console.log(`[FurgonetkaClient] Command status response (attempt ${attempts + 1}):`, statusRes?.status);
 
-      if (statusRes.status === 'success' || statusRes.status === 'successful') {
+      if (statusRes?.status === 'success' || statusRes?.status === 'successful') {
         return statusRes;
       }
 
-      if (statusRes.status === 'error' || statusRes.status === 'failed') {
+      if (statusRes?.status === 'error' || statusRes?.status === 'failed') {
         const errors = statusRes.errors || statusRes.error || [];
         const isCarrierTimeout = Array.isArray(errors) && errors.some(
           (e: any) => e.code === 'carrierConnectionError'
         );
 
         if (isCarrierTimeout && retryCount < MAX_RETRIES) {
-          const delayMs = (retryCount + 1) * 5000; // 5s, 10s, 15s
-          console.warn(`[FurgonetkaClient] Carrier connection error (DHL timeout). Retrying in ${delayMs / 1000}s... (retry ${retryCount + 1}/${MAX_RETRIES})`);
+          const delayMs = (retryCount + 1) * 3000;
+          console.warn(`[FurgonetkaClient] Carrier connection error. Retrying in ${delayMs / 1000}s... (retry ${retryCount + 1}/${MAX_RETRIES})`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
           return this.orderPackage(packageId, retryCount + 1);
         }
@@ -369,8 +369,25 @@ export const furgonetkaClient = {
         throw new Error(`Order command failed: ${JSON.stringify(errors)}`);
       }
 
+      // Check directly if package has already transitioned to ordered state
+      try {
+        const pkgDetails = await this.getPackageDetails(packageId);
+        if (pkgDetails?.state === 'ordered') {
+          console.log(`[FurgonetkaClient] Package ${packageId} state is verified as 'ordered'.`);
+          return { status: 'successful', package_id: packageId };
+        }
+      } catch {}
+
       attempts++;
     }
+
+    // Final check before timing out
+    try {
+      const finalDetails = await this.getPackageDetails(packageId);
+      if (finalDetails?.state === 'ordered') {
+        return { status: 'successful', package_id: packageId };
+      }
+    } catch {}
 
     throw new Error(`Order command timeout: package ${packageId} order was not processed in time.`);
   },

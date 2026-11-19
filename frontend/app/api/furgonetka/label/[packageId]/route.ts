@@ -87,6 +87,23 @@ export async function GET(
     let pdfBuffer: Buffer;
     try {
       pdfBuffer = await furgonetkaClient.getLabel(targetPackageId);
+
+      // If package was already paid/ordered on Furgonetka but DB record was still waiting, update it to shipped
+      if (item.tracking_code === 'AWAITING_PAYMENT' || item.status !== 'shipped') {
+        try {
+          const pkgDetails = await furgonetkaClient.getPackageDetails(targetPackageId);
+          const realTracking = pkgDetails?.parcels?.[0]?.package_no || pkgDetails?.pickup_number;
+          if (realTracking && item.id) {
+            await supabase.from('order_items').update({
+              tracking_code: realTracking,
+              status: 'shipped',
+              shipped_at: new Date().toISOString()
+            }).eq('id', item.id);
+          }
+        } catch (healErr) {
+          console.warn('[Label Endpoint] Note: Could not auto-heal order item tracking:', healErr);
+        }
+      }
     } catch (labelErr: any) {
       const errMsg = labelErr.message || '';
       console.warn(`[Label Endpoint] Initial getLabel failed for ${targetPackageId}:`, errMsg);

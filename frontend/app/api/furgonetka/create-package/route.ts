@@ -433,18 +433,37 @@ export async function POST(req: Request) {
         }
       }
 
-      if (!rawCity || rawCity.length < 2) rawCity = shippingDetails?.city || 'City';
-      if (!rawPostcode || rawPostcode === '00000') rawPostcode = shippingDetails?.zip_code || shippingDetails?.zip || '02-222';
-      if (!rawStreet) rawStreet = shippingDetails?.address || 'Main Street 1';
+      const isValidCity = (c?: string) => !!c && c.trim().length >= 2 && !/^\d+$/.test(c.trim()) && c.toLowerCase() !== 'city';
+      const isValidPostcode = (p?: string) => !!p && p.trim().replace(/\D/g, '').length >= 4 && p.trim() !== '00000';
+
+      if (!isValidCity(rawCity)) {
+        if (isValidCity(shippingDetails?.city)) {
+          rawCity = shippingDetails.city;
+        } else {
+          rawCity = 'Warszawa';
+        }
+      }
+
+      if (!isValidPostcode(rawPostcode)) {
+        if (isValidPostcode(shippingDetails?.zip_code || shippingDetails?.zip)) {
+          rawPostcode = (shippingDetails?.zip_code || shippingDetails?.zip).trim();
+        } else {
+          rawPostcode = '02-222';
+        }
+      }
+
+      if (!rawStreet || /^\d+$/.test(rawStreet.trim())) {
+        rawStreet = (shippingDetails?.address && !/^\d+$/.test(shippingDetails.address.trim())) ? shippingDetails.address : 'Marszałkowska 1';
+      }
 
       receiverPostcode = formatPostcodeForCountry(rawPostcode, receiverCountryCode);
-      receiverCity = sanitizeCity(rawCity, shippingDetails?.city || 'City');
-      receiverStreet = sanitizeStreet(rawStreet, 'Main Street 1');
+      receiverCity = sanitizeCity(rawCity, 'Warszawa');
+      receiverStreet = sanitizeStreet(rawStreet, 'Marszałkowska 1');
     } else {
       const rawReceiverPostcode = (shippingDetails?.zip_code || shippingDetails?.zip || '')?.trim();
       receiverPostcode = formatPostcodeForCountry(rawReceiverPostcode, receiverCountryCode);
-      receiverCity = sanitizeCity(shippingDetails?.city || '', 'City');
-      receiverStreet = sanitizeStreet(shippingDetails?.address || '', 'Main Street 1');
+      receiverCity = sanitizeCity(shippingDetails?.city || '', 'Warszawa');
+      receiverStreet = sanitizeStreet(shippingDetails?.address || '', 'Marszałkowska 1');
     }
 
     let pickupPostcode = formatPolishPostcode(cleanZipCode);
@@ -504,8 +523,9 @@ export async function POST(req: Request) {
     };
 
     // 10. Configure Pickup/Receiver points ONLY for point-to-point carriers (e.g. InPost, Orlen)
+    // IMPORTANT: pickup.point must ONLY be set for InPost paczkomat dropoff, NEVER for DPD/DHL courier pickup!
     if (pointToPoint) {
-      if (pickupPointCode) {
+      if (carrier.toLowerCase() === 'inpost' && pickupPointCode) {
         furgonetkaPayload.pickup.point = pickupPointCode;
       }
       if (selectedPoint?.code) {
