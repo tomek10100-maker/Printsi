@@ -2511,24 +2511,11 @@ function MessagesInner() {
                         <div className="px-4 py-4 space-y-3">
                             <p className="text-sm font-black text-slate-800">Your package has been delivered by the courier.</p>
                             {dd.carrier && <p className="text-[11px] font-black uppercase text-teal-700 tracking-wider">{dd.carrier} · {dd.tracking_number}</p>}
-                            {!isAlreadyCompleted && isBuyer_ && (
-                                <>
-                                    <p className="text-xs text-slate-500 font-medium">Please confirm you received the item. If there's an issue, you can open a dispute instead.</p>
-                                    {confirmDeadlineStr && (
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl border border-amber-200">
-                                            <Clock size={12} className="text-amber-600 shrink-0" />
-                                            <span className="text-xs font-black text-amber-800">Auto-confirmed by {confirmDeadlineStr} if no action is taken.</span>
-                                        </div>
-                                    )}
-                                    <button
-                                        onClick={() => handleConfirmReceipt(activeChatData?.orderItem?.id)}
-                                        disabled={confirmingShipment}
-                                        className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
-                                    >
-                                        {confirmingShipment ? <Loader2 size={14} className="animate-spin" /> : <PackageCheck size={14} />}
-                                        I Received My Order — Confirm Receipt
-                                    </button>
-                                </>
+                            {confirmDeadlineStr && !isAlreadyCompleted && (
+                                <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl border border-amber-200">
+                                    <Clock size={12} className="text-amber-600 shrink-0" />
+                                    <span className="text-xs font-black text-amber-800">Auto-confirmed by {confirmDeadlineStr} if no action is taken.</span>
+                                </div>
                             )}
                             {isAlreadyCompleted && (
                                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl border border-green-200">
