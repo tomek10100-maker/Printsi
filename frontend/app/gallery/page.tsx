@@ -475,23 +475,23 @@ function MarketplaceContent() {
                     disabled={isSoldOut}
                     onClick={() => setSelectedVariantIdx(idx)}
                     className={`relative flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left ${isSoldOut ? 'opacity-40 cursor-not-allowed border-gray-100 bg-gray-50' :
-                      isSelected ? 'border-blue-600 bg-blue-50 shadow-md' : 'border-gray-100 hover:border-gray-300 bg-white'
+                      isSelected ? 'border-blue-500 bg-blue-500/15 shadow-md ring-2 ring-blue-500/30' : 'border-gray-100 hover:border-gray-300 bg-white'
                       }`}
                   >
                     {/* Color swatch(es) */}
                     <div className="flex -space-x-1">
                       {v.isMultiColor && v.layers ? (
                         v.layers.slice(0, 4).map((l, li) => (
-                          <div key={li} className="w-7 h-7 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: l.color_hex || '#ccc' }} />
+                          <div key={li} className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-800 shadow-sm" style={{ backgroundColor: l.color_hex || '#ccc' }} />
                         ))
                       ) : (
-                        <div className="w-7 h-7 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: getVariantColor(v) }} />
+                        <div className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-800 shadow-sm" style={{ backgroundColor: getVariantColor(v) }} />
                       )}
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <span className={`block font-bold text-sm truncate ${isSelected ? 'text-blue-800' : 'text-gray-800'}`}>
+                      <span className={`block font-bold text-sm truncate ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800'}`}>
                         {v.label || v.color_name || 'Variant'}
                       </span>
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -500,7 +500,7 @@ function MarketplaceContent() {
                     </div>
 
                     {/* Price */}
-                    <span className={`text-sm font-black shrink-0 ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>
+                    <span className={`text-sm font-black shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700'}`}>
                       {formatPrice(v.priceEUR)}
                     </span>
 

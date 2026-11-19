@@ -457,13 +457,13 @@ export default function OfferDetailsPage() {
         </Link>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col lg:grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         {/* ========================================================================= */}
         {/* LEFT COLUMN: Gallery + Description + Assembly + Specs (7 cols)            */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-7 space-y-10">
-          {/* 1. Main Image & Gallery */}
-          <div className="space-y-4">
+        <div className="contents lg:block lg:col-span-7 lg:space-y-10">
+          {/* 1. Main Image & Gallery (Mobile Order 1) */}
+          <div className="order-1 space-y-4 w-full">
             <div className="aspect-square bg-gray-50 rounded-[36px] overflow-hidden border border-gray-100 relative shadow-xl group">
               {isOutOfStock && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/30 backdrop-blur-sm">
@@ -499,8 +499,10 @@ export default function OfferDetailsPage() {
             )}
           </div>
 
-          {/* 2. Product Description */}
-          <div className="bg-gray-50/80 rounded-3xl p-6 sm:p-8 border border-gray-100/80 space-y-4">
+          {/* 2. Detailed Specs & Description (Mobile Order 3) */}
+          <div className="order-3 space-y-8 w-full mt-4 lg:mt-0">
+          {/* Product Description */}
+          <div className="bg-gray-50 rounded-3xl p-6 sm:p-8 border border-gray-100 space-y-4">
             <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">About this Listing</h3>
             <div className="prose prose-lg text-gray-700 max-w-none font-medium leading-relaxed whitespace-pre-line">
               {offer.description?.split('🛠️ Additional Parts / Tools Needed:')[0]?.trim() || offer.description}
@@ -509,17 +511,17 @@ export default function OfferDetailsPage() {
 
           {/* 3. Additional Parts & Tools Needed for Assembly */}
           {(offer.assembly_tools || (offer.description && offer.description.includes('🛠️ Additional Parts / Tools Needed:'))) && (
-            <div className="p-6 bg-amber-50/80 rounded-3xl border border-amber-200/80 space-y-3">
+            <div className="p-6 bg-amber-500/10 rounded-3xl border border-amber-500/20 space-y-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 bg-amber-500 rounded-xl flex items-center justify-center shadow-md">
                   <Wrench size={16} className="text-white" />
                 </div>
-                <span className="text-xs font-black uppercase text-amber-900 tracking-widest">
+                <span className="text-xs font-black uppercase text-amber-900 dark:text-amber-300 tracking-widest">
                   Additional Parts / Tools Needed for Assembly
                 </span>
               </div>
               <div className="bg-white border border-amber-200/70 p-4.5 rounded-2xl shadow-xs">
-                <p className="text-sm font-bold text-amber-950 leading-relaxed whitespace-pre-line">
+                <p className="text-sm font-bold text-amber-950 dark:text-amber-200 leading-relaxed whitespace-pre-line">
                   {offer.assembly_tools || offer.description?.split('🛠️ Additional Parts / Tools Needed:')[1]?.trim()}
                 </p>
               </div>
@@ -528,7 +530,7 @@ export default function OfferDetailsPage() {
 
           {/* 4. Technical Notes / Instructions */}
           {offer.custom_instructions && (
-            <div className="p-6 bg-indigo-50/80 rounded-3xl border border-indigo-100 space-y-3 relative overflow-hidden group">
+            <div className="p-6 bg-indigo-500/10 rounded-3xl border border-indigo-500/20 space-y-3 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <MessageSquare size={80} className="text-indigo-400" />
               </div>
@@ -536,13 +538,17 @@ export default function OfferDetailsPage() {
                 <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center shadow-md">
                   <MessageSquare size={16} className="text-white" />
                 </div>
-                <span className="text-xs font-black uppercase text-indigo-900 tracking-widest">
+                <span className="text-xs font-black uppercase text-indigo-900 dark:text-indigo-300 tracking-widest">
                   Technical Notes & Requirements
                 </span>
               </div>
               <div className="bg-white border border-indigo-100 p-4.5 rounded-2xl shadow-xs">
                 <p className="text-sm font-bold text-gray-700 leading-relaxed whitespace-pre-line italic">
                   {offer.custom_instructions}
+                </p>
+              </div>
+            </div>
+          )}
                 </p>
               </div>
             </div>
@@ -713,12 +719,13 @@ export default function OfferDetailsPage() {
             </div>
           )}
 
+          </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* RIGHT COLUMN: Buying Panel / Configurator (Sticky 5 cols)                  */}
+        {/* RIGHT COLUMN: Buying Panel / Configurator (Sticky 5 cols, Mobile Order 2)  */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-5 flex flex-col space-y-6 lg:sticky lg:top-24 h-fit">
+        <div className="order-2 lg:order-none lg:col-span-5 flex flex-col space-y-6 lg:sticky lg:top-24 h-fit w-full">
           
           {/* Header & Title & Price Card */}
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl space-y-4">
@@ -808,7 +815,7 @@ export default function OfferDetailsPage() {
                         isSoldOut
                           ? 'opacity-40 cursor-not-allowed grayscale bg-gray-50 border-gray-200'
                           : isSelected
-                            ? 'bg-blue-50/60 border-blue-500 ring-2 ring-blue-500/20 shadow-sm'
+                            ? 'bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/30 shadow-sm'
                             : 'bg-white hover:bg-gray-50 border-gray-200 shadow-2xs'
                       }`}
                     >
@@ -818,19 +825,19 @@ export default function OfferDetailsPage() {
                             v.layers.map((l: any, li: number) => (
                               <div
                                 key={li}
-                                className="w-7 h-7 rounded-full border-2 border-white shadow-xs"
+                                className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-800 shadow-xs"
                                 style={{ backgroundColor: l.color_hex || '#ccc', zIndex: 10 - li }}
                               />
                             ))
                           ) : (
                             <div
-                              className="w-7 h-7 rounded-full border-2 border-white shadow-xs"
+                              className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-800 shadow-xs"
                               style={{ backgroundColor: v.primaryColor || v.layers?.[0]?.color_hex || '#ccc' }}
                             />
                           )}
                         </div>
                         <div className="min-w-0">
-                          <span className="block font-black text-xs text-gray-900 truncate">
+                          <span className={`block font-black text-xs truncate ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900'}`}>
                             {v.layers && v.layers.length > 0 ? (
                               v.layers.map((l: any, li: number) => (
                                 <React.Fragment key={li}>
@@ -850,7 +857,7 @@ export default function OfferDetailsPage() {
                       </div>
 
                       <div className="text-right flex-shrink-0 pl-2">
-                        <div className={`text-xs font-black ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>
+                        <div className={`text-xs font-black ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900'}`}>
                           {offer.is_negotiable ? 'Negotiable' : formatPrice(v.priceEUR)}
                         </div>
                       </div>
@@ -1026,7 +1033,7 @@ export default function OfferDetailsPage() {
                 <button
                   onClick={toggleFavorite}
                   className={`flex-1 py-2.5 px-3 rounded-xl border transition-all flex items-center justify-center gap-1.5 text-xs font-bold ${
-                    isFavorite ? 'bg-red-50 border-red-200 text-red-500 shadow-xs' : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-600'
+                    isFavorite ? 'bg-red-500/15 border-red-500/30 text-red-500 dark:text-red-400 shadow-xs' : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-600'
                   }`}
                   title="Favorite"
                 >

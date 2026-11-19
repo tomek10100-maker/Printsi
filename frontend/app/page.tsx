@@ -209,7 +209,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 md:gap-4 lg:gap-5 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 lg:gap-5 shrink-0">
             <Link
               href={user ? "/upload" : "/login"}
               onMouseEnter={() => setUploadHovered(true)}
@@ -324,6 +324,40 @@ export default function HomePage() {
         </div>
         <div className="mt-4 flex items-center justify-center">
           <ThemeToggle />
+        </div>
+
+        {/* MOBILE QUICK LINKS (Stats, Support, About, FAQ, How it Works) */}
+        <div className="mt-6 flex items-center justify-center flex-wrap gap-2 max-w-[320px]">
+          <button
+            onClick={() => setShowStats(true)}
+            className="px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/80 dark:bg-slate-900/80 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 shadow-sm flex items-center gap-1.5 active:scale-95 transition-all"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" /> Stats
+          </button>
+          <Link
+            href="/support"
+            className="px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/80 dark:bg-slate-900/80 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 shadow-sm active:scale-95 transition-all"
+          >
+            Support
+          </Link>
+          <Link
+            href="/about"
+            className="px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/80 dark:bg-slate-900/80 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 shadow-sm active:scale-95 transition-all"
+          >
+            About Us
+          </Link>
+          <Link
+            href="/faq"
+            className="px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/80 dark:bg-slate-900/80 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 shadow-sm active:scale-95 transition-all"
+          >
+            FAQ
+          </Link>
+          <Link
+            href="/how-it-works"
+            className="px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/80 dark:bg-slate-900/80 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 shadow-sm active:scale-95 transition-all"
+          >
+            How it Works
+          </Link>
         </div>
       </div>
 
