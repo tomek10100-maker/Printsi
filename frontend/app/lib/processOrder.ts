@@ -359,10 +359,22 @@ async function autoCreateFurgonetkaShipment(
         PL:'+48',FR:'+33',DE:'+49',ES:'+34',IT:'+39',AT:'+43',CZ:'+420',SK:'+421',GB:'+44'
       };
       const prefix = prefixes[country.toUpperCase()] || '+48';
+      if (country.toUpperCase() === 'IT') {
+        if (digits.startsWith('39') && digits.length === 12 && digits.substring(2).startsWith('3')) return `+${digits}`;
+        if (digits.length === 10 && digits.startsWith('3')) return `+39${digits}`;
+        if (digits.length === 9) return `+393${digits}`;
+        if (digits.length >= 10) {
+          const last10 = digits.slice(-10);
+          if (last10.startsWith('3')) return `+39${last10}`;
+          return `+393${digits.slice(-9)}`;
+        }
+        return '+393201234567';
+      }
       if (raw.startsWith('+') && digits.length >= 9) return `+${digits}`;
       if (country.toUpperCase() === 'CZ' && digits.startsWith('420') && digits.length === 12) return `+${digits}`;
       if (digits.length >= 9) return `${prefix}${digits.slice(-9)}`;
       const fallbackSubscriber = country.toUpperCase() === 'FR' ? '612345678'
+        : country.toUpperCase() === 'IT' ? '3201234567'
         : country.toUpperCase() === 'CZ' ? '724567411'
         : country.toUpperCase() === 'SK' ? '912345678'
         : country.toUpperCase() === 'DE' ? '15123456789'

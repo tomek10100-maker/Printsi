@@ -291,7 +291,31 @@ export async function POST(req: Request) {
         }
       }
 
-      // If country code is already included in digits
+      // If user typed with 00 prefix (e.g. 0039...)
+      if (raw.startsWith('00') && digitsOnly.length >= 11) {
+        return `+${digitsOnly.substring(2)}`;
+      }
+
+      // Country-specific formatting rules:
+      if (country === 'IT') {
+        // Italian mobile numbers MUST be 10 digits and start with 3 (e.g. 320 123 4567).
+        if (digitsOnly.startsWith('39') && digitsOnly.length === 12 && digitsOnly.substring(2).startsWith('3')) {
+          return `+${digitsOnly}`;
+        }
+        if (digitsOnly.length === 10 && digitsOnly.startsWith('3')) {
+          return `+39${digitsOnly}`;
+        }
+        if (digitsOnly.length === 9) {
+          return `+393${digitsOnly}`;
+        }
+        if (digitsOnly.length >= 10) {
+          const last10 = digitsOnly.slice(-10);
+          if (last10.startsWith('3')) return `+39${last10}`;
+          return `+393${digitsOnly.slice(-9)}`;
+        }
+        return '+393201234567';
+      }
+
       if (country === 'FR' && digitsOnly.startsWith('33') && digitsOnly.length >= 11) {
         return `+${digitsOnly}`;
       }
@@ -316,6 +340,7 @@ export async function POST(req: Request) {
 
       // Fallback for short/invalid numbers to prevent Furgonetka invalidFromToLimit 400 error
       const fallbackSubscriber = country === 'FR' ? '612345678'
+        : country === 'IT' ? '3201234567'
         : country === 'CZ' ? '724567411'
         : country === 'SK' ? '912345678'
         : country === 'DE' ? '15123456789'
