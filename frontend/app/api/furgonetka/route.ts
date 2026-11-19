@@ -150,8 +150,7 @@ export async function POST(req: Request) {
 
     switch (state) {
       case 'in_transit':
-      case 'shipped':
-        newStatus = 'shipped';
+        newStatus = 'in_transit';
         messageType = 'status_tracking';
         messageContent = JSON.stringify({
           type: 'tracking_update',
@@ -163,7 +162,7 @@ export async function POST(req: Request) {
         });
 
         // Notify buyer if not already shipped
-        if (item.status !== 'shipped' && shipping?.email) {
+        if (item.status !== 'shipped' && item.status !== 'in_transit' && shipping?.email) {
           emailPromise = sendEmail({
             to: shipping.email,
             subject: `🚚 Your package is on its way! (${productTitle})`,
@@ -172,8 +171,21 @@ export async function POST(req: Request) {
         }
         break;
 
+      case 'shipped':
+        newStatus = 'shipped';
+        messageType = 'status_tracking';
+        messageContent = JSON.stringify({
+          type: 'tracking_update',
+          event: 'in_transit',
+          carrier: carrierName || 'Courier',
+          tracking_number: activeTracking,
+          estimated_delivery: estimatedDelivery,
+          location: payload.location || payload.description || null,
+        });
+        break;
+
       case 'out_for_delivery':
-        newStatus = 'shipped'; // Keep state as shipped
+        newStatus = 'in_transit'; // Keep state as in_transit
         messageType = 'status_tracking';
         messageContent = JSON.stringify({
           type: 'tracking_update',
@@ -266,18 +278,51 @@ export async function POST(req: Request) {
       console.log(`[Furgonetka Webhook] Updated item ${item.id}:`, dbUpdate);
     }
 
-    // Insert Chat message
+    // Insert or update Chat message (deduplicate tracking updates)
     if (chatData?.id && messageContent) {
-      const { error: msgError } = await supabase
-        .from('messages')
-        .insert({
-          chat_id: chatData.id,
-          sender_id: item.seller_id, // Send from seller side to appear on the right side of the chat flow
-          content: messageContent,
-          message_type: messageType
-        });
-      if (msgError) throw msgError;
-      console.log(`[Furgonetka Webhook] Inserted system message into chat ${chatData.id}`);
+      if (messageType === 'status_tracking') {
+        const { data: existingTracking } = await supabase
+          .from('messages')
+          .select('id, content')
+          .eq('chat_id', chatData.id)
+          .eq('message_type', 'status_tracking')
+          .order('id', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingTracking) {
+          // Update the existing tracking message instead of inserting a duplicate!
+          await supabase
+            .from('messages')
+            .update({
+              content: messageContent,
+              created_at: new Date().toISOString()
+            })
+            .eq('id', existingTracking.id);
+          console.log(`[Furgonetka Webhook] Updated existing tracking message ${existingTracking.id} in chat ${chatData.id}`);
+        } else {
+          await supabase
+            .from('messages')
+            .insert({
+              chat_id: chatData.id,
+              sender_id: item.seller_id,
+              content: messageContent,
+              message_type: messageType
+            });
+          console.log(`[Furgonetka Webhook] Inserted initial tracking message into chat ${chatData.id}`);
+        }
+      } else {
+        const { error: msgError } = await supabase
+          .from('messages')
+          .insert({
+            chat_id: chatData.id,
+            sender_id: item.seller_id,
+            content: messageContent,
+            message_type: messageType
+          });
+        if (msgError) throw msgError;
+        console.log(`[Furgonetka Webhook] Inserted system message into chat ${chatData.id}`);
+      }
     }
 
     // Await email asynchronously to avoid blocking webhook response

@@ -3107,6 +3107,10 @@ function MessagesInner() {
         }
 
         if (showInTransitCustomer) {
+            const hasTrackingMsg = messages.some((m: any) => m.message_type === 'status_tracking');
+            if (hasTrackingMsg) {
+                return null;
+            }
             const trackingNo = orderItem.tracking_number || orderItem.tracking_code;
             const carrier = orderItem.carrier || 'Courier';
             const selectedPoint = orderItem?.shipping_address?.selected_point || orderItem?.selected_point;
@@ -3146,6 +3150,23 @@ function MessagesInner() {
         }
 
         if (showInTransitPrinter) {
+            const hasTrackingMsg = messages.some((m: any) => m.message_type === 'status_tracking');
+            if (hasTrackingMsg) {
+                if (isPrinter && (orderItem.furgonetka_package_id || orderItem.tracking_code || orderItem.label_url)) {
+                    return (
+                        <div className="flex justify-center my-3 px-4 w-full">
+                            <button
+                                onClick={() => handleDownloadLabel(orderItem.furgonetka_package_id || orderItem.tracking_code)}
+                                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 mx-auto transition-all shadow-md active:scale-95 cursor-pointer"
+                            >
+                                <Printer size={14} /> 📥 Download Courier Shipping Label (PDF)
+                            </button>
+                        </div>
+                    );
+                }
+                return null;
+            }
+
             const selectedPoint = orderItem?.shipping_address?.selected_point || orderItem?.selected_point;
             const isLocker = !!selectedPoint?.code || ['inpost_paczkomat', 'dpd_pickup', 'dhl_pop', 'orlen_paczka'].includes(orderItem?.shipping_method_id || '');
             const pointName = selectedPoint?.name || selectedPoint?.code;
@@ -3410,7 +3431,15 @@ function MessagesInner() {
                         const isJob = activeChatData.offers?.category === 'job';
                         const isCustom = isJob || activeChatData.offers?.is_custom === true;
                         const isStandardPhysical = !isDigital && !isCustom;
-                        const status = (oi?.status || 'pending').toLowerCase();
+                        const rawStatus = (oi?.status || 'pending').toLowerCase();
+                        const hasTrackingMsg = messages.some((m: any) => m.message_type === 'status_tracking');
+                        const hasDeliveredMsg = messages.some((m: any) => m.message_type === 'status_delivered');
+                        let status = rawStatus;
+                        if (hasDeliveredMsg && !['completed', 'transfer_completed', 'payout_completed', 'resolved', 'disputed'].includes(rawStatus)) {
+                            status = 'delivered';
+                        } else if (hasTrackingMsg && rawStatus === 'shipped') {
+                            status = 'in_transit';
+                        }
                         const verificationApproved = messages.some((m: any) =>
                             m.message_type === 'verification_approved' ||
                             (m.content && m.content.includes('Print verification photos approved'))
@@ -3588,17 +3617,20 @@ function MessagesInner() {
                                         </p>
                                         {chat.order_id && (
                                             <span className={`inline-block mt-1.5 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm w-fit ${
-                                                chat.orderItem?.status === 'completed' || chat.orderItem?.status === 'transfer_completed' ? 'bg-emerald-100 text-emerald-700' :
-                                                chat.orderItem?.status === 'disputed' ? 'bg-red-100 text-red-700' :
-                                                chat.orderItem?.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                                                chat.orderItem?.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
-                                                'bg-amber-100 text-amber-700'
+                                                chat.orderItem?.status === 'completed' || chat.orderItem?.status === 'transfer_completed' ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/40' :
+                                                chat.orderItem?.status === 'disputed' ? 'bg-red-950/60 text-red-300 border border-red-500/40' :
+                                                chat.orderItem?.status === 'in_transit' ? 'bg-cyan-950/60 text-cyan-300 border border-cyan-500/40' :
+                                                chat.orderItem?.status === 'delivered' ? 'bg-teal-950/60 text-teal-300 border border-teal-500/40' :
+                                                chat.orderItem?.status === 'shipped' ? 'bg-blue-950/60 text-blue-300 border border-blue-500/40' :
+                                                chat.orderItem?.status === 'cancelled' ? 'bg-rose-950/60 text-rose-300 border border-rose-500/40' :
+                                                'bg-amber-950/60 text-amber-300 border border-amber-500/40'
                                             }`}>
                                                 {(() => {
                                                     const st = chat.orderItem?.status;
                                                     if (st === 'transfer_completed') return 'RESOLVED: PAID OUT';
                                                     if (st === 'cancelled') return 'RESOLVED: REFUNDED';
                                                     if (st === 'disputed') return 'DISPUTE IN REVIEW';
+                                                    if (st === 'in_transit') return 'IN TRANSIT';
                                                     return st || 'pending';
                                                 })()}
                                             </span>
@@ -4372,7 +4404,26 @@ function MessagesInner() {
                                 {loadingMessages ? (
                                     <div className="flex justify-center py-10"><Loader2 className="animate-spin text-blue-600" /></div>
                                 ) : (() => {
-                                    const chronList = messages.map(m => ({ ...m, _type: 'message', _time: new Date(m.created_at).getTime() }));
+                                    const seenTrackingEvent = new Set<string>();
+                                    const deduplicatedMessages: any[] = [];
+                                    for (let i = messages.length - 1; i >= 0; i--) {
+                                        const m = messages[i];
+                                        if (m.message_type === 'status_tracking') {
+                                            let key = 'tracking';
+                                            try {
+                                                const parsed = JSON.parse(m.content);
+                                                key = `tracking_${parsed.event || 'in_transit'}_${parsed.tracking_number || ''}`;
+                                            } catch {
+                                                key = `tracking_${m.content}`;
+                                            }
+                                            if (seenTrackingEvent.has(key)) {
+                                                continue; // Skip older duplicate tracking message
+                                            }
+                                            seenTrackingEvent.add(key);
+                                        }
+                                        deduplicatedMessages.unshift(m);
+                                    }
+                                    const chronList = deduplicatedMessages.map(m => ({ ...m, _type: 'message', _time: new Date(m.created_at).getTime() }));
 
                                     if (activeChatData?.orderItem) {
                                         let cardTime = Date.now() + 1000000; // default active actions to bottom
