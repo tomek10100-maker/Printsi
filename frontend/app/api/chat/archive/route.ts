@@ -8,10 +8,23 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { chatId, userId, unarchive } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
 
-    if (!chatId || !userId) {
-      return NextResponse.json({ success: false, error: 'Missing chatId or userId' }, { status: 400 });
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Missing login session' }, { status: 401 });
+    }
+
+    const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !authUser) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Invalid session' }, { status: 401 });
+    }
+
+    const { chatId, unarchive } = await req.json();
+    const userId = authUser.id;
+
+    if (!chatId) {
+      return NextResponse.json({ success: false, error: 'Missing chatId' }, { status: 400 });
     }
 
     // Verify user is participant in this chat
@@ -26,7 +39,7 @@ export async function POST(req: Request) {
     }
 
     if (chat.buyer_id !== userId && chat.seller_id !== userId) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden: You are not a participant of this chat' }, { status: 403 });
     }
 
     if (unarchive) {

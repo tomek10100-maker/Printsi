@@ -37,13 +37,26 @@ async function convertFromEur(amountEur: number, toCurrency: string): Promise<st
 
 export async function POST(req: Request) {
   try {
-    const { itemId, newStatus, chatId, userId, trackingCode, action } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Missing login session' }, { status: 401 });
+    }
+
+    const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !authUser) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Invalid session' }, { status: 401 });
+    }
+
+    const userId = authUser.id;
+    const { itemId, newStatus, chatId, trackingCode, action } = await req.json();
 
     // ─── NEW ACTIONS: extension + confirm receipt ──────────────────────
     if (action === 'request_extension') {
       const { data: oi } = await supabase.from('order_items').select('extension_requested_at, ship_by_deadline, seller_id').eq('id', itemId).single();
       if (oi?.extension_requested_at) return NextResponse.json({ success: false, error: 'Extension already requested.' }, { status: 400 });
-      if (oi?.seller_id !== userId) return NextResponse.json({ success: false, error: 'Only the seller can request an extension.' }, { status: 403 });
+      if (String(oi?.seller_id) !== String(userId)) return NextResponse.json({ success: false, error: 'Only the seller can request an extension.' }, { status: 403 });
       await supabase.from('order_items').update({ extension_requested_at: new Date().toISOString() }).eq('id', itemId);
       await supabase.from('messages').insert({
         chat_id: chatId, sender_id: userId, message_type: 'extension_request',
@@ -53,7 +66,11 @@ export async function POST(req: Request) {
     }
 
     if (action === 'approve_extension') {
-      const { data: oi } = await supabase.from('order_items').select('ship_by_deadline, seller_id').eq('id', itemId).single();
+      const { data: oi } = await supabase.from('order_items').select('ship_by_deadline, seller_id, order_id').eq('id', itemId).single();
+      const { data: ord } = await supabase.from('orders').select('buyer_id').eq('id', oi?.order_id).single();
+      if (String(ord?.buyer_id) !== String(userId)) {
+        return NextResponse.json({ success: false, error: 'Only the buyer can approve an extension.' }, { status: 403 });
+      }
       const newDeadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
       await supabase.from('order_items').update({ ship_by_deadline: newDeadline.toISOString(), extension_approved: true }).eq('id', itemId);
       const deadlineLabel = newDeadline.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -69,7 +86,11 @@ export async function POST(req: Request) {
     }
 
     if (action === 'deny_extension') {
-      const { data: oi } = await supabase.from('order_items').select('seller_id, ship_by_deadline').eq('id', itemId).single();
+      const { data: oi } = await supabase.from('order_items').select('seller_id, ship_by_deadline, order_id').eq('id', itemId).single();
+      const { data: ord } = await supabase.from('orders').select('buyer_id').eq('id', oi?.order_id).single();
+      if (String(ord?.buyer_id) !== String(userId)) {
+        return NextResponse.json({ success: false, error: 'Only the buyer can deny an extension.' }, { status: 403 });
+      }
       await supabase.from('order_items').update({ extension_denied: true }).eq('id', itemId);
       const deadlineLabel = oi?.ship_by_deadline ? new Date(oi.ship_by_deadline).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : 'original deadline';
       await supabase.from('messages').insert({
@@ -87,6 +108,13 @@ export async function POST(req: Request) {
       const { data: oi } = await supabase.from('order_items').select('status, seller_id, price_at_purchase, quantity, offer_id, order_id').eq('id', itemId).single();
       if (!oi) return NextResponse.json({ success: false, error: 'Order item not found.' }, { status: 404 });
       if (oi.status !== 'delivered') return NextResponse.json({ success: false, error: 'Cannot confirm receipt — package not yet marked as delivered.' }, { status: 400 });
+
+      // Guard: caller must be the verified buyer
+      const { data: ord } = await supabase.from('orders').select('buyer_id').eq('id', oi.order_id).single();
+      if (String(ord?.buyer_id) !== String(userId)) {
+        return NextResponse.json({ success: false, error: 'Forbidden: Only the verified buyer can confirm receipt' }, { status: 403 });
+      }
+
       await supabase.from('order_items').update({ status: 'completed', buyer_confirmed_at: new Date().toISOString() }).eq('id', itemId);
       await supabase.from('messages').insert({
         chat_id: chatId, sender_id: userId, message_type: 'status_completed',
@@ -114,6 +142,24 @@ export async function POST(req: Request) {
     // ─────────────────────────────────────────────────────────────────────
     if (!itemId || !newStatus || !chatId || !userId) {
       return NextResponse.json({ success: false, error: 'Missing data' }, { status: 400 });
+    }
+
+    // Authorization check for general status updates
+    const { data: checkItem } = await supabase.from('order_items').select('seller_id, order_id').eq('id', itemId).single();
+    const { data: checkChat } = await supabase.from('chats').select('buyer_id, seller_id').eq('id', chatId).single();
+    const isSeller = String(userId) === String(checkItem?.seller_id || checkChat?.seller_id);
+    const isBuyer = String(userId) === String(checkChat?.buyer_id);
+
+    if (!isSeller && !isBuyer) {
+      return NextResponse.json({ success: false, error: 'Forbidden: You are not authorized to update this order' }, { status: 403 });
+    }
+
+    // Role-based status guardrails
+    if (isBuyer && (newStatus === 'shipped' || newStatus === 'in_transit')) {
+      return NextResponse.json({ success: false, error: 'Buyers cannot mark packages as shipped' }, { status: 403 });
+    }
+    if (isSeller && newStatus === 'completed') {
+      return NextResponse.json({ success: false, error: 'Sellers cannot confirm receipt for buyers' }, { status: 403 });
     }
 
     // Check current status in database first to prevent duplicate status changes or double payouts on multi-click

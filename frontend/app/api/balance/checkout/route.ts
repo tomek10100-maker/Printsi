@@ -9,9 +9,22 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { userId, items, shipping, shippingCostEur, selectedPoint } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
 
-    if (!items || items.length === 0 || !userId) {
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Missing login session' }, { status: 401 });
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Invalid session' }, { status: 401 });
+    }
+
+    const userId = user.id;
+    const { items, shipping, shippingCostEur, selectedPoint } = await req.json();
+
+    if (!items || items.length === 0) {
       return NextResponse.json({ success: false, error: 'Invalid checkout data' }, { status: 400 });
     }
 

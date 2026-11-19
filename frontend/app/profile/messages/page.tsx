@@ -692,9 +692,13 @@ function MessagesInner() {
         statusUpdatingRef.current = true;
         setStatusUpdating(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/order/status', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+                },
                 body: JSON.stringify({
                     itemId: activeChatData.orderItem.id,
                     newStatus,
@@ -948,9 +952,13 @@ function MessagesInner() {
         if (!itemId) return;
         setConfirmingShipment(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/order/status', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+                },
                 body: JSON.stringify({ action: 'confirm_receipt', itemId, chatId: activeChatId, userId: currentUser?.id }),
             });
             const data = await res.json();
@@ -973,9 +981,13 @@ function MessagesInner() {
         if (!itemId) return;
         setConfirmingShipment(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/order/status', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+                },
                 body: JSON.stringify({ action, itemId, chatId: activeChatId, userId: currentUser?.id }),
             });
             const data = await res.json();
@@ -1152,9 +1164,13 @@ function MessagesInner() {
 
         setDisputeSubmitting(true);
 
+        const { data: { session } } = await supabase.auth.getSession();
         const res = await fetch('/api/order/dispute', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+            },
             body: JSON.stringify({
                 itemId: activeChatData.orderItem.id,
                 chatId: activeChatId,
@@ -1166,7 +1182,6 @@ function MessagesInner() {
             })
         });
 
-        setDisputeSubmitting(true); // Wait, this should be false? Oh, false is below.
         setDisputeSubmitting(false);
 
         if (res.ok) {
@@ -1254,9 +1269,13 @@ function MessagesInner() {
         setCancelSubmitting(true);
         setCancelError('');
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/order/cancel', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+                },
                 body: JSON.stringify({
                     itemId: activeChatData.orderItem.id,
                     chatId: activeChatId,
@@ -1285,9 +1304,13 @@ function MessagesInner() {
         if (!currentUser) return;
         setCancelRespondSubmitting(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/order/cancel/respond', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+                },
                 body: JSON.stringify({ itemId, chatId: activeChatId, userId: currentUser.id, accept }),
             });
             if (res.ok) {
@@ -2087,9 +2110,13 @@ function MessagesInner() {
         if (!currentUser) return;
         setArchivingChatId(chatId);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
             const res = await fetch('/api/chat/archive', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+                },
                 body: JSON.stringify({ chatId, userId: currentUser.id, unarchive: currentlyArchived }),
             });
             if (res.ok) {

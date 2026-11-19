@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin, FORBIDDEN } from '../../../lib/adminAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,6 +9,11 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
+    const adminId = await verifyAdmin(req);
+    if (!adminId) {
+      return FORBIDDEN();
+    }
+
     const body = await req.json();
     const { packageId, itemId, status = 'delivered', carrier = 'DPD' } = body;
 

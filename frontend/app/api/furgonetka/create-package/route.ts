@@ -142,13 +142,11 @@ export async function POST(req: Request) {
     }
 
     // 4. Verify Authorization/Roles
-    // The user clicking ship must be a participant in this order.
-    // The shipping user is the sender (their profile address is used as pickup address).
+    // The user creating the package must be the verified seller of this item.
     const isSeller = String(user.id) === String(item.seller_id);
-    const isBuyer = String(user.id) === String(order.buyer_id);
 
-    if (!isSeller && !isBuyer) {
-      return NextResponse.json({ success: false, error: 'Forbidden: You are not a participant of this order' }, { status: 403 });
+    if (!isSeller) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Only the seller can generate a shipping label' }, { status: 403 });
     }
 
     // SENDER (pickup) is ALWAYS the seller who ships the package.

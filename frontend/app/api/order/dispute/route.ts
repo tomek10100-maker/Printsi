@@ -18,15 +18,51 @@ const PROBLEM_LABELS: Record<string, string> = {
 
 export async function POST(req: Request) {
   try {
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Missing login session' }, { status: 401 });
+    }
+
+    const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !authUser) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Invalid session' }, { status: 401 });
+    }
+
     const body = await req.json();
     console.log('📥 Dispute Request Body:', body);
 
-    const { itemId, chatId, buyerId, sellerId, problemType, description, contactEmail } = body;
+    const { itemId, chatId, problemType, description, contactEmail } = body;
+    const buyerId = authUser.id;
 
     // Input validation
-    if (!itemId || !chatId || !buyerId || !problemType || !description || !contactEmail) {
+    if (!itemId || !chatId || !problemType || !description || !contactEmail) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Verify item and check that authenticated user is indeed the buyer
+    const { data: itemData, error: itemErr } = await supabase
+      .from('order_items')
+      .select('seller_id, order_id')
+      .eq('id', itemId)
+      .single();
+
+    if (itemErr || !itemData) {
+      return NextResponse.json({ success: false, error: 'Order item not found' }, { status: 404 });
+    }
+
+    const { data: ordData } = await supabase
+      .from('orders')
+      .select('buyer_id')
+      .eq('id', itemData.order_id)
+      .single();
+
+    if (String(ordData?.buyer_id) !== String(buyerId)) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Only the verified buyer can open a dispute' }, { status: 403 });
+    }
+
+    const sellerId = itemData.seller_id;
 
     // 1. Próba utworzenia rekordu sporu
     const { data: dispute, error: disputeError } = await supabase

@@ -570,11 +570,14 @@ function CheckoutInner() {
           postcode: sanitizedPointZip
         } : undefined;
 
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         const response = await fetch('/api/balance/checkout', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(currentSession?.access_token ? { 'Authorization': `Bearer ${currentSession.access_token}` } : {})
+          },
           body: JSON.stringify({
-            userId: user.id,
             items,
             shipping: shippingDetails,
             shippingCostEur: shippingEur || 0,

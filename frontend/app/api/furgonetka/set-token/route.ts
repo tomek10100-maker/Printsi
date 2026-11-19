@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '../../../lib/adminAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,7 +11,10 @@ export async function POST(req: Request) {
   try {
     const url = new URL(req.url);
     const secret = url.searchParams.get('secret');
-    if (secret !== 'printsi2026' && secret !== process.env.FURGONETKA_WEBHOOK_SECRET) {
+    const isAdmin = await verifyAdmin(req);
+    const isValidSecret = Boolean(process.env.FURGONETKA_WEBHOOK_SECRET && secret === process.env.FURGONETKA_WEBHOOK_SECRET);
+
+    if (!isAdmin && !isValidSecret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { furgonetkaClient } from '@/app/lib/furgonetkaClient';
+import { verifyAdmin } from '../../../../lib/adminAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,10 +76,10 @@ export async function GET(
     }
 
     const isSeller = String(user.id) === String(item.seller_id);
-    const isBuyer = String(user.id) === String(order.buyer_id);
+    const isAdmin = await verifyAdmin(req);
 
-    if (!isSeller && !isBuyer) {
-      return NextResponse.json({ error: 'Forbidden: You are not authorized to view this label' }, { status: 403 });
+    if (!isSeller && !isAdmin) {
+      return NextResponse.json({ error: 'Forbidden: Only the seller or administrator can download the shipping label' }, { status: 403 });
     }
 
     const targetPackageId = item.furgonetka_package_id || item.tracking_code || packageId;

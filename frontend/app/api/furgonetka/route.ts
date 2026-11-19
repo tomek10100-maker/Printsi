@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   const providedToken = tokenParam || authHeader.replace('Bearer ', '').trim();
 
   // If token is provided or date_from is passed, return orders
-  if (providedToken === 'printsi2026' || providedToken === FURGONETKA_SECRET || url.searchParams.has('date_from')) {
+  if ((FURGONETKA_SECRET && providedToken === FURGONETKA_SECRET) || url.searchParams.has('date_from')) {
     return fetchFurgonetkaOrders(req);
   }
 

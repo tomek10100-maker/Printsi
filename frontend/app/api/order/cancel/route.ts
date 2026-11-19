@@ -14,9 +14,22 @@ const supabase = createClient(
  */
 export async function POST(req: Request) {
   try {
-    const { itemId, chatId, userId, initiator, reason } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
 
-    if (!itemId || !chatId || !userId || !initiator || !reason?.trim()) {
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized: Missing login session' }, { status: 401 });
+    }
+
+    const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !authUser) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid session' }, { status: 401 });
+    }
+
+    const userId = authUser.id;
+    const { itemId, chatId, initiator, reason } = await req.json();
+
+    if (!itemId || !chatId || !initiator || !reason?.trim()) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
