@@ -32,7 +32,8 @@ export async function GET(req: Request) {
     const authUrl = new URL(`${BASE_URL}/oauth/authorize`);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
-    authUrl.searchParams.set('redirect_uri', redirectUri);
+    // Note: Do not pass redirect_uri in GET /oauth/authorize query params - Furgonetka strictly uses
+    // the Redirect URI registered in the OAuth app and rejects with invalid_client if passed here.
     authUrl.searchParams.set('state', stateStr);
 
     return NextResponse.redirect(authUrl.toString());
