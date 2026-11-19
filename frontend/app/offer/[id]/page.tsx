@@ -549,10 +549,6 @@ export default function OfferDetailsPage() {
               </div>
             </div>
           )}
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* 5. Comprehensive Specifications Grid */}
           {!isDigital && (
