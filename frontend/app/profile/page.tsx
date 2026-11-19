@@ -329,7 +329,7 @@ export default function ProfilePage() {
       <div className="absolute top-6 left-6 z-10 flex gap-4">
         <Link
           href="/"
-          className="bg-white/90 backdrop-blur-sm px-5 py-3 rounded-xl font-bold text-gray-900 shadow-lg hover:bg-white hover:scale-105 transition-all flex items-center gap-2"
+          className="bg-white/90 backdrop-blur-sm px-5 py-3 rounded-xl font-bold text-gray-900 shadow-lg hover:bg-white hover:scale-105 transition-all flex items-center gap-2 border border-gray-200"
         >
           <Home size={18} /> Home
         </Link>
@@ -395,7 +395,7 @@ export default function ProfilePage() {
           {/* Total Sales Value — only for printer/cad roles */}
           {(profile?.roles?.includes('printer') || profile?.roles?.includes('designer')) && (
             <>
-              <div className="bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl shadow-lg flex items-center gap-4 transition-all hover:shadow-xl w-full min-w-0">
+              <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:shadow-md w-full min-w-0">
                 <div className="p-3.5 bg-green-100 text-green-600 rounded-xl shadow-inner flex-shrink-0">
                   <TrendingUp size={24} />
                 </div>
@@ -409,7 +409,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Pending Funds */}
-              <div className="bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl shadow-lg flex items-center gap-4 transition-all hover:shadow-xl w-full min-w-0">
+              <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:shadow-md w-full min-w-0">
                 <div className="p-3.5 bg-yellow-100 text-yellow-600 rounded-xl shadow-inner flex-shrink-0">
                   <Package size={24} />
                 </div>
@@ -425,7 +425,7 @@ export default function ProfilePage() {
           )}
 
           {/* Account Balance (available money, never below 0) */}
-          <div className={`bg-white/80 backdrop-blur-md border border-gray-200 p-5 rounded-2xl shadow-lg flex items-center gap-4 transition-all hover:shadow-xl w-full min-w-0 ${
+          <div className={`bg-white border border-gray-100 p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:shadow-md w-full min-w-0 ${
             (profile?.roles?.includes('printer') || profile?.roles?.includes('designer'))
               ? 'col-span-1 sm:col-span-2 lg:col-span-1'
               : 'col-span-1'

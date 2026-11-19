@@ -217,14 +217,14 @@ export default function HomePage() {
               className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
               style={{
                 width: uploadHovered ? '124px' : '44px',
-                backgroundColor: uploadHovered ? '#15306c' : '#ffffff',
-                borderColor: uploadHovered ? '#15306c' : '#e5e7eb',
+                backgroundColor: uploadHovered ? '#15306c' : (theme === 'white' ? '#ffffff' : theme === 'black' ? '#18181b' : '#0f172a'),
+                borderColor: uploadHovered ? '#15306c' : (theme === 'white' ? '#e5e7eb' : theme === 'black' ? '#27272a' : '#1e293b'),
                 transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
               }}
             >
               <div className="flex items-center shrink-0">
                 <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <UploadCloud size={18} className={`transition-colors duration-400 ${uploadHovered ? 'text-white' : 'text-gray-400'}`} />
+                  <UploadCloud size={18} className={`transition-colors duration-400 ${uploadHovered ? 'text-white' : (theme === 'white' ? 'text-gray-400' : 'text-slate-300')}`} />
                 </div>
                 <div
                   className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${uploadHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
@@ -242,14 +242,14 @@ export default function HomePage() {
               className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200 relative`}
               style={{
                 width: chatHovered ? '112px' : '44px',
-                backgroundColor: chatHovered ? '#15306c' : '#ffffff',
-                borderColor: chatHovered ? '#15306c' : '#e5e7eb',
+                backgroundColor: chatHovered ? '#15306c' : (theme === 'white' ? '#ffffff' : theme === 'black' ? '#18181b' : '#0f172a'),
+                borderColor: chatHovered ? '#15306c' : (theme === 'white' ? '#e5e7eb' : theme === 'black' ? '#27272a' : '#1e293b'),
                 transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
               }}
             >
               <div className="flex items-center shrink-0">
                 <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <MessageSquare size={18} className={`transition-colors duration-400 ${chatHovered ? 'text-white' : 'text-gray-400'}`} />
+                  <MessageSquare size={18} className={`transition-colors duration-400 ${chatHovered ? 'text-white' : (theme === 'white' ? 'text-gray-400' : 'text-slate-300')}`} />
                 </div>
                 <div
                   className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${chatHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
@@ -272,14 +272,14 @@ export default function HomePage() {
               className={`group flex items-center h-10 rounded-full border overflow-hidden px-2.5 shrink-0 shadow-sm border-gray-200`}
               style={{
                 width: cartHovered ? '108px' : '44px',
-                backgroundColor: cartHovered ? '#15306c' : '#ffffff',
-                borderColor: cartHovered ? '#15306c' : '#e5e7eb',
+                backgroundColor: cartHovered ? '#15306c' : (theme === 'white' ? '#ffffff' : theme === 'black' ? '#18181b' : '#0f172a'),
+                borderColor: cartHovered ? '#15306c' : (theme === 'white' ? '#e5e7eb' : theme === 'black' ? '#27272a' : '#1e293b'),
                 transition: 'width 400ms cubic-bezier(0.25, 1, 0.5, 1), background-color 400ms ease, border-color 400ms ease'
               }}
             >
               <div className="flex items-center shrink-0">
                 <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <ShoppingBag size={18} className={`transition-colors duration-400 ${cartHovered ? 'text-white' : 'text-gray-400'}`} />
+                  <ShoppingBag size={18} className={`transition-colors duration-400 ${cartHovered ? 'text-white' : (theme === 'white' ? 'text-gray-400' : 'text-slate-300')}`} />
                 </div>
                 <div
                   className={`overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.25, 1, 0.5, 1)] ${cartHovered ? 'opacity-100 ml-3' : 'opacity-0 ml-0'}`}
