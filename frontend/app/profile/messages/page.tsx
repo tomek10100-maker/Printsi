@@ -2143,132 +2143,132 @@ function MessagesInner() {
         const messageType = msg.message_type || 'system';
         const typeStyles: Record<string, { bg: string; border: string; icon: any; iconColor: string; label: string; accent: string }> = {
             system: {
-                bg: 'bg-gradient-to-r from-slate-50 to-blue-50/50',
-                border: 'border-blue-200/50',
+                bg: 'bg-slate-900/95',
+                border: 'border-blue-500/40',
                 icon: <Info size={16} />,
-                iconColor: 'text-blue-500',
+                iconColor: 'text-blue-400',
                 label: 'System',
-                accent: 'from-blue-500 to-blue-600',
+                accent: 'from-blue-600 to-indigo-600',
             },
             status_order_confirmed: {
-                bg: 'bg-gradient-to-r from-slate-50 to-indigo-50/40',
-                border: 'border-indigo-200/60',
+                bg: 'bg-slate-900/95',
+                border: 'border-indigo-500/40',
                 icon: <Package size={16} />,
-                iconColor: 'text-indigo-500',
+                iconColor: 'text-indigo-400',
                 label: 'Order Confirmed',
-                accent: 'from-indigo-500 to-blue-600',
+                accent: 'from-indigo-600 to-blue-600',
             },
             status_shipped: {
-                bg: 'bg-gradient-to-r from-blue-50 to-indigo-50/50',
-                border: 'border-blue-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-blue-500/40',
                 icon: <Truck size={16} />,
-                iconColor: 'text-blue-600',
+                iconColor: 'text-blue-400',
                 label: 'Shipped',
-                accent: 'from-blue-500 to-indigo-500',
+                accent: 'from-blue-600 to-indigo-600',
             },
             status_tracking: {
-                bg: 'bg-gradient-to-r from-teal-50 to-cyan-50/50',
-                border: 'border-teal-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-teal-500/40',
                 icon: <Truck size={16} />,
-                iconColor: 'text-teal-600',
+                iconColor: 'text-teal-400',
                 label: 'Tracking Update',
-                accent: 'from-teal-500 to-cyan-500',
+                accent: 'from-teal-600 to-cyan-600',
             },
             status_delivered: {
-                bg: 'bg-gradient-to-r from-emerald-50 to-teal-50/50',
-                border: 'border-emerald-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-emerald-500/40',
                 icon: <PackageCheck size={16} />,
-                iconColor: 'text-emerald-600',
+                iconColor: 'text-emerald-400',
                 label: 'Delivered',
-                accent: 'from-emerald-500 to-teal-500',
+                accent: 'from-emerald-600 to-teal-600',
             },
             status_completed: {
-                bg: 'bg-gradient-to-r from-green-50 to-emerald-50/50',
-                border: 'border-green-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-emerald-500/50',
                 icon: <CheckCircle2 size={16} />,
-                iconColor: 'text-green-600',
+                iconColor: 'text-emerald-400',
                 label: 'Sale Complete',
-                accent: 'from-green-500 to-emerald-500',
+                accent: 'from-emerald-600 to-green-600',
             },
             status_disputed: {
-                bg: 'bg-gradient-to-r from-red-50 to-orange-50/50',
-                border: 'border-red-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-red-500/40',
                 icon: <ShieldAlert size={16} />,
-                iconColor: 'text-red-500',
+                iconColor: 'text-red-400',
                 label: 'Dispute',
-                accent: 'from-red-500 to-orange-500',
+                accent: 'from-red-600 to-orange-600',
             },
             dispute_opened: {
-                bg: 'bg-gradient-to-r from-red-50 to-orange-50/50',
-                border: 'border-red-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-red-500/40',
                 icon: <AlertTriangle size={16} />,
-                iconColor: 'text-red-600',
+                iconColor: 'text-red-400',
                 label: 'Dispute Opened',
-                accent: 'from-red-500 to-orange-500',
+                accent: 'from-red-600 to-orange-600',
             },
             status_cancelled: {
-                bg: 'bg-gradient-to-r from-slate-50 to-gray-100/80',
-                border: 'border-slate-300',
+                bg: 'bg-slate-900/95',
+                border: 'border-slate-700',
                 icon: <Ban size={16} />,
-                iconColor: 'text-slate-500',
+                iconColor: 'text-slate-400',
                 label: 'Order Cancelled',
-                accent: 'from-slate-500 to-gray-600',
+                accent: 'from-slate-700 to-slate-800',
             },
             cancellation_request: {
-                bg: 'bg-gradient-to-r from-orange-50 to-amber-50/50',
-                border: 'border-orange-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-orange-500/40',
                 icon: <AlertTriangle size={16} />,
-                iconColor: 'text-orange-500',
+                iconColor: 'text-orange-400',
                 label: 'Cancellation Request',
-                accent: 'from-orange-500 to-amber-500',
+                accent: 'from-orange-600 to-amber-600',
             },
             extension_request: {
-                bg: 'bg-gradient-to-r from-amber-50 to-yellow-50/60',
-                border: 'border-amber-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-amber-500/40',
                 icon: <Clock size={16} />,
-                iconColor: 'text-amber-600',
+                iconColor: 'text-amber-400',
                 label: 'Extension Requested',
-                accent: 'from-amber-500 to-yellow-500',
+                accent: 'from-amber-600 to-yellow-600',
             },
             extension_approved: {
-                bg: 'bg-gradient-to-r from-emerald-50 to-green-50/50',
-                border: 'border-emerald-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-emerald-500/40',
                 icon: <Check size={16} />,
-                iconColor: 'text-emerald-600',
+                iconColor: 'text-emerald-400',
                 label: 'Extension Approved',
-                accent: 'from-emerald-500 to-green-500',
+                accent: 'from-emerald-600 to-green-600',
             },
             extension_denied: {
-                bg: 'bg-gradient-to-r from-slate-50 to-gray-100/80',
-                border: 'border-slate-300',
+                bg: 'bg-slate-900/95',
+                border: 'border-slate-700',
                 icon: <X size={16} />,
-                iconColor: 'text-slate-500',
+                iconColor: 'text-slate-400',
                 label: 'Extension Denied',
-                accent: 'from-slate-500 to-gray-600',
+                accent: 'from-slate-700 to-slate-800',
             },
             system_deadline_warning: {
-                bg: 'bg-gradient-to-r from-orange-50 to-amber-50/60',
-                border: 'border-orange-300',
+                bg: 'bg-slate-900/95',
+                border: 'border-orange-500/40',
                 icon: <AlertTriangle size={16} />,
-                iconColor: 'text-orange-500',
+                iconColor: 'text-orange-400',
                 label: 'Shipping Deadline',
-                accent: 'from-orange-500 to-amber-500',
+                accent: 'from-orange-600 to-amber-600',
             },
             system_deadline_urgent: {
-                bg: 'bg-gradient-to-r from-red-50 to-orange-50/60',
-                border: 'border-red-300',
+                bg: 'bg-slate-900/95',
+                border: 'border-red-500/40',
                 icon: <AlertTriangle size={16} />,
-                iconColor: 'text-red-600',
+                iconColor: 'text-red-400',
                 label: '⚠️ Urgent — Ship Now',
-                accent: 'from-red-500 to-orange-600',
+                accent: 'from-red-600 to-orange-600',
             },
             shipment_confirmation_request: {
-                bg: 'bg-gradient-to-r from-indigo-50 to-blue-50/50',
-                border: 'border-indigo-200',
+                bg: 'bg-slate-900/95',
+                border: 'border-indigo-500/40',
                 icon: <Truck size={16} />,
-                iconColor: 'text-indigo-600',
+                iconColor: 'text-indigo-400',
                 label: 'Shipping Confirmation Required',
-                accent: 'from-indigo-500 to-blue-600',
+                accent: 'from-indigo-600 to-blue-600',
             },
         };
 
@@ -2338,7 +2338,7 @@ function MessagesInner() {
 
             return (
                 <div key={msg.id || idx} className="flex justify-center my-5 px-4">
-                    <div className="w-full max-w-md bg-gradient-to-r from-indigo-50 to-blue-50/50 border border-indigo-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="w-full max-w-md bg-slate-900/95 border border-indigo-500/40 rounded-2xl overflow-hidden shadow-lg">
                         <div className="bg-gradient-to-r from-indigo-500 to-blue-600 px-4 py-2.5 flex items-center gap-2">
                             <Truck size={16} className="text-white/90" />
                             <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">Print & Shipment Verification</span>
@@ -2347,14 +2347,14 @@ function MessagesInner() {
                             </span>
                         </div>
                         <div className="px-4 py-4 space-y-3">
-                            <p className="text-sm font-bold text-slate-800">
+                            <p className="text-sm font-bold text-white">
                                 📦 {isBuyer ? "The seller completed your order and requested verification. Please check the photos below before shipping label generation." : "You sent this verification request to the buyer."}
                             </p>
 
                             {/* Verification Photos Gallery */}
                             {photos.length > 0 && (
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase text-indigo-900/70 tracking-wider">
+                                    <p className="text-[10px] font-black uppercase text-indigo-300 tracking-wider">
                                         📸 Attached Print Photos ({photos.length})
                                     </p>
                                     <div className="grid grid-cols-3 gap-2">
@@ -2362,7 +2362,7 @@ function MessagesInner() {
                                             <div
                                                 key={pIdx}
                                                 onClick={() => setSelectedPreviewImage(url)}
-                                                className="relative group aspect-square rounded-xl overflow-hidden border border-indigo-200 bg-white cursor-pointer shadow-sm hover:shadow-md transition-all"
+                                                className="relative group aspect-square rounded-xl overflow-hidden border border-indigo-500/30 bg-slate-950 cursor-pointer shadow-sm hover:shadow-md transition-all"
                                             >
                                                 <img
                                                     src={url}
@@ -2379,17 +2379,17 @@ function MessagesInner() {
                             )}
 
                             {scData.addrDisplay && scData.addrDisplay !== 'Address on file' && (
-                                <div className="p-3 bg-white rounded-xl border border-indigo-100 flex items-start gap-2">
-                                    <span className="text-indigo-500 mt-0.5">📍</span>
-                                    <p className="text-xs font-bold text-slate-700">{scData.addrDisplay}</p>
+                                <div className="p-3 bg-slate-950/80 rounded-xl border border-indigo-500/30 flex items-start gap-2">
+                                    <span className="text-indigo-400 mt-0.5">📍</span>
+                                    <p className="text-xs font-bold text-slate-200">{scData.addrDisplay}</p>
                                 </div>
                             )}
 
                             {isConfirmedOrDone ? (
-                                <div className="space-y-3 p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200">
+                                <div className="space-y-3 p-3.5 bg-emerald-950/40 rounded-2xl border border-emerald-500/40">
                                     <div className="flex items-center gap-2">
-                                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                                        <p className="text-xs font-black text-emerald-800">
+                                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                                        <p className="text-xs font-black text-emerald-300">
                                             {orderStatus === 'completed' || orderStatus === 'delivered' || orderStatus === 'payout_completed'
                                                 ? 'Transaction Completed — Shipping Label Ready'
                                                 : 'Confirmed — Shipping Label Generated'}
@@ -2416,9 +2416,9 @@ function MessagesInner() {
                                     )}
                                 </div>
                             ) : isDisputed ? (
-                                <div className="flex items-center gap-2 p-2.5 bg-red-50 rounded-xl border border-red-200">
-                                    <ShieldAlert size={14} className="text-red-600 shrink-0" />
-                                    <p className="text-xs font-black text-red-700">Dispute Opened — Platform review in progress.</p>
+                                <div className="flex items-center gap-2 p-2.5 bg-red-950/40 rounded-xl border border-red-500/40">
+                                    <ShieldAlert size={14} className="text-red-400 shrink-0" />
+                                    <p className="text-xs font-black text-red-300">Dispute Opened — Platform review in progress.</p>
                                 </div>
                             ) : isBuyer ? (
                                 <div className="flex gap-2 pt-1">
@@ -2444,7 +2444,7 @@ function MessagesInner() {
                                     </button>
                                 </div>
                             ) : (
-                                <p className="text-[11px] font-black text-indigo-600 uppercase tracking-wide text-center">⏳ Awaiting buyer's confirmation...</p>
+                                <p className="text-[11px] font-black text-indigo-400 uppercase tracking-wide text-center">⏳ Awaiting buyer's confirmation...</p>
                             )}
                         </div>
                     </div>
@@ -2460,16 +2460,16 @@ function MessagesInner() {
             const isSeller_ = activeChatData && String(currentUser?.id) === String(activeChatData.seller_id);
             return (
                 <div key={msg.id || idx} className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-gradient-to-r from-indigo-50 to-blue-50/50 border border-indigo-200/60 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="w-full max-w-md bg-slate-900/95 border border-indigo-500/40 rounded-2xl overflow-hidden shadow-lg">
                         <div className="bg-gradient-to-r from-indigo-500 to-blue-600 px-4 py-2 flex items-center gap-2">
                             <Package size={14} className="text-white/90" />
                             <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">Order Confirmed</span>
                             <span className="ml-auto text-[9px] text-white/60 font-bold">{new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div className="px-4 py-3 space-y-2">
-                            <p className="text-sm font-bold text-slate-800">✅ Payment confirmed. Your order is now in progress.</p>
+                            <p className="text-sm font-bold text-white">✅ Payment confirmed. Your order is now in progress.</p>
                             {deadlineStr && (
-                                <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black ${isSeller_ ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black ${isSeller_ ? 'bg-amber-950/40 border-amber-500/40 text-amber-300' : 'bg-slate-800/80 border-slate-700 text-slate-200'}`}>
                                     <Clock size={13} className="shrink-0" />
                                     {isSeller_ ? `⏰ Ship by ${deadlineStr}` : `Seller must ship by ${deadlineStr}`}
                                 </div>
@@ -2492,25 +2492,25 @@ function MessagesInner() {
             const etaStr = etaDate ? etaDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : null;
             return (
                 <div key={msg.id || idx} className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-gradient-to-r from-teal-50 to-cyan-50/50 border border-teal-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="w-full max-w-md bg-slate-900/95 border border-teal-500/40 rounded-2xl overflow-hidden shadow-lg">
                         <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-4 py-2 flex items-center gap-2">
                             <Truck size={14} className="text-white/90" />
                             <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">{eventLabels[td.event] || 'Tracking Update'}</span>
                             <span className="ml-auto text-[9px] text-white/60 font-bold">{new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div className="px-4 py-3 space-y-2">
-                            {td.carrier && <p className="text-[11px] font-black uppercase text-teal-700 tracking-wider">{td.carrier}</p>}
+                            {td.carrier && <p className="text-[11px] font-black uppercase text-teal-400 tracking-wider">{td.carrier}</p>}
                             {td.tracking_number && (
-                                <div className="flex items-center gap-2 bg-white rounded-xl border border-teal-100 px-3 py-2">
-                                    <span className="text-[10px] text-slate-400 font-black uppercase">Tracking:</span>
-                                    <span className="font-mono text-xs font-black text-slate-800">{td.tracking_number}</span>
+                                <div className="flex items-center gap-2 bg-slate-950 rounded-xl border border-teal-500/30 px-3 py-2">
+                                    <span className="text-[10px] text-teal-400 font-black uppercase tracking-wider">Tracking:</span>
+                                    <span className="font-mono text-xs font-black text-cyan-300">{td.tracking_number}</span>
                                 </div>
                             )}
-                            {td.location && <p className="text-xs text-slate-600 font-medium">📍 {td.location}</p>}
+                            {td.location && <p className="text-xs text-slate-300 font-medium">📍 {td.location}</p>}
                             {etaStr && (
-                                <div className="flex items-center gap-2 px-3 py-2 bg-cyan-50 rounded-xl border border-cyan-100">
-                                    <Clock size={12} className="text-cyan-600" />
-                                    <span className="text-xs font-black text-cyan-800">Estimated delivery: {etaStr}</span>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-cyan-950/40 rounded-xl border border-cyan-500/40">
+                                    <Clock size={12} className="text-cyan-400" />
+                                    <span className="text-xs font-black text-cyan-300">Estimated delivery: {etaStr}</span>
                                 </div>
                             )}
                         </div>
@@ -2529,25 +2529,25 @@ function MessagesInner() {
             const deliveredDate = dd.delivered_at ? new Date(dd.delivered_at) : new Date(msg.created_at);
             return (
                 <div key={msg.id || idx} className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-gradient-to-r from-emerald-50 to-teal-50/50 border-2 border-emerald-300 rounded-2xl overflow-hidden shadow-md">
+                    <div className="w-full max-w-md bg-slate-900/95 border-2 border-emerald-500/50 rounded-2xl overflow-hidden shadow-xl">
                         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 flex items-center gap-2">
                             <PackageCheck size={16} className="text-white" />
                             <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white">✅ Delivered</span>
                             <span className="ml-auto text-[9px] text-white/70 font-bold">{deliveredDate.toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div className="px-4 py-4 space-y-3">
-                            <p className="text-sm font-black text-slate-800">Your package has been delivered by the courier.</p>
-                            {dd.carrier && <p className="text-[11px] font-black uppercase text-teal-700 tracking-wider">{dd.carrier} · {dd.tracking_number}</p>}
+                            <p className="text-sm font-black text-white">Your package has been delivered by the courier.</p>
+                            {dd.carrier && <p className="text-[11px] font-black uppercase text-teal-400 tracking-wider">{dd.carrier} · {dd.tracking_number}</p>}
                             {confirmDeadlineStr && !isAlreadyCompleted && (
-                                <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl border border-amber-200">
-                                    <Clock size={12} className="text-amber-600 shrink-0" />
-                                    <span className="text-xs font-black text-amber-800">Auto-confirmed by {confirmDeadlineStr} if no action is taken.</span>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-amber-950/40 rounded-xl border border-amber-500/40">
+                                    <Clock size={12} className="text-amber-400 shrink-0" />
+                                    <span className="text-xs font-black text-amber-300">Auto-confirmed by {confirmDeadlineStr} if no action is taken.</span>
                                 </div>
                             )}
                             {isAlreadyCompleted && (
-                                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl border border-green-200">
-                                    <CheckCircle2 size={13} className="text-green-600" />
-                                    <span className="text-xs font-black text-green-800">Receipt confirmed. Transaction complete.</span>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-950/40 rounded-xl border border-emerald-500/40">
+                                    <CheckCircle2 size={13} className="text-emerald-400" />
+                                    <span className="text-xs font-black text-emerald-300">Receipt confirmed. Transaction complete.</span>
                                 </div>
                             )}
                         </div>
@@ -2562,17 +2562,17 @@ function MessagesInner() {
             const autoConfirmed = cd.confirmed_by === 'auto';
             return (
                 <div key={msg.id || idx} className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-gradient-to-r from-green-50 to-emerald-50/50 border-2 border-emerald-300 rounded-2xl overflow-hidden shadow-md">
+                    <div className="w-full max-w-md bg-slate-900/95 border-2 border-emerald-500/50 rounded-2xl overflow-hidden shadow-xl">
                         <div className="bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-2.5 flex items-center gap-2">
                             <CheckCircle2 size={16} className="text-white" />
                             <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white">🏁 Sale Complete</span>
                             <span className="ml-auto text-[9px] text-white/70 font-bold">{new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div className="px-4 py-4 space-y-2">
-                            <p className="text-sm font-black text-slate-800">
+                            <p className="text-sm font-black text-white">
                                 {autoConfirmed ? 'Transaction automatically completed — no dispute was raised within 2 days.' : '✅ Buyer confirmed receipt. Transaction complete.'}
                             </p>
-                            <p className="text-xs text-slate-500 font-medium">Funds have been released to the seller's balance. Thank you for using Printis!</p>
+                            <p className="text-xs text-slate-300 font-medium">Funds have been released to the seller's balance. Thank you for using Printis!</p>
                         </div>
                     </div>
                 </div>
@@ -2587,15 +2587,15 @@ function MessagesInner() {
             const originalDeadline = ed.current_deadline ? new Date(ed.current_deadline).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : null;
             return (
                 <div key={msg.id || idx} className="flex justify-center my-4 px-4">
-                    <div className="w-full max-w-md bg-gradient-to-r from-amber-50 to-yellow-50/60 border border-amber-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="w-full max-w-md bg-slate-900/95 border border-amber-500/40 rounded-2xl overflow-hidden shadow-lg">
                         <div className="bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2 flex items-center gap-2">
                             <Clock size={14} className="text-white/90" />
                             <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">Shipping Extension Requested</span>
                             <span className="ml-auto text-[9px] text-white/60 font-bold">{new Date(msg.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div className="px-4 py-3 space-y-3">
-                            <p className="text-sm font-bold text-slate-800">The seller has requested 3 extra days to ship your order.</p>
-                            {originalDeadline && <p className="text-xs text-slate-500 font-medium">Original deadline: {originalDeadline}</p>}
+                            <p className="text-sm font-bold text-white">The seller has requested 3 extra days to ship your order.</p>
+                            {originalDeadline && <p className="text-xs text-slate-300 font-medium">Original deadline: {originalDeadline}</p>}
                             {isBuyer_ && !alreadyActed ? (
                                 <div className="flex gap-2">
                                     <button
@@ -2616,9 +2616,9 @@ function MessagesInner() {
                                     </button>
                                 </div>
                             ) : alreadyActed ? (
-                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide text-center">✓ {activeChatData?.orderItem?.extension_approved ? 'Extension approved.' : 'Extension denied.'}</p>
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-wide text-center">✓ {activeChatData?.orderItem?.extension_approved ? 'Extension approved.' : 'Extension denied.'}</p>
                             ) : (
-                                <p className="text-[11px] font-black text-amber-700 uppercase tracking-wide text-center">⏳ Awaiting buyer's response...</p>
+                                <p className="text-[11px] font-black text-amber-400 uppercase tracking-wide text-center">⏳ Awaiting buyer's response...</p>
                             )}
                         </div>
                     </div>
@@ -2631,13 +2631,13 @@ function MessagesInner() {
             try { ed = JSON.parse(msg.content); } catch {}
             return (
                 <div key={msg.id || idx} className="flex justify-center my-3 px-4">
-                    <div className="w-full max-w-md bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3">
-                        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
-                            <Check size={14} className="text-emerald-700" />
+                    <div className="w-full max-w-md bg-slate-900/95 border border-emerald-500/40 rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3">
+                        <div className="w-8 h-8 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center shrink-0">
+                            <Check size={14} className="text-emerald-400" />
                         </div>
                         <div>
-                            <p className="text-sm font-black text-emerald-900">Extension Approved</p>
-                            <p className="text-xs text-emerald-700 font-medium">New shipping deadline: {ed.deadline_label || 'extended by 3 days'}</p>
+                            <p className="text-sm font-black text-white">Extension Approved</p>
+                            <p className="text-xs text-emerald-300 font-medium">New shipping deadline: {ed.deadline_label || 'extended by 3 days'}</p>
                         </div>
                     </div>
                 </div>
@@ -2649,13 +2649,13 @@ function MessagesInner() {
             try { ed = JSON.parse(msg.content); } catch {}
             return (
                 <div key={msg.id || idx} className="flex justify-center my-3 px-4">
-                    <div className="w-full max-w-md bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3">
-                        <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center shrink-0">
-                            <X size={14} className="text-slate-600" />
+                    <div className="w-full max-w-md bg-slate-900/95 border border-slate-700 rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center shrink-0">
+                            <X size={14} className="text-slate-400" />
                         </div>
                         <div>
-                            <p className="text-sm font-black text-slate-800">Extension Denied</p>
-                            <p className="text-xs text-slate-500 font-medium">Original deadline applies: {ed.deadline_label || 'no extension granted'}</p>
+                            <p className="text-sm font-black text-white">Extension Denied</p>
+                            <p className="text-xs text-slate-400 font-medium">Original deadline applies: {ed.deadline_label || 'no extension granted'}</p>
                         </div>
                     </div>
                 </div>
@@ -2668,9 +2668,9 @@ function MessagesInner() {
             const isUrgent = messageType === 'system_deadline_urgent';
             return (
                 <div key={msg.id || idx} className="flex justify-center my-3 px-4">
-                    <div className={`w-full max-w-md border rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3 ${isUrgent ? 'bg-red-50 border-red-300' : 'bg-orange-50 border-orange-200'}`}>
-                        <AlertTriangle size={16} className={`shrink-0 ${isUrgent ? 'text-red-500' : 'text-orange-500'}`} />
-                        <p className={`text-xs font-black ${isUrgent ? 'text-red-800' : 'text-orange-800'}`}>{wd.message || msg.content}</p>
+                    <div className={`w-full max-w-md border rounded-2xl px-4 py-3 shadow-lg flex items-center gap-3 ${isUrgent ? 'bg-slate-900/95 border-red-500/50' : 'bg-slate-900/95 border-orange-500/50'}`}>
+                        <AlertTriangle size={16} className={`shrink-0 ${isUrgent ? 'text-red-400' : 'text-orange-400'}`} />
+                        <p className={`text-xs font-black ${isUrgent ? 'text-red-300' : 'text-orange-300'}`}>{wd.message || msg.content}</p>
                     </div>
                 </div>
             );
@@ -2692,30 +2692,30 @@ function MessagesInner() {
                         {disputeData ? (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black uppercase text-red-500 tracking-wider">Problem:</span>
-                                    <span className="text-sm font-bold text-slate-800">{disputeData.problemType}</span>
+                                    <span className="text-[10px] font-black uppercase text-red-400 tracking-wider">Problem:</span>
+                                    <span className="text-sm font-bold text-white">{disputeData.problemType}</span>
                                 </div>
-                                <p className="text-sm text-slate-600 font-medium leading-relaxed">{disputeData.description}</p>
+                                <p className="text-sm text-slate-200 font-medium leading-relaxed">{disputeData.description}</p>
                             </div>
                         ) : cancelData ? (
                             // ── CANCELLED message ──
                             <div className="space-y-2">
                                 {cancelData.type === 'seller_cancelled' ? (
                                     <>
-                                        <p className="text-sm font-black text-slate-800">😔 We're sorry — the seller has cancelled this order.</p>
-                                        <p className="text-xs text-slate-500 font-medium">Reason: <span className="italic">"{cancelData.reason}"</span></p>
-                                        <div className="flex items-center gap-2 mt-2 p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
-                                            <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                                            <span className="text-xs font-black text-emerald-700">Full refund of €{Number(cancelData.refund_eur).toFixed(2)} credited to your Printis Wallet.</span>
+                                        <p className="text-sm font-black text-white">😔 We're sorry — the seller has cancelled this order.</p>
+                                        <p className="text-xs text-slate-300 font-medium">Reason: <span className="italic">"{cancelData.reason}"</span></p>
+                                        <div className="flex items-center gap-2 mt-2 p-2.5 bg-emerald-950/40 rounded-xl border border-emerald-500/40">
+                                            <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                                            <span className="text-xs font-black text-emerald-300">Full refund of €{Number(cancelData.refund_eur).toFixed(2)} credited to your Printis Wallet.</span>
                                         </div>
                                     </>
                                 ) : cancelData.type === 'seller_accepted_cancel' ? (
                                     <>
-                                        <p className="text-sm font-black text-slate-800">✅ Cancellation confirmed by seller.</p>
-                                        <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 space-y-1">
-                                            <div className="flex justify-between text-xs font-bold text-slate-600">
+                                        <p className="text-sm font-black text-white">✅ Cancellation confirmed by seller.</p>
+                                        <div className="p-2.5 bg-emerald-950/40 rounded-xl border border-emerald-500/40 space-y-1">
+                                            <div className="flex justify-between text-xs font-bold text-slate-200">
                                                 <span>Refund issued:</span>
-                                                <span className="text-emerald-700 font-black">€{Number(cancelData.refund_eur).toFixed(2)}</span>
+                                                <span className="text-emerald-300 font-black">€{Number(cancelData.refund_eur).toFixed(2)}</span>
                                             </div>
                                             {cancelData.shipping_deducted_eur > 0 && (
                                                 <div className="flex justify-between text-[11px] font-bold text-slate-400">
@@ -2723,22 +2723,22 @@ function MessagesInner() {
                                                     <span>−€{Number(cancelData.shipping_deducted_eur).toFixed(2)}</span>
                                                 </div>
                                             )}
-                                            <p className="text-[10px] text-emerald-600 font-bold pt-1">Amount credited to your Printis Wallet.</p>
+                                            <p className="text-[10px] text-emerald-400 font-bold pt-1">Amount credited to your Printis Wallet.</p>
                                         </div>
                                     </>
                                 ) : (
-                                    <p className="text-sm font-bold text-slate-700">Order has been cancelled.</p>
+                                    <p className="text-sm font-bold text-white">Order has been cancelled.</p>
                                 )}
                             </div>
                         ) : cancelRequestData ? (
                             // ── CANCELLATION REQUEST message ──
                             <div className="space-y-3">
                                 <div>
-                                    <p className="text-sm font-black text-slate-800 mb-1">⚠️ The buyer has requested to cancel this order.</p>
-                                    <p className="text-xs text-slate-500 font-medium">Reason: <span className="italic">"{cancelRequestData.reason}"</span></p>
+                                    <p className="text-sm font-black text-white mb-1">⚠️ The buyer has requested to cancel this order.</p>
+                                    <p className="text-xs text-slate-300 font-medium">Reason: <span className="italic">"{cancelRequestData.reason}"</span></p>
                                 </div>
-                                <div className="p-3 bg-white rounded-xl border border-orange-200 space-y-1.5">
-                                    <div className="flex justify-between text-xs font-bold text-slate-600">
+                                <div className="p-3 bg-slate-950 rounded-xl border border-orange-500/40 space-y-1.5">
+                                    <div className="flex justify-between text-xs font-bold text-slate-200">
                                         <span>Item total:</span><span>€{Number(cancelRequestData.item_total_eur).toFixed(2)}</span>
                                     </div>
                                     {cancelRequestData.shipping_cost_eur > 0 && (
@@ -2746,7 +2746,7 @@ function MessagesInner() {
                                             <span>Shipping (non-refundable):</span><span>−€{Number(cancelRequestData.shipping_cost_eur).toFixed(2)}</span>
                                         </div>
                                     )}
-                                    <div className="flex justify-between text-xs font-black text-emerald-700 border-t border-orange-100 pt-1.5">
+                                    <div className="flex justify-between text-xs font-black text-emerald-400 border-t border-slate-800 pt-1.5">
                                         <span>Buyer would receive:</span><span>€{Number(cancelRequestData.refund_eur).toFixed(2)}</span>
                                     </div>
                                 </div>
@@ -2772,11 +2772,11 @@ function MessagesInner() {
                                     </div>
                                 )}
                                 {!isSeller && (
-                                    <p className="text-[11px] font-black text-orange-600 uppercase tracking-wide text-center">⏳ Awaiting seller's response...</p>
+                                    <p className="text-[11px] font-black text-orange-400 uppercase tracking-wide text-center">⏳ Awaiting seller's response...</p>
                                 )}
                             </div>
                         ) : (
-                            <p className="text-sm text-slate-800 font-bold leading-relaxed">{msg.content}</p>
+                            <p className="text-sm text-white font-bold leading-relaxed">{msg.content}</p>
                         )}
                     </div>
                 </div>
@@ -2822,14 +2822,14 @@ function MessagesInner() {
                 return (
                     <div className="flex flex-col gap-2 my-4">
                         <div className="flex justify-center px-4 w-full">
-                            <div className="w-full max-w-md bg-white border-2 border-dashed border-emerald-300 rounded-2xl p-5 text-center shadow-sm">
-                                <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-3">
-                                    <Package size={20} className="text-emerald-600" />
+                            <div className="w-full max-w-md bg-slate-900/95 border-2 border-dashed border-emerald-500/50 rounded-2xl p-5 text-center shadow-lg">
+                                <div className="w-10 h-10 mx-auto bg-emerald-500/20 rounded-full flex items-center justify-center mb-3">
+                                    <Package size={20} className="text-emerald-400" />
                                 </div>
-                                <p className="text-sm font-bold text-gray-800 mb-1">
+                                <p className="text-sm font-bold text-white mb-1">
                                     Ready to ship? (Standard Product Order)
                                 </p>
-                                <p className="text-xs text-gray-500 font-medium mb-4">
+                                <p className="text-xs text-slate-300 font-medium mb-4">
                                     This is a standard physical product order — no 3D print photo verification is required. Pack the items securely and generate your official Furgonetka shipping label.
                                 </p>
 
@@ -2852,14 +2852,14 @@ function MessagesInner() {
                 const pkgId = orderItem?.furgonetka_package_id || orderItem?.tracking_code;
                 return (
                     <div className="flex justify-center px-4 w-full my-4">
-                        <div className="w-full max-w-md bg-emerald-50/90 border border-emerald-200 rounded-2xl p-5 text-center shadow-sm space-y-3">
-                            <div className="w-10 h-10 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-2">
-                                <CheckCircle2 size={20} className="text-emerald-600" />
+                        <div className="w-full max-w-md bg-slate-900/95 border border-emerald-500/50 rounded-2xl p-5 text-center shadow-lg space-y-3">
+                            <div className="w-10 h-10 mx-auto bg-emerald-500/20 rounded-full flex items-center justify-center mb-2">
+                                <CheckCircle2 size={20} className="text-emerald-400" />
                             </div>
-                            <p className="text-sm font-black text-emerald-900 mb-1">
+                            <p className="text-sm font-black text-white mb-1">
                                 Print Verification Approved!
                             </p>
-                            <p className="text-xs text-emerald-700 font-medium">
+                            <p className="text-xs text-emerald-300 font-medium">
                                 The buyer approved your 3D print photos. Your Furgonetka shipping label is ready to download.
                             </p>
                             <button
@@ -2884,14 +2884,14 @@ function MessagesInner() {
             if (pendingVerificationRequest) {
                 return (
                     <div className="flex justify-center px-4 w-full my-4">
-                        <div className="w-full max-w-md bg-indigo-50/90 border border-indigo-200 rounded-2xl p-5 text-center shadow-sm">
-                            <div className="w-10 h-10 mx-auto bg-indigo-100 rounded-full flex items-center justify-center mb-2">
-                                <Truck size={18} className="text-indigo-600 animate-pulse" />
+                        <div className="w-full max-w-md bg-slate-900/95 border border-indigo-500/40 rounded-2xl p-5 text-center shadow-lg">
+                            <div className="w-10 h-10 mx-auto bg-indigo-500/20 rounded-full flex items-center justify-center mb-2">
+                                <Truck size={18} className="text-indigo-400 animate-pulse" />
                             </div>
-                            <p className="text-sm font-bold text-slate-800 mb-1">
+                            <p className="text-sm font-bold text-white mb-1">
                                 Verification Request Sent
                             </p>
-                            <p className="text-xs text-slate-600 font-medium">
+                            <p className="text-xs text-slate-300 font-medium">
                                 ⏳ Verification photos & shipping request sent to buyer. Waiting for buyer approval before generating shipping label.
                             </p>
                         </div>
@@ -2902,14 +2902,14 @@ function MessagesInner() {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-white border-2 border-dashed border-blue-200 rounded-2xl p-5 text-center shadow-sm">
-                            <div className="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                                {isDigital ? <Mail size={18} className="text-blue-600" /> : <Truck size={18} className="text-blue-600" />}
+                        <div className="w-full max-w-md bg-slate-900/95 border-2 border-dashed border-blue-500/40 rounded-2xl p-5 text-center shadow-lg">
+                            <div className="w-10 h-10 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center mb-3">
+                                {isDigital ? <Mail size={18} className="text-blue-400" /> : <Truck size={18} className="text-blue-400" />}
                             </div>
-                            <p className="text-sm font-bold text-gray-800 mb-1">
+                            <p className="text-sm font-bold text-white mb-1">
                                 {isJob ? 'Ready to ship the printed item?' : isDigital ? 'Ready to deliver?' : 'Ready to ship?'}
                             </p>
-                            <p className="text-xs text-gray-500 font-medium mb-3">
+                            <p className="text-xs text-slate-300 font-medium mb-3">
                                 {isJob
                                     ? "You've received the 3D file via email. Print the item, attach photos of the print, and send for buyer verification."
                                     : isDigital
@@ -2920,7 +2920,7 @@ function MessagesInner() {
                             {/* Photo Upload Attachment Section */}
                             {!isDigital && (
                                 <div className="mb-4 text-left">
-                                    <label className="text-[11px] font-black uppercase text-gray-700 block mb-1.5 tracking-wider">
+                                    <label className="text-[11px] font-black uppercase text-slate-300 block mb-1.5 tracking-wider">
                                         📸 Attach Verification Photos of Print / Item
                                     </label>
                                     
@@ -2929,7 +2929,7 @@ function MessagesInner() {
                                             {verificationFiles.map((file, fIdx) => {
                                                 const previewUrl = URL.createObjectURL(file);
                                                 return (
-                                                    <div key={fIdx} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group bg-gray-50">
+                                                    <div key={fIdx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-700 group bg-slate-950">
                                                         <img src={previewUrl} alt="preview" className="w-full h-full object-cover" />
                                                         <button
                                                             type="button"
@@ -2963,7 +2963,7 @@ function MessagesInner() {
                                         <div className="flex flex-col sm:flex-row items-center gap-2 mb-3">
                                             <label
                                                 htmlFor="verification-photo-input"
-                                                className="w-full sm:w-1/2 py-2.5 px-3 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 rounded-xl text-xs font-bold text-indigo-700 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                                                className="w-full sm:w-1/2 py-2.5 px-3 border-2 border-dashed border-indigo-500/40 hover:border-indigo-400 bg-slate-950/80 hover:bg-slate-900 rounded-xl text-xs font-bold text-indigo-300 flex items-center justify-center gap-2 cursor-pointer transition-all"
                                             >
                                                 <Upload size={14} />
                                                 Choose from Disk ({verificationFiles.length}/5)
@@ -2978,7 +2978,7 @@ function MessagesInner() {
                                                             processPastedVerificationItems(e.clipboardData.items);
                                                         }
                                                     }}
-                                                    className="w-full py-2.5 px-3 bg-indigo-50/40 border border-indigo-200 rounded-xl font-bold text-xs text-indigo-900 placeholder-indigo-400 outline-none focus:border-indigo-500 focus:bg-white transition-all text-center"
+                                                    className="w-full py-2.5 px-3 bg-slate-950/80 border border-indigo-500/40 rounded-xl font-bold text-xs text-indigo-200 placeholder-indigo-400 outline-none focus:border-indigo-400 focus:bg-slate-900 transition-all text-center"
                                                     readOnly={verificationFiles.length >= 5}
                                                 />
                                             </div>
@@ -2988,12 +2988,12 @@ function MessagesInner() {
                             )}
 
                             {!isDigital && (
-                                <div className="bg-[#FFCC00]/10 border border-[#FFCC00]/30 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-left text-[11px] font-bold text-gray-700">
-                                    <div className="bg-white p-1 rounded-md shadow-sm border border-[#FFCC00]/50 shrink-0">
-                                        <Mail size={14} className="text-[#D40511]" />
+                                <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-left text-[11px] font-bold text-amber-200">
+                                    <div className="bg-slate-900 p-1 rounded-md shadow-sm border border-amber-500/50 shrink-0">
+                                        <Mail size={14} className="text-amber-400" />
                                     </div>
                                     <p className="leading-snug">
-                                        <span className="text-[#D40511] font-black uppercase tracking-wider block mb-0.5 text-[9px]">Important</span>
+                                        <span className="text-amber-400 font-black uppercase tracking-wider block mb-0.5 text-[9px]">Important</span>
                                         A shipping label will be generated via Furgonetka once the buyer approves your verification photos.
                                     </p>
                                 </div>
@@ -3001,8 +3001,8 @@ function MessagesInner() {
 
                             {/* Photo required warning */}
                             {!isDigital && verificationFiles.length === 0 && (
-                                <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3 flex items-center gap-2.5 text-left text-[11px] font-bold text-red-600">
-                                    <AlertTriangle size={14} className="shrink-0 text-red-500" />
+                                <div className="bg-red-950/40 border border-red-500/40 rounded-xl p-3 mb-3 flex items-center gap-2.5 text-left text-[11px] font-bold text-red-300">
+                                    <AlertTriangle size={14} className="shrink-0 text-red-400" />
                                     <p>⚠️ You must attach at least <strong>1 photo</strong> of the printed / packed item before sending the verification request.</p>
                                 </div>
                             )}
@@ -3049,14 +3049,14 @@ function MessagesInner() {
             if (isDigital) {
                 return (
                     <div className="flex justify-center my-4 px-4 w-full">
-                        <div className="w-full max-w-md bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-2xl p-5 text-center shadow-sm space-y-3">
-                            <div className="w-12 h-12 mx-auto bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-inner">
+                        <div className="w-full max-w-md bg-slate-900/95 border-2 border-emerald-500/40 rounded-2xl p-5 text-center shadow-lg space-y-3">
+                            <div className="w-12 h-12 mx-auto bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 shadow-inner">
                                 <Download size={22} />
                             </div>
-                            <h4 className="text-sm font-black text-gray-900">
+                            <h4 className="text-sm font-black text-white">
                                 📦 Your 3D Digital File is Ready!
                             </h4>
-                            <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                            <p className="text-xs text-slate-300 font-medium leading-relaxed">
                                 You bought a digital 3D model. Download your STL / 3MF file directly below.
                             </p>
                             {digitalFileUrl ? (
@@ -3069,11 +3069,11 @@ function MessagesInner() {
                                     <Download size={18} /> 📥 Download 3D File (STL / 3MF)
                                 </a>
                             ) : (
-                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800">
+                                <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-xl text-xs font-bold text-amber-300">
                                     ⏳ Preparing file download link...
                                 </div>
                             )}
-                            <div className="pt-2 border-t border-emerald-100">
+                            <div className="pt-2 border-t border-slate-800">
                                 <button
                                     onClick={() => handleStatusUpdate('completed')}
                                     disabled={statusUpdating}
@@ -3089,8 +3089,8 @@ function MessagesInner() {
 
             return (
                 <div className="flex justify-center my-4 px-4 w-full">
-                    <div className="w-full max-w-md bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-center">
-                        <p className="text-xs font-bold text-amber-700">
+                    <div className="w-full max-w-md bg-slate-900/95 border border-amber-500/40 rounded-2xl p-4 text-center shadow-lg">
+                        <p className="text-xs font-bold text-amber-300">
                             {isStandardPhysical
                                 ? '📦 Order confirmed! The seller is preparing and securely packing your items for courier shipping.'
                                 : isApprovedInMessages
@@ -3124,18 +3124,18 @@ function MessagesInner() {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-200 rounded-2xl p-5 text-center shadow-sm space-y-3">
-                            <div className="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner">
+                        <div className="w-full max-w-md bg-slate-900/95 border border-blue-500/40 rounded-2xl p-5 text-center shadow-lg space-y-3">
+                            <div className="w-10 h-10 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 shadow-inner">
                                 <Truck size={20} className="animate-pulse" />
                             </div>
-                            <p className="text-sm font-black text-slate-800">
+                            <p className="text-sm font-black text-white">
                                 📦 {statusInfo.title}
                             </p>
-                            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                            <p className="text-xs text-slate-300 font-medium leading-relaxed">
                                 {statusInfo.description}
                             </p>
                             {trackingNo && (
-                                <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-white rounded-xl border border-blue-200 text-xs font-mono font-bold text-blue-700 shadow-xs mx-auto">
+                                <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-950 rounded-xl border border-blue-500/30 text-xs font-mono font-bold text-cyan-300 shadow-xs mx-auto">
                                     <span>Tracking #: {trackingNo}</span>
                                 </div>
                             )}
@@ -3153,8 +3153,8 @@ function MessagesInner() {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-center">
-                            <p className="text-xs font-bold text-blue-700">
+                        <div className="w-full max-w-md bg-slate-900/95 border border-blue-500/40 rounded-2xl p-4 text-center shadow-lg">
+                            <p className="text-xs font-bold text-blue-300">
                                 {isLocker
                                   ? `📦 Package shipped! Handed over for delivery to locker${pointName ? ` (${pointName})` : ''}. Waiting for customer pickup...`
                                   : '📦 Package shipped! Handed over to the courier. Waiting for delivery to customer...'
@@ -3180,15 +3180,15 @@ function MessagesInner() {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white border-2 border-emerald-300 rounded-2xl p-5 text-center shadow-md space-y-3.5">
-                            <div className="w-12 h-12 mx-auto bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-inner">
+                        <div className="w-full max-w-md bg-slate-900/95 border-2 border-emerald-500/50 rounded-2xl p-5 text-center shadow-xl space-y-3.5">
+                            <div className="w-12 h-12 mx-auto bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 shadow-inner">
                                 {isDigital ? <Download size={22} /> : <CheckCircle2 size={24} />}
                             </div>
                             <div>
-                                <h4 className="text-base font-black text-slate-900">
+                                <h4 className="text-base font-black text-white">
                                     {isDigital ? '📦 Your 3D File is Ready!' : '✅ Package Delivered — Is Everything OK?'}
                                 </h4>
-                                <p className="text-xs text-slate-600 font-medium leading-relaxed mt-1">
+                                <p className="text-xs text-slate-300 font-medium leading-relaxed mt-1">
                                     {isDigital
                                         ? 'Your digital purchase is ready for download.'
                                         : 'The courier has delivered your package. Please inspect your item. If everything is fine with your order, confirm below to release payment to the seller.'}
@@ -3230,7 +3230,7 @@ function MessagesInner() {
                                     </button>
                                 </div>
                                 {confirmDeadline && (
-                                    <p className="text-[10px] text-emerald-700 font-bold">
+                                    <p className="text-[10px] text-emerald-400 font-bold">
                                         ⏰ Auto-confirms on {confirmDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} if no issue is reported.
                                     </p>
                                 )}
@@ -3245,8 +3245,8 @@ function MessagesInner() {
             return (
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
-                        <div className="w-full max-w-md bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-center">
-                            <p className="text-xs font-bold text-emerald-800">
+                        <div className="w-full max-w-md bg-slate-900/95 border border-emerald-500/40 rounded-2xl p-4 text-center shadow-lg">
+                            <p className="text-xs font-bold text-emerald-300">
                                 ✅ Package delivered to customer! Waiting for buyer confirmation or automatic payout release in 2 days.
                             </p>
                         </div>
@@ -3261,28 +3261,28 @@ function MessagesInner() {
                 <div className="flex flex-col gap-2 my-4">
                     <div className="flex justify-center px-4 w-full">
                         <div className={`w-full max-w-md rounded-2xl p-5 text-center ${
-                            status === 'completed' ? 'bg-green-50/90 border border-green-200 shadow-sm space-y-3' :
-                            status === 'cancelled' ? 'bg-slate-50/80 border border-slate-200' :
-                            'bg-red-50/80 border border-red-100'
+                            status === 'completed' ? 'bg-slate-900/95 border-2 border-emerald-500/50 shadow-xl space-y-3' :
+                            status === 'cancelled' ? 'bg-slate-900/95 border border-slate-700 shadow-lg' :
+                            'bg-slate-900/95 border-2 border-red-500/50 shadow-xl'
                         }`}>
                             <p className={`text-xs font-black uppercase tracking-widest ${
-                                status === 'completed' ? 'text-green-600' :
-                                status === 'cancelled' ? 'text-slate-500' :
-                                'text-red-600'
+                                status === 'completed' ? 'text-emerald-400' :
+                                status === 'cancelled' ? 'text-slate-400' :
+                                'text-red-400'
                             }`}>
                                 {status === 'completed' ? '✅ Transaction Finalized' :
                                  status === 'cancelled' ? '🚫 Order Cancelled' :
                                  '⚠️ Dispute Open — Funds on hold'}
                             </p>
                             {status === 'completed' && (
-                                <p className="text-xs text-gray-600 font-bold">
+                                <p className="text-xs text-slate-300 font-bold">
                                     Transaction completed successfully! Funds have been released.
                                 </p>
                             )}
                             {(status === 'completed' || status === 'resolved') && isCustomer && (
                                 existingUserReview ? (
-                                    <div className="w-full py-3 px-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-black text-emerald-800 flex items-center justify-center gap-2 mt-2 shadow-xs">
-                                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                                    <div className="w-full py-3 px-4 bg-slate-950 border border-emerald-500/40 rounded-xl text-xs font-black text-emerald-300 flex items-center justify-center gap-2 mt-2 shadow-xs">
+                                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
                                         <span>Review Submitted ({existingUserReview.rating}/5 ⭐) — Thank you!</span>
                                     </div>
                                 ) : (

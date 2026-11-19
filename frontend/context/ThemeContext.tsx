@@ -36,10 +36,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
             <style suppressHydrationWarning>{`
         /* BLACK THEME (High Contrast) */
         html[data-theme='black'] body { background-color: #000000 !important; color: #f3f4f6 !important; }
-        html[data-theme='black'] .bg-white { background-color: #111111 !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #ffffff !important; }
-        html[data-theme='black'] .bg-gray-50 { background-color: #1a1a1a !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #f9fafb !important; }
-        html[data-theme='black'] .bg-gray-100 { background-color: #27272a !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; color: #f9fafb !important; }
-        html[data-theme='black'] .bg-gray-200 { background-color: #3f3f46 !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; color: #ffffff !important; }
+        html[data-theme='black'] .bg-white, html[data-theme='black'] .bg-gray-50, html[data-theme='black'] .bg-gray-100, html[data-theme='black'] .bg-gray-200, html[data-theme='black'] .bg-blue-50, html[data-theme='black'] .bg-slate-50, html[data-theme='black'] .bg-indigo-50, html[data-theme='black'] .bg-emerald-50, html[data-theme='black'] .bg-green-50, html[data-theme='black'] .bg-teal-50 { background-color: #111111 !important; border-color: rgba(255, 255, 255, 0.15) !important; color: #ffffff !important; }
+        html[data-theme='black'] [class*="from-indigo-50"], html[data-theme='black'] [class*="from-blue-50"], html[data-theme='black'] [class*="from-slate-50"], html[data-theme='black'] [class*="from-teal-50"], html[data-theme='black'] [class*="from-emerald-50"], html[data-theme='black'] [class*="from-green-50"], html[data-theme='black'] [class*="from-amber-50"], html[data-theme='black'] [class*="bg-blue-50"], html[data-theme='black'] [class*="bg-slate-50"], html[data-theme='black'] [class*="bg-indigo-50"], html[data-theme='black'] [class*="bg-emerald-50"], html[data-theme='black'] [class*="bg-green-50"], html[data-theme='black'] [class*="bg-teal-50"] { background-image: none !important; background-color: #111111 !important; border-color: rgba(255, 255, 255, 0.15) !important; color: #ffffff !important; }
         html[data-theme='black'] .text-gray-900, html[data-theme='black'] .text-gray-800, html[data-theme='black'] .text-slate-900, html[data-theme='black'] .text-slate-800 { color: #ffffff !important; }
         html[data-theme='black'] .text-gray-700, html[data-theme='black'] .text-slate-700 { color: #f3f4f6 !important; }
         html[data-theme='black'] .text-gray-600, html[data-theme='black'] .text-slate-600 { color: #d1d5db !important; }
@@ -62,7 +60,8 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
         /* MIDNIGHT THEME */
         html[data-theme='midnight'] body { background-color: #020617 !important; color: #f8fafc !important; }
-        html[data-theme='midnight'] .bg-white, html[data-theme='midnight'] .bg-gray-50, html[data-theme='midnight'] .bg-gray-100, html[data-theme='midnight'] .bg-gray-200 { background-color: #0f172a !important; border-color: #1e293b !important; color: #f1f5f9 !important; }
+        html[data-theme='midnight'] .bg-white, html[data-theme='midnight'] .bg-gray-50, html[data-theme='midnight'] .bg-gray-100, html[data-theme='midnight'] .bg-gray-200, html[data-theme='midnight'] .bg-blue-50, html[data-theme='midnight'] .bg-slate-50, html[data-theme='midnight'] .bg-indigo-50, html[data-theme='midnight'] .bg-emerald-50, html[data-theme='midnight'] .bg-green-50, html[data-theme='midnight'] .bg-teal-50 { background-color: #0f172a !important; border-color: #1e293b !important; color: #f1f5f9 !important; }
+        html[data-theme='midnight'] [class*="from-indigo-50"], html[data-theme='midnight'] [class*="from-blue-50"], html[data-theme='midnight'] [class*="from-slate-50"], html[data-theme='midnight'] [class*="from-teal-50"], html[data-theme='midnight'] [class*="from-emerald-50"], html[data-theme='midnight'] [class*="from-green-50"], html[data-theme='midnight'] [class*="from-amber-50"], html[data-theme='midnight'] [class*="bg-blue-50"], html[data-theme='midnight'] [class*="bg-slate-50"], html[data-theme='midnight'] [class*="bg-indigo-50"], html[data-theme='midnight'] [class*="bg-emerald-50"], html[data-theme='midnight'] [class*="bg-green-50"], html[data-theme='midnight'] [class*="bg-teal-50"] { background-image: none !important; background-color: #0f172a !important; border-color: #334155 !important; color: #f8fafc !important; }
         html[data-theme='midnight'] .bg-amber-50, html[data-theme='midnight'] .bg-amber-100 { background-color: rgba(245, 158, 11, 0.08) !important; border: 1px solid rgba(245, 158, 11, 0.25) !important; color: #fef3c7 !important; }
         html[data-theme='midnight'] .text-amber-800, html[data-theme='midnight'] .text-amber-900, html[data-theme='midnight'] .text-amber-950 { color: #fbbf24 !important; }
         html[data-theme='midnight'] .border-amber-200 { border-color: rgba(245, 158, 11, 0.25) !important; }
@@ -70,9 +69,9 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         html[data-theme='midnight'] .text-gray-600, html[data-theme='midnight'] .text-gray-500, html[data-theme='midnight'] .text-gray-400, html[data-theme='midnight'] .text-slate-600, html[data-theme='midnight'] .text-slate-500, html[data-theme='midnight'] .text-slate-400 { color: #94a3b8 !important; }
         html[data-theme='midnight'] .border-gray-100, html[data-theme='midnight'] .border-gray-200, html[data-theme='midnight'] .border-gray-300 { border-color: #1e293b !important; }
         html[data-theme='midnight'] .shadow-sm, html[data-theme='midnight'] .shadow-md, html[data-theme='midnight'] .shadow-lg, html[data-theme='midnight'] .shadow-xl, html[data-theme='midnight'] .shadow-2xl { box-shadow: 0 8px 32px rgba(56, 189, 248, 0.15) !important; }
-        html[data-theme='midnight'] .bg-white\\/80, html[data-theme='midnight'] .bg-white\\/90 { background-color: rgba(15, 23, 42, 0.85) !important; backdrop-filter: blur(16px); }
+        html[data-theme='midnight'] .bg-white\/80, html[data-theme='midnight'] .bg-white\/90 { background-color: rgba(15, 23, 42, 0.85) !important; backdrop-filter: blur(16px); }
         html[data-theme='midnight'] .text-blue-600 { color: #38bdf8 !important; }
-        html[data-theme='midnight'] a.hover\\:text-blue-600:hover { color: #7dd3fc !important; }
+        html[data-theme='midnight'] a.hover\:text-blue-600:hover { color: #7dd3fc !important; }
         html[data-theme='midnight'] .bg-gray-900 { background-color: #1e293b !important; box-shadow: 0 0 15px rgba(56,189,248,0.3) !important; border-color: #38bdf8 !important;}
         
         /* CATEGORY OVERRIDES (Midnight) */
