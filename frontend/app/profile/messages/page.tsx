@@ -3418,6 +3418,7 @@ function MessagesInner() {
 
                         let steps: { key: string; label: string; Icon: any }[] = [];
                         let currentIdx = 0;
+                        const isCompletedStatus = status === 'completed' || status === 'transfer_completed' || status === 'payout_completed' || status === 'resolved';
 
                         if (isDigital) {
                             steps = [
@@ -3426,7 +3427,7 @@ function MessagesInner() {
                                 { key: 'verify', label: 'Verify', Icon: CheckCircle2 },
                                 { key: 'complete', label: 'Complete', Icon: Shield },
                             ];
-                            currentIdx = status === 'completed' || status === 'transfer_completed' ? 3 : (status === 'delivered' || status === 'shipped' ? 2 : 1);
+                            currentIdx = isCompletedStatus ? 4 : (status === 'delivered' || status === 'shipped' ? 2 : 1);
                         } else if (isStandardPhysical) {
                             steps = [
                                 { key: 'ordered', label: 'Ordered', Icon: ShoppingBag },
@@ -3435,7 +3436,7 @@ function MessagesInner() {
                                 { key: 'delivered', label: 'Delivery Verify', Icon: CheckCircle2 },
                                 { key: 'complete', label: 'Complete', Icon: Shield },
                             ];
-                            if (status === 'completed' || status === 'transfer_completed') currentIdx = 4;
+                            if (isCompletedStatus) currentIdx = 5;
                             else if (status === 'delivered') currentIdx = 3;
                             else if (status === 'in_transit') currentIdx = 2;
                             else if (status === 'shipped') currentIdx = 1;
@@ -3450,7 +3451,7 @@ function MessagesInner() {
                                 { key: 'delivered', label: 'Delivery Verify', Icon: CheckCircle2 },
                                 { key: 'complete', label: 'Complete', Icon: Shield },
                             ];
-                            if (status === 'completed' || status === 'transfer_completed') currentIdx = 6;
+                            if (isCompletedStatus) currentIdx = 7;
                             else if (status === 'delivered') currentIdx = 5;
                             else if (status === 'in_transit') currentIdx = 4;
                             else if (status === 'shipped') currentIdx = 3;
