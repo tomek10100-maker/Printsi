@@ -113,15 +113,18 @@ export async function GET(
           const orderMsg = orderErr.message || '';
           console.error(`[Label Endpoint] Finalizing order for package ${targetPackageId} failed:`, orderMsg);
 
+          const isSandbox = process.env.FURGONETKA_FORCE_PRODUCTION !== 'true';
+          const portalUrl = isSandbox ? 'https://sandbox.furgonetka.pl' : 'https://furgonetka.pl';
+
           if (orderMsg.includes('saldo') || orderMsg.includes('Cena przesyłek jest większa') || orderMsg.includes('balance') || orderMsg.includes('status uniemożliwiający')) {
             return NextResponse.json({
-              error: 'Brak środków na koncie Furgonetka lub przesyłka oczekuje na opłacenie. Zaloguj się na https://furgonetka.pl, doładuj saldo konta lub opłać przesyłkę w zakładce "Robocze", aby pobrać oficjalną etykietę kurierską.',
+              error: `Przesyłka oczekuje na opłacenie z salda konta. Zaloguj się na ${portalUrl}, opłać przesyłkę w zakładce "Koszyk" / "Robocze", aby pobrać oficjalną etykietę kurierską.`,
               code: 'INSUFFICIENT_FUNDS'
             }, { status: 400 });
           }
 
           return NextResponse.json({
-            error: `Przesyłka w Furgonetce oczekuje na opłacenie/zamówienie. Zaloguj się na https://furgonetka.pl i opłać przesyłkę w zakładce "Robocze". Szczegóły: ${orderMsg}`,
+            error: `Przesyłka w Furgonetce oczekuje na opłacenie/zamówienie. Zaloguj się na ${portalUrl} i opłać przesyłkę w zakładce "Koszyk" / "Robocze". Szczegóły: ${orderMsg}`,
             code: 'ORDER_PENDING'
           }, { status: 400 });
         }

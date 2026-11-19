@@ -770,7 +770,7 @@ function MessagesInner() {
             ));
 
             if (data.isDraftOnly) {
-                alert(`⚠️ Przesyłka została utworzona w Furgonetce jako robocza (ID: ${data.packageId}). Aby pobrać etykietę kurierską, doładuj saldo konta lub opłać przesyłkę w zakładce "Robocze" na https://furgonetka.pl.`);
+                alert(`⚠️ Przesyłka została utworzona w Furgonetce jako robocza (ID: ${data.packageId}). Aby pobrać etykietę kurierską, opłać przesyłkę w zakładce "Koszyk" / "Robocze" na https://sandbox.furgonetka.pl.`);
             } else if (data.packageId) {
                 handleDownloadLabel(String(data.packageId));
             }
