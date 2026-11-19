@@ -106,6 +106,7 @@ export async function POST(req: Request) {
         shipping_address: {
           ...((session as any).shipping_details || session.customer_details || {}),
           ...(shippingCustom || {}),
+          phone: shippingCustom?.phone || (session as any).shipping_details?.phone || session.customer_details?.phone || null,
           selected_point: selectedPoint || null
         },
         stripe_payment_intent_id: (session.payment_intent as string) || session.id,

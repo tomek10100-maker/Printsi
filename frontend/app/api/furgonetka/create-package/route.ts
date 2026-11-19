@@ -213,25 +213,29 @@ export async function POST(req: Request) {
       phone: orderShippingAddr.phone || '',
     } : null);
 
-    if (!shippingDetails) {
-      // For pickup points (paczkomat) we only need phone - no home address required.
-      // For door-to-door the seller fills in the address via a separate form.
-      // Fetch whatever info we have from buyer profile (name, phone).
+    // If phone or email is missing, fetch directly from buyer profile
+    if (!shippingDetails || !shippingDetails.phone || !shippingDetails.email) {
       const { data: buyerProfile } = await supabase
         .from('profiles')
         .select('full_name, address, city, zip_code, country, phone, phone_number')
         .eq('id', receiverId)
-        .single();
+        .maybeSingle();
 
-      shippingDetails = {
-        full_name: buyerProfile?.full_name || 'Recipient',
-        address: buyerProfile?.address || '',
-        city: buyerProfile?.city || '',
-        zip_code: buyerProfile?.zip_code || '',
-        country: buyerProfile?.country || 'PL',
-        email: '',
-        phone: buyerProfile?.phone || buyerProfile?.phone_number || '',
-      };
+      if (!shippingDetails) {
+        shippingDetails = {
+          full_name: buyerProfile?.full_name || 'Recipient',
+          address: buyerProfile?.address || '',
+          city: buyerProfile?.city || '',
+          zip_code: buyerProfile?.zip_code || '',
+          country: buyerProfile?.country || 'PL',
+          email: '',
+          phone: buyerProfile?.phone || buyerProfile?.phone_number || '',
+        };
+      } else {
+        if (!shippingDetails.phone && (buyerProfile?.phone || buyerProfile?.phone_number)) {
+          shippingDetails.phone = buyerProfile.phone || buyerProfile.phone_number;
+        }
+      }
     }
 
 
@@ -294,6 +298,15 @@ export async function POST(req: Request) {
       if (country === 'PL' && digitsOnly.startsWith('48') && digitsOnly.length === 11) {
         return `+${digitsOnly}`;
       }
+      if (country === 'CZ' && digitsOnly.startsWith('420') && digitsOnly.length === 12) {
+        return `+${digitsOnly}`;
+      }
+      if (country === 'SK' && digitsOnly.startsWith('421') && digitsOnly.length === 12) {
+        return `+${digitsOnly}`;
+      }
+      if (country === 'DE' && digitsOnly.startsWith('49') && digitsOnly.length >= 11) {
+        return `+${digitsOnly}`;
+      }
 
       // If user typed 9-digit national subscriber number
       if (digitsOnly.length >= 9) {
@@ -302,7 +315,11 @@ export async function POST(req: Request) {
       }
 
       // Fallback for short/invalid numbers to prevent Furgonetka invalidFromToLimit 400 error
-      const fallbackSubscriber = country === 'FR' ? '612345678' : defaultPhone;
+      const fallbackSubscriber = country === 'FR' ? '612345678'
+        : country === 'CZ' ? '724567411'
+        : country === 'SK' ? '912345678'
+        : country === 'DE' ? '15123456789'
+        : defaultPhone;
       return `${defaultPrefix}${fallbackSubscriber}`;
     };
 

@@ -304,19 +304,25 @@ async function autoCreateFurgonetkaShipment(
         phone: orderShippingAddr.phone || '',
       };
     }
-    if (!shippingDetails) {
+    if (!shippingDetails || !shippingDetails.phone) {
       const { data: buyerProfile } = await supabase
         .from('profiles')
         .select('full_name, address, city, zip_code, country, phone, phone_number')
         .eq('id', buyerId).single();
-      shippingDetails = {
-        full_name: buyerProfile?.full_name || 'Recipient',
-        address: buyerProfile?.address || '',
-        city: buyerProfile?.city || '',
-        zip_code: buyerProfile?.zip_code || '',
-        country: buyerProfile?.country || 'PL',
-        email: '', phone: buyerProfile?.phone || buyerProfile?.phone_number || '',
-      };
+      if (!shippingDetails) {
+        shippingDetails = {
+          full_name: buyerProfile?.full_name || 'Recipient',
+          address: buyerProfile?.address || '',
+          city: buyerProfile?.city || '',
+          zip_code: buyerProfile?.zip_code || '',
+          country: buyerProfile?.country || 'PL',
+          email: '', phone: buyerProfile?.phone || buyerProfile?.phone_number || '',
+        };
+      } else {
+        if (!shippingDetails.phone && (buyerProfile?.phone || buyerProfile?.phone_number)) {
+          shippingDetails.phone = buyerProfile.phone || buyerProfile.phone_number;
+        }
+      }
     }
 
     // --- Carrier ---
@@ -354,8 +360,14 @@ async function autoCreateFurgonetkaShipment(
       };
       const prefix = prefixes[country.toUpperCase()] || '+48';
       if (raw.startsWith('+') && digits.length >= 9) return `+${digits}`;
+      if (country.toUpperCase() === 'CZ' && digits.startsWith('420') && digits.length === 12) return `+${digits}`;
       if (digits.length >= 9) return `${prefix}${digits.slice(-9)}`;
-      return `${prefix}${def}`;
+      const fallbackSubscriber = country.toUpperCase() === 'FR' ? '612345678'
+        : country.toUpperCase() === 'CZ' ? '724567411'
+        : country.toUpperCase() === 'SK' ? '912345678'
+        : country.toUpperCase() === 'DE' ? '15123456789'
+        : def;
+      return `${prefix}${fallbackSubscriber}`;
     };
 
     const sanitizeName = (name: string, def = 'Jan Kowalski') => {

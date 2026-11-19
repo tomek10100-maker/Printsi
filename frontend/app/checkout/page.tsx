@@ -638,8 +638,10 @@ function CheckoutInner() {
               shippingCostEur: shippingEur || 0,
               grandTotalEur: grandTotalEur,
               shippingLabel: selectedShipping ? `${selectedShipping.carrier} ${selectedShipping.service}` : 'Shipping',
+              phone: formData.phone,
               shipping: hasShippable ? {
                 name: formData.fullName,
+                phone: formData.phone,
                 address: { line1: formData.address, city: formData.city, postal_code: formData.zip, country: formData.country }
               } : undefined,
               selectedPoint: cleanPoint
