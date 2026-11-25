@@ -497,8 +497,8 @@ export default function MyOrdersPage() {
         <ReviewModal
           isOpen={true}
           orderItemId={reviewModalItem.id}
-          offerTitle={reviewModalItem.offers?.title || 'Order'}
-          sellerId={reviewModalItem.seller_id}
+          productTitle={reviewModalItem.offers?.title || 'Order'}
+          sellerName={reviewModalItem.seller?.full_name || 'Seller'}
           onSuccess={() => {
             setReviewModalItem(null);
             fetchOrders();

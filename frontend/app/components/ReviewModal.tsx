@@ -16,7 +16,9 @@ interface ReviewModalProps {
   onClose: () => void;
   orderItemId: string;
   productTitle?: string;
+  offerTitle?: string;
   sellerName?: string;
+  sellerId?: string;
   existingReview?: any;
   onSuccess?: () => void;
 }
@@ -25,11 +27,14 @@ export default function ReviewModal({
   isOpen,
   onClose,
   orderItemId,
-  productTitle = 'Item',
+  productTitle,
+  offerTitle,
   sellerName = 'Seller',
+  sellerId,
   existingReview = null,
   onSuccess,
 }: ReviewModalProps) {
+  const displayTitle = productTitle || offerTitle || 'Item';
   const [rating, setRating] = useState<number>(existingReview?.rating || 5);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [comment, setComment] = useState<string>(existingReview?.comment || '');
@@ -166,7 +171,7 @@ export default function ReviewModal({
               {existingReview ? 'Edit Your Review' : 'Rate & Review Your Purchase'}
             </h3>
             <p className="text-xs text-gray-500 dark:text-slate-400 font-semibold truncate max-w-xs mt-0.5">
-              {productTitle} · {sellerName}
+              {displayTitle} · {sellerName}
             </p>
           </div>
           <button
