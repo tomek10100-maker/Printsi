@@ -11,10 +11,13 @@ export default function TermsPage() {
       content: (
         <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
           <p>
-            These Terms of Service govern the use of the Printis platform (printis.store). By registering, placing an order, or offering 3D printing services, you agree to be bound by these terms.
+            These Terms of Service govern the access and use of the Printis marketplace platform available at <strong>printis.store</strong>. By creating an account, browsing listings, placing an order, or offering 3D printing and design services, you agree to comply with and be bound by these terms.
           </p>
           <p>
-            Printis provides a global decentralized platform connecting customers requesting 3D prints with verified 3D print operators and designers.
+            The Printis platform is operated by <strong>Tomasz Szmal</strong>, based in Cracow, Poland, operating an unregistered business activity (<em>działalność nierejestrowana</em>) under Article 5 of the Polish Act on Entrepreneurs. For all inquiries, support requests, and contractual notices, contact: <a href="mailto:support@printis.store" className="text-blue-600 font-bold hover:underline">support@printis.store</a>.
+          </p>
+          <p>
+            Printis functions as a specialized intermediary platform providing technical infrastructure, automated slicing estimation, escrow-backed order processing, and communication tools connecting independent 3D makers and designers with prospective buyers. The platform is currently operating in an early pilot validation phase.
           </p>
         </div>
       )

@@ -760,7 +760,8 @@ export async function POST(req: Request) {
       packageId,
       trackingNumber,
       labelUrl,
-      isDraftOnly
+      isDraftOnly,
+      portalUrl: furgonetkaPortalUrl
     });
 
   } catch (error: any) {

@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
             content: (
                 <div className="space-y-4 text-gray-600 font-medium leading-relaxed">
                     <p>
-                        The controller of your personal data is Printis. For all matters related to the processing of personal data, you can contact us via email at: <strong>kontakt@printis.store</strong>.
+                        The controller of personal data is <strong>Tomasz Szmal</strong>, operating an unregistered business activity (<em>działalność nierejestrowana</em>) under Polish law, located in Cracow, Poland. For any matters, inquiries, or rights regarding your personal data protection and privacy under GDPR, you can reach our official support desk at: <a href="mailto:support@printis.store" className="text-blue-600 font-bold hover:underline">support@printis.store</a>.
                     </p>
                 </div>
             )

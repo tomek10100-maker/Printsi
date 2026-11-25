@@ -724,7 +724,7 @@ export default function AddOfferPage() {
         imageUrls.push(supabase.storage.from(BUCKET_NAME).getPublicUrl(p).data.publicUrl);
       }
       if (imageUrls.length === 0 && category === 'job')
-        imageUrls.push('https://via.placeholder.com/400x300?text=Print+Request');
+        imageUrls.push('/placeholder-print.svg');
 
       let dbPrice: number,
         dbMaterial: string | null = null,

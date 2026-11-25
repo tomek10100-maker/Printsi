@@ -1,0 +1,242 @@
+================================================================================
+                    PRINTIS.STORE — INSTRUKCJA WDROŻENIA LIVE (100% PRODUKCJA)
+================================================================================
+Autor: Antigravity Assistant dla Tomasza Szmala (Założyciel & Twórca Printis)
+Data aktualizacji: Listopad 2026
+Status: Gotowy do wdrożenia produkcyjnego
+
+Spis treści:
+1. Vercel — Zmienne środowiskowe do podmiany (Jakie konta i jakie wartości)
+2. Supabase — Token Furgonetki & Procedura czyszczenia bazy (SQL)
+3. Kod źródłowy — Jak usunąć czerwony baner BETA przed samym startem
+4. Wisienka na torcie — Integracje zewnętrzne i formalności (Stripe, Furgonetka, Resend, DNS)
+5. Dodatkowe wskazówki i ostateczny test (Sanity Check)
+
+--------------------------------------------------------------------------------
+1. VERCEL — ZMIENNE ŚRODOWISKOWE DO PODMIANY
+--------------------------------------------------------------------------------
+Gdzie zmienić: Vercel Dashboard -> Twój Projekt (Printis) -> Settings -> Environment Variables.
+Pamiętaj: Zmieniaj zmienne dla środowiska "Production" (i redeployuj aplikację po zapisaniu zmian).
+
+[A] INTEGRACJA KURIERSKA: FURGONETKA.PL (PRAWDZIWE KONTO BIZNESOWE)
+Konto: Prawdziwe, zarejestrowane konto na https://furgonetka.pl (NIE sandbox!)
+
+* FURGONETKA_FORCE_PRODUCTION
+  - Obecna wartość: (brak lub false)
+  - Nowa wartość LIVE: true
+  - UWAGA: Bez tej zmiennej ustawionej na "true", backend furgonetkaClient.ts ZAWSZE
+    będzie wymuszał sandbox. Ustawienie tego to warunek konieczny!
+
+* FURGONETKA_ENV
+  - Obecna wartość: sandbox
+  - Nowa wartość LIVE: production
+  - Przełącza endpointy API z api.sandbox.furgonetka.pl na api.furgonetka.pl.
+
+* FURGONETKA_CLIENT_ID
+  - Obecna wartość: printsi-5ad4... (testowe z sandboxa)
+  - Nowa wartość LIVE: Twój produkcyjny Client ID
+  - Skąd wziąć: Panel Furgonetka.pl -> Ustawienia konta -> Integracje -> API -> Dodaj aplikację.
+
+* FURGONETKA_CLIENT_SECRET
+  - Obecna wartość: 899069... (testowe z sandboxa)
+  - Nowa wartość LIVE: Twój produkcyjny Client Secret
+  - Skąd wziąć: Generowany razem z Client ID w panelu Furgonetka.pl.
+
+* FURGONETKA_WEBHOOK_SECRET
+  - Obecna wartość: printsi2026
+  - Nowa wartość LIVE: Długi, bezpieczny losowy ciąg (np. 32 znaki, wygenerowany hasłem)
+  - Skąd wziąć: Wymyśl bezpieczny token i wpisz go w Vercelu ORAZ w panelu Furgonetka.pl
+    w zakładce Webhooki jako Secret Token.
+
+* NEXT_PUBLIC_FURGONETKA_MAP_API_KEY
+  - Obecna wartość: Klucz testowy
+  - Nowa wartość LIVE: Produkcyjny klucz mapy paczkomatów
+  - Skąd wziąć: Panel Furgonetka.pl -> Integracje -> Widget Mapy Punktów Odbioru.
+
+* FURGONETKA_PICKUP_POINT
+  - Obecna wartość: WAW01M (testowy automat InPost w Warszawie)
+  - Nowa wartość LIVE: Kod Twojego domyślnego Paczkomatu InPost / Punktu (np. KRA01M)
+  - Znaczenie: Z tego punktu będą nadawane przesyłki twórców, którzy nie zdefiniowali
+    własnego preferowanego punktu nadawczego.
+
+
+[B] PŁATNOŚCI: STRIPE (PRAWDZIWE, AKTYWOWANE KONTO STRIPE)
+Konto: Prawdziwe konto firmowe na https://dashboard.stripe.com (z wyłączonym trybem "Test Mode")
+
+* STRIPE_SECRET_KEY
+  - Obecna wartość: sk_test_51...
+  - Nowa wartość LIVE: sk_live_... (zaczynający się od sk_live_)
+  - Skąd wziąć: Stripe Dashboard -> Developers -> API keys -> Secret key -> Reveal live key.
+
+* NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  - Obecna wartość: pk_test_51...
+  - Nowa wartość LIVE: pk_live_... (zaczynający się od pk_live_)
+  - Skąd wziąć: Stripe Dashboard -> Developers -> API keys -> Publishable key.
+
+* STRIPE_WEBHOOK_SECRET
+  - Obecna wartość: whsec_test...
+  - Nowa wartość LIVE: whsec_... (live)
+  - Skąd wziąć: Stripe Dashboard -> Developers -> Webhooks -> Add endpoint:
+    URL: https://printis.store/api/webhook
+    Events to listen:
+      - checkout.session.completed
+      - account.updated
+      - transfer.created
+      - charge.refunded
+    Po zapisaniu kliknij "Reveal signing secret" i skopiuj wartość zaczynającą się od whsec_.
+
+
+[C] MAILE TRANSAKCYJNE: RESEND (ZWERYFIKOWANA DOMENA PRINTIS.STORE)
+Konto: https://resend.com
+
+* RESEND_API_KEY
+  - Obecna wartość: re_...
+  - Nowa wartość LIVE: re_... (produkcyjny klucz API z uprawnieniami Full Access)
+  - Skąd wziąć: Resend Dashboard -> API Keys -> Create API Key.
+  - UWAGA: Domena printis.store w Resend Dashboard -> Domains musi mieć status "Verified".
+
+
+[D] ADRESY URL I BEZPIECZEŃSTWO SYSTEMOWE
+* NEXT_PUBLIC_APP_URL
+  - Wartość LIVE: https://printis.store (bez ukośnika na końcu!)
+
+* NEXT_PUBLIC_BASE_URL
+  - Wartość LIVE: https://printis.store (bez ukośnika na końcu!)
+
+* CRON_SECRET
+  - Obecna wartość: printis-cron-secret
+  - Nowa wartość LIVE: Wygeneruj losowy silny ciąg (np. 40 znaków)
+  - Znaczenie: Zabezpiecza codzienny cron /api/cron/shipping-deadlines, który sprawdza,
+    czy sprzedawcy wysłali paczki w terminie 4 dni roboczych.
+
+* ADMIN_SECRET_KEY
+  - Nowa wartość LIVE: Wygeneruj losowy silny ciąg
+  - Znaczenie: Zabezpiecza wewnętrzny endpoint admina /api/admin/transfer.
+
+
+--------------------------------------------------------------------------------
+2. SUPABASE — TOKEN FURGONETKI & CZYSZCZENIE BAZY PRZED STARTEM
+--------------------------------------------------------------------------------
+[KROK 1: Reset Tokena OAuth Furgonetki]
+W bazie w tabeli `furgonetka_tokens` obecnie zapisany jest stary token z api.sandbox.furgonetka.pl.
+Po zaktualizowaniu zmiennych środowiskowych na Vercelu:
+1. Wejdź w Supabase Dashboard -> SQL Editor i wykonaj:
+   TRUNCATE TABLE furgonetka_tokens;
+2. Następnie wejdź w przeglądarce pod adres:
+   https://printis.store/api/furgonetka/auth
+3. Zostaniesz przekierowany na prawdziwe logowanie Furgonetka.pl.
+4. Zaloguj się Twoim prawdziwym kontem Furgonetki i kliknij "Zezwól / Autoryzuj".
+5. Zostaniesz odesłany z powrotem na printis.store z komunikatem sukcesu.
+   Od tej chwili system ma w bazie świeży, odnawialny token produkcyjny!
+
+[KROK 2: Wyczyszczenie zamówień i czatów testowych]
+Gdy będziesz gotowy do startu, wklej poniższy skrypt w Supabase SQL Editor:
+
+------------------ POCZĄTEK SKRYPTU SQL ------------------
+-- 1. Usunięcie testowych zamówień i ich pozycji
+DELETE FROM order_items;
+DELETE FROM orders;
+
+-- 2. Usunięcie testowych czatów i wiadomości
+DELETE FROM messages;
+DELETE FROM chats;
+
+-- 3. Usunięcie testowych sporów, powiadomień, recenzji i wypłat
+DELETE FROM disputes;
+DELETE FROM notifications;
+DELETE FROM reviews;
+DELETE FROM payouts;
+
+-- 4. Wyzerowanie ewentualnych wirtualnych sald testowych użytkowników
+UPDATE profiles SET 
+  total_sales_value = 0,
+  pending_funds = 0,
+  account_balance = 0;
+
+-- 5. Usunięcie testowych ofert (np. ELLLLLLOOO)
+DELETE FROM offers WHERE title ILIKE '%ELLLLLLOOO%' OR title ILIKE '%test%';
+------------------ KONIEC SKRYPTU SQL --------------------
+
+
+--------------------------------------------------------------------------------
+3. KOD ŹRÓDŁOWY — USUNIĘCIE CZERWONEGO BANERU BETA
+--------------------------------------------------------------------------------
+Zgodnie z ustaleniami: czerwony pasek u góry strony zostawiliśmy na chwilę obecną,
+aby nikt przypadkowy nie złożył zamówienia, dopóki sprawdzasz platformę.
+
+Gdy będziesz gotowy do oficjalnego ogłoszenia startu:
+Plik: frontend/app/layout.tsx
+Znajdź linie 40-42:
+  <div className="bg-red-600 text-white text-center py-2 px-4 text-xs sm:text-sm font-black uppercase tracking-widest sticky top-0 z-[100] shadow-md">
+    🚧 We are currently in beta testing. Please do not make any real purchases! 🚧
+  </div>
+
+Akcja: Po prostu skasuj te 3 linijki, zrób git commit i push na main — baner zniknie!
+
+
+--------------------------------------------------------------------------------
+4. WISIENKA NA TORCIE — INTEGRACJE ZEWNĘTRZNE I FORMALNOŚCI
+--------------------------------------------------------------------------------
+
+[A] STRIPE (Płatności kartami, Blik, Przelewy24, Apple Pay / Google Pay):
+1. Aktywacja profilu biznesowego:
+   - Wypełnij dane działalności w Stripe Dashboard (imię, nazwisko, PESEL, adres w Krakowie, konto bankowe do wypłat w PLN/EUR).
+2. Stripe Connect (Wypłaty dla twórców marketplace):
+   - W zakładce "Connect" upewnij się, że Express Dashboard jest włączony.
+   - Sprzedawcy w Printis rejestrują się przez Stripe Express, co zdejmuje z Ciebie ciężar ręcznego przelewania pieniędzy.
+3. Webhook Produkcyjny:
+   - Endpoint: https://printis.store/api/webhook
+   - Zdarzenia: checkout.session.completed, account.updated, transfer.created, charge.refunded.
+   - Klucz podpisu (Signing secret) wpisany do STRIPE_WEBHOOK_SECRET na Vercelu.
+
+[B] FURGONETKA.PL (Logistyka i Etykiety Kurierskie):
+1. Zasilenie Konta (Saldo Prepaid) lub Podpięcie Karty:
+   - W Furgonetce etykiety są opłacane w locie przez API. Aby etykieta pobrała się automatycznie (PDF), na koncie Furgonetki musi być dodatnie saldo (np. 100 zł na start) lub podpięta karta płatnicza.
+   - Jeśli skończą się środki, system Printis automatycznie tworzy przesyłkę roboczą (DRAFT) i powiadamia sprzedawcę w czacie z linkiem do opłacenia w panelu Furgonetki — nic nie przepada!
+2. Akceptacja Regulaminów Przewoźników:
+   - Zaloguj się na Furgonetka.pl i zaakceptuj regulaminy przewoźników (przede wszystkim InPost Paczkomaty i Kurier, DPD, DHL).
+3. Webhook Furgonetki:
+   - URL: https://printis.store/api/furgonetka/callback
+   - Webhook Secret: Identyczny jak FURGONETKA_WEBHOOK_SECRET na Vercelu.
+   - Pozwala to automatycznie śledzić status paczki (W drodze -> Dostarczona -> Wypłata środków dla sprzedawcy).
+
+[C] RESEND & REKORDY DOMENY DNS (E-maile transakcyjne):
+1. Dodaj domenę `printis.store` w Resend -> Domains -> Add Domain.
+2. U rejestratora domeny (tam gdzie kupiłeś printis.store, np. Cloudflare / Cyberfolks / OVH) dodaj rekordy DNS wygenerowane przez Resend:
+   - TXT (SPF): `v=spf1 include:amazonses.com ~all`
+   - TXT (DKIM): `resend._domainkey.printis.store`
+   - TXT (DMARC): `_dmarc.printis.store` -> `v=DMARC1; p=none;`
+   - MX (Inbound/Mail routing)
+3. Po 5-15 minutach w Resend pojawi się zielony status "Verified".
+4. Dzięki temu powiadomienia o zamówieniach, potwierdzenia wysyłki i linki do pobrania plików cyfrowych będą docierać do odbiorców prosto do skrzynki głównej (a nie do SPAMU).
+
+[D] GOOGLE SEARCH CONSOLE & SEO:
+1. Wejdź na https://search.google.com/search-console.
+2. Dodaj usługę z prefiksem adresu: `https://printis.store`.
+3. Zweryfikuj domenę poprzez rekord TXT DNS.
+4. Zgłoś mapę witryny w zakładce "Mapy witryn": wpisz `https://printis.store/sitemap.xml`.
+5. Google natychmiast zacznie indeksować oferty twórców oraz podstrony kategorii.
+
+
+--------------------------------------------------------------------------------
+5. DODATKOWE WSKAZÓWKI I OSTATECZNY TEST (SANITY CHECK)
+--------------------------------------------------------------------------------
+Zanim zaczniesz promować stronę na grupach druku 3D, TikToku czy Instagramie:
+1. Test 1 EUR:
+   Wystaw ze swojego konta prywatnego przedmiot za 1 EUR (np. mały brelok lub plik cyfrowy STL).
+   Kup go z innego telefonu/konta używając prawdziwej karty lub Blika.
+   Sprawdź:
+   - Czy płatność przeszła pomyślnie.
+   - Czy przyszedł e-mail z potwierdzeniem na skrzynkę kupującego.
+   - Czy w czacie zamówienia pojawił się przycisk pobrania etykiety kurierskiej Furgonetki.
+   - Czy plik PDF z etykietą kurierską się otwiera i zawiera właściwe dane adresowe.
+2. Wsparcie Klienta:
+   Upewnij się, że masz skonfigurowane przekierowanie maili ze skrzynki `support@printis.store`
+   na swój prywatny e-mail na telefonie (np. Gmail), aby nie przegapić pytań od pierwszych użytkowników.
+3. Transparentność:
+   Podstrona /about oraz Regulamin i Polityka Prywatności zawierają już pełne, zgodne z prawem
+   informacje o działalności nierejestrowanej pod Twoim imieniem i nazwiskiem (Tomasz Szmal, Kraków),
+   co buduje zaufanie pierwszych kupujących i chroni Cię prawnie.
+
+Powodzenia mordeczko! Printis jest w pełni przygotowany do startu! 🚀
+================================================================================

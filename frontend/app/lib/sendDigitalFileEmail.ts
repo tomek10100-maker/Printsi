@@ -117,7 +117,7 @@ export async function sendDigitalFileEmail(opts: DigitalFileEmailOptions): Promi
                   </td>
                   <td align="right">
                     <p style="margin:0;color:#d1d5db;font-size:11px;">
-                      Questions? Visit <a href="https://printis.com" style="color:#6366f1;text-decoration:none;">printis.com</a>
+                      Questions? Contact <a href="mailto:support@printis.store" style="color:#6366f1;text-decoration:none;">support@printis.store</a> or visit <a href="https://printis.store" style="color:#6366f1;text-decoration:none;">printis.store</a>
                     </p>
                   </td>
                 </tr>

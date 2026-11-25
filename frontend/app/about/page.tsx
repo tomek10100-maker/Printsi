@@ -46,26 +46,31 @@ export default function AboutPage() {
           <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100 md:col-span-2 mt-2">
             <h2 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
               <span className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-sm">3</span>
-              Company Details (Demo Data)
+              About Printis &amp; Transparency
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm font-medium text-gray-600">
               <div>
-                <p className="font-black text-gray-900 uppercase tracking-widest mb-2 text-xs">Registered Address</p>
-                <p>Printis Global Ltd (Demo Entity)</p>
-                <p>100 Innovation Ave, Suite 404</p>
-                <p>00-000 Warsaw, Poland</p>
+                <p className="font-black text-gray-900 uppercase tracking-widest mb-2 text-xs">Founder &amp; Operator</p>
+                <p className="font-bold text-gray-900">Tomasz Szmal</p>
+                <p className="text-xs text-gray-500 mb-1">Founder &amp; Creator of Printis</p>
+                <p>Cracow, Poland</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Operated as an unregistered business activity (<em>działalność nierejestrowana</em>) under Polish Law (Art. 5 of the Entrepreneurs&apos; Law).
+                </p>
               </div>
               <div>
-                <p className="font-black text-gray-900 uppercase tracking-widest mb-2 text-xs">Legal Information</p>
-                <p><span className="text-gray-400 w-16 inline-block">NIP:</span> 1234567890 (Fake)</p>
-                <p><span className="text-gray-400 w-16 inline-block">REGON:</span> 000000000 (Fake)</p>
-                <p><span className="text-gray-400 w-16 inline-block">KRS:</span> 0000000000 (Fake)</p>
-                <p className="mt-2"><span className="text-gray-400 w-16 inline-block">Email:</span> hello@printis.demo</p>
+                <p className="font-black text-gray-900 uppercase tracking-widest mb-2 text-xs">Contact &amp; Customer Care</p>
+                <p><span className="text-gray-400 w-24 inline-block">Support:</span> <a href="mailto:support@printis.store" className="text-blue-600 font-bold hover:underline">support@printis.store</a></p>
+                <p><span className="text-gray-400 w-24 inline-block">Platform:</span> <a href="https://printis.store" className="text-gray-700 hover:underline">printis.store</a></p>
+                <p><span className="text-gray-400 w-24 inline-block">Location:</span> Cracow, Poland</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Response time: Usually within 24 hours for customer and maker assistance.
+                </p>
               </div>
             </div>
-            <div className="mt-6 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-              <p className="text-xs text-orange-600 font-bold uppercase tracking-widest text-center">
-                This is a demo platform. The company details above are purely fictional for demonstration purposes.
+            <div className="mt-6 p-4 bg-blue-50/60 rounded-2xl border border-blue-100">
+              <p className="text-xs text-blue-900 font-semibold leading-relaxed text-center">
+                🌱 <strong>Early Pilot &amp; Community Validation:</strong> Printis is currently in an early validation phase. We are actively testing marketplace adoption, gathering feedback from creators and buyers, and working hard every day to earn your lasting trust.
               </p>
             </div>
           </div>

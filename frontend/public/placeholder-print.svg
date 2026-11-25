@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" fill="none">
+  <rect width="800" height="600" fill="#0B1120"/>
+  <circle cx="400" cy="270" r="140" fill="url(#paint0_radial)" opacity="0.4"/>
+  <g stroke="#38BDF8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">
+    <!-- Isometric Cube Base -->
+    <path d="M400 170L510 230L400 290L290 230L400 170Z" fill="#1E293B" fill-opacity="0.6"/>
+    <path d="M290 230V350L400 410V290L290 230Z" fill="#0F172A" fill-opacity="0.8"/>
+    <path d="M510 230V350L400 410V290L510 230Z" fill="#1E293B" fill-opacity="0.9"/>
+    
+    <!-- 3D Print Nozzle / Laser Lines -->
+    <path d="M400 130V165" stroke="#60A5FA" stroke-width="4" stroke-dasharray="4 4"/>
+    <circle cx="400" cy="170" r="5" fill="#60A5FA"/>
+    <path d="M375 120H425L410 135H390L375 120Z" fill="#60A5FA"/>
+  </g>
+  <!-- Text Label -->
+  <text x="400" y="470" text-anchor="middle" fill="#F8FAFC" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="24" letter-spacing="2">PRINTIS 3D SPECIFICATION</text>
+  <text x="400" y="505" text-anchor="middle" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="16" letter-spacing="1">Custom Print Order • Preview Pending</text>
+  <defs>
+    <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(400 270) rotate(90) scale(160)">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>
